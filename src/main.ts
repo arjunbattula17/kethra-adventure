@@ -20,6 +20,15 @@ RepairUI.init();
 GalaxyMapUI.init();
 CharacterPanel.init();
 
+const params = new URLSearchParams(location.search);
+if (params.get('skipIntro')) gameState.setFlag('tutorial_battle_complete');
+if (params.get('unlockKethra')) {
+  gameState.setFlag('galaxy_revealed');
+  gameState.setFlag('logs_available');
+  gameState.setFlag('damage_assessed');
+  if (!gameState.data.planetsUnlocked.includes('kethra')) gameState.data.planetsUnlocked.push('kethra');
+}
+
 const flow = new GameFlow(engine);
 flow.start();
 

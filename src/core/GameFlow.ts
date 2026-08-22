@@ -5,6 +5,8 @@ import { BattlePuzzle } from '../ship/BattlePuzzle';
 import { UIManager } from '../ui/UIManager';
 import { gameState } from './GameState';
 import { InputManager } from './InputManager';
+import { bus } from './EventBus';
+import { KethraScene } from '../planets/kethra/KethraScene';
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -16,6 +18,27 @@ export class GameFlow {
 
   constructor(engine: Engine) {
     this.engine = engine;
+    bus.on('galaxy:travel_to', (planetId: string) => this.travelToPlanet(planetId));
+  }
+
+  private async travelToPlanet(planetId: string): Promise<void> {
+    if (planetId !== 'kethra') {
+      UIManager.toast('Scanner range insufficient for that destination.');
+      return;
+    }
+    await UIManager.fadeToBlack();
+    const kethra = new KethraScene();
+    kethra.onDepart = () => this.returnFromPlanet();
+    await this.engine.setScene(() => kethra);
+    await UIManager.fadeFromBlack();
+  }
+
+  private async returnFromPlanet(): Promise<void> {
+    await UIManager.fadeToBlack();
+    this.shipScene = new ShipInteriorScene();
+    await this.engine.setScene(() => this.shipScene!);
+    await UIManager.fadeFromBlack();
+    gameState.setObjective('Repair the ship, or chart a course to explore further.');
   }
 
   async start(): Promise<void> {

@@ -40,6 +40,7 @@ class PanelManagerImpl {
     this.onOpenChange(false);
     this.openCallback?.();
     this.openCallback = null;
+    this.content.innerHTML = '';
   }
 }
 

@@ -53,6 +53,7 @@ export class PlayerController {
   teleport(pos: THREE.Vector3, yaw = 0): void {
     this.rig.position.copy(pos);
     this.yaw = yaw;
+    this.pitch = 0;
     this.velocityY = 0;
   }
 

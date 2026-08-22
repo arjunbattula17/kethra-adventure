@@ -67,7 +67,7 @@ export class InteractionSystem {
         const objPos = new THREE.Vector3();
         it.object.getWorldPosition(objPos);
         const dist = camPos.distanceTo(objPos);
-        if (dist > Math.min(it.range, 1.6)) continue;
+        if (dist > it.range) continue;
         if (dist < bestDist) {
           bestDist = dist;
           best = it;

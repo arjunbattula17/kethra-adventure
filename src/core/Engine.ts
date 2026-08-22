@@ -61,6 +61,10 @@ export class Engine {
     this.paused = paused;
   }
 
+  getCurrentScene(): GameScene | null {
+    return this.current;
+  }
+
   start(): void {
     const loop = () => {
       this.rafId = requestAnimationFrame(loop);
