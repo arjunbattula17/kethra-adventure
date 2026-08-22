@@ -13,6 +13,84 @@ const ROOM_W = 9;
 const ROOM_D = 12;
 const ROOM_H = 4;
 
+function buildHazardStripeTexture(): THREE.CanvasTexture {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#14120a';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#d9a441';
+  const stripeW = size / 4;
+  for (let i = -1; i < 5; i++) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, size, size);
+    ctx.clip();
+    ctx.translate(i * stripeW * 2, 0);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillRect(-size, -size, stripeW, size * 4);
+    ctx.restore();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function buildConsoleScreenTexture(): THREE.CanvasTexture {
+  const w = 512;
+  const h = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#061a22';
+  ctx.fillRect(0, 0, w, h);
+
+  // Radar sweep circle, left side.
+  const cx = 64;
+  const cy = h / 2;
+  ctx.strokeStyle = 'rgba(120,220,235,0.55)';
+  ctx.lineWidth = 1.5;
+  for (const r of [16, 32, 48]) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(217,164,65,0.8)';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + 44, cy - 20);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(120,220,235,0.9)';
+  ctx.beginPath();
+  ctx.arc(cx + 18, cy + 10, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Data bars, right side.
+  ctx.fillStyle = 'rgba(120,220,235,0.7)';
+  for (let i = 0; i < 8; i++) {
+    const bh = 6 + ((i * 37) % 40);
+    ctx.fillRect(150 + i * 14, h - 14 - bh, 8, bh);
+  }
+  ctx.fillStyle = 'rgba(217,164,65,0.85)';
+  ctx.font = '12px monospace';
+  ctx.fillText('NAV // OFFLINE', 150, 22);
+  ctx.fillStyle = 'rgba(120,220,235,0.5)';
+  ctx.font = '9px monospace';
+  ctx.fillText('SCN 04.1', 150, 36);
+
+  // Scanline texture.
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export class ShipInteriorScene implements GameScene {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.05, 500);
@@ -35,6 +113,7 @@ export class ShipInteriorScene implements GameScene {
     this.scene.environmentIntensity = 0.6;
     this.buildRoom();
     this.buildStarfieldWindow();
+    this.buildAirlock();
     this.buildConsole();
     this.buildDetailProps();
     this.buildLighting();
@@ -127,9 +206,51 @@ export class ShipInteriorScene implements GameScene {
     this.scene.add(nebula);
   }
 
+  private buildAirlock(): void {
+    const hazardTex = buildHazardStripeTexture();
+    hazardTex.repeat.set(6, 1);
+    const hazardMat = new THREE.MeshStandardMaterial({ map: hazardTex, roughness: 0.6, metalness: 0.3 });
+
+    const kickstrip = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.4, 0.16, 0.05), hazardMat);
+    kickstrip.position.set(0, 0.1, ROOM_D / 2 - 0.08);
+    this.scene.add(kickstrip);
+
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x3a3f4c, roughness: 0.4, metalness: 0.75 });
+    const doorRing = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.14, 12, 24), doorMat);
+    doorRing.position.set(0, 2.0, ROOM_D / 2 - 0.09);
+    this.scene.add(doorRing);
+
+    const doorPanel = new THREE.Mesh(new THREE.CircleGeometry(1.16, 24), new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.5, metalness: 0.6 }));
+    doorPanel.position.set(0, 2.0, ROOM_D / 2 - 0.07);
+    this.scene.add(doorPanel);
+
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0xd9a441, emissive: 0xd9a441, emissiveIntensity: 0.3, roughness: 0.4, metalness: 0.6 });
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.05, 8, 16), wheelMat);
+    wheel.position.set(0, 2.0, ROOM_D / 2 - 0.02);
+    this.scene.add(wheel);
+    for (let i = 0; i < 4; i++) {
+      const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.04), wheelMat);
+      spoke.rotation.z = (Math.PI / 4) * i;
+      spoke.position.copy(wheel.position);
+      this.scene.add(spoke);
+    }
+
+    const doorLight = new THREE.PointLight(0xd9a441, 1.2, 4);
+    doorLight.position.set(0, 2.6, ROOM_D / 2 - 0.5);
+    this.scene.add(doorLight);
+  }
+
   private buildConsole(): void {
     const consoleMat = new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.4, metalness: 0.7 });
-    const screenMat = new THREE.MeshStandardMaterial({ color: 0x1a5c7a, emissive: 0x1a5c7a, emissiveIntensity: 1.4, roughness: 0.3 });
+    const screenTex = buildConsoleScreenTexture();
+    const screenMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveMap: screenTex,
+      emissiveIntensity: 0.7,
+      map: screenTex,
+      roughness: 0.3,
+    });
 
     const consoleBase = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 0.7), consoleMat);
     consoleBase.position.set(0, 0.55, -3.6);
