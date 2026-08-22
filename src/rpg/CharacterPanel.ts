@@ -14,6 +14,15 @@ const ATTRIBUTE_INFO: Record<AttributeKey, { label: string; description: string 
   perception: { label: 'Perception', description: 'Reveals hidden objects, clues, and environmental anomalies.' },
 };
 
+const ATTRIBUTE_ICON: Record<AttributeKey, string> = {
+  insight: `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="3" cy="4" r="1.6"/><circle cx="13" cy="4" r="1.6"/><circle cx="8" cy="12" r="1.6"/><path d="M4.3 5 7 10.8M11.7 5 9 10.8"/></svg>`,
+  archaeology: `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2.5 6 5 2.5h6L13.5 6 8 14 2.5 6Z"/><path d="M2.5 6h11"/></svg>`,
+  engineering: `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>`,
+  traversal: `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13 6 6l3 3.5L13 3"/></svg>`,
+  persuasion: `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2.5 3.5h11v7h-6L4 13v-2.5H2.5v-7Z"/></svg>`,
+  perception: `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="1.8"/></svg>`,
+};
+
 class CharacterPanelImpl {
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Tab') {
@@ -54,7 +63,7 @@ class CharacterPanelImpl {
       row.style.alignItems = 'flex-start';
       row.innerHTML = `
         <div style="flex:1;">
-          <div class="name">${info.label} <span style="color:var(--accent)">${value}</span></div>
+          <div class="name"><span class="hud-icon">${ATTRIBUTE_ICON[key]}</span>${info.label} <span style="color:var(--accent)">${value}</span></div>
           <div class="status" style="margin-top:2px;">${info.description}</div>
         </div>`;
       panel.appendChild(row);
@@ -73,7 +82,6 @@ class CharacterPanelImpl {
     loadBtn.className = 'text-btn';
     loadBtn.textContent = 'Load Last Save';
     loadBtn.disabled = !SaveSystem.hasSave();
-    loadBtn.style.opacity = loadBtn.disabled ? '0.4' : '1';
     loadBtn.onclick = () => {
       if (SaveSystem.load()) {
         UIManager.toast('Save loaded.');

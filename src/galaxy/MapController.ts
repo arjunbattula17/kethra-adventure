@@ -19,6 +19,9 @@ interface HitTarget {
   onClick: () => void;
 }
 
+const ICON_SOLAR = `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/><ellipse cx="8" cy="8" rx="7" ry="3"/></svg>`;
+const ICON_PLANET = `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5c2.2 2 2.2 8.6 0 11M8 2.5c-2.2 2-2.2 8.6 0 11"/></svg>`;
+
 const POI_COLOR: Record<PoiKind, string> = {
   npc: '#e0b25a',
   lore: '#8a9fd9',
@@ -74,8 +77,8 @@ class MapControllerImpl {
     header.className = 'map-header';
     header.innerHTML =
       this.view === 'solar'
-        ? `<div class="map-title">Navigation — Solar Chart</div><div class="map-subtitle">Select a destination</div>`
-        : `<div class="map-title">${PLANET_MAPS[this.currentPlanetId!].name}</div><div class="map-subtitle">${PLANET_MAPS[this.currentPlanetId!].tagline}</div>`;
+        ? `<div class="map-title-row"><span class="hud-icon">${ICON_SOLAR}</span><div class="map-title">Navigation — Solar Chart</div></div><div class="map-subtitle">Select a destination</div>`
+        : `<div class="map-title-row"><span class="hud-icon">${ICON_PLANET}</span><div class="map-title">${PLANET_MAPS[this.currentPlanetId!].name}</div></div><div class="map-subtitle">${PLANET_MAPS[this.currentPlanetId!].tagline}</div>`;
     wrap.appendChild(header);
 
     const hint = document.createElement('div');

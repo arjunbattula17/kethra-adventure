@@ -25,6 +25,8 @@ export interface DialogueTree {
   nodes: Record<string, DialogueNode>;
 }
 
+const LOCK_ICON = `<span class="hud-icon"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V4.8a2.5 2.5 0 0 1 5 0V7"/></svg></span>`;
+
 class DialogueSystemImpl {
   private tree: DialogueTree | null = null;
   private currentNodeId = '';
@@ -92,7 +94,7 @@ class DialogueSystemImpl {
       const locked = opt.requires && gameState.data.attributes[opt.requires.attribute] < opt.requires.min;
       if (locked) {
         btn.classList.add('locked');
-        btn.innerHTML = `<span class="tag">${opt.requires!.attribute} ${opt.requires!.min}+</span>${opt.lockedHint ?? opt.text}`;
+        btn.innerHTML = `<span class="tag">${LOCK_ICON}${opt.requires!.attribute} ${opt.requires!.min}+</span>${opt.lockedHint ?? opt.text}`;
       } else {
         if (opt.requires) {
           btn.innerHTML = `<span class="tag">${opt.requires.attribute}</span>${opt.text}`;

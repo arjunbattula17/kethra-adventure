@@ -43,19 +43,121 @@ function buildStarfield(count: number, spread: number, size: number): THREE.Poin
   return new THREE.Points(geo, mat);
 }
 
-function buildAsteroidField(count: number, innerRadius: number, outerRadius: number, sunZ: number): THREE.Points {
+function buildAsteroidField(count: number, innerRadius: number, outerRadius: number): THREE.Points {
+  // Positions are relative to the field's own origin; caller positions/rotates the returned object
+  // so the whole belt can drift as one piece instead of sitting frozen in place.
   const positions = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
     const radius = THREE.MathUtils.lerp(innerRadius, outerRadius, Math.random());
     positions[i * 3] = Math.cos(angle) * radius;
     positions[i * 3 + 1] = (Math.random() - 0.5) * 6;
-    positions[i * 3 + 2] = sunZ + Math.sin(angle) * radius;
+    positions[i * 3 + 2] = Math.sin(angle) * radius;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   const mat = new THREE.PointsMaterial({ color: 0x8a8378, size: 0.5, sizeAttenuation: true });
   return new THREE.Points(geo, mat);
+}
+
+function buildRingTexture(): THREE.Texture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const cx = size / 2;
+  const cy = size / 2;
+  const gradient = ctx.createRadialGradient(cx, cy, size * 0.3, cx, cy, size * 0.5);
+  gradient.addColorStop(0, 'rgba(150,225,255,0)');
+  gradient.addColorStop(0.5, 'rgba(170,235,255,0.85)');
+  gradient.addColorStop(0.64, 'rgba(170,235,255,0.85)');
+  gradient.addColorStop(1, 'rgba(170,235,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** A small pool of additive-blended embers that stream backward from the ship's engines,
+ * faded out by lerping vertex color toward black (invisible under additive blending) rather
+ * than a per-particle alpha, since PointsMaterial has no per-vertex opacity attribute. */
+class EngineTrail {
+  points: THREE.Points;
+  private readonly count: number;
+  private readonly life = 1.3;
+  private readonly positions: Float32Array;
+  private readonly colors: Float32Array;
+  private readonly velocities: Float32Array;
+  private readonly ages: Float32Array;
+  private cursor = 0;
+  private spawnAccumulator = 0;
+  private readonly baseColor = new THREE.Color(0xffb870);
+
+  constructor(count: number) {
+    this.count = count;
+    this.positions = new Float32Array(count * 3);
+    this.colors = new Float32Array(count * 3);
+    this.velocities = new Float32Array(count * 3);
+    this.ages = new Float32Array(count).fill(Infinity);
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
+    const mat = new THREE.PointsMaterial({
+      size: 0.22,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending,
+    });
+    this.points = new THREE.Points(geo, mat);
+  }
+
+  private spawnOne(origin: THREE.Vector3, dir: THREE.Vector3): void {
+    const i = this.cursor;
+    this.cursor = (this.cursor + 1) % this.count;
+    const jitter = 0.08;
+    this.positions[i * 3] = origin.x + (Math.random() - 0.5) * jitter;
+    this.positions[i * 3 + 1] = origin.y + (Math.random() - 0.5) * jitter;
+    this.positions[i * 3 + 2] = origin.z + (Math.random() - 0.5) * jitter;
+    const speed = 0.9 + Math.random() * 0.6;
+    this.velocities[i * 3] = dir.x * speed + (Math.random() - 0.5) * 0.15;
+    this.velocities[i * 3 + 1] = dir.y * speed + (Math.random() - 0.5) * 0.15;
+    this.velocities[i * 3 + 2] = dir.z * speed + (Math.random() - 0.5) * 0.15;
+    this.ages[i] = 0;
+    this.colors[i * 3] = this.baseColor.r;
+    this.colors[i * 3 + 1] = this.baseColor.g;
+    this.colors[i * 3 + 2] = this.baseColor.b;
+  }
+
+  spawnBurst(origins: THREE.Vector3[], dir: THREE.Vector3, dt: number): void {
+    this.spawnAccumulator += dt * origins.length * 26;
+    while (this.spawnAccumulator >= 1) {
+      this.spawnAccumulator -= 1;
+      const origin = origins[Math.floor(Math.random() * origins.length)];
+      this.spawnOne(origin, dir);
+    }
+  }
+
+  update(dt: number): void {
+    for (let i = 0; i < this.count; i++) {
+      if (this.ages[i] >= this.life) continue;
+      this.ages[i] += dt;
+      const t = Math.min(1, this.ages[i] / this.life);
+      this.positions[i * 3] += this.velocities[i * 3] * dt;
+      this.positions[i * 3 + 1] += this.velocities[i * 3 + 1] * dt;
+      this.positions[i * 3 + 2] += this.velocities[i * 3 + 2] * dt;
+      this.colors[i * 3] = this.baseColor.r * (1 - t);
+      this.colors[i * 3 + 1] = this.baseColor.g * (1 - t);
+      this.colors[i * 3 + 2] = this.baseColor.b * (1 - t);
+    }
+    (this.points.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    (this.points.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
+  }
 }
 
 function buildShipModel(): THREE.Group {
@@ -97,6 +199,13 @@ export class GalaxyRevealScene implements GameScene {
   private ship: THREE.Group;
   private sun!: THREE.Mesh;
   private planetMeshes: THREE.Mesh[] = [];
+  private coronaInner!: THREE.Sprite;
+  private coronaOuter!: THREE.Sprite;
+  private asteroidField!: THREE.Points;
+  private engineTrail: EngineTrail;
+  private readonly engineLocalPositions = [new THREE.Vector3(-2.3, 0, 1.6), new THREE.Vector3(-2.3, 0, -1.6)];
+  private pingSprite!: THREE.Sprite;
+  private pingElapsed = -1;
   private elapsedTotal = 0;
   private readyForContinue = false;
   onContinue: (() => void) | null = null;
@@ -110,6 +219,7 @@ export class GalaxyRevealScene implements GameScene {
   constructor() {
     this.sequencer = new CinematicSequencer(this.camera);
     this.ship = buildShipModel();
+    this.engineTrail = new EngineTrail(160);
   }
 
   async init(): Promise<void> {
@@ -121,6 +231,7 @@ export class GalaxyRevealScene implements GameScene {
     this.scene.add(buildStarfield(2400, 500, 1.1));
     this.scene.add(buildStarfield(1800, 900, 0.5));
     this.scene.add(this.ship);
+    this.scene.add(this.engineTrail.points);
 
     const ambient = new THREE.AmbientLight(0x445577, 0.18);
     this.scene.add(ambient);
@@ -136,7 +247,7 @@ export class GalaxyRevealScene implements GameScene {
     sunLight.position.copy(this.sun.position);
     this.scene.add(sunLight);
 
-    const coronaInner = new THREE.Sprite(
+    this.coronaInner = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: buildGlowTexture(),
         color: 0xffffff,
@@ -145,11 +256,11 @@ export class GalaxyRevealScene implements GameScene {
         blending: THREE.AdditiveBlending,
       }),
     );
-    coronaInner.scale.set(46, 46, 1);
-    coronaInner.position.copy(this.sun.position);
-    this.scene.add(coronaInner);
+    this.coronaInner.scale.set(46, 46, 1);
+    this.coronaInner.position.copy(this.sun.position);
+    this.scene.add(this.coronaInner);
 
-    const coronaOuter = new THREE.Sprite(
+    this.coronaOuter = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: buildGlowTexture(),
         color: 0xffb870,
@@ -159,11 +270,26 @@ export class GalaxyRevealScene implements GameScene {
         blending: THREE.AdditiveBlending,
       }),
     );
-    coronaOuter.scale.set(110, 110, 1);
-    coronaOuter.position.copy(this.sun.position);
-    this.scene.add(coronaOuter);
+    this.coronaOuter.scale.set(110, 110, 1);
+    this.coronaOuter.position.copy(this.sun.position);
+    this.scene.add(this.coronaOuter);
 
-    this.scene.add(buildAsteroidField(900, 26, 42, this.sun.position.z));
+    this.asteroidField = buildAsteroidField(900, 26, 42);
+    this.asteroidField.position.copy(this.sun.position);
+    this.scene.add(this.asteroidField);
+
+    this.pingSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: buildRingTexture(),
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    this.pingSprite.visible = false;
+    this.scene.add(this.pingSprite);
 
     for (const p of PLANETS) {
       const geo = new THREE.SphereGeometry(p.radius, 24, 24);
@@ -215,6 +341,13 @@ export class GalaxyRevealScene implements GameScene {
     );
     setTimeout(() => UIManager.showCaption('You are stranded, alone, in a galaxy no chart has ever mapped.', 4200), 1200);
     setTimeout(() => UIManager.showCaption('Somewhere out there is the truth — and a way home.', 4200), 8200);
+    setTimeout(() => this.triggerSensorPing(), 8200);
+  }
+
+  private triggerSensorPing(): void {
+    this.pingElapsed = 0;
+    this.pingSprite.position.copy(this.ship.position);
+    this.pingSprite.visible = true;
   }
 
   private triggerContinue(): void {
@@ -232,6 +365,41 @@ export class GalaxyRevealScene implements GameScene {
       mesh.rotation.y += dt * 0.05;
     }
     this.ship.rotation.y = Math.sin(this.elapsedTotal * 0.15) * 0.05;
+    this.ship.updateMatrixWorld();
+
+    // Sun corona shimmer — slow independent pulses so it doesn't read as a static painted circle.
+    const innerPulse = 1 + Math.sin(this.elapsedTotal * 0.6) * 0.05;
+    this.coronaInner.scale.set(46 * innerPulse, 46 * innerPulse, 1);
+    (this.coronaInner.material as THREE.SpriteMaterial).opacity = 0.88 + Math.sin(this.elapsedTotal * 0.6 + 1.4) * 0.12;
+    const outerPulse = 1 + Math.sin(this.elapsedTotal * 0.35 + 0.6) * 0.04;
+    this.coronaOuter.scale.set(110 * outerPulse, 110 * outerPulse, 1);
+    (this.coronaOuter.material as THREE.SpriteMaterial).opacity = 0.5 + Math.sin(this.elapsedTotal * 0.4 + 2) * 0.15;
+    (this.coronaOuter.material as THREE.SpriteMaterial).rotation += dt * 0.04;
+
+    // Asteroid belt drifts as one piece around the sun instead of sitting frozen.
+    this.asteroidField.rotation.y += dt * 0.02;
+
+    // Engine trail: embers streaming backward from the ship's thrusters.
+    const engineDir = new THREE.Vector3(-1, 0, 0).applyQuaternion(this.ship.quaternion).normalize();
+    const origins = this.engineLocalPositions.map((p) => this.ship.localToWorld(p.clone()));
+    this.engineTrail.spawnBurst(origins, engineDir, dt);
+    this.engineTrail.update(dt);
+
+    // Sensor ping sweep, timed with the second cinematic caption.
+    if (this.pingElapsed >= 0) {
+      this.pingElapsed += dt;
+      const pingDuration = 1.6;
+      const t = Math.min(1, this.pingElapsed / pingDuration);
+      // Scaled for how close the camera sits to the ship at this point in the cinematic —
+      // a world-space ring, not a screen-space one, so it has to match the ship's own scale.
+      const scale = THREE.MathUtils.lerp(1.5, 13, t);
+      this.pingSprite.scale.set(scale, scale, 1);
+      (this.pingSprite.material as THREE.SpriteMaterial).opacity = (1 - t) * 0.85;
+      if (t >= 1) {
+        this.pingElapsed = -1;
+        this.pingSprite.visible = false;
+      }
+    }
   }
 
   onResize(width: number, height: number): void {

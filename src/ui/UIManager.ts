@@ -10,6 +10,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, h
   return e;
 }
 
+const ICON_OBJECTIVE = `<svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3"/><circle cx="8" cy="8" r="0.6" fill="currentColor" stroke="none"/></svg>`;
+const ICON_LEVEL = `<svg viewBox="0 0 16 16" width="10" height="10" fill="currentColor" stroke="none"><path d="M8 1.5l1.8 3.7 4.1.6-3 2.9.7 4.1L8 11l-3.6 1.9.7-4.1-3-2.9 4.1-.6L8 1.5Z"/></svg>`;
+
 class UIManagerImpl {
   root = el('div');
   crosshair = el('div', 'crosshair');
@@ -21,7 +24,7 @@ class UIManagerImpl {
   letterboxTop = el('div', 'letterbox-bar top');
   letterboxBottom = el('div', 'letterbox-bar bottom');
   fadeEl = el('div', 'fade-black');
-  lookPrompt = el('div', 'look-prompt interactive');
+  lookPrompt = el('div', 'look-prompt');
 
   init(): void {
     this.root.id = 'ui-root';
@@ -34,7 +37,7 @@ class UIManagerImpl {
     this.fadeEl.classList.add('fade-black');
     this.lookPrompt.innerHTML = `<div class="look-prompt-inner"><div class="look-prompt-icon">◎</div><div>Click to look around</div></div>`;
 
-    this.objectiveTracker.innerHTML = `<div class="label">Objective</div><div id="objective-text"></div>`;
+    this.objectiveTracker.innerHTML = `<div class="label"><span class="hud-icon">${ICON_OBJECTIVE}</span>Objective</div><div id="objective-text"></div>`;
 
     document.body.appendChild(this.root);
     this.root.appendChild(this.crosshair);
@@ -80,7 +83,7 @@ class UIManagerImpl {
   }
 
   refreshStatusBar(): void {
-    this.statusBar.innerHTML = `<span class="badge">LV ${gameState.data.level}</span><span class="badge">TAB — Character</span>`;
+    this.statusBar.innerHTML = `<span class="badge"><span class="hud-icon" style="color:var(--accent)">${ICON_LEVEL}</span>LV ${gameState.data.level}</span><span class="badge">TAB — Character</span>`;
   }
 
   setObjective(text: string): void {

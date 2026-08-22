@@ -34,6 +34,26 @@ function makeTrunk(x: number, z: number, height: number, radius = 1.1): THREE.Me
   return mesh;
 }
 
+// Soft gradient plane texture used for distant ground-hugging haze layers: opaque near the
+// bottom, fading to transparent toward the top, so it reads as mist rather than a hard sheet.
+function buildHazeTexture(): THREE.Texture {
+  const w = 512;
+  const h = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  const gradient = ctx.createLinearGradient(0, h, 0, 0);
+  gradient.addColorStop(0, 'rgba(255,255,255,0.6)');
+  gradient.addColorStop(0.4, 'rgba(255,255,255,0.3)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 export class KethraScene implements GameScene {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 800);
@@ -63,7 +83,7 @@ export class KethraScene implements GameScene {
   async init(): Promise<void> {
     UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x0b1220);
-    this.scene.fog = new THREE.FogExp2(0x0b1220, 0.018);
+    this.scene.fog = new THREE.FogExp2(0x0b1220, 0.015);
     this.scene.environment = getSharedEnvironment();
     this.scene.environmentIntensity = 0.5;
 
@@ -208,10 +228,9 @@ export class KethraScene implements GameScene {
       [-20, 3.2, -8],
     ];
     fragmentSpots.forEach(([x, y, z], idx) => {
-      const pillar = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.3, 0.35, 1.4, 8),
-        new THREE.MeshStandardMaterial({ color: 0x2a2418, roughness: 0.8 }),
-      );
+      const pillarMat = new THREE.MeshStandardMaterial({ color: 0x2a2418, roughness: 0.8 });
+      applyPbr(pillarMat, 'lichen_rock', [1, 1]);
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 1.4, 8), pillarMat);
       pillar.position.set(x, y, z);
       this.scene.add(pillar);
 
@@ -243,10 +262,9 @@ export class KethraScene implements GameScene {
   }
 
   private buildShrineAndValve(): void {
-    const valve = new THREE.Mesh(
-      new THREE.TorusGeometry(0.35, 0.1, 8, 16),
-      new THREE.MeshStandardMaterial({ color: 0x6a5a3a, metalness: 0.7, roughness: 0.4 }),
-    );
+    const valveMat = new THREE.MeshStandardMaterial({ color: 0x6a5a3a, metalness: 0.7, roughness: 0.4 });
+    applyPbr(valveMat, 'metal_plate', [1, 1]);
+    const valve = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 8, 16), valveMat);
     valve.position.set(2.5, 0.9, 8);
     valve.rotation.x = Math.PI / 2;
     this.scene.add(valve);
@@ -265,10 +283,9 @@ export class KethraScene implements GameScene {
       },
     });
 
-    const shrine = new THREE.Mesh(
-      new THREE.ConeGeometry(0.7, 1.6, 6),
-      new THREE.MeshStandardMaterial({ color: 0x4a3a5a, emissive: 0x8a6ad9, emissiveIntensity: 0.5, roughness: 0.6 }),
-    );
+    const shrineMat = new THREE.MeshStandardMaterial({ color: 0x4a3a5a, emissive: 0x8a6ad9, emissiveIntensity: 0.5, roughness: 0.6 });
+    applyPbr(shrineMat, 'lichen_rock', [1, 1.5]);
+    const shrine = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.6, 6), shrineMat);
     shrine.position.set(-1.5, 0.8, 5);
     this.scene.add(shrine);
     const shrineEntry = KETHRA_LORE_ENTRIES.find((l) => l.id === 'kethra_ritual_record');
@@ -351,10 +368,9 @@ export class KethraScene implements GameScene {
     this.waterPool.position.set(0, 1.42, -18);
     this.scene.add(this.waterPool);
 
-    const console_ = new THREE.Mesh(
-      new THREE.BoxGeometry(1.6, 1, 0.8),
-      new THREE.MeshStandardMaterial({ color: 0x2a2438, roughness: 0.5, metalness: 0.3 }),
-    );
+    const consoleMat = new THREE.MeshStandardMaterial({ color: 0x2a2438, roughness: 0.5, metalness: 0.3 });
+    applyPbr(consoleMat, 'metal_plate_02', [1, 1]);
+    const console_ = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 0.8), consoleMat);
     console_.position.set(0, 1.9, -16);
     this.scene.add(console_);
 
@@ -371,10 +387,9 @@ export class KethraScene implements GameScene {
       },
     });
 
-    const carving = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 1.8, 0.3),
-      new THREE.MeshStandardMaterial({ color: 0x1c1810, roughness: 0.9 }),
-    );
+    const carvingMat = new THREE.MeshStandardMaterial({ color: 0x1c1810, roughness: 0.9 });
+    applyPbr(carvingMat, 'lichen_rock', [1, 1.5]);
+    const carving = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, 0.3), carvingMat);
     carving.position.set(-2.6, 2.3, -17.5);
     carving.rotation.y = 0.3;
     this.scene.add(carving);
@@ -395,10 +410,9 @@ export class KethraScene implements GameScene {
   }
 
   private buildReturnPad(): void {
-    const pad = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.6, 1.6, 0.15, 20),
-      new THREE.MeshStandardMaterial({ color: 0x555f6a, emissive: 0x2a7fd9, emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.4 }),
-    );
+    const padMat = new THREE.MeshStandardMaterial({ color: 0x555f6a, emissive: 0x2a7fd9, emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.4 });
+    applyPbr(padMat, 'metal_plate', [2, 2]);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.15, 20), padMat);
     pad.position.set(0, 0.1, 18);
     this.scene.add(pad);
     this.interaction.register({
@@ -410,7 +424,7 @@ export class KethraScene implements GameScene {
   }
 
   private buildAtmosphere(): void {
-    const count = 500;
+    const count = 700;
     const positions = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       positions[i * 3] = (Math.random() - 0.5) * 60;
@@ -423,17 +437,65 @@ export class KethraScene implements GameScene {
     const motes = new THREE.Points(geo, mat);
     motes.name = 'motes';
     this.scene.add(motes);
+
+    // Layered haze walls beyond the far terraces, for depth cueing on top of the exponential
+    // fog: near layer tinted toward the canopy's bioluminescent teal, far layer toward the
+    // background navy, so distance reads as a gradient rather than a flat fog cutoff.
+    const hazeTex = buildHazeTexture();
+    const hazeLayers: [number, number, number, number, number, number][] = [
+      // z, y, width, height, color, opacity
+      [-30, 8, 90, 22, 0x2a6a5a, 0.35],
+      [-46, 10, 130, 28, 0x16324a, 0.4],
+    ];
+    for (const [z, y, width, height, color, opacity] of hazeLayers) {
+      const hazeMat = new THREE.MeshBasicMaterial({
+        map: hazeTex,
+        color,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(width, height), hazeMat);
+      plane.position.set(0, y, z);
+      plane.renderOrder = 5;
+      this.scene.add(plane);
+    }
   }
 
   private buildLighting(): void {
-    const ambient = new THREE.AmbientLight(0x5f7288, 1.1);
+    const ambient = new THREE.AmbientLight(0x5f7288, 1.0);
     this.scene.add(ambient);
-    const moon = new THREE.DirectionalLight(0x99aadd, 1.3);
+
+    // Key light: cool moonlight, now shadow-casting so trunks/terraces read with real
+    // directional contrast instead of flat even lighting.
+    const moon = new THREE.DirectionalLight(0x99aadd, 1.4);
     moon.position.set(10, 20, 5);
+    moon.castShadow = true;
+    moon.shadow.mapSize.set(2048, 2048);
+    moon.shadow.camera.near = 1;
+    moon.shadow.camera.far = 70;
+    moon.shadow.camera.left = -30;
+    moon.shadow.camera.right = 30;
+    moon.shadow.camera.top = 30;
+    moon.shadow.camera.bottom = -30;
+    moon.shadow.bias = -0.0015;
     this.scene.add(moon);
+
+    // Rim light: warm, positioned behind the canopy relative to the player's usual approach,
+    // so trunk and canopy silhouettes pick up an edge highlight against the dark fog.
+    const rim = new THREE.DirectionalLight(0xd9a15f, 0.55);
+    rim.position.set(-14, 6, -22);
+    this.scene.add(rim);
+
+    // Fill lights: cool, keep shadowed faces from crushing to black and spread bioluminescent
+    // color across both the east and west terraces instead of just the center.
     const fillA = new THREE.PointLight(0x8ad9b8, 2, 20);
     fillA.position.set(0, 5, 4);
     this.scene.add(fillA);
+    const fillB = new THREE.PointLight(0x5f8ad9, 1.4, 22);
+    fillB.position.set(-16, 6, -4);
+    this.scene.add(fillB);
   }
 
   private colliders(): THREE.Box3[] {
@@ -459,27 +521,64 @@ export class KethraScene implements GameScene {
   }
 
   private buildClutter(): void {
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x4a4438, roughness: 0.9, metalness: 0.05 });
+    const rockMatSmall = new THREE.MeshStandardMaterial({ color: 0x4a4438, roughness: 0.9, metalness: 0.05 });
+    const rockMatLarge = new THREE.MeshStandardMaterial({ color: 0x5a5448, roughness: 0.88, metalness: 0.04 });
     const shrubMat = new THREE.MeshStandardMaterial({ color: 0x2f5a3f, roughness: 0.75, emissive: 0x1a3a28, emissiveIntensity: 0.25 });
-    // xMin, xMax, zMin, zMax, y (terrace top surface height)
-    const clutterZones: [number, number, number, number, number][] = [
-      [-6, 6, -5, 8, 0.3],
-      [12, 20, -6, 2, 0.9],
-      [-20, -12, -6, 2, 0.9],
+    const reedMat = new THREE.MeshStandardMaterial({ color: 0x3a6a4a, roughness: 0.7, emissive: 0x143020, emissiveIntensity: 0.2 });
+    // Bioluminescent ground-plants: small, strongly emissive, picked up by the global bloom pass.
+    const glowMatA = new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 1.6, roughness: 0.4 });
+    const glowMatB = new THREE.MeshStandardMaterial({ color: 0x4fd9c8, emissive: 0x4fd9c8, emissiveIntensity: 1.6, roughness: 0.4 });
+
+    // xMin, xMax, zMin, zMax, y (terrace top surface height), item count
+    const clutterZones: [number, number, number, number, number, number][] = [
+      [-6, 6, -5, 8, 0.3, 14],
+      [12, 20, -6, 2, 0.9, 12],
+      [-20, -12, -6, 2, 0.9, 12],
+      [-5, 5, 12, 20, 0.3, 10],
+      [-6, -3.6, -19, -9, 1.4, 6],
+      [3.6, 6, -19, -9, 1.4, 6],
+      [-21, -19, -9, -7, 2.7, 5],
     ];
-    for (const [xMin, xMax, zMin, zMax, y] of clutterZones) {
-      for (let i = 0; i < 7; i++) {
+
+    for (const [xMin, xMax, zMin, zMax, y, density] of clutterZones) {
+      for (let i = 0; i < density; i++) {
         const x = xMin + Math.random() * (xMax - xMin);
         const z = zMin + Math.random() * (zMax - zMin);
-        if (Math.random() > 0.5) {
-          const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(0.18 + Math.random() * 0.22, 0), rockMat);
-          rock.position.set(x, y + 0.15, z);
+        const roll = Math.random();
+        if (roll < 0.3) {
+          const big = Math.random() > 0.6;
+          const rock = new THREE.Mesh(
+            big
+              ? new THREE.DodecahedronGeometry(0.35 + Math.random() * 0.35, 0)
+              : new THREE.IcosahedronGeometry(0.18 + Math.random() * 0.22, 0),
+            big ? rockMatLarge : rockMatSmall,
+          );
+          rock.position.set(x, y + (big ? 0.3 : 0.15), z);
           rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
           this.scene.add(rock);
-        } else {
+        } else if (roll < 0.55) {
           const shrub = new THREE.Mesh(new THREE.ConeGeometry(0.22 + Math.random() * 0.15, 0.5 + Math.random() * 0.3, 6), shrubMat);
           shrub.position.set(x, y + 0.3, z);
           this.scene.add(shrub);
+        } else if (roll < 0.78) {
+          const cluster = new THREE.Group();
+          const bladeCount = 3 + Math.floor(Math.random() * 3);
+          for (let b = 0; b < bladeCount; b++) {
+            const bladeHeight = 0.4 + Math.random() * 0.4;
+            const blade = new THREE.Mesh(new THREE.ConeGeometry(0.04, bladeHeight, 4), reedMat);
+            blade.position.set((Math.random() - 0.5) * 0.3, bladeHeight / 2, (Math.random() - 0.5) * 0.3);
+            blade.rotation.z = (Math.random() - 0.5) * 0.3;
+            cluster.add(blade);
+          }
+          cluster.position.set(x, y, z);
+          this.scene.add(cluster);
+        } else {
+          const glow = new THREE.Mesh(
+            new THREE.IcosahedronGeometry(0.1 + Math.random() * 0.08, 0),
+            Math.random() > 0.5 ? glowMatA : glowMatB,
+          );
+          glow.position.set(x, y + 0.1, z);
+          this.scene.add(glow);
         }
       }
     }

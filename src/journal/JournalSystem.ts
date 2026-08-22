@@ -138,7 +138,7 @@ class JournalSystemImpl {
     for (const log of gameState.data.journalLogs) {
       if (!log.unlocked) continue;
       const entry = document.createElement('div');
-      entry.className = 'journal-entry' + (log.corrupted ? ' corrupted' : '');
+      entry.className = 'journal-entry' + (log.corrupted ? ' corrupted' : '') + (log.id === this.selectedLogId ? ' selected' : '');
       entry.innerHTML = `<div class="title">${log.title}</div><div class="meta">${log.timestamp}${log.corrupted ? ' · corrupted' : ''}</div>`;
       entry.onclick = () => {
         this.selectedLogId = log.id;

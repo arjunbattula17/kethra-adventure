@@ -4,6 +4,10 @@ import { bus } from '../core/EventBus';
 import { PanelManager } from '../ui/PanelManager';
 import { UIManager } from '../ui/UIManager';
 
+const ICON_DONE = `<span class="hud-icon"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"/></svg></span>`;
+const ICON_READY = `<span class="hud-icon"><svg viewBox="0 0 16 16" width="10" height="10"><circle cx="8" cy="8" r="4" fill="currentColor"/></svg></span>`;
+const ICON_PENDING = `<span class="hud-icon"><svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="4.5"/></svg></span>`;
+
 class RepairUIImpl {
   init(): void {
     bus.on('ui:open_repair', () => this.open());
@@ -37,13 +41,15 @@ class RepairUIImpl {
       name.className = 'name';
       name.textContent = sys.label;
 
+      const ready = gameState.canRepair(key);
       const status = document.createElement('div');
-      status.className = 'status' + (sys.repaired ? ' done' : '');
-      status.textContent = sys.repaired
+      status.className = 'status' + (sys.repaired ? ' done' : ready ? ' ready' : '');
+      const statusLabel = sys.repaired
         ? 'Operational'
         : sys.requiredResource
           ? `${sys.haveAmount}/${sys.requiredAmount} ${formatResource(sys.requiredResource)}`
           : 'Nominal';
+      status.innerHTML = `${sys.repaired ? ICON_DONE : ready ? ICON_READY : ICON_PENDING}<span>${statusLabel}</span>`;
 
       const barTrack = document.createElement('div');
       barTrack.className = 'bar-track';

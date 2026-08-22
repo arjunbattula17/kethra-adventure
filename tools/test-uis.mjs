@@ -32,7 +32,7 @@ async function testPanel(name, openEvent, expectSelector) {
 
 await testPanel('journal', 'ui:open_journal', '#journal-panel');
 await testPanel('repair', 'ui:open_repair', '#repair-panel');
-await testPanel('galaxymap', 'ui:open_galaxy_map', '#galaxy-map-panel');
+await testPanel('galaxymap', 'ui:open_galaxy_map', '.map-canvas');
 
 // Try repairing a system now that resources were granted.
 await page.evaluate(() => window.__DEBUG__.bus.emit('ui:open_repair'));

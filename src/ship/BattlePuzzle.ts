@@ -13,6 +13,18 @@ const NODES: { type: NodeType; label: string; icon: string; hint: string }[] = [
 
 const TOTAL_ROUNDS = 3;
 const TELEGRAPH_MS = 1100;
+const LOW_TIME_RATIO = 0.25;
+
+function ensureLowTimeStyle(): void {
+  if (document.getElementById('battle-puzzle-style')) return;
+  const style = document.createElement('style');
+  style.id = 'battle-puzzle-style';
+  style.textContent = `
+    @keyframes battle-puzzle-urgent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+    #threat-timer-fill.low-time { background: #ff4d4d; animation: battle-puzzle-urgent-pulse 0.5s ease-in-out infinite; }
+  `;
+  document.head.appendChild(style);
+}
 
 export class BattlePuzzle {
   private container: HTMLDivElement;
@@ -29,6 +41,7 @@ export class BattlePuzzle {
 
   constructor() {
     this.container = document.createElement('div');
+    ensureLowTimeStyle();
   }
 
   start(): void {
@@ -145,7 +158,11 @@ export class BattlePuzzle {
       return;
     }
     const fill = document.getElementById('threat-timer-fill');
-    if (fill) fill.style.width = `${Math.max(0, (this.timerSeconds / this.timerMax) * 100)}%`;
+    if (fill) {
+      const ratio = Math.max(0, this.timerSeconds / this.timerMax);
+      fill.style.width = `${ratio * 100}%`;
+      fill.classList.toggle('low-time', ratio < LOW_TIME_RATIO);
+    }
     this.rafHandle = requestAnimationFrame(() => this.tick());
   }
 
@@ -168,6 +185,7 @@ export class BattlePuzzle {
     bus.emit('player:shake', 0.35);
     AudioSystem.playError();
     UIManager.toast(message);
+    this.flashScreen('rgba(255,64,64,0.22)');
     this.phase = 'idle';
     setTimeout(() => this.beginRound(), 900);
   }
@@ -177,6 +195,7 @@ export class BattlePuzzle {
     this.phase = 'success';
     AudioSystem.playChime();
     UIManager.toast('System redirect successful.');
+    this.flashScreen('rgba(120,225,255,0.24)');
     gameState.addAttributeXp('engineering', 1);
     this.round++;
     if (this.round >= TOTAL_ROUNDS) {
@@ -184,6 +203,19 @@ export class BattlePuzzle {
     } else {
       setTimeout(() => this.beginRound(), 1400);
     }
+  }
+
+  /** Brief additive screen-space flash so a win/loss reads as a physical hit against the
+   * ship interior behind the panel, not just a toast message. Self-contained DOM overlay —
+   * doesn't reach into the 3D scene, so it needs no changes outside this file. */
+  private flashScreen(color: string, duration = 450): void {
+    const el = document.createElement('div');
+    el.style.cssText = `position:fixed; inset:0; background:${color}; pointer-events:none; z-index:500; opacity:1; transition:opacity ${duration}ms ease-out;`;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => {
+      el.style.opacity = '0';
+    });
+    setTimeout(() => el.remove(), duration + 60);
   }
 
   private finish(): void {
