@@ -1,5 +1,7 @@
 import { bus } from '../core/EventBus';
 import { gameState } from '../core/GameState';
+import { InputManager } from '../core/InputManager';
+import { PanelManager } from './PanelManager';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, html?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -19,6 +21,7 @@ class UIManagerImpl {
   letterboxTop = el('div', 'letterbox-bar top');
   letterboxBottom = el('div', 'letterbox-bar bottom');
   fadeEl = el('div', 'fade-black');
+  lookPrompt = el('div', 'look-prompt interactive');
 
   init(): void {
     this.root.id = 'ui-root';
@@ -29,6 +32,7 @@ class UIManagerImpl {
     this.toastStack.id = 'toast-stack';
     this.captionEl.id = 'cinematic-caption';
     this.fadeEl.classList.add('fade-black');
+    this.lookPrompt.innerHTML = `<div class="look-prompt-inner"><div class="look-prompt-icon">◎</div><div>Click to look around</div></div>`;
 
     this.objectiveTracker.innerHTML = `<div class="label">Objective</div><div id="objective-text"></div>`;
 
@@ -41,16 +45,38 @@ class UIManagerImpl {
     this.root.appendChild(this.captionEl);
     this.root.appendChild(this.letterboxTop);
     this.root.appendChild(this.letterboxBottom);
+    this.root.appendChild(this.lookPrompt);
     document.body.appendChild(this.fadeEl);
 
     this.toastStack.classList.add('interactive');
     this.toastStack.style.pointerEvents = 'none';
+
+    this.lookPrompt.addEventListener('click', () => InputManager.requestPointerLock());
+    document.addEventListener('pointerlockchange', () => this.refreshLookPrompt());
+    document.addEventListener('pointerlockerror', () => {
+      this.toast('Click the game to re-enable mouse look.');
+    });
+    PanelManager.onOpenChange = (open) => this.refreshLookPrompt(open);
 
     bus.on('objective:changed', (text: string) => this.setObjective(text));
     bus.on('level:up', () => this.refreshStatusBar());
     bus.on('attribute:changed', () => this.refreshStatusBar());
     this.setObjective(gameState.data.objective);
     this.refreshStatusBar();
+    this.refreshLookPrompt();
+  }
+
+  private lookPromptEnabled = true;
+
+  setLookPromptEnabled(enabled: boolean): void {
+    this.lookPromptEnabled = enabled;
+    this.refreshLookPrompt();
+  }
+
+  private refreshLookPrompt(panelOpenOverride?: boolean): void {
+    const panelOpen = panelOpenOverride ?? PanelManager.isOpen;
+    const locked = !!document.pointerLockElement;
+    this.lookPrompt.classList.toggle('visible', this.lookPromptEnabled && !locked && !panelOpen);
   }
 
   refreshStatusBar(): void {

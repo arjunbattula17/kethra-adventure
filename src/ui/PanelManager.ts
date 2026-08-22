@@ -41,6 +41,7 @@ class PanelManagerImpl {
     this.openCallback?.();
     this.openCallback = null;
     this.content.innerHTML = '';
+    InputManager.requestPointerLock();
   }
 }
 

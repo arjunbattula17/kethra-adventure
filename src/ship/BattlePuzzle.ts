@@ -34,6 +34,7 @@ export class BattlePuzzle {
   start(): void {
     this.active = true;
     this.round = 0;
+    UIManager.setLookPromptEnabled(false);
     UIManager.showCaption('INCOMING CONTACT — unknown vessel closing fast.', 3400);
     setTimeout(() => this.beginRound(), 2200);
   }

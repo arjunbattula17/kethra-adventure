@@ -7,6 +7,7 @@ import { gameState } from '../core/GameState';
 import { bus } from '../core/EventBus';
 import { getSharedEnvironment } from '../core/Environment';
 import { AudioSystem } from '../audio/AudioSystem';
+import { applyPbr } from '../core/TextureLibrary';
 
 const ROOM_W = 9;
 const ROOM_D = 12;
@@ -28,6 +29,7 @@ export class ShipInteriorScene implements GameScene {
   }
 
   async init(): Promise<void> {
+    UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x03040a);
     this.scene.environment = getSharedEnvironment();
     this.scene.environmentIntensity = 0.6;
@@ -51,8 +53,10 @@ export class ShipInteriorScene implements GameScene {
   }
 
   private buildRoom(): void {
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x2a2e38, roughness: 0.55, metalness: 0.25, side: THREE.DoubleSide });
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x363a46, roughness: 0.7, metalness: 0.15, side: THREE.DoubleSide });
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0xaeb4c0, roughness: 0.6, metalness: 0.6, side: THREE.DoubleSide });
+    applyPbr(floorMat, 'metal_plate_02', [ROOM_W / 1.6, ROOM_D / 1.6]);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x9aa0ae, roughness: 0.75, metalness: 0.4, side: THREE.DoubleSide });
+    applyPbr(wallMat, 'metal_plate', [ROOM_W / 2.2, ROOM_H / 2.2]);
     const trimMat = new THREE.MeshStandardMaterial({ color: 0x181b22, roughness: 0.4, metalness: 0.5, side: THREE.DoubleSide });
 
     const floor = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.2, ROOM_D), floorMat);

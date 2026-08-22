@@ -113,6 +113,7 @@ export class GalaxyRevealScene implements GameScene {
   }
 
   async init(): Promise<void> {
+    UIManager.setLookPromptEnabled(false);
     this.scene.background = new THREE.Color(0x02030a);
     this.scene.environment = getSharedEnvironment();
     this.scene.environmentIntensity = 0.12;

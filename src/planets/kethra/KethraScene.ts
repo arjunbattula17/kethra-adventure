@@ -11,25 +11,24 @@ import { WARDEN_DIALOGUE, ARCHIVIST_DIALOGUE } from './kethraDialogue';
 import { KETHRA_LORE_ENTRIES } from './kethraLore';
 import { KethraMechanismPuzzle } from './KethraMechanismPuzzle';
 import { AudioSystem } from '../../audio/AudioSystem';
+import { applyPbr } from '../../core/TextureLibrary';
 
 const DIM_CANOPY_COLOR = new THREE.Color(0x274a3a);
 const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
 
-function makeTerrace(width: number, depth: number, x: number, y: number, z: number, color = 0x5a4a3a): THREE.Mesh {
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(width, 0.6, depth),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05 }),
-  );
+function makeTerrace(width: number, depth: number, x: number, y: number, z: number, color = 0x9a9385): THREE.Mesh {
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.02 });
+  applyPbr(mat, 'lichen_rock', [width / 3, depth / 3]);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, 0.6, depth), mat);
   mesh.position.set(x, y, z);
   mesh.receiveShadow = true;
   return mesh;
 }
 
 function makeTrunk(x: number, z: number, height: number, radius = 1.1): THREE.Mesh {
-  const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius * 0.7, radius, height, 10),
-    new THREE.MeshStandardMaterial({ color: 0x3a2e22, roughness: 0.9 }),
-  );
+  const mat = new THREE.MeshStandardMaterial({ color: 0x9a8265, roughness: 0.95, metalness: 0 });
+  applyPbr(mat, 'bark_willow', [1.5, height / 3]);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.7, radius, height, 10), mat);
   mesh.position.set(x, height / 2, z);
   mesh.castShadow = true;
   return mesh;
@@ -62,6 +61,7 @@ export class KethraScene implements GameScene {
   }
 
   async init(): Promise<void> {
+    UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x0b1220);
     this.scene.fog = new THREE.FogExp2(0x0b1220, 0.018);
     this.scene.environment = getSharedEnvironment();
