@@ -5,22 +5,24 @@ import { PanelManager } from './ui/PanelManager';
 import { GameFlow } from './core/GameFlow';
 import { JournalSystem } from './journal/JournalSystem';
 import { RepairUI } from './ship/RepairUI';
-import { GalaxyMapUI } from './galaxy/GalaxyMapUI';
+import { MapController } from './galaxy/MapController';
 import { CharacterPanel } from './rpg/CharacterPanel';
 import { gameState } from './core/GameState';
 import { bus } from './core/EventBus';
 import { SaveSystem } from './core/SaveSystem';
 import { AudioSystem } from './audio/AudioSystem';
+import { setActiveEngine } from './core/EngineRegistry';
 
 const appEl = document.getElementById('app')!;
 const engine = new Engine(appEl);
+setActiveEngine(engine);
 
 UIManager.init();
 PanelManager.mount();
 AudioSystem.init();
 JournalSystem.init();
 RepairUI.init();
-GalaxyMapUI.init();
+MapController.init();
 CharacterPanel.init();
 
 const params = new URLSearchParams(location.search);
@@ -40,4 +42,4 @@ if (params.get('unlockKethra')) {
 const flow = new GameFlow(engine);
 flow.start();
 
-(window as any).__DEBUG__ = { engine, flow, gameState, bus };
+(window as any).__DEBUG__ = { engine, flow, gameState, bus, mapController: MapController };
