@@ -83,6 +83,23 @@ function buildRingTexture(): THREE.Texture {
 /** A small pool of additive-blended embers that stream backward from the ship's engines,
  * faded out by lerping vertex color toward black (invisible under additive blending) rather
  * than a per-particle alpha, since PointsMaterial has no per-vertex opacity attribute. */
+// Soft circular sprite for engine-trail particles. THREE.PointsMaterial renders hard-edged
+// squares without a map, which reads as blocky/artificial once particles overlap the ship hull.
+function buildParticleSprite(): THREE.Texture {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.4, 'rgba(255,255,255,0.6)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
+
 class EngineTrail {
   points: THREE.Points;
   private readonly count: number;
@@ -107,6 +124,7 @@ class EngineTrail {
     geo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
     const mat = new THREE.PointsMaterial({
       size: 0.4,
+      map: buildParticleSprite(),
       vertexColors: true,
       transparent: true,
       opacity: 1,
@@ -162,7 +180,8 @@ class EngineTrail {
 
 function buildShipModel(): THREE.Group {
   const group = new THREE.Group();
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0x8a919e, metalness: 0.7, roughness: 0.35 });
+  const hullMat = new THREE.MeshStandardMaterial({ color: 0x8a919e, metalness: 0.4, roughness: 0.5 });
+  const wingMat = new THREE.MeshStandardMaterial({ color: 0x4a4f5a, metalness: 0.45, roughness: 0.55 });
   const accentMat = new THREE.MeshStandardMaterial({ color: 0xd9a441, emissive: 0xd9a441, emissiveIntensity: 0.6, metalness: 0.2, roughness: 0.4 });
 
   const hull = new THREE.Mesh(new THREE.CapsuleGeometry(1.1, 3.4, 6, 10), hullMat);
@@ -170,10 +189,10 @@ function buildShipModel(): THREE.Group {
   group.add(hull);
 
   const wingGeo = new THREE.BoxGeometry(3.2, 0.15, 1.4);
-  const wingL = new THREE.Mesh(wingGeo, hullMat);
+  const wingL = new THREE.Mesh(wingGeo, wingMat);
   wingL.position.set(-0.3, 0, 1.6);
   group.add(wingL);
-  const wingR = new THREE.Mesh(wingGeo, hullMat);
+  const wingR = new THREE.Mesh(wingGeo, wingMat);
   wingR.position.set(-0.3, 0, -1.6);
   group.add(wingR);
 
@@ -233,7 +252,7 @@ export class GalaxyRevealScene implements GameScene {
     this.scene.add(this.ship);
     this.scene.add(this.engineTrail.points);
 
-    const ambient = new THREE.AmbientLight(0x445577, 0.18);
+    const ambient = new THREE.AmbientLight(0x445577, 0.3);
     this.scene.add(ambient);
 
     this.sun = new THREE.Mesh(
