@@ -106,10 +106,10 @@ class EngineTrail {
     geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
     const mat = new THREE.PointsMaterial({
-      size: 0.22,
+      size: 0.4,
       vertexColors: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 1,
       depthWrite: false,
       sizeAttenuation: true,
       blending: THREE.AdditiveBlending,
@@ -246,6 +246,15 @@ export class GalaxyRevealScene implements GameScene {
     const sunLight = new THREE.PointLight(0xffe3ab, 5.5, 500, 1.4);
     sunLight.position.copy(this.sun.position);
     this.scene.add(sunLight);
+
+    // Dedicated rim/key lights on the ship — it sits far from the sun at scene start, so without
+    // these it reads as a flat unlit silhouette against the starfield.
+    const shipKey = new THREE.PointLight(0xffe3ab, 3.5, 20);
+    shipKey.position.set(4, 3, 6);
+    this.scene.add(shipKey);
+    const shipRim = new THREE.PointLight(0x7ab8ff, 4, 18);
+    shipRim.position.set(-3, -1, -4);
+    this.scene.add(shipRim);
 
     this.coronaInner = new THREE.Sprite(
       new THREE.SpriteMaterial({

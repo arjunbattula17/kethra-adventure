@@ -70,7 +70,7 @@ function buildConsoleScreenTexture(): THREE.CanvasTexture {
   ctx.fill();
 
   // Data bars, right side.
-  ctx.fillStyle = 'rgba(120,220,235,0.7)';
+  ctx.fillStyle = 'rgba(120,220,235,0.4)';
   for (let i = 0; i < 8; i++) {
     const bh = 6 + ((i * 37) % 40);
     ctx.fillRect(150 + i * 14, h - 14 - bh, 8, bh);
@@ -244,10 +244,10 @@ export class ShipInteriorScene implements GameScene {
     const consoleMat = new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.4, metalness: 0.7 });
     const screenTex = buildConsoleScreenTexture();
     const screenMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
+      color: 0x0a1620,
       emissive: 0xffffff,
       emissiveMap: screenTex,
-      emissiveIntensity: 0.7,
+      emissiveIntensity: 0.45,
       map: screenTex,
       roughness: 0.3,
     });
@@ -362,10 +362,10 @@ export class ShipInteriorScene implements GameScene {
   }
 
   private buildLighting(): void {
-    const ambient = new THREE.AmbientLight(0xaec3e0, 1.0);
+    const ambient = new THREE.AmbientLight(0xaec3e0, 1.3);
     this.scene.add(ambient);
 
-    const fill = new THREE.DirectionalLight(0xcfe0ff, 1.6);
+    const fill = new THREE.DirectionalLight(0xcfe0ff, 1.8);
     fill.position.set(3, 5, 3);
     this.scene.add(fill);
 
@@ -376,6 +376,10 @@ export class ShipInteriorScene implements GameScene {
     const overheadB = new THREE.PointLight(0xdfe8ff, 3, 9, 1.6);
     overheadB.position.set(0, ROOM_H - 0.3, 3);
     this.scene.add(overheadB);
+
+    const overheadC = new THREE.PointLight(0xdfe8ff, 2.6, 8, 1.6);
+    overheadC.position.set(0, ROOM_H - 0.3, 5);
+    this.scene.add(overheadC);
 
     const emergencyLight = new THREE.PointLight(0xff5533, 1.5, 8);
     emergencyLight.position.set(-3, 3.5, -2);
