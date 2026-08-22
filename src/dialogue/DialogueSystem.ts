@@ -1,6 +1,7 @@
 import type { AttributeKey } from '../core/GameState';
 import { gameState } from '../core/GameState';
 import { PanelManager } from '../ui/PanelManager';
+import { AudioSystem } from '../audio/AudioSystem';
 
 export interface DialogueOption {
   text: string;
@@ -99,6 +100,7 @@ class DialogueSystemImpl {
           btn.textContent = opt.text;
         }
         btn.onclick = () => {
+          AudioSystem.playUiClick();
           opt.onChoose?.();
           this.goto(opt.next);
         };

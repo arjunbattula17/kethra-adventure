@@ -10,6 +10,7 @@ import { DialogueSystem } from '../../dialogue/DialogueSystem';
 import { WARDEN_DIALOGUE, ARCHIVIST_DIALOGUE } from './kethraDialogue';
 import { KETHRA_LORE_ENTRIES } from './kethraLore';
 import { KethraMechanismPuzzle } from './KethraMechanismPuzzle';
+import { AudioSystem } from '../../audio/AudioSystem';
 
 const DIM_CANOPY_COLOR = new THREE.Color(0x274a3a);
 const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
@@ -49,6 +50,7 @@ export class KethraScene implements GameScene {
   private mechanismLight!: THREE.PointLight;
   private puzzle = new KethraMechanismPuzzle();
   private unsub: Array<() => void> = [];
+  private stopAmbient: (() => void) | null = null;
 
   constructor() {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 2, 18));
@@ -84,6 +86,8 @@ export class KethraScene implements GameScene {
     this.player.setFloorTargets(this.floorMeshes);
     this.player.setColliders(this.colliders());
     this.player.teleport(new THREE.Vector3(0, 2, 18), 0);
+    this.player.onFootstep = () => AudioSystem.playFootstep('organic');
+    this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
 
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
     this.unsub.push(bus.on('player:shake', (amount: number) => this.player.addShake(amount)));
@@ -465,6 +469,7 @@ export class KethraScene implements GameScene {
 
   dispose(): void {
     for (const u of this.unsub) u();
+    this.stopAmbient?.();
     this.interaction.clear();
     this.scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;

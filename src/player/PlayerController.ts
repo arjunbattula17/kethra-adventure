@@ -34,6 +34,8 @@ export class PlayerController {
   private moveState = { speed: 0 };
   headBobTime = 0;
   cameraShakeTrauma = 0;
+  onFootstep: (() => void) | null = null;
+  private lastBobHalfCycle = 0;
 
   constructor(camera: THREE.PerspectiveCamera, startPos = new THREE.Vector3(0, 1.7, 0)) {
     this.camera = camera;
@@ -161,6 +163,11 @@ export class PlayerController {
 
     if (moving && this.onGround) {
       this.headBobTime += dt * targetSpeed * 3.2;
+      const halfCycle = Math.floor(this.headBobTime / Math.PI);
+      if (halfCycle !== this.lastBobHalfCycle) {
+        this.lastBobHalfCycle = halfCycle;
+        this.onFootstep?.();
+      }
     }
     const bobY = moving && this.onGround ? Math.sin(this.headBobTime) * 0.035 : 0;
     const bobX = moving && this.onGround ? Math.cos(this.headBobTime * 0.5) * 0.02 : 0;

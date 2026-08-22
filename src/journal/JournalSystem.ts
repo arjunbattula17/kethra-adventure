@@ -2,6 +2,17 @@ import { gameState } from '../core/GameState';
 import type { JournalLogEntry } from '../core/GameState';
 import { bus } from '../core/EventBus';
 import { PanelManager } from '../ui/PanelManager';
+import { UIManager } from '../ui/UIManager';
+import { AudioSystem } from '../audio/AudioSystem';
+
+function pairKey(a: string, b: string): string {
+  return [a, b].sort().join('|');
+}
+
+const CONNECTION_INSIGHTS: Record<string, string> = {
+  [pairKey('kethra_clue_kindling_vanishing', 'kethra_clue_ship_echo')]:
+    'The Kindling vanished the same way your own ship was thrown off course — every light called home in a single breath, everywhere, at once. This has happened before.',
+};
 
 const STARTER_LOGS: JournalLogEntry[] = [
   {
@@ -48,6 +59,26 @@ class JournalSystemImpl {
       gameState.data.journalLogs = STARTER_LOGS.map((l) => ({ ...l }));
     }
     bus.on('ui:open_journal', () => this.open());
+    bus.on('evidence:pair_selected', (pair: { a: string; b: string }) => this.tryConnect(pair.a, pair.b));
+  }
+
+  private tryConnect(a: string, b: string): void {
+    const key = pairKey(a, b);
+    const already = gameState.data.clueConnections.some((c) => pairKey(c.a, c.b) === key);
+    if (already) {
+      UIManager.toast('You have already connected these clues.');
+      return;
+    }
+    const insight = CONNECTION_INSIGHTS[key];
+    if (insight) {
+      gameState.connectClues(a, b, insight);
+      gameState.addAttributeXp('insight', 1);
+      AudioSystem.playChime();
+      UIManager.toast('New connection recorded on the evidence board.');
+    } else {
+      UIManager.toast('No clear connection between these — yet.');
+    }
+    this.render();
   }
 
   open(view: 'logs' | 'evidence' = 'logs'): void {

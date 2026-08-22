@@ -3,6 +3,7 @@ import { gameState } from '../core/GameState';
 import { bus } from '../core/EventBus';
 import { PanelManager } from '../ui/PanelManager';
 import { UIManager } from '../ui/UIManager';
+import { SaveSystem } from '../core/SaveSystem';
 
 const ATTRIBUTE_INFO: Record<AttributeKey, { label: string; description: string }> = {
   insight: { label: 'Insight', description: 'Connects disparate clues into new conclusions on the evidence board.' },
@@ -58,6 +59,30 @@ class CharacterPanelImpl {
         </div>`;
       panel.appendChild(row);
     }
+
+    const saveRow = document.createElement('div');
+    saveRow.style.cssText = 'display:flex; gap:10px; margin-top:18px;';
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'text-btn';
+    saveBtn.textContent = 'Save Progress';
+    saveBtn.onclick = () => {
+      SaveSystem.save();
+      UIManager.toast('Progress saved.');
+    };
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'text-btn';
+    loadBtn.textContent = 'Load Last Save';
+    loadBtn.disabled = !SaveSystem.hasSave();
+    loadBtn.style.opacity = loadBtn.disabled ? '0.4' : '1';
+    loadBtn.onclick = () => {
+      if (SaveSystem.load()) {
+        UIManager.toast('Save loaded.');
+        this.render();
+      }
+    };
+    saveRow.appendChild(saveBtn);
+    saveRow.appendChild(loadBtn);
+    panel.appendChild(saveRow);
 
     const hint = document.createElement('div');
     hint.className = 'close-hint';

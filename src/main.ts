@@ -9,18 +9,26 @@ import { GalaxyMapUI } from './galaxy/GalaxyMapUI';
 import { CharacterPanel } from './rpg/CharacterPanel';
 import { gameState } from './core/GameState';
 import { bus } from './core/EventBus';
+import { SaveSystem } from './core/SaveSystem';
+import { AudioSystem } from './audio/AudioSystem';
 
 const appEl = document.getElementById('app')!;
 const engine = new Engine(appEl);
 
 UIManager.init();
 PanelManager.mount();
+AudioSystem.init();
 JournalSystem.init();
 RepairUI.init();
 GalaxyMapUI.init();
 CharacterPanel.init();
 
 const params = new URLSearchParams(location.search);
+if (params.get('newGame')) SaveSystem.clear();
+else if (SaveSystem.hasSave()) {
+  SaveSystem.load();
+  UIManager.toast('Continuing your saved journey.');
+}
 if (params.get('skipIntro')) gameState.setFlag('tutorial_battle_complete');
 if (params.get('unlockKethra')) {
   gameState.setFlag('galaxy_revealed');

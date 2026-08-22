@@ -6,6 +6,7 @@ import { UIManager } from '../ui/UIManager';
 import { gameState } from '../core/GameState';
 import { bus } from '../core/EventBus';
 import { getSharedEnvironment } from '../core/Environment';
+import { AudioSystem } from '../audio/AudioSystem';
 
 const ROOM_W = 9;
 const ROOM_D = 12;
@@ -20,6 +21,7 @@ export class ShipInteriorScene implements GameScene {
   private consoleGlow: THREE.PointLight[] = [];
   private starfield: THREE.Points | null = null;
   private unsubShake: (() => void) | null = null;
+  private stopAmbient: (() => void) | null = null;
 
   constructor() {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 1.7, 4));
@@ -38,6 +40,8 @@ export class ShipInteriorScene implements GameScene {
     this.player.setFloorTargets(this.floorMeshes);
     this.player.setColliders(this.roomColliders());
     this.player.teleport(new THREE.Vector3(0, 1.7, 4), 0);
+    this.player.onFootstep = () => AudioSystem.playFootstep('metal');
+    this.stopAmbient = AudioSystem.startAmbient(64, 0.035);
 
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
     this.unsubShake = bus.on('player:shake', (amount: number) => this.player.addShake(amount));
@@ -237,6 +241,7 @@ export class ShipInteriorScene implements GameScene {
 
   dispose(): void {
     this.unsubShake?.();
+    this.stopAmbient?.();
     this.interaction.clear();
     this.scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;

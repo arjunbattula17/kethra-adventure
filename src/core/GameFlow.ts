@@ -7,6 +7,7 @@ import { gameState } from './GameState';
 import { InputManager } from './InputManager';
 import { bus } from './EventBus';
 import { KethraScene } from '../planets/kethra/KethraScene';
+import { SaveSystem } from './SaveSystem';
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -19,6 +20,9 @@ export class GameFlow {
   constructor(engine: Engine) {
     this.engine = engine;
     bus.on('galaxy:travel_to', (planetId: string) => this.travelToPlanet(planetId));
+    for (const event of ['ship:repaired', 'level:up', 'log:unlocked', 'clue:added']) {
+      bus.on(event, () => SaveSystem.save());
+    }
   }
 
   private async travelToPlanet(planetId: string): Promise<void> {
@@ -39,6 +43,7 @@ export class GameFlow {
     await this.engine.setScene(() => this.shipScene!);
     await UIManager.fadeFromBlack();
     gameState.setObjective('Repair the ship, or chart a course to explore further.');
+    SaveSystem.save();
   }
 
   async start(): Promise<void> {
@@ -105,5 +110,6 @@ export class GameFlow {
   private finishReturnToShip(): void {
     gameState.setObjective('Review the travel logs, repair the ship, and chart a course to Kethra.');
     UIManager.toast('New systems online: Travel Logs, Ship Repair, Galaxy Map.');
+    SaveSystem.save();
   }
 }

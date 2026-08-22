@@ -1,6 +1,7 @@
 import { bus } from '../core/EventBus';
 import { UIManager } from '../ui/UIManager';
 import { gameState } from '../core/GameState';
+import { AudioSystem } from '../audio/AudioSystem';
 
 type NodeType = 'shields' | 'scanner' | 'evade';
 
@@ -164,6 +165,7 @@ export class BattlePuzzle {
   private onMistake(message: string): void {
     cancelAnimationFrame(this.rafHandle);
     bus.emit('player:shake', 0.35);
+    AudioSystem.playError();
     UIManager.toast(message);
     this.phase = 'idle';
     setTimeout(() => this.beginRound(), 900);
@@ -172,6 +174,7 @@ export class BattlePuzzle {
   private onRoundSuccess(): void {
     cancelAnimationFrame(this.rafHandle);
     this.phase = 'success';
+    AudioSystem.playChime();
     UIManager.toast('System redirect successful.');
     gameState.addAttributeXp('engineering', 1);
     this.round++;

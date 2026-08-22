@@ -2,6 +2,7 @@ import { gameState } from '../../core/GameState';
 import { UIManager } from '../../ui/UIManager';
 import { PanelManager } from '../../ui/PanelManager';
 import { KETHRA_TRUE_SEQUENCE } from './kethraLore';
+import { AudioSystem } from '../../audio/AudioSystem';
 
 const COLOR_INFO: Record<string, { label: string; hex: string }> = {
   azure: { label: 'Azure', hex: '#4f8fd9' },
@@ -81,6 +82,7 @@ export class KethraMechanismPuzzle {
         this.render();
       }
     } else {
+      AudioSystem.playError();
       UIManager.toast('The crystal flickers and dims — that resonance is wrong.');
       this.inputIndex = 0;
       this.render();
@@ -92,6 +94,7 @@ export class KethraMechanismPuzzle {
     gameState.setFlag('kethra_mechanism_solved');
     gameState.addResource('resonant_crystal', 3);
     gameState.addAttributeXp('archaeology', 2);
+    AudioSystem.playChime();
     UIManager.toast('The Cistern Heart wakes. Water and light flow through the terraces once more.');
     this.onSolved();
   }
