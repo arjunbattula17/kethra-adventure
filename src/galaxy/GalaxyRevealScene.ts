@@ -22,16 +22,39 @@ function buildGlowTexture(): THREE.Texture {
   return texture;
 }
 
-function buildStarfield(count: number, spread: number): THREE.Points {
+function buildStarfield(count: number, spread: number, size: number): THREE.Points {
   const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const tint = new THREE.Color();
   for (let i = 0; i < count; i++) {
     positions[i * 3] = (Math.random() - 0.5) * spread;
     positions[i * 3 + 1] = (Math.random() - 0.5) * spread;
     positions[i * 3 + 2] = (Math.random() - 0.5) * spread;
+    const warmth = Math.random();
+    tint.setHSL(warmth > 0.8 ? 0.08 : warmth < 0.15 ? 0.6 : 0.12, 0.25, 0.75 + Math.random() * 0.25);
+    colors[i * 3] = tint.r;
+    colors[i * 3 + 1] = tint.g;
+    colors[i * 3 + 2] = tint.b;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.9, sizeAttenuation: true });
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const mat = new THREE.PointsMaterial({ vertexColors: true, size, sizeAttenuation: true });
+  return new THREE.Points(geo, mat);
+}
+
+function buildAsteroidField(count: number, innerRadius: number, outerRadius: number, sunZ: number): THREE.Points {
+  const positions = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = THREE.MathUtils.lerp(innerRadius, outerRadius, Math.random());
+    positions[i * 3] = Math.cos(angle) * radius;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 6;
+    positions[i * 3 + 2] = sunZ + Math.sin(angle) * radius;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({ color: 0x8a8378, size: 0.5, sizeAttenuation: true });
   return new THREE.Points(geo, mat);
 }
 
@@ -92,12 +115,13 @@ export class GalaxyRevealScene implements GameScene {
   async init(): Promise<void> {
     this.scene.background = new THREE.Color(0x02030a);
     this.scene.environment = getSharedEnvironment();
-    this.scene.environmentIntensity = 0.4;
+    this.scene.environmentIntensity = 0.12;
 
-    this.scene.add(buildStarfield(3000, 500));
+    this.scene.add(buildStarfield(2400, 500, 1.1));
+    this.scene.add(buildStarfield(1800, 900, 0.5));
     this.scene.add(this.ship);
 
-    const ambient = new THREE.AmbientLight(0x445577, 0.5);
+    const ambient = new THREE.AmbientLight(0x445577, 0.18);
     this.scene.add(ambient);
 
     this.sun = new THREE.Mesh(
@@ -107,11 +131,11 @@ export class GalaxyRevealScene implements GameScene {
     this.sun.position.set(0, 0, -140);
     this.scene.add(this.sun);
 
-    const sunLight = new THREE.PointLight(0xffe3ab, 4, 400, 1.2);
+    const sunLight = new THREE.PointLight(0xffe3ab, 5.5, 500, 1.4);
     sunLight.position.copy(this.sun.position);
     this.scene.add(sunLight);
 
-    const sunGlow = new THREE.Sprite(
+    const coronaInner = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: buildGlowTexture(),
         color: 0xffffff,
@@ -120,13 +144,29 @@ export class GalaxyRevealScene implements GameScene {
         blending: THREE.AdditiveBlending,
       }),
     );
-    sunGlow.scale.set(60, 60, 1);
-    sunGlow.position.copy(this.sun.position);
-    this.scene.add(sunGlow);
+    coronaInner.scale.set(46, 46, 1);
+    coronaInner.position.copy(this.sun.position);
+    this.scene.add(coronaInner);
+
+    const coronaOuter = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: buildGlowTexture(),
+        color: 0xffb870,
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    coronaOuter.scale.set(110, 110, 1);
+    coronaOuter.position.copy(this.sun.position);
+    this.scene.add(coronaOuter);
+
+    this.scene.add(buildAsteroidField(900, 26, 42, this.sun.position.z));
 
     for (const p of PLANETS) {
       const geo = new THREE.SphereGeometry(p.radius, 24, 24);
-      const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.75, metalness: 0.1, emissive: p.color, emissiveIntensity: 0.05 });
+      const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.7, metalness: 0.15 });
       const mesh = new THREE.Mesh(geo, mat);
       const angle = p.orbitAngle;
       mesh.position.set(
@@ -164,8 +204,8 @@ export class GalaxyRevealScene implements GameScene {
     this.sequencer.play(
       [
         { position: new THREE.Vector3(4, 1.2, 10), lookAt: this.ship.position.clone(), duration: 3.2, hold: 0.4 },
-        { position: new THREE.Vector3(20, 12, 40), lookAt: new THREE.Vector3(0, 0, sunPos.z * 0.4), duration: 4.5, hold: 0.8, fov: 55 },
-        { position: new THREE.Vector3(0, 60, 160), lookAt: new THREE.Vector3(0, 0, sunPos.z * 0.6), duration: 5.5, hold: 2, fov: 60 },
+        { position: new THREE.Vector3(24, 14, 42), lookAt: new THREE.Vector3(-6, 2, sunPos.z * 0.4), duration: 4.5, hold: 0.8, fov: 55 },
+        { position: new THREE.Vector3(38, 48, 158), lookAt: new THREE.Vector3(12, -8, sunPos.z * 0.58), duration: 5.5, hold: 2, fov: 58 },
       ],
       () => {
         this.readyForContinue = true;

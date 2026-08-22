@@ -59,14 +59,12 @@ export class GameFlow {
   }
 
   private async runOpening(): Promise<void> {
-    await wait(2200);
+    await wait(1400);
     UIManager.showLetterbox(true);
-    UIManager.showCaption('Life support: online.', 2000);
-    await wait(2000);
-    UIManager.showCaption('Navigation: offline. Hyperdrive: offline.', 2200);
-    await wait(2200);
-    UIManager.showCaption('Unidentified contact detected on long-range scan.', 2400);
-    await wait(2000);
+    UIManager.showCaption('Life support online. Navigation and hyperdrive: dark.', 2400);
+    await wait(2400);
+    UIManager.showCaption('Unidentified contact detected on long-range scan.', 2200);
+    await wait(1900);
     UIManager.showLetterbox(false);
     UIManager.clearCaption();
     this.startBattle();
@@ -107,9 +105,13 @@ export class GameFlow {
     this.finishReturnToShip();
   }
 
-  private finishReturnToShip(): void {
+  private async finishReturnToShip(): Promise<void> {
     gameState.setObjective('Review the travel logs, repair the ship, and chart a course to Kethra.');
-    UIManager.toast('New systems online: Travel Logs, Ship Repair, Galaxy Map.');
+    UIManager.toast('Travel Logs restored.');
+    await wait(1300);
+    UIManager.toast('Ship Repair interface online.');
+    await wait(1300);
+    UIManager.toast('Galaxy Map calibrated — Kethra is in range.');
     SaveSystem.save();
   }
 }

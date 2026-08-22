@@ -1,7 +1,7 @@
 import { gameState } from '../../core/GameState';
 import { UIManager } from '../../ui/UIManager';
 import { PanelManager } from '../../ui/PanelManager';
-import { KETHRA_TRUE_SEQUENCE } from './kethraLore';
+import { KETHRA_TRUE_SEQUENCE, KETHRA_RITUAL_SEQUENCE } from './kethraLore';
 import { AudioSystem } from '../../audio/AudioSystem';
 
 const COLOR_INFO: Record<string, { label: string; hex: string }> = {
@@ -48,6 +48,15 @@ export class KethraMechanismPuzzle {
     sub.textContent = 'Set the resonance crystals to the sequence recorded in the old inscriptions.';
     panel.appendChild(sub);
 
+    if (this.inputIndex === 0 && gameState.data.attributes.perception >= 3) {
+      const firstColor = COLOR_INFO[KETHRA_TRUE_SEQUENCE[0]]?.label ?? KETHRA_TRUE_SEQUENCE[0];
+      const perceptionHint = document.createElement('div');
+      perceptionHint.className = 'subtitle';
+      perceptionHint.style.color = 'var(--accent)';
+      perceptionHint.textContent = `Your trained eye catches it first: the sequence begins with ${firstColor}.`;
+      panel.appendChild(perceptionHint);
+    }
+
     const indicator = document.createElement('div');
     indicator.id = 'threat-indicator';
     indicator.textContent = `Sequence: ${this.inputIndex}/${KETHRA_TRUE_SEQUENCE.length} set`;
@@ -83,7 +92,19 @@ export class KethraMechanismPuzzle {
       }
     } else {
       AudioSystem.playError();
-      UIManager.toast('The crystal flickers and dims — that resonance is wrong.');
+      const held = this.inputIndex;
+      const isRitualMatch = color === KETHRA_RITUAL_SEQUENCE[this.inputIndex];
+      if (isRitualMatch) {
+        UIManager.toast(
+          held > 0
+            ? `${held} resonance${held === 1 ? '' : 's'} held — but this is the Rite as the Aiveth still perform it, and it has never once worked.`
+            : 'That matches the Rite the Aiveth still perform — and it has never once worked.',
+        );
+      } else if (held > 0) {
+        UIManager.toast(`${held} resonance${held === 1 ? '' : 's'} held before this one broke the pattern.`);
+      } else {
+        UIManager.toast('The crystal flickers and dims — that resonance is wrong.');
+      }
       this.inputIndex = 0;
       this.render();
     }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { InputManager } from './InputManager';
 import { initSharedEnvironment } from './Environment';
+import { PostProcessing } from './PostProcessing';
 
 export interface GameScene {
   scene: THREE.Scene;
@@ -17,6 +18,7 @@ export class Engine {
   private current: GameScene | null = null;
   private rafId = 0;
   private paused = false;
+  private postFx: PostProcessing;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -32,6 +34,8 @@ export class Engine {
     initSharedEnvironment(this.renderer);
     InputManager.init(this.renderer.domElement);
 
+    this.postFx = new PostProcessing(this.renderer, new THREE.Scene(), new THREE.PerspectiveCamera());
+
     window.addEventListener('resize', () => this.handleResize());
   }
 
@@ -43,6 +47,7 @@ export class Engine {
     const scene = await factory();
     await scene.init();
     this.current = scene;
+    this.postFx.setActive(scene.scene, scene.camera);
     this.handleResize();
   }
 
@@ -50,6 +55,7 @@ export class Engine {
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.renderer.setSize(w, h);
+    this.postFx.setSize(w, h);
     if (this.current) {
       this.current.camera.aspect = w / h;
       this.current.camera.updateProjectionMatrix();
@@ -72,7 +78,7 @@ export class Engine {
       const elapsed = this.clock.getElapsedTime();
       if (!this.paused && this.current) {
         this.current.update(dt, elapsed);
-        this.renderer.render(this.current.scene, this.current.camera);
+        this.postFx.render();
       }
       InputManager.endFrame();
     };

@@ -58,3 +58,7 @@ export const KETHRA_LORE_ENTRIES: JournalLogEntry[] = [
 ];
 
 export const KETHRA_TRUE_SEQUENCE: string[] = ['azure', 'amber', 'verdant'];
+
+// The Aiveth's current Rite of Three Breaths, per kethra_ritual_record: blue, then green,
+// then gold. Plausible, still performed, and wrong — it swaps the true sequence's last two.
+export const KETHRA_RITUAL_SEQUENCE: string[] = ['azure', 'verdant', 'amber'];

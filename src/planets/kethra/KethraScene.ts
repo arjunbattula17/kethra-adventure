@@ -48,6 +48,7 @@ export class KethraScene implements GameScene {
   private creatureTime = 0;
   private mechanismCore!: THREE.Mesh;
   private mechanismLight!: THREE.PointLight;
+  private waterPool!: THREE.Mesh;
   private puzzle = new KethraMechanismPuzzle();
   private unsub: Array<() => void> = [];
   private stopAmbient: (() => void) | null = null;
@@ -79,6 +80,7 @@ export class KethraScene implements GameScene {
     this.buildCreatureArea();
     this.buildMechanismChamber();
     this.buildReturnPad();
+    this.buildClutter();
     this.buildAtmosphere();
     this.buildLighting();
 
@@ -333,6 +335,22 @@ export class KethraScene implements GameScene {
     this.mechanismLight.position.copy(this.mechanismCore.position);
     this.scene.add(this.mechanismLight);
 
+    this.waterPool = new THREE.Mesh(
+      new THREE.RingGeometry(1.6, 3.4, 32),
+      new THREE.MeshStandardMaterial({
+        color: 0x3f7fb0,
+        emissive: 0x2a5f8a,
+        emissiveIntensity: 0.3,
+        roughness: 0.15,
+        metalness: 0.6,
+        transparent: true,
+        opacity: 0.12,
+      }),
+    );
+    this.waterPool.rotation.x = -Math.PI / 2;
+    this.waterPool.position.set(0, 1.42, -18);
+    this.scene.add(this.waterPool);
+
     const console_ = new THREE.Mesh(
       new THREE.BoxGeometry(1.6, 1, 0.8),
       new THREE.MeshStandardMaterial({ color: 0x2a2438, roughness: 0.5, metalness: 0.3 }),
@@ -434,6 +452,36 @@ export class KethraScene implements GameScene {
       mat.color.copy(target);
       mat.emissive.copy(target);
       mat.emissiveIntensity = bright ? 1.8 : 0.8;
+    }
+    const waterMat = this.waterPool.material as THREE.MeshStandardMaterial;
+    waterMat.opacity = bright ? 0.55 : 0.12;
+    waterMat.emissiveIntensity = bright ? 0.9 : 0.3;
+  }
+
+  private buildClutter(): void {
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x4a4438, roughness: 0.9, metalness: 0.05 });
+    const shrubMat = new THREE.MeshStandardMaterial({ color: 0x2f5a3f, roughness: 0.75, emissive: 0x1a3a28, emissiveIntensity: 0.25 });
+    // xMin, xMax, zMin, zMax, y (terrace top surface height)
+    const clutterZones: [number, number, number, number, number][] = [
+      [-6, 6, -5, 8, 0.3],
+      [12, 20, -6, 2, 0.9],
+      [-20, -12, -6, 2, 0.9],
+    ];
+    for (const [xMin, xMax, zMin, zMax, y] of clutterZones) {
+      for (let i = 0; i < 7; i++) {
+        const x = xMin + Math.random() * (xMax - xMin);
+        const z = zMin + Math.random() * (zMax - zMin);
+        if (Math.random() > 0.5) {
+          const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(0.18 + Math.random() * 0.22, 0), rockMat);
+          rock.position.set(x, y + 0.15, z);
+          rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+          this.scene.add(rock);
+        } else {
+          const shrub = new THREE.Mesh(new THREE.ConeGeometry(0.22 + Math.random() * 0.15, 0.5 + Math.random() * 0.3, 6), shrubMat);
+          shrub.position.set(x, y + 0.3, z);
+          this.scene.add(shrub);
+        }
+      }
     }
   }
 

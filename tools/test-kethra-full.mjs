@@ -12,7 +12,7 @@ await page.goto(url, { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 10000 });
 await page.waitForTimeout(500);
 await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'kethra'));
-await page.waitForTimeout(2500);
+await page.waitForTimeout(3200);
 
 async function teleport(x, y, z) {
   const ok = await page.evaluate(({ x, y, z }) => {
@@ -43,7 +43,21 @@ async function flags() {
 
 // 1. Talk to the Archivist (open, friendly NPC at ~3,0.6,4)
 console.log('teleport ok:', await teleport(3, 2, 5.5));
+const diag = await page.evaluate(() => {
+  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const camPos = new scene.player.camera.position.constructor();
+  scene.camera.getWorldPosition(camPos);
+  return {
+    interactableCount: scene.interaction['interactables']?.length,
+    camWorldPos: camPos.toArray(),
+    rigPos: scene.player.rig.position.toArray(),
+    enabled: scene.player.enabled,
+  };
+});
+console.log('pre-press diagnostic:', JSON.stringify(diag));
 await pressE();
+const promptText = await page.evaluate(() => document.getElementById('interact-prompt')?.textContent);
+console.log('prompt text at press time:', promptText);
 const archivistSpeaker = await page.$eval('#dialogue-speaker', (el) => el.textContent).catch(() => null);
 console.log('Archivist dialogue speaker:', archivistSpeaker);
 const archivistText = await page.$eval('#dialogue-text', (el) => el.textContent).catch(() => null);

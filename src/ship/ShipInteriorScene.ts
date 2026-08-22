@@ -34,6 +34,7 @@ export class ShipInteriorScene implements GameScene {
     this.buildRoom();
     this.buildStarfieldWindow();
     this.buildConsole();
+    this.buildDetailProps();
     this.buildLighting();
     this.scene.add(this.player.rig);
 
@@ -189,6 +190,50 @@ export class ShipInteriorScene implements GameScene {
       enabled: () => gameState.hasFlag('damage_assessed'),
       onInteract: () => bus.emit('ui:open_repair'),
     });
+  }
+
+  private buildDetailProps(): void {
+    const buttonColors = [0xd94f4f, 0xd9a441, 0x4fd98a, 0x4f8fd9];
+    const buttonMat = (color: number) =>
+      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.2 });
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 5; col++) {
+        const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 10), buttonMat(buttonColors[(row * 5 + col) % buttonColors.length]));
+        btn.rotation.x = Math.PI / 2 - 0.35;
+        btn.position.set(-0.9 + col * 0.42, 0.82 + row * 0.14, -3.42 - row * 0.08);
+        this.scene.add(btn);
+      }
+    }
+
+    const cableMat = new THREE.MeshStandardMaterial({ color: 0x14161c, roughness: 0.6, metalness: 0.4 });
+    for (let i = 0; i < 4; i++) {
+      const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), cableMat);
+      cable.position.set(-ROOM_W / 2 + 0.25, 2.6, -3 + i * 1.3);
+      cable.rotation.z = 0.08 * (i % 2 === 0 ? 1 : -1);
+      this.scene.add(cable);
+    }
+
+    const panelMat = new THREE.MeshStandardMaterial({ color: 0x2c313c, roughness: 0.45, metalness: 0.5 });
+    const sidePanel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.6, 2.4), panelMat);
+    sidePanel.position.set(-ROOM_W / 2 + 0.16, 1.4, -1);
+    this.scene.add(sidePanel);
+    for (let i = 0; i < 6; i++) {
+      const dotColor = i % 3 === 0 ? 0xd94f4f : 0x4fd98a;
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.03, 8, 8),
+        new THREE.MeshStandardMaterial({ color: dotColor, emissive: dotColor, emissiveIntensity: 1.6 }),
+      );
+      dot.position.set(-ROOM_W / 2 + 0.21, 0.8 + i * 0.28, -1.9 + (i % 2) * 0.4);
+      this.scene.add(dot);
+    }
+
+    const pipeMat = new THREE.MeshStandardMaterial({ color: 0x1c1f26, roughness: 0.5, metalness: 0.6 });
+    for (const x of [-2.5, 2.5]) {
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, ROOM_D - 1, 8), pipeMat);
+      pipe.rotation.x = Math.PI / 2;
+      pipe.position.set(x, ROOM_H - 0.15, 0);
+      this.scene.add(pipe);
+    }
   }
 
   private buildLighting(): void {
