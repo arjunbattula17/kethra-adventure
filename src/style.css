@@ -441,15 +441,18 @@ html, body {
 }
 
 button.text-btn {
-  background: none;
-  border: none;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 4px;
+  padding: 7px 14px;
   color: var(--accent);
   cursor: pointer;
   font-size: 12px;
-  text-decoration: underline;
+  letter-spacing: 0.02em;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-button.text-btn:hover:not(:disabled) { color: #ecc06a; }
-button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; text-decoration: none; opacity: 0.6; }
+button.text-btn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent-dim); color: #ecc06a; }
+button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; background: rgba(255,255,255,0.015); border-color: var(--surface-border); opacity: 0.6; }
 
 /* Keyboard focus states */
 .dialogue-option:focus-visible,
