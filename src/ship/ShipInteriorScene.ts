@@ -262,8 +262,8 @@ export class ShipInteriorScene implements GameScene {
     screen.rotation.x = -0.35;
     this.scene.add(screen);
 
-    const consoleLight = new THREE.PointLight(0x2f9fd6, 2.2, 4);
-    consoleLight.position.set(0, 1.2, -3.4);
+    const consoleLight = new THREE.PointLight(0x2f9fd6, 1.1, 4);
+    consoleLight.position.set(0, 1.2, -2.9);
     this.scene.add(consoleLight);
     this.consoleGlow.push(consoleLight);
 
@@ -369,16 +369,16 @@ export class ShipInteriorScene implements GameScene {
     fill.position.set(3, 5, 3);
     this.scene.add(fill);
 
-    const overheadA = new THREE.PointLight(0xdfe8ff, 3.5, 9, 1.6);
-    overheadA.position.set(0, ROOM_H - 0.3, -2);
+    const overheadA = new THREE.PointLight(0xdfe8ff, 0.8, 9, 1.6);
+    overheadA.position.set(0, ROOM_H - 0.7, -2);
     this.scene.add(overheadA);
 
-    const overheadB = new THREE.PointLight(0xdfe8ff, 3, 9, 1.6);
-    overheadB.position.set(0, ROOM_H - 0.3, 3);
+    const overheadB = new THREE.PointLight(0xdfe8ff, 1.2, 9, 1.6);
+    overheadB.position.set(0, ROOM_H - 0.7, 3);
     this.scene.add(overheadB);
 
-    const overheadC = new THREE.PointLight(0xdfe8ff, 2.6, 8, 1.6);
-    overheadC.position.set(0, ROOM_H - 0.3, 5);
+    const overheadC = new THREE.PointLight(0xdfe8ff, 1.0, 8, 1.6);
+    overheadC.position.set(0, ROOM_H - 0.7, 5);
     this.scene.add(overheadC);
 
     const emergencyLight = new THREE.PointLight(0xff5533, 1.5, 8);

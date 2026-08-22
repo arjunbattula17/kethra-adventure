@@ -54,6 +54,54 @@ function buildHazeTexture(): THREE.Texture {
   return texture;
 }
 
+// Carved-glyph texture for inscription runes: a dark stone card with thin glowing symbol
+// lines, so a close-up reads as an inscription rather than a flat emissive card blowing to
+// solid white under bloom. `seed` varies the glyph layout per fragment.
+function buildRuneTexture(seed: number): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#241f14';
+  ctx.fillRect(0, 0, size, size);
+
+  let s = seed * 9301 + 49297;
+  const rand = () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+
+  ctx.strokeStyle = '#f2d9a0';
+  ctx.lineCap = 'round';
+  const margin = 40;
+  const lines = 5 + Math.floor(rand() * 3);
+  for (let i = 0; i < lines; i++) {
+    ctx.lineWidth = 3 + rand() * 4;
+    ctx.beginPath();
+    const segs = 2 + Math.floor(rand() * 3);
+    let x = margin + rand() * (size - margin * 2);
+    let y = margin + rand() * (size - margin * 2);
+    ctx.moveTo(x, y);
+    for (let seg = 0; seg < segs; seg++) {
+      x = margin + rand() * (size - margin * 2);
+      y = margin + rand() * (size - margin * 2);
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(margin + rand() * (size - margin * 2), margin + rand() * (size - margin * 2), 4 + rand() * 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#f2d9a0';
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 export class KethraScene implements GameScene {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 800);
@@ -76,7 +124,7 @@ export class KethraScene implements GameScene {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 2, 18));
     this.creature = new THREE.Mesh(
       new THREE.IcosahedronGeometry(0.7, 1),
-      new THREE.MeshStandardMaterial({ color: 0x88e0c8, emissive: 0x3fd9a8, emissiveIntensity: 1.6, roughness: 0.3 }),
+      new THREE.MeshStandardMaterial({ color: 0x88e0c8, emissive: 0x3fd9a8, emissiveIntensity: 1.0, roughness: 0.3 }),
     );
   }
 
@@ -191,7 +239,7 @@ export class KethraScene implements GameScene {
     group.add(body);
     const marker = new THREE.Mesh(
       new THREE.SphereGeometry(0.16, 12, 12),
-      new THREE.MeshStandardMaterial({ color: glowColor, emissive: glowColor, emissiveIntensity: 2 }),
+      new THREE.MeshStandardMaterial({ color: glowColor, emissive: glowColor, emissiveIntensity: 1 }),
     );
     marker.position.y = 2.05;
     group.add(marker);
@@ -234,9 +282,17 @@ export class KethraScene implements GameScene {
       pillar.position.set(x, y, z);
       this.scene.add(pillar);
 
+      const runeTex = buildRuneTexture(idx + 1);
       const rune = new THREE.Mesh(
         new THREE.PlaneGeometry(0.6, 0.6),
-        new THREE.MeshStandardMaterial({ color: 0xd9c88a, emissive: 0xd9c88a, emissiveIntensity: 1.2, side: THREE.DoubleSide }),
+        new THREE.MeshStandardMaterial({
+          map: runeTex,
+          emissive: 0xd9c88a,
+          emissiveMap: runeTex,
+          emissiveIntensity: 0.9,
+          roughness: 0.6,
+          side: THREE.DoubleSide,
+        }),
       );
       rune.position.set(x, y + 0.9, z);
       rune.rotation.y = Math.PI / 4;
@@ -306,17 +362,17 @@ export class KethraScene implements GameScene {
   private buildCreatureArea(): void {
     this.creature.position.set(0, 2.4, -11);
     this.scene.add(this.creature);
-    const creatureLight = new THREE.PointLight(0x3fd9a8, 1.5, 6);
+    const creatureLight = new THREE.PointLight(0x3fd9a8, 0.9, 6);
     this.creature.add(creatureLight);
 
     const grovePlant = new THREE.Mesh(
       new THREE.SphereGeometry(1.1, 12, 12),
-      new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 1.4 }),
+      new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 0.9 }),
     );
     grovePlant.position.set(-4, 2.5, -10);
     grovePlant.userData.dormant = false;
     this.scene.add(grovePlant);
-    const groveLight = new THREE.PointLight(0x3fd98a, 2, 7);
+    const groveLight = new THREE.PointLight(0x3fd98a, 1, 7);
     grovePlant.add(groveLight);
 
     this.interaction.register({
@@ -327,8 +383,8 @@ export class KethraScene implements GameScene {
         const dimmed = gameState.hasFlag('kethra_grove_dimmed');
         if (dimmed) {
           gameState.data.flags = gameState.data.flags.filter((f) => f !== 'kethra_grove_dimmed');
-          (grovePlant.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.4;
-          groveLight.intensity = 2;
+          (grovePlant.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.9;
+          groveLight.intensity = 1;
           UIManager.toast('The grove light returns. The guardian stirs.');
         } else {
           gameState.setFlag('kethra_grove_dimmed');
@@ -526,8 +582,8 @@ export class KethraScene implements GameScene {
     const shrubMat = new THREE.MeshStandardMaterial({ color: 0x2f5a3f, roughness: 0.75, emissive: 0x1a3a28, emissiveIntensity: 0.25 });
     const reedMat = new THREE.MeshStandardMaterial({ color: 0x3a6a4a, roughness: 0.7, emissive: 0x143020, emissiveIntensity: 0.2 });
     // Bioluminescent ground-plants: small, strongly emissive, picked up by the global bloom pass.
-    const glowMatA = new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 1.6, roughness: 0.4 });
-    const glowMatB = new THREE.MeshStandardMaterial({ color: 0x4fd9c8, emissive: 0x4fd9c8, emissiveIntensity: 1.6, roughness: 0.4 });
+    const glowMatA = new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 0.8, roughness: 0.4 });
+    const glowMatB = new THREE.MeshStandardMaterial({ color: 0x4fd9c8, emissive: 0x4fd9c8, emissiveIntensity: 0.8, roughness: 0.4 });
 
     // xMin, xMax, zMin, zMax, y (terrace top surface height), item count
     const clutterZones: [number, number, number, number, number, number][] = [
@@ -595,7 +651,7 @@ export class KethraScene implements GameScene {
       mat.emissiveIntensity = 0.4;
       this.creature.position.y = 2.0 + Math.sin(this.creatureTime * 0.5) * 0.05;
     } else {
-      mat.emissiveIntensity = 1.6 + Math.sin(elapsed * 3) * 0.4;
+      mat.emissiveIntensity = 1.0 + Math.sin(elapsed * 3) * 0.25;
       this.creature.position.x = Math.sin(this.creatureTime * 0.6) * 4;
       this.creature.position.y = 2.4 + Math.sin(this.creatureTime * 1.4) * 0.3;
     }

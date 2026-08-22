@@ -181,6 +181,7 @@ class MapControllerImpl {
     bg.addColorStop(1, '#05060a');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
+    this.drawGrain(w, h);
 
     // Ink-wash atmosphere blobs.
     const washes: [number, number, number, string][] = [
@@ -362,6 +363,7 @@ class MapControllerImpl {
     bg.addColorStop(1, '#06100c');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
+    this.drawGrain(w, h);
 
     // Grid.
     ctx.strokeStyle = 'rgba(120,180,150,0.08)';
@@ -391,12 +393,27 @@ class MapControllerImpl {
     ];
     for (const [tx, tz, tw, th] of terraces) {
       const p = this.worldToMap(config, tx, tz, w, h);
-      ctx.fillStyle = 'rgba(140,190,160,0.14)';
-      ctx.strokeStyle = 'rgba(140,190,160,0.3)';
+      const rx = (tw / 2) * window.devicePixelRatio * this.zoom * 0.055;
+      const ry = (th / 2) * window.devicePixelRatio * this.zoom * 0.055;
+
+      // Elevation shading: soft outer wash, then a tighter warm core, so terraces read as
+      // raised terrain rather than flat colored blobs.
+      const elevGlow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, Math.max(rx, ry));
+      elevGlow.addColorStop(0, 'rgba(168,210,178,0.4)');
+      elevGlow.addColorStop(0.7, 'rgba(140,190,160,0.22)');
+      elevGlow.addColorStop(1, 'rgba(140,190,160,0.04)');
+      ctx.fillStyle = elevGlow;
+      ctx.strokeStyle = 'rgba(180,220,190,0.5)';
       ctx.lineWidth = 1 * window.devicePixelRatio;
       ctx.beginPath();
-      ctx.ellipse(p.x, p.y, (tw / 2) * window.devicePixelRatio * this.zoom * 0.055, (th / 2) * window.devicePixelRatio * this.zoom * 0.055, 0, 0, Math.PI * 2);
+      ctx.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.stroke();
+
+      // Inner contour ring — a second, tighter ellipse suggesting a terraced step.
+      ctx.strokeStyle = 'rgba(180,220,190,0.22)';
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, rx * 0.6, ry * 0.6, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -488,6 +505,21 @@ class MapControllerImpl {
     }
     ctx.fill();
     ctx.stroke();
+  }
+
+  // Deterministic paper-grain speckle so the chart reads as an inked atlas page rather than
+  // a flat UI panel. Stable per-canvas-size via index hashing, not random per frame.
+  private drawGrain(w: number, h: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    for (let i = 0; i < 900; i++) {
+      const gx = ((i * 137) % 1000) / 1000 * w;
+      const gy = ((i * 71 + 13) % 1000) / 1000 * h;
+      ctx.globalAlpha = 0.02 + (((i * 31) % 100) / 100) * 0.03;
+      ctx.fillStyle = i % 3 === 0 ? '#000000' : '#dfe6d5';
+      ctx.fillRect(gx, gy, 1 * window.devicePixelRatio, 1 * window.devicePixelRatio);
+    }
+    ctx.restore();
   }
 
   private hexToRgba(hex: string, alpha: number): string {

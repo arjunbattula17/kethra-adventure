@@ -468,7 +468,7 @@ button.text-btn:focus-visible {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 12vh;
+  padding-bottom: 3vh;
   background: transparent;
   opacity: 0;
   pointer-events: none;
