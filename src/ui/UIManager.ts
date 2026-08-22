@@ -70,6 +70,7 @@ class UIManagerImpl {
   }
 
   private lookPromptEnabled = true;
+  private letterboxActive = false;
 
   setLookPromptEnabled(enabled: boolean): void {
     this.lookPromptEnabled = enabled;
@@ -79,7 +80,7 @@ class UIManagerImpl {
   private refreshLookPrompt(panelOpenOverride?: boolean): void {
     const panelOpen = panelOpenOverride ?? PanelManager.isOpen;
     const locked = !!document.pointerLockElement;
-    this.lookPrompt.classList.toggle('visible', this.lookPromptEnabled && !locked && !panelOpen);
+    this.lookPrompt.classList.toggle('visible', this.lookPromptEnabled && !locked && !panelOpen && !this.letterboxActive);
   }
 
   refreshStatusBar(): void {
@@ -111,6 +112,8 @@ class UIManagerImpl {
   showLetterbox(show: boolean): void {
     this.letterboxTop.classList.toggle('visible', show);
     this.letterboxBottom.classList.toggle('visible', show);
+    this.letterboxActive = show;
+    this.refreshLookPrompt();
   }
 
   setCrosshairVisible(v: boolean): void {
