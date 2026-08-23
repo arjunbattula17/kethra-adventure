@@ -241,19 +241,20 @@ function createKit(): Kit {
     // Dark painted composite structure — deliberately dielectric so it still catches ambient
     // rather than crushing to black the way a dark metal does.
     dark: plateMaterial('dark', 0.85),
-    // Moulded pebbled composite: recessed panels, bezels, keypad wells.
-    charcoal: microMaterial(0x3b424b, 'composite', 9),
-    // Anodised aluminium trim: fine directional grain, smooth, fully metallic.
-    // A metal has no diffuse term, so its base colour is purely its reflectance — this has to sit
-    // higher than a paint of the same apparent value or the chair frame and footwell slats go dead
-    // black in exactly the areas the measured render already crushed.
-    blackTrim: microMaterial(0x4a515b, 'anodised', 11),
+    // Moulded pebbled composite: recessed panels, bezels, keypad wells. Base lifted with the r3
+    // measured crush — this dielectric was already off-black in hex but still reads dark, and a
+    // recessed well is exactly where ambient light is weakest.
+    charcoal: microMaterial(0x454c56, 'composite', 9),
+    // Anodised aluminium trim: fine directional grain, smooth, metallic (see `anodised` spec for
+    // why metalness itself was pulled down this round — a near-pure metal has no diffuse term, so
+    // its base colour alone couldn't keep it off black outside a direct light's throw).
+    blackTrim: microMaterial(0x545b66, 'anodised', 11),
     // Matte moulded keycaps — the one thing on the deck that must NOT catch a specular highlight,
     // which is how a keyboard tray reads as keys rather than as a printed decal.
-    keycap: microMaterial(0x353b43, 'composite', 26, 0.7),
+    keycap: microMaterial(0x3d434b, 'composite', 26, 0.7),
     chrome: microMaterial(0xc2c8cf, 'polished', 7),
-    rubber: microMaterial(0x2d3136, 'rubber', 15, 1.3),
-    fabric: microMaterial(0x3d434c, 'fabric', 13, 1.2),
+    rubber: microMaterial(0x353a41, 'rubber', 15, 1.3),
+    fabric: microMaterial(0x454b55, 'fabric', 13, 1.2),
     tiled,
     emAmber: new THREE.MeshStandardMaterial({
       color: 0x2a2118, emissive: 0xffd9a0, emissiveIntensity: 0.7, roughness: 0.4, metalness: 0,
@@ -1083,6 +1084,18 @@ function buildConsoleLights(ctx: InteriorCtx): void {
   const bounce = new THREE.PointLight(0x9fb0c4, 0.55, 5.5, 1.4);
   bounce.position.set(0, 0.18, DESK_Z + 1.2);
   ctx.scene.add(bounce);
+
+  // Rear fill, behind the console. The r3 measurement (23% crushed vs the reference's 0.06%) is
+  // dominated by this side of the assembly: the monitor bank's dark backplane, the rear bulkhead
+  // and the pods' rear utility stacks all sit behind the rake spot's throw and the other point
+  // lights above, which cluster over the desk and footwell in front. None of that geometry is a
+  // light source itself, so without a source back here it renders on ambient/hemisphere fill
+  // alone — ambient is what an environment reflecting mostly dark space cannot supply to a large
+  // flat surface. A single low, wide fill covers the backplane, the bulkhead and both pod rears at
+  // once without reading as a second key light.
+  const rearFill = new THREE.PointLight(0x7c8fa2, 0.6, 3.1, 1.6);
+  rearFill.position.set(0, 1.0, DESK_Z - 0.8);
+  ctx.scene.add(rearFill);
 }
 
 /** Wall-mounted travel-log terminal: hooded screen, keyboard shelf, service cabinet below. */

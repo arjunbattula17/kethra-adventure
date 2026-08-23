@@ -600,6 +600,55 @@ export function buildPaintRoughnessTexture(): THREE.CanvasTexture {
   return finish(c, false);
 }
 
+/**
+ * Tangent-space normal map matching the steel plate's seam/bolt layout: V-groove seams that lean
+ * light toward their centreline and domed bolt heads, so the plate breaks up specular highlights
+ * with real surface direction instead of only a painted-on light/dark pattern.
+ */
+export function buildAirlockSteelNormalTexture(): THREE.CanvasTexture {
+  const S = 512;
+  const [c, g] = canvas2d(S, S);
+  g.fillStyle = 'rgb(128,128,255)';
+  g.fillRect(0, 0, S, S);
+
+  const half = S / 2;
+  const groove = (center: number, vertical: boolean) => {
+    const w = 8;
+    for (let i = -w; i <= w; i++) {
+      const t = i / w;
+      const lean = Math.round(128 - t * 90);
+      g.fillStyle = vertical ? `rgb(${lean},128,220)` : `rgb(128,${lean},220)`;
+      if (vertical) g.fillRect(center + i, 0, 1, S);
+      else g.fillRect(0, center + i, S, 1);
+    }
+  };
+  groove(half, true);
+  groove(half, false);
+
+  for (const px of [0, 1]) {
+    for (const py of [0, 1]) {
+      const ox = px * half;
+      const oy = py * half;
+      for (const [bx, by] of [[26, 26], [half - 26, 26], [26, half - 26], [half - 26, half - 26]] as const) {
+        const cx = ox + bx;
+        const cy = oy + by;
+        const r = 7;
+        for (let yy = -r; yy <= r; yy++) {
+          for (let xx = -r; xx <= r; xx++) {
+            const d = Math.sqrt(xx * xx + yy * yy);
+            if (d > r) continue;
+            const R = Math.round(128 + (xx / r) * 90);
+            const G = Math.round(128 + (yy / r) * 90);
+            g.fillStyle = `rgb(${R},${G},220)`;
+            g.fillRect(cx + xx, cy + yy, 1, 1);
+          }
+        }
+      }
+    }
+  }
+  return finish(c, false);
+}
+
 // =================================================================================================
 // Grounding decals
 //

@@ -116,16 +116,22 @@ const PLATE: Record<PlateVariant, PlateSpec> = {
     base: '#b0a99a', seam: '#6f695e', hi: '#cbc4b4', bare: '#9299a2', seed: 1337,
     rough: 0.66, chipRough: 0.34, metal: 0.03, chipMetal: 0.9, brushed: false,
   },
-  // Bare brushed structural steel — a true metal, so it lives almost entirely off reflections.
+  // Bare brushed structural steel. Metalness pulled down from 0.9 — a near-fully-metallic surface
+  // carries no diffuse term at all, so any patch of it outside a direct light's throw (and only
+  // lit by ambient/hemisphere fill) rendered dead black, which is most of the r3 crushed-black
+  // measurement. 0.72 still reads as a true metal off its specular highlights and brushed
+  // anisotropy, but keeps a real diffuse floor so ambient light actually lifts it.
   steel: {
-    base: '#787f89', seam: '#3d444c', hi: '#a6aeb7', bare: '#c0c6cc', seed: 90210,
-    rough: 0.42, chipRough: 0.24, metal: 0.9, chipMetal: 0.96, brushed: true,
+    base: '#838a94', seam: '#454c56', hi: '#a6aeb7', bare: '#c0c6cc', seed: 90210,
+    rough: 0.46, chipRough: 0.26, metal: 0.72, chipMetal: 0.85, brushed: true,
   },
   // Shadowed structure and recessed faces. Deliberately a *dielectric* dark composite rather than
   // a dark metal: metals carry no diffuse term, and the last render's crushed-black percentage was
   // fourteen points above the reference. A painted dark grey still catches ambient and stays alive.
+  // Base lifted again this round — r3's measured crushed% (23% vs the reference's 0.06%) shows the
+  // previous floor still wasn't enough of a diffuse floor under only ambient/hemisphere light.
   dark: {
-    base: '#454c56', seam: '#252b32', hi: '#616a76', bare: '#8b939c', seed: 5150,
+    base: '#4f5761', seam: '#30363e', hi: '#6b7480', bare: '#8b939c', seed: 5150,
     rough: 0.72, chipRough: 0.38, metal: 0.05, chipMetal: 0.85, brushed: false,
   },
 };
@@ -300,7 +306,7 @@ export function buildPlateMaps(variant: PlateVariant): SurfaceMaps {
   // matte and non-metallic wherever it lands, which is most of what "dirt in the seams" looks like.
   const grad = a.createLinearGradient(0, S * 0.72, 0, S);
   grad.addColorStop(0, 'rgba(0,0,0,0)');
-  grad.addColorStop(1, 'rgba(22,20,17,0.42)');
+  grad.addColorStop(1, 'rgba(22,20,17,0.3)');
   a.fillStyle = grad;
   a.fillRect(0, S * 0.72, S, S * 0.28);
   const ogr = o.createLinearGradient(0, S * 0.72, 0, S);
@@ -346,14 +352,18 @@ interface MicroSpec {
 const MICRO: Record<MicroKind, MicroSpec> = {
   // Moulded dark composite: coarse pebbled texture, matte, dielectric.
   composite: { rough: 0.82, metal: 0.04, seed: 777, strength: 1.4 },
-  // Anodised aluminium trim: fine directional grain, smooth, fully metallic.
-  anodised: { rough: 0.34, metal: 0.88, seed: 4242, strength: 1.0 },
+  // Anodised aluminium trim: fine directional grain, smooth, metallic. Metalness pulled down from
+  // 0.88 for the same reason as the steel plate — a near-pure metal has no diffuse response, so it
+  // went dead black anywhere outside a direct light's throw. Still fully metallic-reading through
+  // its highlight and grain; just keeps a diffuse floor under ambient/hemisphere light.
+  anodised: { rough: 0.38, metal: 0.72, seed: 4242, strength: 1.0 },
   // Rubber: fine pitted matte, dielectric, no specular breakup to speak of.
   rubber: { rough: 0.96, metal: 0.02, seed: 9091, strength: 2.2 },
   // Upholstery: a woven twill with a real weave normal.
   fabric: { rough: 0.94, metal: 0.02, seed: 3113, strength: 2.8 },
   // Polished chrome with handling smudges — the smudges are the only thing keeping it from
-  // reading as a perfect mirror ball.
+  // reading as a perfect mirror ball. Kept fully metallic: this only ever dresses small bolts,
+  // handles and trims, never a large surface, so it doesn't drive the crushed-black measurement.
   polished: { rough: 0.16, metal: 1.0, seed: 6060, strength: 0.6 },
 };
 

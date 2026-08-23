@@ -154,7 +154,7 @@ export function buildLighting(ctx: InteriorCtx): void {
   // large surface in frame while the vertical walls fall off by cosine, and it's the room's only
   // shadow caster: one orthographic pass replaces the old point-light cubemap (6 faces) and gives
   // the ceiling beams/ducts/pendants real slanted shadow bars across the plating.
-  const key = new THREE.DirectionalLight(0xffeed6, 1.0);
+  const key = new THREE.DirectionalLight(0xffeed6, 0.82);
   key.position.set(6, 13, 7.3);
   key.target.position.set(-0.8, 0, -2.9);
   key.castShadow = true;
@@ -242,7 +242,7 @@ export function buildLighting(ctx: InteriorCtx): void {
       tube(0.009, 1.02, 'x', matHousingDark, 0, 2.87 + PEND_DY + dy, z + dz);
     }
 
-    const light = new THREE.PointLight(0xffe7c4, 1.2, 9.5, 1.5);
+    const light = new THREE.PointLight(0xffe7c4, 0.95, 9.5, 1.5);
     light.position.set(0, 2.6 + PEND_DY, z);
     ctx.scene.add(light);
     pendantLights.push(light);

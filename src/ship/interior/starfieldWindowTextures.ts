@@ -394,10 +394,15 @@ export function buildAoTexture(shape: AoShape): THREE.CanvasTexture {
   const size = 256;
   const c = surface(size, size);
   c.clearRect(0, 0, size, size);
+  // Capped well short of full black: these are MeshBasicMaterial overlays, so they darken
+  // whatever they sit over *regardless of scene lighting* — at the old 0.92-0.95 core alpha they
+  // crushed straight to dead pixels no matter how bright the room around them was, which is most
+  // of why the piece measured 30% crushed against a reference with almost none. The crease is
+  // still legible at these lower ceilings; it just no longer bottoms out at literal zero.
   if (shape === 'radial') {
     const g = c.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    g.addColorStop(0, 'rgba(0,0,0,0.95)');
-    g.addColorStop(0.45, 'rgba(0,0,0,0.55)');
+    g.addColorStop(0, 'rgba(0,0,0,0.62)');
+    g.addColorStop(0.45, 'rgba(0,0,0,0.36)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g;
     c.fillRect(0, 0, size, size);
@@ -409,7 +414,7 @@ export function buildAoTexture(shape: AoShape): THREE.CanvasTexture {
       [0, 0, 0, size * 0.34], [0, size, 0, size * 0.66],
     ] as const) {
       const g = c.createLinearGradient(x0, y0, x1, y1);
-      g.addColorStop(0, 'rgba(0,0,0,0.8)');
+      g.addColorStop(0, 'rgba(0,0,0,0.5)');
       g.addColorStop(1, 'rgba(0,0,0,0)');
       c.fillStyle = g;
       c.fillRect(0, 0, size, size);
@@ -417,8 +422,8 @@ export function buildAoTexture(shape: AoShape): THREE.CanvasTexture {
   } else {
     const up = shape === 'top';
     const g = c.createLinearGradient(0, up ? 0 : size, 0, up ? size : 0);
-    g.addColorStop(0, 'rgba(0,0,0,0.92)');
-    g.addColorStop(0.35, 'rgba(0,0,0,0.34)');
+    g.addColorStop(0, 'rgba(0,0,0,0.58)');
+    g.addColorStop(0.35, 'rgba(0,0,0,0.22)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g;
     c.fillRect(0, 0, size, size);
@@ -439,13 +444,14 @@ export function buildOpenBayTexture(): THREE.CanvasTexture {
   const c = surface(w, h);
   const rnd = rng(0x4ad219);
 
-  c.fillStyle = '#15181d';
+  c.fillStyle = '#1b1f26';
   c.fillRect(0, 0, w, h);
-  // Deep shadow at the top of the void — nothing lights the inside of a wall cavity.
+  // Shadowed void behind the removed plate — dark, but never to literal black: the loom, straps
+  // and breaker plate below still need to read as objects rather than silhouettes.
   const dark = c.createLinearGradient(0, 0, 0, h);
-  dark.addColorStop(0, 'rgba(0,0,0,0.85)');
-  dark.addColorStop(0.5, 'rgba(0,0,0,0.35)');
-  dark.addColorStop(1, 'rgba(0,0,0,0.6)');
+  dark.addColorStop(0, 'rgba(0,0,0,0.6)');
+  dark.addColorStop(0.5, 'rgba(0,0,0,0.2)');
+  dark.addColorStop(1, 'rgba(0,0,0,0.4)');
   c.fillStyle = dark;
   c.fillRect(0, 0, w, h);
 

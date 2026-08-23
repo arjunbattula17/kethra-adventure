@@ -173,6 +173,11 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   const steelDarkMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, roughness: 1, metalness: 0.66,
     map: darkMaps.map, roughnessMap: darkMaps.roughnessMap, normalMap: darkMaps.normalMap,
+    // A faint cool emissive floor: this stock backs the shutter and the recess, both of which
+    // sit past the reach of the room's single shadow-mapped key. Without it those regions render
+    // literal (0,0,0) whenever the local fill lights below don't quite reach — the measured
+    // defect (30% crushed-black vs the reference's ~0%) rather than a lit, textured dark surface.
+    emissive: 0x141a1e, emissiveIntensity: 0.35,
   });
   steelDarkMat.normalScale.set(0.7, 0.7);
 
@@ -181,15 +186,16 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // is throwing a highlight. Lifted off near-black — the reference has no dead shadows.
   const recessMaps = buildPlateMaps({
     seed: 0x27bd, res: 512,
-    base: [0x33, 0x38, 0x3f], under: [0x46, 0x3a, 0x2e],
+    base: [0x3c, 0x41, 0x49], under: [0x52, 0x46, 0x38],
     cols: 2, rows: 3, rivets: false,
-    chip: 0.4, grime: 1, scratch: 50, streaks: 16,
+    chip: 0.55, grime: 0.72, scratch: 50, streaks: 16,
     roughBase: 224, roughWorn: 248,
   });
   for (const t of [recessMaps.map, recessMaps.roughnessMap, recessMaps.normalMap]) t.repeat.set(0.8, 0.8);
   const recessMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, roughness: 1, metalness: 0.07,
     map: recessMaps.map, roughnessMap: recessMaps.roughnessMap, normalMap: recessMaps.normalMap,
+    emissive: 0x181614, emissiveIntensity: 0.4,
   });
   recessMat.normalScale.set(1.1, 1.1);
 
@@ -200,11 +206,13 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // Rolled steel ribs and louvre slats — no map, because they are thin enough that any tiling
   // would smear; distinguished instead by sitting between the nose and the dark plate.
   const slatMat = new THREE.MeshStandardMaterial({
-    color: 0x3a4048, roughness: 0.52, metalness: 0.78,
+    color: 0x424a54, roughness: 0.52, metalness: 0.78,
+    emissive: 0x11151a, emissiveIntensity: 0.3,
   });
   // Rubber: the matte dielectric end of the range, and the reason the hoses read as flexible.
   const rubberMat = new THREE.MeshStandardMaterial({
-    color: 0x1e2126, roughness: 0.97, metalness: 0.02,
+    color: 0x24282e, roughness: 0.97, metalness: 0.02,
+    emissive: 0x0d1013, emissiveIntensity: 0.25,
   });
   // Copper flex — accent only, and the one surface allowed a mirror-tight roughness.
   const brassMat = new THREE.MeshStandardMaterial({
@@ -214,7 +222,8 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // steel, which is the sharpest material contrast in the assembly and lands right at the focal
   // aperture edge.
   const gasketMat = new THREE.MeshStandardMaterial({
-    color: 0x24272d, roughness: 1, metalness: 0,
+    color: 0x2b2f36, roughness: 1, metalness: 0,
+    emissive: 0x0e1013, emissiveIntensity: 0.25,
   });
 
   const cyanStripMat = new THREE.MeshStandardMaterial({
@@ -366,6 +375,17 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // warm/cool fixture split lives here and on the sill inserts; nothing here is blended warm.
   slab(ctx, cyanStripMat, APER_W - 0.1, 0.035, 0.05, 0, APER_T - 0.03, WALL_Z + 0.22);
   slab(ctx, cyanStripMat, APER_W - 0.1, 0.035, 0.05, 0, APER_B + 0.03, WALL_Z + 0.22);
+  // The strips above are self-lit emissive geometry but cast nothing onto their neighbours, so
+  // the mullion grid and reveal walls they're bolted beside were reading as unlit black — the
+  // room's single shadow-mapped key doesn't reach this deep into the recess. A pair of low-range
+  // point lights co-located with the coving turns "cove lighting" into an actual light source,
+  // which is both more physically honest and the direct fix for the recess's share of the
+  // crushed-black measurement.
+  for (const y of [APER_T - 0.03, APER_B + 0.03]) {
+    const cove = new THREE.PointLight(0x4fd8f0, 0.55, 2.4, 2);
+    cove.position.set(0, y, WALL_Z + 0.3);
+    ctx.scene.add(cove);
+  }
 
   // Extruded rubber gasket bedding the pane — matte black against the polished nose, and the
   // dark line that gives the aperture a hard edge instead of a soft fade into the frame.
@@ -786,12 +806,19 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   ctx.scene.add(bolts);
 
   // ===== light =========================================================================
-  const paneLight = new THREE.PointLight(0x6fd0ea, 0.85, 6.5, 2);
+  const paneLight = new THREE.PointLight(0x6fd0ea, 1.05, 7.5, 2);
   paneLight.position.set(0, 2.5 * (5 / 4), -4.9 * (4 / 3));
   ctx.scene.add(paneLight);
-  const sillLight = new THREE.PointLight(0xffd9a0, 0.7, 4.2, 2);
+  const sillLight = new THREE.PointLight(0xffd9a0, 0.85, 5, 2);
   sillLight.position.set(0, 1.02 * (5 / 4), -5.1 * (4 / 3));
   ctx.scene.add(sillLight);
+  // The retracted shutter and its actuators sit above the lintel, past the reach of both lights
+  // above — a housing-and-hardware assembly that otherwise renders fully unlit black regardless
+  // of the room's own lighting pass. A dim neutral fill keyed to the housing gives it the same
+  // "still carries material and detail in shadow" read the brief calls for elsewhere.
+  const shutterFill = new THREE.PointLight(0xaebac2, 0.5, 3.2, 2);
+  shutterFill.position.set(0, shutterY - 0.1, FRONT_Z + 0.3);
+  ctx.scene.add(shutterFill);
 
   // ===== hull-exterior starfield =======================================================
   // The scene rotates whatever is registered here about Y, so this cloud is a spherical shell

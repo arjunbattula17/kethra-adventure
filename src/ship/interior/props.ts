@@ -173,45 +173,55 @@ function buildMaterials() {
   hazardTex.repeat.set(6, 1);
 
   // Bare rolled steel — mid grey, fully metallic, directional brush grain.
-  const steel = std(0x6f777f, 0.42, 1.0, 0x151a20, 0.16);
+  const steel = std(0x6f777f, 0.42, 1.0, 0x1b222a, 0.26);
   applySurface(steel, 'steel', 3);
 
   // Blued / phosphated frame steel: darker, rougher, and the one that has to stay off the floor
   // of the value range. The phosphate coat is dielectric enough to keep some diffuse response,
   // which is what stops it going pure black where the key light does not reach; galvanised
-  // spangle breaks its shadow side into readable facets rather than one dead field.
-  const steelDark = std(0x424a53, 0.58, 0.86, 0x1a212a, 0.3);
+  // spangle breaks its shadow side into readable facets rather than one dead field. Base and
+  // emissive floor both nudged up from the previous pass — this material covers the conduit and
+  // cable-tray runs along the full room depth, well outside the single key light's reach, and
+  // measured stats showed those runs crushing to pure black rather than holding shadowed steel.
+  const steelDark = std(0x49515b, 0.58, 0.86, 0x212a34, 0.44);
   applySurface(steelDark, 'galv', 4);
 
   // Machined / polished fittings — handles, latches, vise jaws. The shiniest metal in the kit.
-  const steelLight = std(0x848d97, 0.24, 1.0, 0x1b222a, 0.14);
+  const steelLight = std(0x848d97, 0.24, 1.0, 0x1f262e, 0.2);
   applySurface(steelLight, 'brushed', 5);
 
   // Painted enamel over steel. Dielectric, high roughness, rub-polished patches in the map.
-  const paintBone = std(0xa9a396, 0.72, 0.0, 0x201e1a, 0.2);
+  // Pulled down from the previous pass — at 0xa9a396 this read closer to the brief's bright
+  // painted-deck band than the wall-steel band it actually dresses (locker banks, cabinets),
+  // and large flat panels in that colour were pushing the measured highlight ceiling too high.
+  const paintBone = std(0x938c7c, 0.72, 0.0, 0x201e1a, 0.26);
   applySurface(paintBone, 'paint', 3);
-  const paintGrey = std(0x646a72, 0.76, 0.0, 0x161a20, 0.2);
+  const paintGrey = std(0x646a72, 0.76, 0.0, 0x161a20, 0.28);
   applySurface(paintGrey, 'paint', 3);
-  const paintOlive = std(0x4c5647, 0.82, 0.0, 0x141813, 0.22);
+  const paintOlive = std(0x4c5647, 0.82, 0.0, 0x141813, 0.3);
   applySurface(paintOlive, 'paint', 3);
   // Safety red is sprayed thicker and buffed — the one paint with a visible sheen.
   const paintRed = std(0x9c3d27, 0.5, 0.0, 0x24100a, 0.28);
   applySurface(paintRed, 'paint', 4);
 
-  // Moulded rubber: hose, casters, cable jacket, mats. Dead matte, heavy fine relief.
-  const rubber = std(0x2f333a, 0.97, 0.0, 0x14171b, 0.24);
+  // Moulded rubber: hose, casters, cable jacket, mats. Dead matte, heavy fine relief. This is the
+  // cable-tray and cable-loom material, which runs the length of the room hung near the ceiling —
+  // the exact zone the round brief flags as now sitting in dead black — so both its base and its
+  // emissive floor carry more of the "don't crush" work than a small, well-lit prop would need.
+  const rubber = std(0x363c45, 0.97, 0.0, 0x1a1f26, 0.42);
   applySurface(rubber, 'rubber', 5);
 
   // Worn phenolic / composite — crate skids and tray stock. Thirsty, fibrous, no specular.
-  const composite = std(0x5a5346, 0.9, 0.0, 0x18160f, 0.24);
+  const composite = std(0x5a5346, 0.9, 0.0, 0x18160f, 0.32);
   applySurface(composite, 'composite', 3);
 
   // Copper flex conduit: warm, fully metallic, low roughness so it stays a small bright accent.
-  const copper = std(0x99652f, 0.3, 1.0, 0x1d1206, 0.2);
+  // Also runs the ceiling conduit line the full depth of the room, so it gets the same treatment.
+  const copper = std(0x99652f, 0.3, 1.0, 0x2a1a0c, 0.34);
   applySurface(copper, 'brushed', 4);
 
   // Gauge glass and lens covers — the only near-mirror in the kit, and a dielectric.
-  const glass = std(0x2b3138, 0.08, 0.0, 0x101820, 0.35);
+  const glass = std(0x2b3138, 0.08, 0.0, 0x131f28, 0.42);
 
   const hazard = new THREE.MeshStandardMaterial({ map: hazardTex, roughness: 0.66, metalness: 0.0, emissive: 0x1a1408, emissiveIntensity: 0.3 });
   hazard.roughnessMap = paintRed.roughnessMap;
@@ -231,9 +241,9 @@ function buildMaterials() {
     copper,
     glass,
     hazard,
-    ledCyan: std(0x4fd8f0, 0.3, 0.0, 0x4fd8f0, 2.4),
-    ledAmber: std(0xffd9a0, 0.3, 0.0, 0xffd9a0, 2.2),
-    ledRed: std(0xe0552f, 0.3, 0.0, 0xe0552f, 2.2),
+    ledCyan: std(0x4fd8f0, 0.3, 0.0, 0x4fd8f0, 2.0),
+    ledAmber: std(0xffd9a0, 0.3, 0.0, 0xffd9a0, 1.85),
+    ledRed: std(0xe0552f, 0.3, 0.0, 0xe0552f, 1.85),
   };
 }
 
@@ -626,10 +636,10 @@ function buildWorkbench(k: Kit, ctx: InteriorCtx, wallX: number, z: number, sign
   place(k, cyl(0.014, 0.014, 0.36, 8), k.m.steelDark, bx - inward * 0.09, topY + 0.46, lz, 0, 0, inward * (Math.PI / 2 - 0.4));
   const shadeX = bx + inward * 0.04;
   place(k, cyl(0.05, 0.12, 0.12, 12), k.m.steelDark, shadeX, topY + 0.38, lz, 0, 0, inward * 0.3);
-  const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffd9a0, emissiveIntensity: 2.6, roughness: 0.4 });
+  const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffd9a0, emissiveIntensity: 2.0, roughness: 0.4 });
   place(k, cyl(0.055, 0.055, 0.012, 12), bulbMat, shadeX + inward * 0.02, topY + 0.32, lz, 0, 0, inward * 0.3);
 
-  const lamp = new THREE.PointLight(0xffd9a0, 3.0, 3.2, 2);
+  const lamp = new THREE.PointLight(0xffd9a0, 2.3, 3.2, 2);
   lamp.position.set(shadeX + inward * 0.05, topY + 0.28, lz);
   // Deliberately not a shadow caster: a point light costs six shadow-map faces, and with every
   // prop now flagged castShadow that would re-render the whole set six more times for one bench
@@ -645,7 +655,7 @@ function buildWorkbench(k: Kit, ctx: InteriorCtx, wallX: number, z: number, sign
   ctx.animated.push((elapsed) => {
     const f = 0.9 + Math.sin(elapsed * 2.3) * 0.05 + Math.sin(elapsed * 11.7) * 0.03;
     lamp.intensity = base * f;
-    bulbMat.emissiveIntensity = 2.6 * f;
+    bulbMat.emissiveIntensity = 2.0 * f;
   });
 }
 
@@ -686,7 +696,7 @@ function buildRelayRack(k: Kit, ctx: InteriorCtx, x: number, z: number, ry: numb
     const ledMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, roughness: 0.35 });
     const [ex, ez] = local(x, z, w / 2 - 0.13, d / 2 + 0.058, ry);
     const led = place(k, cyl(0.014, 0.014, 0.012, 8), ledMat, ex, uy + 0.07, ez, ledRx, ledRy, ledRz);
-    ctx.statusLights.push({ mesh: led, material: ledMat, phase: i * 1.3, onIntensity: 2.4 });
+    ctx.statusLights.push({ mesh: led, material: ledMat, phase: i * 1.3, onIntensity: 2.0 });
   }
 
   // Cable loom from the rack top up toward the wall conduit run.
@@ -885,7 +895,7 @@ function buildJunctionBox(
 
   const mat = new THREE.MeshStandardMaterial({ color: ledColor, emissive: ledColor, emissiveIntensity: 0.3, roughness: 0.35 });
   const led = place(k, cyl(0.016, 0.016, 0.012, 8), mat, x + inward * 0.14, y + 0.09, z, 0, 0, Math.PI / 2);
-  ctx.statusLights.push({ mesh: led, material: mat, phase: (z + y) * 1.7, onIntensity: 2.2 });
+  ctx.statusLights.push({ mesh: led, material: mat, phase: (z + y) * 1.7, onIntensity: 1.85 });
 }
 
 /** Flanged valve station: stub pipe, body, hand wheel and a gauge. */
@@ -923,14 +933,14 @@ function buildReadoutPanel(k: Kit, ctx: InteriorCtx, wallX: number, y: number, z
     roughness: 0.25,
     metalness: 0.1,
     emissive: 0xffffff,
-    emissiveIntensity: 0.9,
+    emissiveIntensity: 0.7,
   });
   mat.emissiveMap = mat.map;
   place(k, plane(0.5, 0.3), mat, wallX + inward * 0.115, y, z, 0, ry, 0);
   boltRect(k, face, wallX + inward * 0.1, y, z, 0.56, 0.36);
 
   ctx.animated.push((elapsed) => {
-    mat.emissiveIntensity = 0.82 + Math.sin(elapsed * 1.6 + seed) * 0.1;
+    mat.emissiveIntensity = 0.64 + Math.sin(elapsed * 1.6 + seed) * 0.08;
   });
 }
 
@@ -975,10 +985,19 @@ function buildConduitRun(k: Kit, wallX: number, sign: 1 | -1): void {
 }
 
 /** Ladder-style cable tray running the length of a side wall, hung off the ceiling. */
-function buildCableTray(k: Kit, wallX: number, sign: 1 | -1): void {
+function buildCableTray(k: Kit, ctx: InteriorCtx, wallX: number, sign: 1 | -1): void {
   const inward = -sign;
   const len = ROOM_D - 0.8;
   const px = wallX + inward * 0.34;
+
+  // A dim, neutral, non-shadow-casting fill so the tray and the conduit run beside it don't
+  // crush to pure black across the room's full depth. The room grew and the key light was only
+  // repositioned by the scale factor, not redesigned, so this whole band near the ceiling now
+  // sits outside its reach — this is a cheap local stand-in for bounce light, not a relight.
+  const fill = new THREE.PointLight(0xb9c0c9, 0.85, 9, 2);
+  fill.position.set(px, 3.25, 0);
+  ctx.scene.add(fill);
+
   place(k, chamferBox(0.36, 0.03, len, 0.008), k.m.steelDark, px, 3.44, 0);
   for (const s of [-1, 1]) {
     place(k, chamferBox(0.03, 0.11, len, 0.008), k.m.steel, px + s * 0.17, 3.49, 0);
@@ -1157,7 +1176,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   // ----- wall services -----
   for (const sign of [1, -1] as const) {
     buildConduitRun(k, sign * WALL_X, sign);
-    buildCableTray(k, sign * WALL_X, sign);
+    buildCableTray(k, ctx, sign * WALL_X, sign);
   }
   buildFloorDuct(k, -WALL_X, -1, -4.9, -3.3);
   buildFloorDuct(k, -WALL_X, -1, 0.5, 2.3);
@@ -1255,7 +1274,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
       const color = dotColors[i % dotColors.length];
       const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.2, roughness: 0.4 });
       const dot = place(k, cyl(0.028, 0.028, 0.02, 10), mat, wallX + inward * 0.21, 1.58 + i * 0.16, cz, 0, 0, Math.PI / 2);
-      ctx.statusLights.push({ mesh: dot, material: mat, phase: cz + i * 1.1, onIntensity: 2.0 });
+      ctx.statusLights.push({ mesh: dot, material: mat, phase: cz + i * 1.1, onIntensity: 1.7 });
     }
   }
 

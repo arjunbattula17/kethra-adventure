@@ -224,8 +224,11 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
     roughness: 0.45,
     metalness: 0.2,
   });
+  // Lifted from 0x3d4148: the louvre bank faces straight down into the room's dimmest air, and at
+  // the old value it read as dead black between the warm slots -- the ambient/hemisphere terms
+  // still reach it (they aren't shadow-mapped), so a brighter albedo actually shows up here.
   const warmVentMat = new THREE.MeshStandardMaterial({
-    color: 0x3d4148,
+    color: 0x4c525b,
     emissive: 0xffd9a0,
     emissiveIntensity: 0.18,
     roughness: 0.9,
@@ -629,6 +632,35 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
     loom.receiveShadow = true;
     gantry.add(loom);
   }
+
+  // --- gantry fill lighting -----------------------------------------------------------------------------------
+  // The header, risers and knee braces sit above and behind the console's cool wash and outside
+  // every dedicated wall fixture's reach (the nearest lit sconce is two bays off), so at the
+  // room's low ambient this whole back half of the rig was reading as a crushed black block
+  // between the ceiling pendant strip and the screen glow below -- exactly the surfaces the
+  // consoleGlow lights stopped reaching once they were dropped and pushed forward toward the
+  // console top. A small inspection lamp on the header -- geometry plus the light it makes, per
+  // the room's own "never a light without its fixture" rule -- and a dim cool spill standing in
+  // for the screens' own glow hitting the structure behind them seat that back half back into the
+  // room instead of leaving it unlit.
+  const lampHousingMat = new THREE.MeshStandardMaterial({
+    color: 0x2c3138,
+    emissive: 0xffd9a0,
+    emissiveIntensity: 1.1,
+    roughness: 0.4,
+    metalness: 0.15,
+  });
+  const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.05), lampHousingMat);
+  lamp.position.set(0, 3.62 + headerY, headerZ + 0.16);
+  lamp.castShadow = true;
+  gantry.add(lamp);
+  const gantryLamp = new THREE.PointLight(0xffd9a0, 0.5, 3.2, 2);
+  gantryLamp.position.set(0, 3.6 + headerY, headerZ + 0.2);
+  gantry.add(gantryLamp);
+
+  const backSpill = new THREE.PointLight(0x6fdcf2, 0.4, 3.4, 2);
+  backSpill.position.set(0, 3.3, headerZ + 0.3);
+  gantry.add(backSpill);
 
   // --- lighting ---------------------------------------------------------------------------------------------
   // ShipInteriorScene forces every consoleGlow light to intensity 1.5 each frame, so position and

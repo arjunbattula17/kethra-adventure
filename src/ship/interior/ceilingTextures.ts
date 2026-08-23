@@ -108,17 +108,22 @@ export function buildCeilingPlateTexture(): THREE.CanvasTexture {
   const { canvas, g } = canvas2d(S, S);
   const rnd = mulberry32(0x51c3);
 
-  g.fillStyle = '#4c5563';
+  g.fillStyle = '#565f6e';
   g.fillRect(0, 0, S, S);
 
   // Metre-scale oxidation blooms. The reference's overhead plating is not one grey — it drifts
   // through green patina and dull ochre across a couple of panels at a time, which is what
   // stops a large surface reading as flat albedo at distance.
+  //
+  // Kept away from near-black: with only a dim hemisphere/ambient term reaching most of the
+  // overhead (the round-3 value audit measured 27.7% crushed vs. a 0.1% reference), any patch
+  // that darkens much past mid-grey renders as dead black once tonemapped, even though it is
+  // never literally rgb(0,0,0) here.
   const blooms: [string, number][] = [
     ['rgba(86,110,92,0.30)', 12],   // green patina
     ['rgba(122,104,74,0.22)', 9],   // ochre oxide
     ['rgba(64,80,98,0.26)', 10],    // cool wash
-    ['rgba(28,33,40,0.30)', 12],    // soot / shadow pooling
+    ['rgba(38,44,53,0.18)', 12],    // soot / shadow pooling
     ['rgba(132,144,158,0.16)', 8],  // rubbed-bright plating
   ];
   for (const [col, n] of blooms) {
@@ -152,13 +157,13 @@ export function buildCeilingPlateTexture(): THREE.CanvasTexture {
   g.lineCap = 'butt';
   for (const s of PLATE_SEAMS) {
     tileable(g, S, () => {
-      g.fillStyle = '#2a313a';
+      g.fillStyle = '#353d48';
       g.fillRect(s - 2.5, -S, 5, S * 3);
       g.fillRect(-S, s - 2.5, S * 3, 5);
       g.fillStyle = 'rgba(154,166,180,0.55)';
       g.fillRect(s - 4, -S, 1.5, S * 3);
       g.fillRect(-S, s - 4, S * 3, 1.5);
-      g.fillStyle = 'rgba(24,28,34,0.42)';
+      g.fillStyle = 'rgba(30,34,41,0.4)';
       g.fillRect(s + 3, -S, 2, S * 3);
       g.fillRect(-S, s + 3, S * 3, 2);
     });
@@ -167,7 +172,7 @@ export function buildCeilingPlateTexture(): THREE.CanvasTexture {
   // Rivet rows tracking every seam.
   const rivet = (x: number, y: number) => {
     tileable(g, S, () => {
-      g.fillStyle = 'rgba(20,24,30,0.72)';
+      g.fillStyle = 'rgba(26,30,37,0.55)';
       g.beginPath();
       g.arc(x + 0.8, y + 1.1, 3.4, 0, Math.PI * 2);
       g.fill();
@@ -249,7 +254,9 @@ export function buildCeilingPlateRoughness(): THREE.CanvasTexture {
     const x = rnd() * S;
     const y = rnd() * S;
     const r = 60 + rnd() * 170;
-    const v = rnd() < 0.55 ? 200 + rnd() * 45 : 70 + rnd() * 60;
+    // Low branch raised from 70 to 100: the darkest (shiniest) patches were producing tight hot
+    // specular pinpoints under the overhead practicals — exactly the round-3 p95-too-bright miss.
+    const v = rnd() < 0.55 ? 200 + rnd() * 45 : 100 + rnd() * 55;
     const grad = g.createRadialGradient(x, y, 0, x, y, r);
     grad.addColorStop(0, `rgba(${v},${v},${v},0.5)`);
     grad.addColorStop(1, 'rgba(0,0,0,0)');
