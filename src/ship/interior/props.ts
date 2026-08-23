@@ -1104,9 +1104,17 @@ function buildDeckClutter(k: Kit, x: number, z: number, variant: number): void {
 // entry point
 // ===========================================================================================
 
-/** Set dressing: cargo, storage, maintenance hardware, conduit runs, safety gear and clutter. */
-export function buildDetailProps(ctx: InteriorCtx): void {
+/**
+ * Set dressing: cargo, storage, maintenance hardware, conduit runs, safety gear and clutter, plus
+ * a handful of real Quaternius Props/ pieces for extra density. Every hand-built call site below
+ * carries a `* (4 / 3)` on its room-relative x/z coordinates — the same factor that took the room
+ * from 9x12 to 12x16, so this whole layout stays proportionally where it was rather than being
+ * redesigned tile-by-tile. z coordinates tied to the console assembly (which moved by a fixed
+ * -1.2, not a multiplicative scale — see console.ts's DESK_Z) instead carry `+ CONSOLE_DZ`.
+ */
+export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   const m = buildMaterials();
+  const CONSOLE_DZ = -1.2;
 
   const k: Kit = {
     scene: ctx.scene,
@@ -1134,7 +1142,7 @@ export function buildDetailProps(ctx: InteriorCtx): void {
     for (let col = 0; col < 7; col++) {
       const x = -1.26 + col * 0.42;
       const y = 0.82 + row * 0.14;
-      const z = -3.42 - row * 0.08;
+      const z = -3.42 - row * 0.08 + CONSOLE_DZ;
       place(k, bezelGeo, m.steelDark, x, y, z, tilt, 0, 0);
       place(k, buttonGeo, buttonMats[(row * 7 + col) % buttonMats.length], x, y + 0.008, z + 0.014, tilt, 0, 0);
     }
@@ -1142,8 +1150,8 @@ export function buildDetailProps(ctx: InteriorCtx): void {
   for (let i = 0; i < 6; i++) {
     const x = 1.02 + (i % 3) * 0.14;
     const y = 0.85 + Math.floor(i / 3) * 0.14;
-    place(k, chamferBox(0.1, 0.1, 0.02, 0.006), m.steelDark, x, y, -3.44 - Math.floor(i / 3) * 0.08, tilt, 0, 0);
-    place(k, cyl(0.011, 0.014, 0.07, 6), m.steelLight, x, y + 0.035, -3.4 - Math.floor(i / 3) * 0.08, 0.5, 0, i % 2 === 0 ? 0.4 : -0.4);
+    place(k, chamferBox(0.1, 0.1, 0.02, 0.006), m.steelDark, x, y, -3.44 - Math.floor(i / 3) * 0.08 + CONSOLE_DZ, tilt, 0, 0);
+    place(k, cyl(0.011, 0.014, 0.07, 6), m.steelLight, x, y + 0.035, -3.4 - Math.floor(i / 3) * 0.08 + CONSOLE_DZ, 0.5, 0, i % 2 === 0 ? 0.4 : -0.4);
   }
 
   // ----- wall services -----

@@ -24,9 +24,13 @@ import {
 import type { InteriorCtx } from './ctx';
 import { ROOM_W } from './ctx';
 
-/** Front face of the desk — matches the console collider's +Z edge in ShipInteriorScene. */
-const DESK_FRONT_Z = -3.25;
-const DESK_Z = -3.6;
+/**
+ * Front face of the desk — matches the console collider's +Z edge in ShipInteriorScene. Scaled by
+ * the same 4/3 that took the room from 9x12 to 12x16, so the console sits the same proportional
+ * distance off the console-end wall as it did in the old room.
+ */
+const DESK_FRONT_Z = (-3.25 * 4) / 3;
+const DESK_Z = (-3.6 * 4) / 3;
 
 // ---------------------------------------------------------------------------------------------
 // Geometry helpers
@@ -786,6 +790,8 @@ function buildMonitorBank(ctx: InteriorCtx, kit: Kit): THREE.Group {
  */
 function buildSidePod(ctx: InteriorCtx, kit: Kit, sign: -1 | 1): THREE.Group {
   const g = new THREE.Group();
+  // 1.86 is a fixed offset from the desk centre (how far the pod flanks the console), not a
+  // room-scale position, so it stays put while DESK_Z carries the whole assembly to its new spot.
   g.position.set(sign * 1.86, 0, DESK_Z + 0.04);
   g.rotation.y = -sign * 0.17;
   ctx.scene.add(g);
@@ -901,7 +907,9 @@ function buildSidePod(ctx: InteriorCtx, kit: Kit, sign: -1 | 1): THREE.Group {
 /** Low equipment bank behind the console so the bulkhead is never a bare wall in frame. */
 function buildRearBulkhead(ctx: InteriorCtx, kit: Kit): THREE.Group {
   const g = new THREE.Group();
-  g.position.set(0, 0, -4.62);
+  // -1.02 is the desk-relative offset (old DESK_Z -3.6, bulkhead -4.62), kept fixed under the new
+  // DESK_Z so the bank still sits directly behind the console.
+  g.position.set(0, 0, DESK_Z - 1.02);
   ctx.scene.add(g);
 
   mesh(g, chamferBox(4.4, 0.82, 0.36, 0.026), kit.dark, 0, 0.44, 0);
@@ -938,8 +946,9 @@ function buildRearBulkhead(ctx: InteriorCtx, kit: Kit): THREE.Group {
 function buildChair(ctx: InteriorCtx, kit: Kit): THREE.Group {
   const g = new THREE.Group();
   // Tucked right up against the desk. Parked further out it sat barely a metre off the framing
-  // camera and its back panel covered the deck chart, which is the piece's focal element.
-  g.position.set(0, 0, -2.86);
+  // camera and its back panel covered the deck chart, which is the piece's focal element. 0.74 is
+  // the desk-relative offset (DESK_Z was -3.6 for a chair at -2.86), kept fixed under the new DESK_Z.
+  g.position.set(0, 0, DESK_Z + 0.74);
   ctx.scene.add(g);
 
   const meshTex = buildChairMeshTexture();
@@ -1037,8 +1046,8 @@ function buildConsoleLights(ctx: InteriorCtx): void {
   // surface read as metal rather than as tinted clay. A spot's single shadow map is also a sixth
   // of the cost of the point-light cubemap this replaces, which pays for the extra casters.
   const rake = new THREE.SpotLight(0xcfe2f2, 4.6, 9.5, 0.72, 0.55, 2);
-  rake.position.set(2.9, 3.45, -0.5);
-  rake.target.position.set(-0.35, 0.95, -3.7);
+  rake.position.set(2.9, 3.45, DESK_Z + 3.1);
+  rake.target.position.set(-0.35, 0.95, DESK_Z - 0.1);
   rake.castShadow = true;
   rake.shadow.mapSize.set(1024, 1024);
   rake.shadow.camera.near = 0.6;
@@ -1051,19 +1060,19 @@ function buildConsoleLights(ctx: InteriorCtx): void {
   // Cool console pool, pulsed by the shared glow loop. No longer the shadow caster — with the
   // rake taking that job this can sit close in and stay soft.
   const keyLight = new THREE.PointLight(0x38c4f0, 1.0, 6, 2);
-  keyLight.position.set(0, 2.0, -2.9);
+  keyLight.position.set(0, 2.0, DESK_Z + 0.7);
   ctx.scene.add(keyLight);
   ctx.consoleGlow.push(keyLight);
 
   // Spill from the deck chart onto the operator's side of the desk. Kept out of consoleGlow so
   // the shared pulse loop can't drive it to a blown-out level right on top of the geometry.
   const deckSpill = new THREE.PointLight(0x5fd4f0, 0.85, 3.2, 2);
-  deckSpill.position.set(0, 1.32, -3.1);
+  deckSpill.position.set(0, 1.32, DESK_Z + 0.5);
   ctx.scene.add(deckSpill);
 
   // Warm practical inside the footwell recess, the only warm source on this piece.
   const footwell = new THREE.PointLight(0xffc98a, 0.5, 1.9, 2);
-  footwell.position.set(0, 0.3, -3.34);
+  footwell.position.set(0, 0.3, DESK_Z + 0.26);
   ctx.scene.add(footwell);
 
   // Deck bounce. The measured render had fourteen percent of its pixels at pure black against the
@@ -1072,14 +1081,14 @@ function buildConsoleLights(ctx: InteriorCtx): void {
   // those areas onto the brief's #2b3138 shadow floor without touching the mid-tones, which
   // measured too bright and must not go up.
   const bounce = new THREE.PointLight(0x9fb0c4, 0.55, 5.5, 1.4);
-  bounce.position.set(0, 0.18, -2.4);
+  bounce.position.set(0, 0.18, DESK_Z + 1.2);
   ctx.scene.add(bounce);
 }
 
 /** Wall-mounted travel-log terminal: hooded screen, keyboard shelf, service cabinet below. */
 function buildJournalTerminal(ctx: InteriorCtx, kit: Kit): THREE.Group {
   const g = new THREE.Group();
-  g.position.set(-ROOM_W / 2 + 0.06, 0, 1.5);
+  g.position.set(-ROOM_W / 2 + 0.06, 0, (1.5 * 4) / 3);
   g.rotation.y = Math.PI / 2;
   ctx.scene.add(g);
 
@@ -1142,7 +1151,7 @@ function buildJournalTerminal(ctx: InteriorCtx, kit: Kit): THREE.Group {
  */
 function buildRepairStation(ctx: InteriorCtx, kit: Kit): THREE.Group[] {
   const g = new THREE.Group();
-  g.position.set(ROOM_W / 2 - 0.5, 0, 2.2);
+  g.position.set(ROOM_W / 2 - 0.5, 0, (2.2 * 4) / 3);
   g.rotation.y = -Math.PI / 2;
   ctx.scene.add(g);
 
@@ -1199,7 +1208,7 @@ function buildRepairStation(ctx: InteriorCtx, kit: Kit): THREE.Group[] {
 
   // Toolbox on the deck beside the station — low enough to never meet the player at eye height.
   const box = new THREE.Group();
-  box.position.set(ROOM_W / 2 - 0.95, 0, 2.95);
+  box.position.set(ROOM_W / 2 - 0.95, 0, (2.95 * 4) / 3);
   box.rotation.y = 0.4;
   ctx.scene.add(box);
   mesh(box, chamferBox(0.44, 0.24, 0.3, 0.022), kit.steel, 0, 0.12, 0);

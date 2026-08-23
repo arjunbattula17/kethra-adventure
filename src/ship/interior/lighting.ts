@@ -155,16 +155,17 @@ export function buildLighting(ctx: InteriorCtx): void {
   // shadow caster: one orthographic pass replaces the old point-light cubemap (6 faces) and gives
   // the ceiling beams/ducts/pendants real slanted shadow bars across the plating.
   const key = new THREE.DirectionalLight(0xffeed6, 1.0);
-  key.position.set(4.5, 11.5, 5.5);
-  key.target.position.set(-0.6, 0, -2.2);
+  key.position.set(6, 13, 7.3);
+  key.target.position.set(-0.8, 0, -2.9);
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024);
-  key.shadow.camera.left = -7;
-  key.shadow.camera.right = 7;
-  key.shadow.camera.top = 9;
-  key.shadow.camera.bottom = -9;
+  // Room is now 12x16 (was 9x12) — the orthographic frustum grows with it, plus margin.
+  key.shadow.camera.left = -9;
+  key.shadow.camera.right = 9;
+  key.shadow.camera.top = 11.5;
+  key.shadow.camera.bottom = -11.5;
   key.shadow.camera.near = 1;
-  key.shadow.camera.far = 28;
+  key.shadow.camera.far = 32;
   key.shadow.bias = -0.0012;
   key.shadow.normalBias = 0.03;
   // LightShadow.updateMatrices() re-derives the view matrix every frame but never touches the
@@ -191,35 +192,39 @@ export function buildLighting(ctx: InteriorCtx): void {
   // ===============================================================================================
 
   const pendantLights: THREE.PointLight[] = [];
+  // The old room's ceiling duct spine this stem mounted into is gone (ceiling.ts is now a flat
+  // slab); PEND_DY lifts the whole fixture by the ROOM_H - 4 = 1 unit the ceiling itself rose by,
+  // so the stem still reaches it while every proportion below the mount stays untouched.
+  const PEND_DY = 1;
   const addPendant = (z: number) => {
-    // Mount into the underside of the ceiling duct spine (which bottoms out at y=3.38).
-    box(0.36, 0.05, 0.36, matHousingDark, 0, 3.345, z);
+    // Mount into the underside of the ceiling slab.
+    box(0.36, 0.05, 0.36, matHousingDark, 0, 3.345 + PEND_DY, z);
     const collar = new THREE.Mesh(gRing, matTrim);
     collar.scale.set(0.12, 0.12, 0.12);
     collar.rotation.x = Math.PI / 2;
-    collar.position.set(0, 3.3, z);
+    collar.position.set(0, 3.3 + PEND_DY, z);
     ctx.scene.add(collar);
 
-    tube(0.032, 0.34, 'y', matTrim, 0, 3.15, z);
-    const crossbar = box(1.22, 0.05, 0.07, matHousing, 0, 2.99, z);
+    tube(0.032, 0.34, 'y', matTrim, 0, 3.15 + PEND_DY, z);
+    const crossbar = box(1.22, 0.05, 0.07, matHousing, 0, 2.99 + PEND_DY, z);
     crossbar.castShadow = true;
 
     // Reflector hood: a flat pan with two turned-down side flaps, so the fixture has a chamfered
     // silhouette instead of reading as one slab.
-    const hood = box(1.16, 0.035, 0.32, matTrim, 0, 2.955, z);
+    const hood = box(1.16, 0.035, 0.32, matTrim, 0, 2.955 + PEND_DY, z);
     hood.castShadow = true;
-    for (const dz of [-0.165, 0.165]) box(1.16, 0.1, 0.028, matHousing, 0, 2.915, z + dz);
+    for (const dz of [-0.165, 0.165]) box(1.16, 0.1, 0.028, matHousing, 0, 2.915 + PEND_DY, z + dz);
 
     for (const dx of [-0.585, 0.585]) {
-      box(0.1, 0.2, 0.3, matHousingDark, dx, 2.885, z);
-      box(0.03, 0.24, 0.34, matTrim, dx + Math.sign(dx) * 0.058, 2.885, z);
+      box(0.1, 0.2, 0.3, matHousingDark, dx, 2.885 + PEND_DY, z);
+      box(0.03, 0.24, 0.34, matTrim, dx + Math.sign(dx) * 0.058, 2.885 + PEND_DY, z);
     }
 
     for (const dz of [-0.085, 0.085]) {
-      tube(0.048, 1.06, 'x', matWarmTube, 0, 2.87, z + dz);
+      tube(0.048, 1.06, 'x', matWarmTube, 0, 2.87 + PEND_DY, z + dz);
       const sprite = new THREE.Sprite(spriteWarm);
       sprite.scale.set(1.55, 0.46, 1);
-      sprite.position.set(0, 2.87, z + dz);
+      sprite.position.set(0, 2.87 + PEND_DY, z + dz);
       sprite.renderOrder = 4;
       ctx.scene.add(sprite);
     }
@@ -230,29 +235,29 @@ export function buildLighting(ctx: InteriorCtx): void {
       const hoop = new THREE.Mesh(gRing, matHousingDark);
       hoop.scale.set(0.175, 0.175, 0.175);
       hoop.rotation.y = Math.PI / 2;
-      hoop.position.set(dx, 2.87, z);
+      hoop.position.set(dx, 2.87 + PEND_DY, z);
       ctx.scene.add(hoop);
     }
     for (const [dy, dz] of [[-0.125, -0.125], [-0.125, 0.125], [0.125, -0.125], [0.125, 0.125]]) {
-      tube(0.009, 1.02, 'x', matHousingDark, 0, 2.87 + dy, z + dz);
+      tube(0.009, 1.02, 'x', matHousingDark, 0, 2.87 + PEND_DY + dy, z + dz);
     }
 
     const light = new THREE.PointLight(0xffe7c4, 1.2, 9.5, 1.5);
-    light.position.set(0, 2.6, z);
+    light.position.set(0, 2.6 + PEND_DY, z);
     ctx.scene.add(light);
     pendantLights.push(light);
 
     floorPool(0, z, 3.6, 3.6, glowWarmPool);
   };
-  addPendant(-0.2);
-  addPendant(2.9);
+  addPendant((-0.2 * 4) / 3);
+  addPendant((2.9 * 4) / 3);
 
   // ===============================================================================================
   // 3. Hooded wall downlights — the cone pools grazing the plating are the single most
   //    recognisable lighting cue in the reference crop.
   // ===============================================================================================
 
-  const SCONCE_Y = 2.72;
+  const SCONCE_Y = 2.72 * (5 / 4);
   const addSconce = (side: 1 | -1, z: number, withLight: boolean) => {
     const wallX = side * (ROOM_W / 2 - 0.1);
     const inward = -side;
@@ -287,8 +292,9 @@ export function buildLighting(ctx: InteriorCtx): void {
   };
   // Staggered rather than mirrored: two walls of evenly-opposed fixtures reads as a corridor
   // decal strip, and the reference's practicals are never symmetrical across the room.
-  for (const z of [-4.5, -1.7, 1.1, 3.9]) addSconce(-1, z, z === -1.7);
-  for (const z of [-3.4, -0.6, 2.2, 5.0]) addSconce(1, z, z === -0.6);
+  // Positions scaled by the room's 4/3 (x/z) rebuild factor; -6, -0.8 are the lit fixture in each run.
+  for (const z of [-6, -2.267, 1.467, 5.2]) addSconce(-1, z, z === -6);
+  for (const z of [-4.533, -0.8, 2.933, 6.667]) addSconce(1, z, z === -0.8);
 
   // ===============================================================================================
   // 4. Bare strip tubes clamped high on the side walls, plus the graze they throw down the plating.
@@ -301,28 +307,31 @@ export function buildLighting(ctx: InteriorCtx): void {
     const lensMat = flicker ? matWarmTube.clone() : matWarmTube;
     const grazeMat = flicker ? glowWarmBar.clone() : glowWarmBar;
 
-    box(0.16, 0.14, len, matHousingDark, wallX + inward * 0.07, 3.36, z);
-    box(0.22, 0.03, len - 0.08, matTrim, wallX + inward * 0.15, 3.395, z);
+    // 3.3ish sat just under the old room's 4-tall ceiling; +0.75 keeps the same margin under the
+    // new 5-tall one.
+    const dY = 0.75;
+    box(0.16, 0.14, len, matHousingDark, wallX + inward * 0.07, 3.36 + dY, z);
+    box(0.22, 0.03, len - 0.08, matTrim, wallX + inward * 0.15, 3.395 + dY, z);
     for (const dz of [-(len / 2 - 0.1), len / 2 - 0.1]) {
-      box(0.2, 0.22, 0.06, matHousing, wallX + inward * 0.13, 3.31, z + dz);
-      addWallBolts(side, z + dz, 3.31, 0.02, 0.09);
+      box(0.2, 0.22, 0.06, matHousing, wallX + inward * 0.13, 3.31 + dY, z + dz);
+      addWallBolts(side, z + dz, 3.31 + dY, 0.02, 0.09);
     }
-    tube(0.046, len - 0.24, 'z', lensMat, wallX + inward * 0.16, 3.29, z);
+    tube(0.046, len - 0.24, 'z', lensMat, wallX + inward * 0.16, 3.29 + dY, z);
 
     const sprite = new THREE.Sprite(spriteWarm);
     sprite.scale.set(0.5, 0.42, 1);
-    sprite.position.set(wallX + inward * 0.16, 3.29, z);
+    sprite.position.set(wallX + inward * 0.16, 3.29 + dY, z);
     ctx.scene.add(sprite);
 
-    const graze = wallGlow(side, z, 3.29 - 0.62, len + 0.9, 1.55, grazeMat);
+    const graze = wallGlow(side, z, 3.29 + dY - 0.62, len + 0.9, 1.55, grazeMat);
     graze.renderOrder = 2;
 
     if (flicker) flickerTargets.push({ mat: lensMat, graze: grazeMat, baseE: lensMat.emissiveIntensity, baseO: grazeMat.opacity });
   };
-  addWallStrip(-1, -0.4, 2.1, false);
-  addWallStrip(-1, 4.2, 1.8, false);
-  addWallStrip(1, -3.0, 2.2, false);
-  addWallStrip(1, 2.6, 1.9, true);
+  addWallStrip(-1, (-0.4 * 4) / 3, 2.1, false);
+  addWallStrip(-1, (4.2 * 4) / 3, 1.8, false);
+  addWallStrip(1, (-3.0 * 4) / 3, 2.2, false);
+  addWallStrip(1, (2.6 * 4) / 3, 1.9, true);
 
   // ===============================================================================================
   // 5. Recessed egg-crate troffers set between the ceiling beams.
@@ -353,9 +362,9 @@ export function buildLighting(ctx: InteriorCtx): void {
 
     floorPool(x, z, 2.8, 2.8, glowWarmPoolSoft);
   };
-  for (const x of [-2.75, 2.75]) {
-    addTroffer(x, -3.0);
-    addTroffer(x, 3.0);
+  for (const x of [-2.75 * (4 / 3), 2.75 * (4 / 3)]) {
+    addTroffer(x, (-3.0 * 4) / 3);
+    addTroffer(x, (3.0 * 4) / 3);
   }
 
   // ===============================================================================================
@@ -364,24 +373,24 @@ export function buildLighting(ctx: InteriorCtx): void {
   // ===============================================================================================
 
   const coolLights: THREE.PointLight[] = [];
-  for (const [x, y, z] of [[0, 1.7, -2.6], [-1.5, 2.4, -3.8]] as [number, number, number][]) {
+  for (const [x, y, z] of [[0, 1.7, (-2.6 * 4) / 3], [(-1.5 * 4) / 3, 2.4, (-3.8 * 4) / 3]] as [number, number, number][]) {
     const light = new THREE.PointLight(COOL, 0.6, 7.5, 1.7);
     light.position.set(x, y, z);
     ctx.scene.add(light);
     coolLights.push(light);
   }
-  floorPool(0, -2.5, 5.4, 4.4, glowCoolPool);
+  floorPool(0, (-2.5 * 4) / 3, 5.4, 4.4, glowCoolPool);
   // Screen light striking the ceiling above the display — the cue that reads "that panel is the
   // brightest thing in the room" even when the panel itself is off-frame.
   const coolCeiling = glow(3.2, 2.4, glowCoolPool);
   coolCeiling.rotation.x = Math.PI / 2;
-  coolCeiling.position.set(0, CEIL_FACE - 0.03, -4.0);
+  coolCeiling.position.set(0, CEIL_FACE - 0.03, (-4.0 * 4) / 3);
 
   // Cool marker lenses flanking the console bay at deck level — small, cool, and low, so the eye
   // is led toward the focal point along the floor.
   for (const side of [-1, 1] as const) {
-    box(0.06, 0.05, 0.9, matCoolLens, side * 2.2, 0.14, -4.6);
-    box(0.1, 0.14, 1.0, matHousingDark, side * 2.24, 0.08, -4.6);
+    box(0.06, 0.05, 0.9, matCoolLens, side * 2.2, 0.14, (-4.6 * 4) / 3);
+    box(0.1, 0.14, 1.0, matHousingDark, side * 2.24, 0.08, (-4.6 * 4) / 3);
   }
 
   // ===============================================================================================
@@ -392,7 +401,7 @@ export function buildLighting(ctx: InteriorCtx): void {
   const addBeacon = (side: 1 | -1, z: number, primary: boolean) => {
     const wallX = side * (ROOM_W / 2 - 0.1);
     const inward = -side;
-    const y = 3.05;
+    const y = 3.05 * (5 / 4);
 
     box(0.06, 0.34, 0.34, matHousingDark, wallX - side * 0.02, y, z);
     box(0.05, 0.4, 0.06, matHousing, wallX + inward * 0.04, y, z);
@@ -429,8 +438,8 @@ export function buildLighting(ctx: InteriorCtx): void {
       ctx.setEmergencyLight(light);
     }
   };
-  addBeacon(-1, -2.6, true);
-  addBeacon(1, 4.1, false);
+  addBeacon(-1, (-2.6 * 4) / 3, true);
+  addBeacon(1, (4.1 * 4) / 3, false);
 
   // ===============================================================================================
   // 8. Bolt heads across every wall-mounted fixture, batched into one instanced draw.

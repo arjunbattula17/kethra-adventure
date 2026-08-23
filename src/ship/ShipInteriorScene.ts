@@ -99,10 +99,11 @@ export class ShipInteriorScene implements GameScene {
       new THREE.Box3(new THREE.Vector3(-ROOM_W / 2, 0, -ROOM_D / 2), new THREE.Vector3(ROOM_W / 2, 3, -ROOM_D / 2 + 0.5)),
       new THREE.Box3(new THREE.Vector3(-ROOM_W / 2 - 1, 0, -ROOM_D / 2), new THREE.Vector3(-ROOM_W / 2 + inset, 3, ROOM_D / 2)),
       new THREE.Box3(new THREE.Vector3(ROOM_W / 2 - inset, 0, -ROOM_D / 2), new THREE.Vector3(ROOM_W / 2 + 1, 3, ROOM_D / 2)),
-      // Console housing (3.0 x 1.1 x 0.7 centered 0, 0.55, -3.6)
-      new THREE.Box3(new THREE.Vector3(-1.5, 0, -3.95), new THREE.Vector3(1.5, 1.2, -3.25)),
-      // Repair station (0.7 x 1.4 x 0.5 centered ROOM_W/2-0.5, 0.7, 2.2)
-      new THREE.Box3(new THREE.Vector3(ROOM_W / 2 - 0.85, 0, 1.95), new THREE.Vector3(ROOM_W / 2 - 0.15, 1.4, 2.45)),
+      // Console housing (3.0 x 1.1 x 0.7 centered 0, 0.55, -4.8 — DESK_Z in console.ts, -3.6 scaled
+      // by the room rebuild's 4/3)
+      new THREE.Box3(new THREE.Vector3(-1.5, 0, -5.15), new THREE.Vector3(1.5, 1.2, -4.45)),
+      // Repair station (0.7 x 1.4 x 0.5 centered ROOM_W/2-0.5, 0.7, 2.933 — 2.2 scaled by 4/3)
+      new THREE.Box3(new THREE.Vector3(ROOM_W / 2 - 0.85, 0, 2.683), new THREE.Vector3(ROOM_W / 2 - 0.15, 1.4, 3.183)),
     ];
   }
 

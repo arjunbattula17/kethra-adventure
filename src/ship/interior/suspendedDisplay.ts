@@ -28,17 +28,16 @@ import {
 // braces, conduit run); flanking aux monitors on articulated arms for depth layering; and steel
 // in the brief's #5d666f-#7c858f band with corrosion confined to drip streaks under seams.
 //
-// Placement constraints: the array hangs over/behind the console (console housing sits at
-// z = -3.6) rather than out over the walkway, and its lowest hardware stays at y >= ~2.04, well
-// clear of player eye height 1.7, so nothing blocks the walk-up from spawn (0, 1.7, 4). The
-// anchor sits in the ceiling bay between the transverse I-beams at z = -3.0 and z = -4.2 (their
-// lower flanges bottom out at y = 3.535, and they occupy z +/-0.18 about their centres): tilted
-// back by TILT, the frame's top front corner lands at z = -3.23 and the header beam at
-// z = -3.90, so both stay inside the bay. The header also stays below the x = 0 longitudinal
-// runner, whose underside is at y = 3.736.
+// Placement constraints: the array hangs over/behind the console (console housing now sits at
+// z = -4.8, after the room's 9x12 -> 12x16 rebuild) rather than out over the walkway, and its
+// lowest hardware stays well clear of player eye height 1.7, so nothing blocks the walk-up from
+// spawn. The gantry's header beam climbs to just under the flat ceiling slab (ceiling.ts, y =
+// ROOM_H - 0.06 = 4.94), the same margin it kept under the old room's ceiling greeble.
 // ---------------------------------------------------------------------------------------------
 
-const ANCHOR_Z = -3.42;
+// 0.18 in front of the console's DESK_Z (console.ts), kept fixed as DESK_Z moved from -3.6 to
+// -4.8 with the room rebuild.
+const ANCHOR_Z = -4.62;
 const CENTER_Y = 2.82;
 /** Downward tilt so the panes face a player walking up the room rather than presenting an edge. */
 const TILT = 0.13;
@@ -547,19 +546,22 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   gantry.position.set(0, 0, ANCHOR_Z);
   ctx.scene.add(gantry);
 
-  // Header beam, set back into the ceiling bay behind the chassis and kept under the x = 0
-  // longitudinal runner. The array cantilevers forward off it on bracket arms.
+  // Header beam. It used to tuck under the old room's ceiling greeble; that structure is gone
+  // (ceiling.ts is now a flat slab), so the header simply climbs the ROOM_H - 4 = 1 unit the
+  // ceiling itself rose by, keeping the same margin under it. The array cantilevers forward off
+  // it on bracket arms.
   const headerZ = -0.48;
-  box(gantry, bodyMat, 2.94, 0.13, 0.22, 0, 3.665, headerZ);
-  box(gantry, brightSteelMat, 3.02, 0.026, 0.27, 0, 3.715, headerZ);
-  box(gantry, recessMat, 2.88, 0.04, 0.24, 0, 3.6, headerZ);
+  const headerY = 1;
+  box(gantry, bodyMat, 2.94, 0.13, 0.22, 0, 3.665 + headerY, headerZ);
+  box(gantry, brightSteelMat, 3.02, 0.026, 0.27, 0, 3.715 + headerY, headerZ);
+  box(gantry, recessMat, 2.88, 0.04, 0.24, 0, 3.6 + headerY, headerZ);
   for (const sx of [-1, 1] as const) {
-    box(gantry, recessMat, 0.09, 0.22, 0.3, sx * 1.49, 3.665, headerZ);
-    box(gantry, brightSteelMat, 0.05, 0.26, 0.05, sx * 1.53, 3.665, headerZ + 0.1);
+    box(gantry, recessMat, 0.09, 0.22, 0.3, sx * 1.49, 3.665 + headerY, headerZ);
+    box(gantry, brightSteelMat, 0.05, 0.26, 0.05, sx * 1.53, 3.665 + headerY, headerZ + 0.1);
     // Risers tying the beam up into the deck between the runners.
     for (const rx of [0.35, 1.05]) {
-      box(gantry, bodyMat, 0.13, 0.17, 0.13, sx * rx, 3.8, headerZ);
-      box(gantry, brightSteelMat, 0.2, 0.022, 0.2, sx * rx, 3.732, headerZ);
+      box(gantry, bodyMat, 0.13, 0.17, 0.13, sx * rx, 3.8 + headerY, headerZ);
+      box(gantry, brightSteelMat, 0.2, 0.022, 0.2, sx * rx, 3.732 + headerY, headerZ);
     }
   }
   // Bolt line along the header's front web.
@@ -567,7 +569,7 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   headerBoltGeo.rotateX(Math.PI / 2);
   const headerBolts = new THREE.InstancedMesh(headerBoltGeo, boltMat, 22);
   for (let i = 0; i < 22; i++) {
-    m.makeTranslation(-1.4 + (i % 11) * 0.28, i < 11 ? 3.702 : 3.612, headerZ + 0.122);
+    m.makeTranslation(-1.4 + (i % 11) * 0.28, (i < 11 ? 3.702 : 3.612) + headerY, headerZ + 0.122);
     headerBolts.setMatrixAt(i, m);
   }
   headerBolts.instanceMatrix.needsUpdate = true;
@@ -577,18 +579,18 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   // Conduit run strapped under the header, with a copper flex section spliced in.
   const conduitRun = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 2.6, 8), recessMat);
   conduitRun.rotation.z = Math.PI / 2;
-  conduitRun.position.set(0, 3.548, headerZ);
+  conduitRun.position.set(0, 3.548 + headerY, headerZ);
   conduitRun.castShadow = true;
   conduitRun.receiveShadow = true;
   gantry.add(conduitRun);
   const flex = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.36, 8), copperMat);
   flex.rotation.z = Math.PI / 2;
-  flex.position.set(0.92, 3.548, headerZ);
+  flex.position.set(0.92, 3.548 + headerY, headerZ);
   flex.castShadow = true;
   flex.receiveShadow = true;
   gantry.add(flex);
   for (const cx of [-1.05, 0.2]) {
-    box(gantry, recessMat, 0.085, 0.12, 0.12, cx, 3.556, headerZ);
+    box(gantry, recessMat, 0.085, 0.12, 0.12, cx, 3.556 + headerY, headerZ);
   }
 
   // Cantilever bracket arms carrying the array forward off the beam.
@@ -604,7 +606,7 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   // hanging structure reading as a stack of parallel boxes.
   const up = new THREE.Vector3(0, 1, 0);
   for (const sx of [-1, 1] as const) {
-    const a = new THREE.Vector3(sx * 1.26, 3.59, headerZ + 0.06);
+    const a = new THREE.Vector3(sx * 1.26, 3.59 + headerY, headerZ + 0.06);
     const b = new THREE.Vector3(sx * 1.26, 3.02, headerZ + 0.36);
     const dir = new THREE.Vector3().subVectors(b, a);
     const brace = new THREE.Mesh(new THREE.BoxGeometry(0.045, dir.length(), 0.045), recessMat);
@@ -618,8 +620,8 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   // Service loom feeding the array from the header.
   for (const [x, sag] of [[-0.68, 0.1], [0.68, 0.14]] as const) {
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(x, 3.6, headerZ - 0.1),
-      new THREE.Vector3(x * 1.08, 3.58 - sag, headerZ + 0.16),
+      new THREE.Vector3(x, 3.6 + headerY, headerZ - 0.1),
+      new THREE.Vector3(x * 1.08, 3.58 + headerY - sag, headerZ + 0.16),
       new THREE.Vector3(x * 0.94, topY - 0.04, topZ - 0.16),
     ]);
     const loom = new THREE.Mesh(new THREE.TubeGeometry(curve, 16, 0.019, 6, false), cableMat);

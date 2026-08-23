@@ -58,22 +58,25 @@ import {
 // -5.5... — everything forward of the frame below eye height stays under y = 1.5.
 // ---------------------------------------------------------------------------------------------
 
-const WALL_Z = -ROOM_D / 2 + 0.1;   // inner face of the console bulkhead, -5.9
-const FRONT_Z = -5.5;               // the surround's frontmost structural plane
-const APER_HW = 3.35;               // aperture half-width
-const APER_B = 1.3;                 // aperture bottom
-const APER_T = 3.2;                 // aperture top
+// Every constant below is the old 9x12x4 room's value scaled by the same 4/3 (x) / 5/4 (y) that
+// took the room to 12x16x5, so the whole bay grows proportionally with the wall it's mounted on
+// instead of being redesigned from scratch.
+const WALL_Z = -ROOM_D / 2 + 0.1;   // inner face of the console bulkhead, -7.9
+const FRONT_Z = WALL_Z + 0.4 * (4 / 3); // the surround's frontmost structural plane
+const APER_HW = 3.35 * (4 / 3);     // aperture half-width
+const APER_B = 1.3 * (5 / 4);       // aperture bottom
+const APER_T = 3.2 * (5 / 4);       // aperture top
 const APER_W = APER_HW * 2;
 const APER_H = APER_T - APER_B;
 const APER_CY = (APER_B + APER_T) / 2;
-const FRAME_HW = 4.2;               // outer edge of the surround (side walls sit at 4.4)
-const SILL_B = 0.96;
-const LINTEL_T = 3.64;
+const FRAME_HW = 4.2 * (4 / 3);     // outer edge of the surround (side walls sit at HALF_W = 6)
+const SILL_B = 0.96 * (5 / 4);
+const LINTEL_T = 3.64 * (5 / 4);
 const MULLION_X = [-APER_HW / 3, APER_HW / 3];   // three panes across
-const TRANSOM_Y = 2.26;                          // two panes high
-const JAMB_W = FRAME_HW - APER_HW;               // 0.85
-const JAMB_CX = (FRAME_HW + APER_HW) / 2;        // 3.775
-const ACT_X = 4.06;                              // shutter actuator centreline
+const TRANSOM_Y = 2.26 * (5 / 4);                // two panes high
+const JAMB_W = FRAME_HW - APER_HW;
+const JAMB_CX = (FRAME_HW + APER_HW) / 2;
+const ACT_X = 4.06 * (4 / 3);                    // shutter actuator centreline
 
 const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
 
@@ -465,12 +468,12 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // the top of the silhouette instead of ending the assembly on a flat beam.
   // Ceiling sits at y = 4, so the whole shutter assembly is packed into the 0.36 band above
   // the lintel rather than being allowed to grow up through it.
-  const shutterY = 3.8;
+  const shutterY = 3.8 * (5 / 4);
   slab(ctx, steelMat, FRAME_HW * 2 - 0.5, 0.34, 0.46, 0, shutterY, WALL_Z + 0.25);
   slab(ctx, steelDarkMat, FRAME_HW * 2 - 0.36, 0.06, 0.5, 0, shutterY + 0.15, WALL_Z + 0.26);
   slab(ctx, steelNoseMat, FRAME_HW * 2 - 0.6, 0.1, 0.14, 0, shutterY - 0.15, FRONT_Z + 0.02);
   for (let i = 0; i < 27; i++) {
-    slat(0.05, 0.26, 0.4, -3.78 + i * 0.2908, shutterY, WALL_Z + 0.26);
+    slat(0.05, 0.26, 0.4, (-3.78 + i * 0.2908) * (4 / 3), shutterY, WALL_Z + 0.26);
   }
   // The housing overhangs the lintel: the crease under it never sees the key.
   ao('top', 0.7, FRAME_HW * 2 - 0.5, 0.26, 0, shutterY - 0.3, WALL_Z + 0.49);
@@ -519,7 +522,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   for (let i = 0; i < 2; i++) {
     const s = i === 0 ? -1 : 1;
     const jx = s * JAMB_CX;
-    const bankX = s * 3.7;
+    const bankX = s * 3.7 * (4 / 3);
 
     // Two indicator banks per jamb in protruding housings with their own bezels — the red
     // accent the reference hangs beside its screen bank, as real hardware rather than a decal.
@@ -545,15 +548,15 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
 
     // Junction box feeding the banks, conduit climbing to the ceiling, and a copper flex drop
     // hugging the aperture edge — copper stays an accent on conduit only, never a surface.
-    slab(ctx, steelDarkMat, 0.3, 0.3, 0.22, bankX, 3.5, FRONT_Z + 0.01);
-    slab(ctx, steelNoseMat, 0.34, 0.05, 0.24, bankX, 3.66, FRONT_Z + 0.01);
-    ao('radial', 0.5, 0.6, 0.6, bankX, 3.48, FRONT_Z + 0.001);
+    slab(ctx, steelDarkMat, 0.3, 0.3, 0.22, bankX, 3.5 * (5 / 4), FRONT_Z + 0.01);
+    slab(ctx, steelNoseMat, 0.34, 0.05, 0.24, bankX, 3.66 * (5 / 4), FRONT_Z + 0.01);
+    ao('radial', 0.5, 0.6, 0.6, bankX, 3.48 * (5 / 4), FRONT_Z + 0.001);
     for (const dx of [-0.09, 0.09]) {
       const conduit = new THREE.Mesh(
         new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
-          new THREE.Vector3(bankX + dx, 3.62, FRONT_Z + 0.1),
-          new THREE.Vector3(bankX + dx * 1.6, 3.82, FRONT_Z + 0.16),
-          new THREE.Vector3(bankX + dx * 1.8, 3.95, WALL_Z + 0.6),
+          new THREE.Vector3(bankX + dx, 3.62 * (5 / 4), FRONT_Z + 0.1),
+          new THREE.Vector3(bankX + dx * 1.6, 3.82 * (5 / 4), FRONT_Z + 0.16),
+          new THREE.Vector3(bankX + dx * 1.8, 3.95 * (5 / 4), WALL_Z + 0.6),
         ]), 12, 0.026, 7, false),
         rubberMat,
       );
@@ -571,7 +574,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     );
     flex.castShadow = true;
     ctx.scene.add(flex);
-    for (const y of [3.05, 2.35, 1.62]) {
+    for (const y of [3.05 * (5 / 4), 2.35 * (5 / 4), 1.62 * (5 / 4)]) {
       slab(ctx, steelNoseMat, 0.08, 0.05, 0.09, s * 3.41, y, FRONT_Z + 0.03);
     }
 
@@ -592,7 +595,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
         emissive: k === 0 ? 0x4fd8f0 : 0xe0552f, emissiveIntensity: 1.4,
       });
       const dot = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), dotMat);
-      dot.position.set(jx - 0.16 + k * 0.32, 2.6, FRONT_Z + 0.025);
+      dot.position.set(jx - 0.16 + k * 0.32, 2.6 * (5 / 4), FRONT_Z + 0.025);
       ctx.scene.add(dot);
       ctx.statusLights.push({ mesh: dot, material: dotMat, phase: i * 1.7 + k * 0.9, onIntensity: 1.9 });
     }
@@ -602,7 +605,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // The reference's own weakness is that it is perfectly mirror-symmetric. This is the loudest
   // break: one plate off its seat, a dark cavity, a colour-coded loom and two breakers.
   const bayX = -JAMB_CX;
-  const bayY = 2.02;
+  const bayY = 2.02 * (5 / 4);
   const openBayTex = buildOpenBayTexture();
   const openBay = new THREE.Mesh(
     new THREE.PlaneGeometry(0.5, 0.74),
@@ -644,7 +647,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // The critic's note on the reference was that its light is uniformly ambient with nothing
   // pooling. This is the answer: a practical the crew clamped on, throwing a hard warm pool
   // across one end of the sill and down the apron, off-axis and unmirrored.
-  const lampX = 2.42;
+  const lampX = 2.42 * (4 / 3);
   slab(ctx, steelDarkMat, 0.13, 0.16, 0.16, lampX, 1.2, FRONT_Z + 0.03);
   const neck = new THREE.Mesh(
     new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
@@ -685,7 +688,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // Cool inserts angled up out of the ledge, breaking the bottom of the pane with a foreground
   // layer the way the reference stacks readouts in front of its display bank.
   const readoutGeo = new THREE.PlaneGeometry(0.46, 0.16);
-  const bezelXs = [-2.66, -1.72, 1.72, 2.66];
+  const bezelXs = [-2.66, -1.72, 1.72, 2.66].map((x) => x * (4 / 3));
   for (let i = 0; i < bezelXs.length; i++) {
     const x = bezelXs[i];
     const tex = buildSillReadoutTexture(i * 7 + 3);
@@ -705,21 +708,23 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
 
   // Hazard kick strip on the sill nose, and a warm practical tucked underneath it washing the
   // deck — warm and cool stay separated by fixture, meeting only at the edge of their pools.
-  const kick = slab(ctx, hazardMat, FRAME_HW * 2 - 0.32, 0.13, 0.04, 0, 1.13, FRONT_Z + 0.085);
+  const kick = slab(ctx, hazardMat, FRAME_HW * 2 - 0.32, 0.13, 0.04, 0, 1.13 * (5 / 4), FRONT_Z + 0.085);
   kick.renderOrder = 1;
-  slab(ctx, warmStripMat, FRAME_HW * 2 - 1.4, 0.04, 0.14, 0, 1.03, FRONT_Z + 0.04);
+  slab(ctx, warmStripMat, FRAME_HW * 2 - 1.4, 0.04, 0.14, 0, 1.03 * (5 / 4), FRONT_Z + 0.04);
 
   // ===== bolted repair patch over the pane ==============================================
   // A plate someone welded over a cracked corner, sealant squeezed out round the edge. It sits
   // *on* the glass, so it also proves the pane has a front surface.
-  const patch = slab(ctx, steelNoseMat, 0.52, 0.36, 0.035, -2.32, 1.62, FRONT_Z - 0.115);
+  const patchX = -2.32 * (4 / 3);
+  const patchY = 1.62 * (5 / 4);
+  const patch = slab(ctx, steelNoseMat, 0.52, 0.36, 0.035, patchX, patchY, FRONT_Z - 0.115);
   patch.rotation.z = 0.04;
-  const sealant = slab(ctx, gasketMat, 0.58, 0.42, 0.018, -2.32, 1.62, FRONT_Z - 0.1);
+  const sealant = slab(ctx, gasketMat, 0.58, 0.42, 0.018, patchX, patchY, FRONT_Z - 0.1);
   sealant.rotation.z = 0.04;
   for (const [dx, dy] of [[-0.2, -0.13], [0.2, -0.13], [-0.2, 0.13], [0.2, 0.13]] as const) {
-    bolt(-2.32 + dx, 1.62 + dy, FRONT_Z - 0.13);
+    bolt(patchX + dx, patchY + dy, FRONT_Z - 0.13);
   }
-  ao('radial', 0.6, 0.86, 0.68, -2.32, 1.6, FRONT_Z - 0.088);
+  ao('radial', 0.6, 0.86, 0.68, patchX, patchY - 0.02, FRONT_Z - 0.088);
 
   // ===== apron carrying the bay to the deck ============================================
   // Without this, the raw bulkhead below the sill reads as a large warm rust band directly
@@ -752,12 +757,12 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     map: dripTex, transparent: true, opacity: 0.62, depthWrite: false,
   });
   const dripA = new THREE.Mesh(new THREE.PlaneGeometry(FRAME_HW * 2 - 0.4, 0.86), dripMat);
-  dripA.position.set(0, 0.52, WALL_Z + 0.128);
+  dripA.position.set(0, 0.52 * (5 / 4), WALL_Z + 0.128);
   dripA.renderOrder = 2;
   ctx.scene.add(dripA);
   for (const s of [-1, 1] as const) {
     const dripB = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), dripMat);
-    dripB.position.set(s * 3.95, 1.46, FRONT_Z + 0.005);
+    dripB.position.set(s * 3.95 * (4 / 3), 1.46 * (5 / 4), FRONT_Z + 0.005);
     dripB.renderOrder = 2;
     ctx.scene.add(dripB);
   }
@@ -782,10 +787,10 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
 
   // ===== light =========================================================================
   const paneLight = new THREE.PointLight(0x6fd0ea, 0.85, 6.5, 2);
-  paneLight.position.set(0, 2.5, -4.9);
+  paneLight.position.set(0, 2.5 * (5 / 4), -4.9 * (4 / 3));
   ctx.scene.add(paneLight);
   const sillLight = new THREE.PointLight(0xffd9a0, 0.7, 4.2, 2);
-  sillLight.position.set(0, 1.02, -5.1);
+  sillLight.position.set(0, 1.02 * (5 / 4), -5.1 * (4 / 3));
   ctx.scene.add(sillLight);
 
   // ===== hull-exterior starfield =======================================================

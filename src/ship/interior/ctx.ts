@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import type { InteractionSystem } from '../../player/InteractionSystem';
 import { buildPanelGrimeTexture } from '../ShipTextures';
 
-export const ROOM_W = 9;
-export const ROOM_D = 12;
-export const ROOM_H = 4;
-/** Seam height between the worn lower hull band and the cleaner upper trim band. */
-export const WALL_SPLIT_Y = 2.3;
+// 12x16, three-by-four 4-unit tiles — a clean multiple of the Quaternius kit's grid (KIT_TILE=4,
+// KIT_WALL_H=5 in kit.ts) and exactly 4/3 the old 9x12x4 hand-built room in every axis, which is
+// what lets every hand-built piece below be *repositioned* by that same 4/3 (xz) scale instead of
+// redesigned from scratch.
+export const ROOM_W = 12;
+export const ROOM_D = 16;
+export const ROOM_H = 5;
 
 export interface StatusLight {
   mesh: THREE.Mesh;
@@ -33,36 +35,6 @@ export interface InteriorCtx {
   animated: ((elapsed: number, dt: number) => void)[];
   setStarfield(points: THREE.Points): void;
   setEmergencyLight(light: THREE.PointLight): void;
-}
-
-/**
- * Stacks a worn lower hull band under a cleaner upper trim band with a seam strip between them —
- * the layered-material read, instead of one texture stretched across a whole wall.
- */
-export function addBandedWall(
-  ctx: InteriorCtx,
-  w: number,
-  d: number,
-  cx: number,
-  cz: number,
-  lowerMat: THREE.Material,
-  upperMat: THREE.Material,
-  seamMat: THREE.Material,
-): void {
-  const upperH = ROOM_H - WALL_SPLIT_Y;
-  const lower = new THREE.Mesh(new THREE.BoxGeometry(w, WALL_SPLIT_Y, d), lowerMat);
-  lower.position.set(cx, WALL_SPLIT_Y / 2, cz);
-  lower.receiveShadow = true;
-  ctx.scene.add(lower);
-
-  const upper = new THREE.Mesh(new THREE.BoxGeometry(w, upperH, d), upperMat);
-  upper.position.set(cx, WALL_SPLIT_Y + upperH / 2, cz);
-  upper.receiveShadow = true;
-  ctx.scene.add(upper);
-
-  const seam = new THREE.Mesh(new THREE.BoxGeometry(w * 0.98, 0.05, d + 0.02), seamMat);
-  seam.position.set(cx, WALL_SPLIT_Y, cz);
-  ctx.scene.add(seam);
 }
 
 export function addGrimeOverlay(
