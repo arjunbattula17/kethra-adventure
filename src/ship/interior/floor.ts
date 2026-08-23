@@ -9,8 +9,11 @@ import { ROOM_W, ROOM_D } from './ctx';
 import {
   buildPaintedDeckTexture,
   buildDeckRoughnessTexture,
+  buildDeckNormalTexture,
   buildTreadPlateTexture,
+  buildTreadNormalTexture,
   buildDeckWearTexture,
+  buildContactShadowTexture,
   buildTarpTexture,
 } from './floorTextures';
 
@@ -28,7 +31,7 @@ type Xform = { p: [number, number, number]; r?: [number, number, number]; s?: [n
 
 const dummy = new THREE.Object3D();
 
-function instance(geo: THREE.BufferGeometry, mat: THREE.Material, xforms: Xform[]): THREE.InstancedMesh {
+function instance(geo: THREE.BufferGeometry, mat: THREE.Material, xforms: Xform[], cast = false): THREE.InstancedMesh {
   const mesh = new THREE.InstancedMesh(geo, mat, xforms.length);
   xforms.forEach((x, i) => {
     dummy.position.set(x.p[0], x.p[1], x.p[2]);
@@ -38,9 +41,20 @@ function instance(geo: THREE.BufferGeometry, mat: THREE.Material, xforms: Xform[
     mesh.setMatrixAt(i, dummy.matrix);
   });
   mesh.instanceMatrix.needsUpdate = true;
-  mesh.castShadow = false;
+  mesh.castShadow = cast;
   mesh.receiveShadow = true;
   return mesh;
+}
+
+/** Everything in the subtree drops and receives shadows — floor hardware is never floating. */
+function grounded<T extends THREE.Object3D>(o: T): T {
+  o.traverse((n) => {
+    if ((n as THREE.Mesh).isMesh) {
+      n.castShadow = true;
+      n.receiveShadow = true;
+    }
+  });
+  return o;
 }
 
 /**
@@ -54,51 +68,76 @@ export function buildFloor(ctx: InteriorCtx): void {
   const add = (o: THREE.Object3D) => ctx.scene.add(o);
 
   // ===== shared materials =====
-  // Palette per the brief: painted deck #c9c2b4–#ddd6c6, bare plate #6e737c–#8a8f98, shadowed
-  // structure #2b3138–#3d444c. The low emissive terms are a tonemapping lift, not a colour —
-  // ACES crushes the mid-lows and the deck has to stay the brightest thing on the ground plane.
+  // Two corrections drive this whole block, both from the measured value structure.
+  //
+  // 1. Highlights (p95 +0.24 over the reference): every material used to carry an `emissive` lift
+  //    on top of an already-bright albedo, and the deck's albedo sat at the top of the brief's
+  //    swatch. Under this room's key + hemi + bounce that clipped the mid-ground deck to white.
+  //    Emissive is gone from every non-light material here and the bright albedos are pulled a
+  //    long way down, so the *rendered* deck lands inside #c9c2b4–#ddd6c6 instead of the raw
+  //    colour doing so and then blowing past it.
+  // 2. Crushed blacks (14% vs the reference's 0.8%): the dark hardware was near-black albedo at
+  //    metalness 0.5–0.62, and metalness that high scales diffuse away — with only a 0.5-intensity
+  //    environment there was nothing left to light. Dark surfaces are now mid-dark dielectrics or
+  //    low-metal steels, so they hold material in shadow.
+  //
+  // Material response is separated on purpose, not just by colour:
+  //   painted deck/markings  metalness 0.00, roughness 0.9–1.0 (with map)
+  //   worn composite tread   metalness 0.30, roughness 0.62
+  //   bare/machined steel    metalness 0.72–0.82, roughness 0.30–0.40
+  //   rubber hose, matting   metalness 0.00, roughness 0.96, envMapIntensity 0.15
   const deckMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
     map: buildPaintedDeckTexture(ROOM_W / 2.4, ROOM_D / 2.4),
     roughnessMap: buildDeckRoughnessTexture(ROOM_W / 2.4, ROOM_D / 2.4),
-    roughness: 0.94,
-    metalness: 0.06,
-    envMapIntensity: 0.7,
-    emissive: 0x3a382f,
-    emissiveIntensity: 0.5,
+    normalMap: buildDeckNormalTexture(ROOM_W / 1.2, ROOM_D / 1.2),
+    normalScale: new THREE.Vector2(0.7, 0.7),
+    roughness: 1.0,
+    metalness: 0.0,
+    envMapIntensity: 0.35,
     side: THREE.DoubleSide,
   });
-  const deckRibMat = new THREE.MeshStandardMaterial({ color: 0xc4bdad, roughness: 0.78, metalness: 0.14, emissive: 0x35332b, emissiveIntensity: 0.45 });
-  const boltMat = new THREE.MeshStandardMaterial({ color: 0x9d978b, roughness: 0.48, metalness: 0.62, emissive: 0x2b2926, emissiveIntensity: 0.45 });
-  const plateMat = new THREE.MeshStandardMaterial({ color: 0x828790, roughness: 0.54, metalness: 0.62, envMapIntensity: 1.3, emissive: 0x2c3036, emissiveIntensity: 0.5 });
-  const darkSteelMat = new THREE.MeshStandardMaterial({ color: 0x3c4149, roughness: 0.62, metalness: 0.55, emissive: 0x1f2228, emissiveIntensity: 0.6 });
-  const voidMat = new THREE.MeshStandardMaterial({ color: 0x0e1014, roughness: 0.9, metalness: 0.2 });
+  // Rib tops are walked on, so they burnish lighter and smoother than the bay they divide — that
+  // difference is what makes the panel grid read at a grazing angle.
+  const deckRibMat = new THREE.MeshStandardMaterial({ color: 0xb2ab9c, roughness: 0.52, metalness: 0.08, envMapIntensity: 0.5 });
+  const boltMat = new THREE.MeshStandardMaterial({ color: 0x8e939c, roughness: 0.38, metalness: 0.78, envMapIntensity: 0.85 });
+  const plateMat = new THREE.MeshStandardMaterial({ color: 0x6f747d, roughness: 0.33, metalness: 0.76, envMapIntensity: 0.8 });
+  const darkSteelMat = new THREE.MeshStandardMaterial({ color: 0x4b515b, roughness: 0.55, metalness: 0.45, envMapIntensity: 0.55 });
+  // Not a hole: the reference's recesses are dark *material* that still reads in shadow.
+  const voidMat = new THREE.MeshStandardMaterial({ color: 0x2b2f36, roughness: 0.92, metalness: 0.05, envMapIntensity: 0.2 });
   const treadMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    map: buildTreadPlateTexture(4, 4),
-    roughness: 0.72,
-    metalness: 0.5,
-    envMapIntensity: 1.1,
-    emissive: 0x23262c,
-    emissiveIntensity: 0.55,
+    map: buildTreadPlateTexture(2, 3),
+    normalMap: buildTreadNormalTexture(2, 3),
+    normalScale: new THREE.Vector2(0.9, 0.9),
+    roughness: 0.62,
+    metalness: 0.3,
+    envMapIntensity: 0.55,
   });
-  const paintYellowMat = new THREE.MeshStandardMaterial({ color: 0xd8a63a, roughness: 0.8, metalness: 0.05, emissive: 0x3a2c10, emissiveIntensity: 0.45 });
-  const paintWhiteMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d6, roughness: 0.86, metalness: 0.04, emissive: 0x33322c, emissiveIntensity: 0.45 });
-  const pipeMat = new THREE.MeshStandardMaterial({ color: 0x7b818b, roughness: 0.5, metalness: 0.7, envMapIntensity: 1.4, emissive: 0x282c33, emissiveIntensity: 0.5 });
-  const copperMat = new THREE.MeshStandardMaterial({ color: 0xa8703a, roughness: 0.55, metalness: 0.75, emissive: 0x2e1e0f, emissiveIntensity: 0.6 });
-  const grateMat = new THREE.MeshStandardMaterial({ color: 0xb08c3c, roughness: 0.62, metalness: 0.45, emissive: 0x2e2410, emissiveIntensity: 0.55 });
-  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x22242a, roughness: 0.85, metalness: 0.1, emissive: 0x1b1d22, emissiveIntensity: 0.7 });
-  const hoseMat = new THREE.MeshStandardMaterial({ color: 0xc19a34, roughness: 0.65, metalness: 0.25, emissive: 0x30260e, emissiveIntensity: 0.55 });
+  const paintYellowMat = new THREE.MeshStandardMaterial({ color: 0xb08429, roughness: 0.74, metalness: 0.0, envMapIntensity: 0.3 });
+  const paintWhiteMat = new THREE.MeshStandardMaterial({ color: 0xbdb8ab, roughness: 0.82, metalness: 0.0, envMapIntensity: 0.3 });
+  const pipeMat = new THREE.MeshStandardMaterial({ color: 0x6b717b, roughness: 0.3, metalness: 0.82, envMapIntensity: 0.9 });
+  const copperMat = new THREE.MeshStandardMaterial({ color: 0x8e5f31, roughness: 0.42, metalness: 0.85, envMapIntensity: 0.9 });
+  const grateMat = new THREE.MeshStandardMaterial({ color: 0x8d7238, roughness: 0.52, metalness: 0.5, envMapIntensity: 0.6 });
+  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x33363d, roughness: 0.96, metalness: 0.0, envMapIntensity: 0.15 });
+  const hoseMat = new THREE.MeshStandardMaterial({ color: 0x9a7c2e, roughness: 0.72, metalness: 0.08, envMapIntensity: 0.25 });
 
+  // Hazard yellow stays a saturated accent, but tinted down so the stripe tops are not the
+  // brightest thing on the deck. The shared stripe texture's black bands are #14120a, which at
+  // this room's ambient level renders as literal 0 — the only emissive term left in this file is
+  // a shadow floor for those bands, so the chevrons keep reading as painted stripes in the dark
+  // instead of as gaps.
+  const hazardTint = 0xbdb8ac;
+  const hazardFloor = 0x23262b;
   const hazardTex = buildHazardStripeTexture();
   hazardTex.repeat.set(28, 1);
-  const hazardMat = new THREE.MeshStandardMaterial({ map: hazardTex, roughness: 0.72, metalness: 0.18, emissive: 0x2a2212, emissiveIntensity: 0.45 });
+  const hazardMat = new THREE.MeshStandardMaterial({ map: hazardTex, color: hazardTint, roughness: 0.74, metalness: 0.06, envMapIntensity: 0.3, emissive: hazardFloor, emissiveIntensity: 1 });
   const hazardTexShort = buildHazardStripeTexture();
   hazardTexShort.repeat.set(10, 1);
-  const hazardMatShort = new THREE.MeshStandardMaterial({ map: hazardTexShort, roughness: 0.72, metalness: 0.18, emissive: 0x2a2212, emissiveIntensity: 0.45 });
+  const hazardMatShort = new THREE.MeshStandardMaterial({ map: hazardTexShort, color: hazardTint, roughness: 0.74, metalness: 0.06, envMapIntensity: 0.3, emissive: hazardFloor, emissiveIntensity: 1 });
   const hazardTexPatch = buildHazardStripeTexture();
   hazardTexPatch.repeat.set(3, 1);
-  const hazardMatPatch = new THREE.MeshStandardMaterial({ map: hazardTexPatch, roughness: 0.72, metalness: 0.18, emissive: 0x2a2212, emissiveIntensity: 0.45 });
+  const hazardMatPatch = new THREE.MeshStandardMaterial({ map: hazardTexPatch, color: hazardTint, roughness: 0.74, metalness: 0.06, envMapIntensity: 0.3, emissive: hazardFloor, emissiveIntensity: 1 });
 
   // Bolt heads are collected across every sub-assembly and drawn as one instanced batch.
   const bolts: Xform[] = [];
@@ -128,6 +167,40 @@ export function buildFloor(ctx: InteriorCtx): void {
     add(m);
   };
 
+  // Contact occlusion. The room's single 1024 shadow map cannot resolve the centimetre-scale
+  // darkening where a grate lip, a hose or a kick strip meets the plate, so every ground-resting
+  // assembly gets an explicit multiply-blended pool under it. This is what stops props reading
+  // as decals floating on a flat sheet.
+  const contactMats: Record<string, THREE.MeshBasicMaterial> = {};
+  const contactMat = (variant: 'pad' | 'strip') => {
+    if (!contactMats[variant]) {
+      contactMats[variant] = new THREE.MeshBasicMaterial({
+        map: buildContactShadowTexture(variant),
+        transparent: true,
+        blending: THREE.MultiplyBlending,
+        premultipliedAlpha: true,
+        depthWrite: false,
+      });
+    }
+    return contactMats[variant];
+  };
+  const addContact = (
+    variant: 'pad' | 'strip',
+    x: number,
+    z: number,
+    w: number,
+    d: number,
+    rot = 0,
+    y = 0.011,
+  ) => {
+    const m = new THREE.Mesh(decalPlane, contactMat(variant));
+    m.position.set(x, y, z);
+    m.rotation.set(-Math.PI / 2, 0, rot);
+    m.scale.set(w, d, 1);
+    m.renderOrder = 4;
+    add(m);
+  };
+
   // ===== 1. deck slab =====
   const floor = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.2, ROOM_D), deckMat);
   floor.position.y = -0.1;
@@ -135,20 +208,25 @@ export function buildFloor(ctx: InteriorCtx): void {
   add(floor);
   ctx.floorMeshes.push(floor);
 
-  // A polished traffic zone in front of the console: same paint, far lower roughness, so it
-  // throws a specular smear the surrounding matte deck does not.
+  // A burnished traffic zone in front of the console. It differs from the surrounding deck by
+  // *roughness*, not by albedo — the old near-white, envMapIntensity 1.6 version was the single
+  // brightest smear in the frame and the main thing clipping the mid-ground.
   const polishMat = new THREE.MeshStandardMaterial({
-    color: 0xfffdf6,
+    color: 0xffffff,
     map: buildPaintedDeckTexture(1.6, 1.2),
-    roughness: 0.42,
-    metalness: 0.2,
-    envMapIntensity: 1.6,
-    emissive: 0x3d3a30,
-    emissiveIntensity: 0.5,
+    normalMap: buildDeckNormalTexture(3.2, 2.4),
+    normalScale: new THREE.Vector2(0.35, 0.35),
+    roughness: 0.38,
+    metalness: 0.1,
+    envMapIntensity: 0.45,
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
   });
   const polish = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.4), polishMat);
   polish.rotation.x = -Math.PI / 2;
   polish.position.set(0, 0.003, -2.3);
+  polish.renderOrder = 1;
   add(polish);
 
   // ===== 2. panel seam ribs + bolts =====
@@ -158,18 +236,25 @@ export function buildFloor(ctx: InteriorCtx): void {
   const ribGeoZ = new THREE.BoxGeometry(0.05, 0.016, 11.7);
   const ribZs = [-4.5, -3.0, -1.5, 0, 1.5, 3.0, 4.5];
   const ribXs = [-3.0, -1.5, 0, 1.5, 3.0];
+  // The key light runs from (+X, +Y, +Z) toward (-X, -Y, -Z), so each rib pools grime and drops
+  // its contact darkening on its -Z / -X side. Wear where use would put it: dirt collects against
+  // the upstand, not evenly across the bay.
   for (const z of ribZs) {
     const rib = new THREE.Mesh(ribGeoX, deckRibMat);
     rib.position.set(0, 0.008, z);
+    rib.castShadow = true;
     rib.receiveShadow = true;
     add(rib);
+    addContact('strip', 0, z - 0.115, 8.7, 0.23, Math.PI, 0.0105);
     for (let x = -3.9; x <= 3.9; x += 0.87) bolts.push({ p: [x, 0.017, z] });
   }
   for (const x of ribXs) {
     const rib = new THREE.Mesh(ribGeoZ, deckRibMat);
     rib.position.set(x, 0.008, 0);
+    rib.castShadow = true;
     rib.receiveShadow = true;
     add(rib);
+    addContact('strip', x - 0.115, 0, 11.7, 0.23, -Math.PI / 2, 0.0105);
     for (let z = -5.4; z <= 5.4; z += 0.9) bolts.push({ p: [x, 0.017, z] });
   }
 
@@ -186,7 +271,10 @@ export function buildFloor(ctx: InteriorCtx): void {
     add(kick);
     const lip = new THREE.Mesh(kickSideLipGeo, plateMat);
     lip.position.set(sx * (HALF_W - 0.17), 0.185, 0);
+    lip.castShadow = true;
     add(lip);
+    // Grime and occlusion pooling in the deck/wall joint, dark against the kick and fading out.
+    addContact('strip', sx * (HALF_W - 0.52), 0, 11.62, 0.44, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 0.0115);
     for (let z = -5.4; z <= 5.4; z += 0.9) bolts.push({ p: [sx * (HALF_W - 0.23), 0.2, z] });
   }
   for (const sz of [-1, 1]) {
@@ -196,7 +284,9 @@ export function buildFloor(ctx: InteriorCtx): void {
     add(kick);
     const lip = new THREE.Mesh(kickEndLipGeo, plateMat);
     lip.position.set(0, 0.185, sz * (HALF_D - 0.17));
+    lip.castShadow = true;
     add(lip);
+    addContact('strip', 0, sz * (HALF_D - 0.52), 8.62, 0.44, sz > 0 ? Math.PI : 0, 0.0115);
     for (let x = -3.9; x <= 3.9; x += 0.87) bolts.push({ p: [x, 0.2, sz * (HALF_D - 0.23)] });
   }
 
@@ -205,10 +295,19 @@ export function buildFloor(ctx: InteriorCtx): void {
   const insetD = INSET_Z1 - INSET_Z0;
   const insetCz = (INSET_Z0 + INSET_Z1) / 2;
 
-  // Black void plate showing through the seams between the individual tread panels.
+  // Sub-deck plate showing through the seams between the individual tread panels. Dark, but a
+  // real surface — this insert fills the foreground, and at near-black it read as a hole punched
+  // in the frame rather than as the darkest *material* in the room.
   const insetVoid = new THREE.Mesh(new THREE.BoxGeometry(insetW + 0.12, 0.02, insetD + 0.12), voidMat);
   insetVoid.position.set(0, 0.01, insetCz);
+  insetVoid.receiveShadow = true;
   add(insetVoid);
+
+  // Boots polish the panel lips back to bright steel while the field between them stays dull —
+  // the worn-edge read the reference gets and a flat plate cannot.
+  const wornEdgeMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.26, metalness: 0.82, envMapIntensity: 1.0 });
+  const edgeTrimsX: Xform[] = [];
+  const edgeTrimsZ: Xform[] = [];
 
   const cols = 3;
   const rows = 2;
@@ -216,14 +315,19 @@ export function buildFloor(ctx: InteriorCtx): void {
   const plateW = (insetW - gap * (cols - 1)) / cols;
   const plateD = (insetD - gap * (rows - 1)) / rows;
   const plateGeo = new THREE.BoxGeometry(plateW, 0.05, plateD);
+  const edgeGeoX = new THREE.BoxGeometry(plateW - 0.04, 0.012, 0.05);
+  const edgeGeoZ = new THREE.BoxGeometry(0.05, 0.012, plateD - 0.04);
   for (let cx = 0; cx < cols; cx++) {
     for (let rz = 0; rz < rows; rz++) {
       const px = -INSET_X + plateW / 2 + cx * (plateW + gap);
       const pz = INSET_Z0 + plateD / 2 + rz * (plateD + gap);
       const plate = new THREE.Mesh(plateGeo, treadMat);
       plate.position.set(px, 0.025, pz);
+      plate.castShadow = true;
       plate.receiveShadow = true;
       add(plate);
+      for (const oz of [-1, 1]) edgeTrimsX.push({ p: [px, 0.049, pz + oz * (plateD / 2 - 0.03)] });
+      for (const ox of [-1, 1]) edgeTrimsZ.push({ p: [px + ox * (plateW / 2 - 0.03), 0.049, pz] });
       for (const ox of [-1, 1]) {
         for (const oz of [-1, 1]) {
           bolts.push({ p: [px + ox * (plateW / 2 - 0.09), 0.056, pz + oz * (plateD / 2 - 0.09)] });
@@ -231,6 +335,8 @@ export function buildFloor(ctx: InteriorCtx): void {
       }
     }
   }
+  add(instance(edgeGeoX, wornEdgeMat, edgeTrimsX));
+  add(instance(edgeGeoZ, wornEdgeMat, edgeTrimsZ));
 
   // Bevelled frame rails around the insert, with a hazard chevron on the near edge.
   const railZGeo = new THREE.BoxGeometry(0.11, 0.062, insetD + 0.22);
@@ -238,14 +344,23 @@ export function buildFloor(ctx: InteriorCtx): void {
   for (const sx of [-1, 1]) {
     const rail = new THREE.Mesh(railZGeo, plateMat);
     rail.position.set(sx * (INSET_X + 0.055), 0.031, insetCz);
+    rail.castShadow = true;
+    rail.receiveShadow = true;
     add(rail);
     for (let z = INSET_Z0; z <= INSET_Z1; z += 0.55) bolts.push({ p: [sx * (INSET_X + 0.055), 0.064, z] });
   }
   for (const sz of [-1, 1]) {
     const rail = new THREE.Mesh(railXGeo, plateMat);
     rail.position.set(0, 0.031, insetCz + sz * (insetD / 2 + 0.055));
+    rail.castShadow = true;
+    rail.receiveShadow = true;
     add(rail);
   }
+  // The insert frame sits proud of the deck, so the deck darkens against it on three sides.
+  // -X and +Z only: the -Z gap to the threshold band is already darkened by the band's own strip,
+  // and the +X side is closed off by the trough.
+  addContact('strip', -(INSET_X + 0.32), insetCz, insetD + 0.3, 0.42, -Math.PI / 2, 0.0115);
+  addContact('strip', 0, INSET_Z1 + 0.36, insetW + 0.5, 0.42, 0, 0.0115);
   const insetChevron = new THREE.Mesh(new THREE.BoxGeometry(insetW + 0.22, 0.008, 0.075), hazardMatShort);
   insetChevron.position.set(0, 0.066, INSET_Z1 + 0.055);
   add(insetChevron);
@@ -261,7 +376,9 @@ export function buildFloor(ctx: InteriorCtx): void {
   // Only the outboard rail: the insert's own +X frame rail already closes the inboard side.
   const troughRail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.055, insetD + 0.1), plateMat);
   troughRail.position.set(TROUGH_X + 0.21, 0.028, insetCz);
+  troughRail.castShadow = true;
   add(troughRail);
+  addContact('strip', TROUGH_X + 0.5, insetCz, insetD + 0.2, 0.36, Math.PI / 2, 0.0115);
   const whiteLine = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.006, insetD + 0.4), paintWhiteMat);
   whiteLine.position.set(TROUGH_X + 0.36, 0.004, insetCz);
   add(whiteLine);
@@ -273,18 +390,21 @@ export function buildFloor(ctx: InteriorCtx): void {
   const bandZ = -0.45;
   const bandBase = new THREE.Mesh(new THREE.BoxGeometry(8.66, 0.06, 0.9), plateMat);
   bandBase.position.set(0, 0.03, bandZ);
+  bandBase.castShadow = true;
   bandBase.receiveShadow = true;
   add(bandBase);
   const bandRibs: Xform[] = [];
   for (let x = -4.22; x <= 4.22; x += 0.19) bandRibs.push({ p: [x, 0.068, bandZ] });
-  add(instance(new THREE.BoxGeometry(0.08, 0.022, 0.76), darkSteelMat, bandRibs));
+  add(instance(new THREE.BoxGeometry(0.08, 0.022, 0.76), darkSteelMat, bandRibs, true));
   for (const sz of [-1, 1]) {
     const lip = new THREE.Mesh(new THREE.BoxGeometry(8.66, 0.03, 0.1), plateMat);
     lip.position.set(0, 0.015, bandZ + sz * 0.5);
+    lip.castShadow = true;
     add(lip);
     const chevron = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.008, 0.07), hazardMat);
     chevron.position.set(0, 0.065, bandZ + sz * 0.41);
     add(chevron);
+    addContact('strip', 0, bandZ + sz * 0.72, 8.66, 0.36, sz > 0 ? 0 : Math.PI, 0.0115);
   }
   for (let x = -4.0; x <= 4.0; x += 0.8) {
     bolts.push({ p: [x, 0.032, bandZ - 0.5] });
@@ -339,8 +459,10 @@ export function buildFloor(ctx: InteriorCtx): void {
   add(hatchWell);
   const hatchCover = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.045, 0.92), darkSteelMat);
   hatchCover.position.set(hatchX, 0.023, hatchZ);
+  hatchCover.castShadow = true;
   hatchCover.receiveShadow = true;
   add(hatchCover);
+  addContact('pad', hatchX, hatchZ, 1.55, 1.5, 0, 0.0115);
   const hatchRibs: Xform[] = [];
   for (let i = -2; i <= 2; i++) hatchRibs.push({ p: [hatchX, 0.05, hatchZ + i * 0.17] });
   add(instance(new THREE.BoxGeometry(0.82, 0.016, 0.07), plateMat, hatchRibs));
@@ -349,12 +471,14 @@ export function buildFloor(ctx: InteriorCtx): void {
   }
   const hatchFrame = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.05, 0.08), plateMat);
   hatchFrame.position.set(hatchX, 0.025, hatchZ + 0.53);
+  hatchFrame.castShadow = true;
   add(hatchFrame);
   const hatchFrame2 = hatchFrame.clone();
   hatchFrame2.position.z = hatchZ - 0.53;
   add(hatchFrame2);
   const hatchFrame3 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 1.14), plateMat);
   hatchFrame3.position.set(hatchX + 0.53, 0.025, hatchZ);
+  hatchFrame3.castShadow = true;
   add(hatchFrame3);
   const hatchFrame4 = hatchFrame3.clone();
   hatchFrame4.position.x = hatchX - 0.53;
@@ -394,6 +518,8 @@ export function buildFloor(ctx: InteriorCtx): void {
     group.rotation.y = vr;
     const frame = new THREE.Mesh(ventFrameGeo, plateMat);
     frame.position.y = 0.0175;
+    frame.castShadow = true;
+    frame.receiveShadow = true;
     group.add(frame);
     const well = new THREE.Mesh(ventWellGeo, voidMat);
     well.position.y = 0.03;
@@ -402,6 +528,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     for (let i = 0; i < 7; i++) slats.push({ p: [0, 0.04, -0.15 + i * 0.05] });
     group.add(instance(ventSlatGeo, darkSteelMat, slats));
     add(group);
+    addContact('pad', vx, vz, 1.15, 0.9, -vr, 0.0115);
     for (const [ox, oz] of [[0.29, 0.19], [-0.29, 0.19], [0.29, -0.19], [-0.29, -0.19]] as [number, number][]) {
       const c = Math.cos(vr);
       const s = Math.sin(vr);
@@ -420,7 +547,8 @@ export function buildFloor(ctx: InteriorCtx): void {
   add(instance(ringGeo, darkSteelMat, ringSpots.map(([x, z], i) => ({
     p: [x, 0.035, z] as [number, number, number],
     r: [Math.PI / 2 - 0.5, i * 0.9, 0] as [number, number, number],
-  }))));
+  })), true));
+  for (const [x, z] of ringSpots) addContact('pad', x, z, 0.42, 0.42, 0, 0.0115);
 
   // ===== 11. bolted access plates =====
   const accessSpots: [number, number, number][] = [
@@ -432,8 +560,10 @@ export function buildFloor(ctx: InteriorCtx): void {
     const plate = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.025, 0.5), plateMat);
     plate.position.set(ax, 0.012, az);
     plate.rotation.y = ar;
+    plate.castShadow = true;
     plate.receiveShadow = true;
     add(plate);
+    addContact('pad', ax, az, 1.2, 0.95, -ar, 0.0115);
     const inner = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.03, 0.34), darkSteelMat);
     inner.position.set(ax, 0.02, az);
     inner.rotation.y = ar;
@@ -470,7 +600,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   const grateA = gratePanel();
   grateA.position.set(-2.55, 0.0, 4.55);
   grateA.rotation.y = 0.34;
-  add(grateA);
+  add(grounded(grateA));
   const grateB = grateA.clone();
   grateB.position.set(-3.05, 0.055, 5.15);
   grateB.rotation.set(0.05, 0.62, 0.03);
@@ -479,6 +609,11 @@ export function buildFloor(ctx: InteriorCtx): void {
   grateC.position.set(-3.4, 0.0, 2.9);
   grateC.rotation.y = 1.32;
   add(grateC);
+  // Pulled-up walkway grilles are the one prop the critic singled out as convincing in the
+  // reference, and the reason is the shadow pooling under the lip. Each panel gets one.
+  addContact('pad', -2.55, 4.55, 2.1, 1.15, -0.34, 0.0115);
+  addContact('pad', -3.05, 5.15, 2.1, 1.15, -0.62, 0.0115);
+  addContact('pad', -3.4, 2.9, 2.1, 1.15, -1.32, 0.0115);
 
   // ===== 13. cable coil in a recessed well =====
   const coilCx = 3.35;
@@ -489,10 +624,14 @@ export function buildFloor(ctx: InteriorCtx): void {
   const wellRim = new THREE.Mesh(new THREE.ExtrudeGeometry(wellShape, { depth: 0.045, bevelEnabled: false, curveSegments: 12 }), plateMat);
   wellRim.rotation.x = -Math.PI / 2;
   wellRim.position.set(coilCx, 0.002, coilCz);
+  wellRim.castShadow = true;
+  wellRim.receiveShadow = true;
   add(wellRim);
+  addContact('pad', coilCx, coilCz, 2.15, 1.75, 0, 0.0115);
   const wellFloor = new THREE.Mesh(new THREE.ShapeGeometry(wellHole, 12), darkSteelMat);
   wellFloor.rotation.x = -Math.PI / 2;
   wellFloor.position.set(coilCx, 0.004, coilCz);
+  wellFloor.receiveShadow = true;
   add(wellFloor);
   for (const [ox, oz] of [[0.66, 0.44], [-0.66, 0.44], [0.66, -0.44], [-0.66, -0.44]] as [number, number][]) {
     bolts.push({ p: [coilCx + ox, 0.048, coilCz + oz] });
@@ -514,8 +653,11 @@ export function buildFloor(ctx: InteriorCtx): void {
     const curve = new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.4);
     const hose = new THREE.Mesh(new THREE.TubeGeometry(curve, 96, r, 7, true), hoseMat);
     hose.castShadow = true;
+    hose.receiveShadow = true;
     add(hose);
   }
+  // Oil worked out of the coil and into the well floor — localised, where the equipment sits.
+  addWear('oil', coilCx - 0.2, coilCz + 0.15, 1.0, 0.8, 0.4, 0.006);
 
   // ===== 14. wall-base pipe runs =====
   const pipeGeo = new THREE.CylinderGeometry(0.105, 0.105, 1, 12);
@@ -537,7 +679,10 @@ export function buildFloor(ctx: InteriorCtx): void {
     pipe.rotation.x = Math.PI / 2;
     pipe.position.set(px, py, (z0 + z1) / 2);
     pipe.castShadow = true;
+    pipe.receiveShadow = true;
     add(pipe);
+    // No contact decal here: these runs sit inside the kick strip's own occlusion band, and
+    // stacking two multiply passes in the same gutter crushes it to black.
     for (let z = z0 + 0.6; z < z1; z += 1.45) {
       flanges.push({ p: [px, py, z], r: [Math.PI / 2, 0, 0], s: py > 0.4 ? [0.55, 1, 0.55] : [1, 1, 1] });
       if (py < 0.4) saddles.push({ p: [px, 0.105, z] });
@@ -545,8 +690,8 @@ export function buildFloor(ctx: InteriorCtx): void {
     // Corrosion running down the wall-base pipes onto the deck below them.
     addWear('drip', px + (px < 0 ? 0.32 : -0.32), (z0 + z1) / 2 + 1.1, 1.1, 1.5, px < 0 ? 0.2 : -0.2);
   }
-  add(instance(flangeGeo, plateMat, flanges));
-  add(instance(saddleGeo, darkSteelMat, saddles));
+  add(instance(flangeGeo, plateMat, flanges, true));
+  add(instance(saddleGeo, darkSteelMat, saddles, true));
 
   // A loose rubber hose snaking along the -X wall base, breaking the pipe run's straight read.
   const hosePts = [
@@ -561,12 +706,19 @@ export function buildFloor(ctx: InteriorCtx): void {
     rubberMat,
   );
   looseHose.castShadow = true;
+  looseHose.receiveShadow = true;
   add(looseHose);
+  for (const [hx, hz] of [[-3.4, -4.0], [-3.35, -2.5], [-3.3, -1.2], [-3.3, 0.2]] as [number, number][]) {
+    addContact('pad', hx, hz, 0.55, 1.5, 0, 0.0115);
+  }
 
   // ===== 15. recessed deck LED strips =====
-  // Cool light, kept as a low emissive on flat geometry (not a point light) so bloom can't blow
-  // out, and seated in a dark channel so it reads as inset hardware rather than a painted line.
-  const ledMat = new THREE.MeshStandardMaterial({ color: 0x0a2530, emissive: 0x4fb8e0, emissiveIntensity: 1.0, roughness: 0.5, metalness: 0.1 });
+  // Cool light on flat geometry (not a point light), seated in a dark channel so it reads as inset
+  // hardware rather than a painted line. The clamp the critic asked for has to live in the
+  // emissive *colour*: ShipInteriorScene drives emissiveIntensity to 0.9 +/- 0.15 every frame for
+  // everything in ctx.floorLedMats, so setting a low intensity here would simply be overwritten.
+  // 0x2f8bad x 0.9 keeps the strips reading as light without pushing the bloom threshold.
+  const ledMat = new THREE.MeshStandardMaterial({ color: 0x0e2028, emissive: 0x2f8bad, emissiveIntensity: 0.9, roughness: 0.5, metalness: 0.1 });
   ctx.floorLedMats.push(ledMat);
   const ledChannelMat = darkSteelMat;
   const ledRuns: [number, number, number][] = [
@@ -579,6 +731,8 @@ export function buildFloor(ctx: InteriorCtx): void {
     const len = z1 - z0;
     const channel = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.035, len), ledChannelMat);
     channel.position.set(lx, 0.017, (z0 + z1) / 2);
+    channel.castShadow = true;
+    channel.receiveShadow = true;
     add(channel);
     const strip = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.012, len - 0.1), ledMat);
     strip.position.set(lx, 0.036, (z0 + z1) / 2);
@@ -602,10 +756,9 @@ export function buildFloor(ctx: InteriorCtx): void {
     const mat = new THREE.MeshStandardMaterial({
       map: buildTarpTexture(seed),
       transparent: true,
-      roughness: 0.95,
-      metalness: 0.02,
-      emissive: 0x38352d,
-      emissiveIntensity: 0.45,
+      roughness: 0.97,
+      metalness: 0.0,
+      envMapIntensity: 0.2,
       depthWrite: false,
     });
     const tarp = new THREE.Mesh(tarpGeo, mat);
@@ -614,11 +767,12 @@ export function buildFloor(ctx: InteriorCtx): void {
     tarp.scale.set(tw, td, 1);
     tarp.renderOrder = 2;
     add(tarp);
+    addContact('pad', tx, tz, tw * 1.25, td * 1.3, -trot, 0.0085);
   }
 
   // ===== 17. small floor clutter =====
   // Tool crate: chamfered body, ribbed lid, hazard band, feet — not a bare box.
-  const crateBodyMat = new THREE.MeshStandardMaterial({ color: 0x5a6068, roughness: 0.68, metalness: 0.4, emissive: 0x24282e, emissiveIntensity: 0.55 });
+  const crateBodyMat = new THREE.MeshStandardMaterial({ color: 0x525863, roughness: 0.58, metalness: 0.42, envMapIntensity: 0.6 });
   const crate = new THREE.Group();
   crate.position.set(-3.25, 0, 0.3);
   crate.rotation.y = 0.24;
@@ -636,14 +790,15 @@ export function buildFloor(ctx: InteriorCtx): void {
   crateBandTex.repeat.set(4, 1);
   const crateBand = new THREE.Mesh(
     new THREE.BoxGeometry(0.59, 0.06, 0.41),
-    new THREE.MeshStandardMaterial({ map: crateBandTex, roughness: 0.65, emissive: 0x2a2210, emissiveIntensity: 0.5 }),
+    new THREE.MeshStandardMaterial({ map: crateBandTex, color: hazardTint, roughness: 0.62, metalness: 0.05, envMapIntensity: 0.3, emissive: hazardFloor, emissiveIntensity: 1 }),
   );
   crateBand.position.y = 0.1;
   crate.add(crateBand);
   const feet: Xform[] = [];
   for (const ox of [-0.24, 0.24]) for (const oz of [-0.15, 0.15]) feet.push({ p: [ox, 0.02, oz] });
   crate.add(instance(new THREE.BoxGeometry(0.07, 0.04, 0.07), darkSteelMat, feet));
-  add(crate);
+  add(grounded(crate));
+  addContact('pad', -3.25, 0.3, 1.0, 0.8, -0.24, 0.0115);
 
   // Coiled power cable resting near the trough.
   const coilTorusGeo = new THREE.TorusGeometry(0.24, 0.035, 7, 20);
@@ -651,7 +806,8 @@ export function buildFloor(ctx: InteriorCtx): void {
     { p: [-1.05, 0.038, -1.55], r: [Math.PI / 2, 0, 0] },
     { p: [-1.05, 0.078, -1.55], r: [Math.PI / 2, 0, 0], s: [0.62, 0.62, 1] },
     { p: [-1.05, 0.112, -1.55], r: [Math.PI / 2, 0, 0], s: [0.34, 0.34, 1] },
-  ]));
+  ], true));
+  addContact('pad', -1.05, -1.55, 0.85, 0.85, 0, 0.0115);
 
   // Stacked spare tread plates leaning against the -X kick strip.
   const spareGeo = new THREE.BoxGeometry(1.0, 0.04, 0.7);
@@ -659,7 +815,8 @@ export function buildFloor(ctx: InteriorCtx): void {
     { p: [-2.9, 0.02, -2.6], r: [0, 0.12, 0] },
     { p: [-2.85, 0.062, -2.56], r: [0, 0.02, 0] },
     { p: [-2.93, 0.104, -2.64], r: [0, 0.2, 0] },
-  ]));
+  ], true));
+  addContact('pad', -2.9, -2.6, 1.5, 1.15, 0.12, 0.0115);
 
   // Flat conduit bundle crossing the deck behind the console bay.
   const conduitGeo = new THREE.CylinderGeometry(0.032, 0.032, 2.7, 8);
@@ -667,10 +824,11 @@ export function buildFloor(ctx: InteriorCtx): void {
     { p: [-2.6, 0.03, -5.05], r: [0, 0, Math.PI / 2] },
     { p: [-2.6, 0.03, -4.97], r: [0, 0, Math.PI / 2] },
     { p: [-2.6, 0.062, -5.01], r: [0, 0, Math.PI / 2] },
-  ]));
+  ], true));
   const clampXforms: Xform[] = [];
   for (let x = -3.7; x <= -1.5; x += 0.72) clampXforms.push({ p: [x, 0.03, -5.01] });
-  add(instance(new THREE.BoxGeometry(0.07, 0.11, 0.2), plateMat, clampXforms));
+  add(instance(new THREE.BoxGeometry(0.07, 0.11, 0.2), plateMat, clampXforms, true));
+  addContact('pad', -2.6, -4.94, 2.9, 0.42, 0, 0.0115);
 
   // ===== 18. localised wear =====
   // Motivated, not a uniform tint: traffic in the walking lane, oil where the deck is worked on,

@@ -30,28 +30,21 @@ const VERDICT = {
   },
 }
 
-function priorSection(p) {
-  if (!p.critique) {
-    return `\n## First round\n\nMake a large, confident change, not a tweak.\n`
-  }
-  return `## Blind critic verdict on your last round
-
-A fresh critic compared your render against the AAA reference without being told which was which.
-It ${p.oursWon ? 'preferred your version' : 'preferred the reference'}.
-
-**The single biggest gap it identified in YOUR render:**
-> ${p.critique}
-
-Its reasoning: ${p.critiqueReasoning}
-
-This gap is your primary target this round. Fix it decisively — a timid tweak will lose again.
-`
-}
-
 function builderPrompt(p) {
   return `You are a senior environment artist on a AAA game, working in Three.js. You own exactly one piece of a spaceship interior: **${p.name}**.
 
-Read ${ROOT}/docs/interior-art-brief.md first — it is the shared art direction every piece follows.
+## Read these first, in order
+
+1. \`${ROOT}/docs/interior-art-brief.md\` — the shared art direction every piece follows.
+2. \`${ROOT}/${p.brief}\` — **your brief for this round**: the blind critic's verdict on your last
+   pass, the single biggest gap it found in your work, and the measured value structure of your
+   render against the reference. This is the most important thing you will read.
+3. \`${ROOT}/src/ship/interior/ctx.ts\` (read-only) — the shared context API and room constants.
+
+## What to look at
+
+- The bar: \`${ROOT}/reference/bar.png\` (full room) and \`${ROOT}/reference/crops/${p.name}.png\` (your region).
+- Your current output: \`${ROOT}/renders/latest/${p.view}.png\` — the actual rendered frame of your piece.
 
 ## Your files
 
@@ -60,37 +53,10 @@ Read ${ROOT}/docs/interior-art-brief.md first — it is the shared art direction
 - **Do not edit any other file.** Other artists are editing the other modules in parallel right now.
   \`ShipInteriorScene.ts\`, \`ctx.ts\`, \`ShipTextures.ts\`, \`PostProcessing.ts\` and \`lighting.ts\` are off limits.
 
-## What to look at
-
-1. The bar: \`${ROOT}/reference/bar.png\` (full room) and \`${ROOT}/reference/crops/${p.name}.png\` (your region).
-2. Your current output: \`${ROOT}/renders/latest/${p.view}.png\` — the actual rendered frame of your piece.
-3. \`${ROOT}/src/ship/interior/ctx.ts\` (read-only) for the shared context API and room constants.
-
-${priorSection(p)}
-## Measured value structure for your piece
-
-\`\`\`
-${p.exposure}
-\`\`\`
-
-These are perceived-luma statistics of your current render against the reference crop. They are the
-objective version of the critic's complaint. **You do not control global exposure** — a separate
-lighting pass handles that after you finish. What you *do* control, and what these numbers are
-telling you:
-
-- **crushed% far above the reference** means your dark areas are dead pure black. The reference has
-  almost no true black anywhere: its shadows still carry material and detail. Raise the albedo of
-  surfaces that are reading black and make sure they have some texture/roughness variation to catch
-  light, rather than leaving flat near-black base colours.
-- **p95 far above the reference** means your brightest surfaces are too light. The reference's
-  highlights top out well below white. Bring hot albedo values (especially large light-painted
-  areas) down, and let emissive elements — not base colour — carry the brightness.
-
-## The recurring critique across all nine pieces this project
+## The recurring critique across all nine pieces
 
 Every judge said the same thing: **surfaces read as flat untextured plastic with one uniform
 roughness, and nothing is grounded.** Prop count is no longer the problem — material response is.
-Concretely, that means:
 
 - Give distinct materials genuinely distinct roughness/metalness, not the same value with a different
   colour. Painted metal, bare steel, rubber, glass and worn composite should respond differently.
@@ -123,7 +89,7 @@ function lightingPrompt() {
   return `You are a lighting artist on a AAA game, working in Three.js. You own the ship interior's
 **lighting and post-processing** — the room's whole value structure.
 
-Read ${ROOT}/docs/interior-art-brief.md first.
+Read ${ROOT}/docs/interior-art-brief.md and ${ROOT}/${lighting.brief} first.
 
 ## Your files
 
