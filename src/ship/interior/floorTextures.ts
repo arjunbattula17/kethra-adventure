@@ -415,21 +415,22 @@ export function buildContactShadowTexture(variant: 'pad' | 'strip'): THREE.Canva
     // These values look far too pale on the canvas on purpose. MultiplyBlending happens in the
     // renderer's *linear* working space, and the map is sRGB-decoded first, so the factor the
     // deck actually gets is sRGBToLinear(texel) — a texel that reads as mid-grey 0.5 multiplies
-    // the surface by 0.21, not 0.5. The darkest texel here is ~0.70 sRGB, i.e. a 0.44 linear
-    // multiply, which is a believable contact shadow rather than a hole.
+    // the surface by 0.21, not 0.5. The darkest texel here is ~0.63 sRGB, i.e. a ~0.33 linear
+    // multiply — darker and with a tighter core-to-falloff curve than the previous round, so
+    // grounded hardware drops a contact shadow with real punch instead of a faint grey haze.
     if (variant === 'pad') {
       const grad = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-      grad.addColorStop(0, 'rgba(120,120,128,0.62)');
-      grad.addColorStop(0.42, 'rgba(150,150,158,0.45)');
-      grad.addColorStop(0.78, 'rgba(196,196,202,0.24)');
+      grad.addColorStop(0, 'rgba(96,96,104,0.74)');
+      grad.addColorStop(0.34, 'rgba(140,140,148,0.5)');
+      grad.addColorStop(0.7, 'rgba(190,190,196,0.24)');
       grad.addColorStop(1, 'rgba(255,255,255,0)');
       c.fillStyle = grad;
       c.fillRect(0, 0, s, s);
     } else {
       const grad = c.createLinearGradient(0, 0, 0, s);
-      grad.addColorStop(0, 'rgba(126,126,134,0.6)');
-      grad.addColorStop(0.28, 'rgba(160,160,168,0.4)');
-      grad.addColorStop(0.72, 'rgba(190,190,196,0.2)');
+      grad.addColorStop(0, 'rgba(102,102,110,0.72)');
+      grad.addColorStop(0.22, 'rgba(150,150,158,0.44)');
+      grad.addColorStop(0.66, 'rgba(186,186,192,0.2)');
       grad.addColorStop(1, 'rgba(255,255,255,0)');
       c.fillStyle = grad;
       c.fillRect(0, 0, s, s);

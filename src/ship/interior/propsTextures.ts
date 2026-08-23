@@ -769,13 +769,16 @@ export function buildContactShadowTexture(): THREE.CanvasTexture {
   // but multiplies the deck by 0.28, which is already a firm contact shadow. Reading these as
   // sRGB is how a soft AO blob turns into a black halo and buries the shadow end of the range.
   // The prop footprint lands near stop 0.54, so the tight core sits just inside it and the
-  // penumbra is fully recovered by 0.9.
+  // penumbra is fully recovered by 0.9. Core deepened a step for round 4: the recurring critique
+  // is that props don't read as grounded under the room's single flat key light, and this decal
+  // is the one directional-falloff cue every floor prop gets regardless of where the key light
+  // actually reaches — a stronger contact core reads as a real footprint, not a light AO smudge.
   const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  g.addColorStop(0, '#3c4046');
-  g.addColorStop(0.45, '#4e535a');
-  g.addColorStop(0.56, '#8d9298');
-  g.addColorStop(0.7, '#c2c6ca');
-  g.addColorStop(0.88, '#eceef0');
+  g.addColorStop(0, '#2c3036');
+  g.addColorStop(0.45, '#3e434a');
+  g.addColorStop(0.56, '#7c8188');
+  g.addColorStop(0.7, '#b6babe');
+  g.addColorStop(0.88, '#e6e8ea');
   g.addColorStop(1, '#ffffff');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, s, s);

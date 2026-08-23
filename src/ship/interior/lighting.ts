@@ -52,8 +52,12 @@ export function buildLighting(ctx: InteriorCtx): void {
   const matBolt = new THREE.MeshStandardMaterial({ color: 0x9ba3ad, roughness: 0.34, metalness: 0.85 });
 
   const diffuserTex = buildDiffuserTexture();
-  const matWarmTube = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.3, metalness: 0, emissive: WARM_HOT, emissiveIntensity: 1.35, emissiveMap: diffuserTex });
-  const matWarmLens = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.32, metalness: 0, emissive: WARM, emissiveIntensity: 1.05, emissiveMap: diffuserTex });
+  // Round-4 fix: the ceiling/background view measured well below the reference's highlight
+  // ceiling (p95 -0.153) because the pendant tube — the room's single hero highlight — wasn't
+  // hot enough to punch through the grade's shoulder. Bumped both the tube's own emissive and
+  // the lens material shared with troffers/sconces.
+  const matWarmTube = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.3, metalness: 0, emissive: WARM_HOT, emissiveIntensity: 1.65, emissiveMap: diffuserTex });
+  const matWarmLens = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.32, metalness: 0, emissive: WARM, emissiveIntensity: 1.18, emissiveMap: diffuserTex });
   const matCoolLens = new THREE.MeshStandardMaterial({ color: 0x14191c, roughness: 0.28, metalness: 0, emissive: 0x9cecff, emissiveIntensity: 1.15 });
   const matAlarmLens = new THREE.MeshStandardMaterial({ color: 0x1c1210, roughness: 0.3, metalness: 0.1, emissive: 0xff3a2a, emissiveIntensity: 1.1 });
 
@@ -65,14 +69,18 @@ export function buildLighting(ctx: InteriorCtx): void {
   const additive = (map: THREE.Texture, color: number, opacity: number) =>
     new THREE.MeshBasicMaterial({ map, color, opacity, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
 
-  const glowWarmCone = additive(coneTex, 0xffcf94, 0.5);
+  // Round-4 fix: walls/props measured well above the reference's highlight ceiling (p95 +0.11 to
+  // +0.12) because every wall downlight's cone pool and every strip tube's graze bar were sized
+  // and opacified to stack into a wide, bright halo. Cut both opacity and footprint so the same
+  // fixtures still read as lit without flooding the frame.
+  const glowWarmCone = additive(coneTex, 0xffcf94, 0.3);
   // Two pool strengths, because these stack: a dozen additive decals on the deck at one opacity
   // sums to a washed-out white floor. Only the pendants — the room's dominant practicals — get
   // the strong one; every secondary fixture drops a soft pool that reads only where it overlaps
   // otherwise-dark plating.
   const glowWarmPool = additive(poolTex, 0xffd2a4, 0.4);
-  const glowWarmPoolSoft = additive(poolTex, 0xffcf9e, 0.2);
-  const glowWarmBar = additive(barTex, WARM, 0.45);
+  const glowWarmPoolSoft = additive(poolTex, 0xffcf9e, 0.15);
+  const glowWarmBar = additive(barTex, WARM, 0.28);
   const glowCoolPool = additive(poolTex, COOL, 0.34);
   const glowAlarmPool = additive(poolTex, ALARM, 0.3);
   const glowAlarmBar = additive(barTex, ALARM, 0.32);
@@ -223,7 +231,7 @@ export function buildLighting(ctx: InteriorCtx): void {
     for (const dz of [-0.085, 0.085]) {
       tube(0.048, 1.06, 'x', matWarmTube, 0, 2.87 + PEND_DY, z + dz);
       const sprite = new THREE.Sprite(spriteWarm);
-      sprite.scale.set(1.55, 0.46, 1);
+      sprite.scale.set(1.85, 0.56, 1);
       sprite.position.set(0, 2.87 + PEND_DY, z + dz);
       sprite.renderOrder = 4;
       ctx.scene.add(sprite);
@@ -242,12 +250,20 @@ export function buildLighting(ctx: InteriorCtx): void {
       tube(0.009, 1.02, 'x', matHousingDark, 0, 2.87 + PEND_DY + dy, z + dz);
     }
 
-    const light = new THREE.PointLight(0xffe7c4, 0.95, 9.5, 1.5);
+    const light = new THREE.PointLight(0xffe7c4, 1.15, 9.5, 1.5);
     light.position.set(0, 2.6 + PEND_DY, z);
     ctx.scene.add(light);
     pendantLights.push(light);
 
     floorPool(0, z, 3.6, 3.6, glowWarmPool);
+
+    // Bloom bleeding onto the ceiling slab immediately around the mount — the reference shows a
+    // broad soft halo around its pendant, not just a hot filament with dead flat plating past its
+    // edges. Round 4: the ceiling view read as underlit flatness because the fixture itself was
+    // the only bright pixel in frame; this gives the highlight some area to occupy.
+    const ceilingHalo = glow(2.6, 2.2, glowWarmPoolSoft);
+    ceilingHalo.rotation.x = Math.PI / 2;
+    ceilingHalo.position.set(0, ROOM_H - 0.1, z);
   };
   addPendant((-0.2 * 4) / 3);
   addPendant((2.9 * 4) / 3);
@@ -275,7 +291,7 @@ export function buildLighting(ctx: InteriorCtx): void {
 
     addWallBolts(side, z, SCONCE_Y, 0.24, 0.19);
 
-    const cone = wallGlow(side, z, SCONCE_Y - 1.06, 1.05, 1.8, glowWarmCone);
+    const cone = wallGlow(side, z, SCONCE_Y - 0.92, 0.85, 1.35, glowWarmCone);
     cone.renderOrder = 2;
     floorPool(side * 3.7, z, 1.7, 2.2, glowWarmPoolSoft);
 
@@ -323,7 +339,7 @@ export function buildLighting(ctx: InteriorCtx): void {
     sprite.position.set(wallX + inward * 0.16, 3.29 + dY, z);
     ctx.scene.add(sprite);
 
-    const graze = wallGlow(side, z, 3.29 + dY - 0.62, len + 0.9, 1.55, grazeMat);
+    const graze = wallGlow(side, z, 3.29 + dY - 0.5, len + 0.5, 1.15, grazeMat);
     graze.renderOrder = 2;
 
     if (flicker) flickerTargets.push({ mat: lensMat, graze: grazeMat, baseE: lensMat.emissiveIntensity, baseO: grazeMat.opacity });

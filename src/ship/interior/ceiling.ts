@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { InteriorCtx } from './ctx';
 import { ROOM_W, ROOM_D, ROOM_H } from './ctx';
 import {
+  mulberry32,
   buildCeilingPlateTexture,
   buildCeilingPlateRoughness,
   buildCeilingPlateNormal,
@@ -18,6 +19,29 @@ import {
   buildCeilingStreakTexture,
 } from './ceilingTextures';
 
+/** Cumulative panel-boundary offsets across `total`, panel size varying ±`jitter` around `avg`. */
+function irregularGrid(total: number, avg: number, jitter: number, rnd: () => number): number[] {
+  const n = Math.max(2, Math.round(total / avg));
+  const sizes: number[] = [];
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const size = avg * (1 - jitter + rnd() * jitter * 2);
+    sizes.push(size);
+    sum += size;
+  }
+  const scale = total / sum;
+  const bounds = [-total / 2];
+  let pos = -total / 2;
+  for (const size of sizes) {
+    pos += size * scale;
+    bounds.push(pos);
+  }
+  bounds[bounds.length - 1] = total / 2;
+  return bounds;
+}
+
+interface SeamSeg { x: number; z: number; length: number; alongX: boolean }
+
 /**
  * Flat ceiling slab over the kit wall tops. The kit's own TopAstra caps close the top of each
  * wall bay (they run y 3..5, the full ROOM_H), but they don't span the open middle of a 12x16
@@ -32,14 +56,24 @@ import {
  * grilles and a patch of corrugated decking, plus wear decals motivated by that new geometry.
  * Everything sits well clear of lighting.ts's fixture footprints (checked against its troffer/
  * pendant/sconce coordinates) so nothing new pokes through a lit housing.
+ *
+ * Round 4: the blind critic's single biggest complaint was that the seam/rivet grid read as a
+ * tiled, repeating texture rather than hand-placed detail, and that the wear decals were flat
+ * blob-shaped grime rather than directional streaks. Both are fixed at the source below: seams
+ * and rivets are now real instanced geometry on an irregular panel grid (see `irregularGrid`)
+ * instead of lines baked into the tiling plate texture, and the drip/soot decals in
+ * ceilingTextures.ts were rebuilt to run in one dominant direction instead of blooming radially.
  */
 export function buildCeiling(ctx: InteriorCtx): void {
   const plateMap = buildCeilingPlateTexture();
   const plateRough = buildCeilingPlateRoughness();
   const plateNormal = buildCeilingPlateNormal();
-  plateMap.repeat.set(ROOM_W / 2, ROOM_D / 2);
-  plateRough.repeat.set(ROOM_W / 2, ROOM_D / 2);
-  plateNormal.repeat.set(ROOM_W / 2, ROOM_D / 2);
+  // Repeat is now just grain/oxidation frequency, decoupled from the real panel grid below —
+  // the texture no longer draws any seam or rivet lines, so there is nothing here that can
+  // re-introduce a visibly tiling lattice.
+  plateMap.repeat.set(9, 12);
+  plateRough.repeat.set(9, 12);
+  plateNormal.repeat.set(9, 12);
 
   // Painted composite panel: mid metalness, wide roughness spread from the map. Metalness was
   // dropped from 0.28 — a painted panel has diffuse response everywhere, and the old value was
@@ -72,6 +106,75 @@ export function buildCeiling(ctx: InteriorCtx): void {
     beam.receiveShadow = true;
     ctx.scene.add(beam);
   }
+
+  // ===============================================================================================
+  // Hand-placed panel seams + rivets — round 4's fix for the biggest critique against this piece:
+  // the previous pass baked its seam lines and rivet rows straight into the tiling plate texture,
+  // so a perfectly uniform lattice repeated across the whole slab and read as a stamped decal
+  // rather than assembled plating. This is real raised/instanced geometry instead (the brief's
+  // "a 2-4cm raised rib reads better than a texture at this scale"), laid out on an irregular
+  // grid — panel sizes vary ±30% around a ~1.1-1.2m average per the brief's 0.5-1.5m band — so
+  // no two seams or rivet rows land the same distance apart.
+  // ===============================================================================================
+  const gridRnd = mulberry32(0xce17);
+  const colXs = irregularGrid(ROOM_W, 1.15, 0.32, gridRnd);
+  const rowZs = irregularGrid(ROOM_D, 1.2, 0.3, gridRnd);
+  const SLAB_BOTTOM = ROOM_H - 0.12;
+  const RIB_H = 0.03;
+  const RIB_W = 0.05;
+  const SEAM_Y = SLAB_BOTTOM - RIB_H / 2;
+
+  const seamMat = new THREE.MeshStandardMaterial({ color: 0x6b7581, roughness: 0.44, metalness: 0.36 });
+  const seamGeo = new THREE.BoxGeometry(1, 1, 1);
+  const seamSegs: SeamSeg[] = [];
+  for (const x of colXs.slice(1, -1)) seamSegs.push({ x, z: 0, length: ROOM_D - 0.1, alongX: false });
+  for (const z of rowZs.slice(1, -1)) seamSegs.push({ x: 0, z, length: ROOM_W - 0.1, alongX: true });
+  const seamMesh = new THREE.InstancedMesh(seamGeo, seamMat, seamSegs.length);
+  {
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const axisY = new THREE.Vector3(0, 1, 0);
+    seamSegs.forEach((seg, i) => {
+      q.setFromAxisAngle(axisY, seg.alongX ? 0 : Math.PI / 2);
+      m.compose(new THREE.Vector3(seg.x, SEAM_Y, seg.z), q, new THREE.Vector3(seg.length, RIB_H, RIB_W));
+      seamMesh.setMatrixAt(i, m);
+    });
+  }
+  seamMesh.instanceMatrix.needsUpdate = true;
+  seamMesh.castShadow = true;
+  seamMesh.receiveShadow = true;
+  ctx.scene.add(seamMesh);
+
+  // Bolt heads cluster at panel corners (per the brief) plus a scatter of extra field rivets
+  // along each seam at irregular, non-periodic spacing — never a fixed pixel step.
+  const rivetPos: [number, number][] = [];
+  for (const x of colXs) {
+    for (const z of rowZs) {
+      if (gridRnd() < 0.87) rivetPos.push([x + (gridRnd() - 0.5) * 0.03, z + (gridRnd() - 0.5) * 0.03]);
+    }
+  }
+  for (const x of colXs.slice(1, -1)) {
+    const extra = 1 + Math.floor(gridRnd() * 3);
+    for (let i = 0; i < extra; i++) rivetPos.push([x + (gridRnd() - 0.5) * 0.03, -ROOM_D / 2 + gridRnd() * ROOM_D]);
+  }
+  for (const z of rowZs.slice(1, -1)) {
+    const extra = 1 + Math.floor(gridRnd() * 3);
+    for (let i = 0; i < extra; i++) rivetPos.push([-ROOM_W / 2 + gridRnd() * ROOM_W, z + (gridRnd() - 0.5) * 0.03]);
+  }
+  const rivetMat = new THREE.MeshStandardMaterial({ color: 0x9aa4b1, roughness: 0.3, metalness: 0.6 });
+  const rivetGeo = new THREE.CylinderGeometry(0.028, 0.034, 0.022, 8);
+  const rivetMesh = new THREE.InstancedMesh(rivetGeo, rivetMat, rivetPos.length);
+  {
+    const m = new THREE.Matrix4();
+    rivetPos.forEach(([x, z], i) => {
+      m.makeTranslation(x, SEAM_Y - RIB_H * 0.3, z);
+      rivetMesh.setMatrixAt(i, m);
+    });
+  }
+  rivetMesh.instanceMatrix.needsUpdate = true;
+  rivetMesh.castShadow = true;
+  rivetMesh.receiveShadow = true;
+  ctx.scene.add(rivetMesh);
 
   // ===============================================================================================
   // Corrugated deck accent — one patch of ribbed panelling breaking up the bolted-plate slab, set
@@ -182,8 +285,11 @@ export function buildCeiling(ctx: InteriorCtx): void {
   // ===============================================================================================
   // Wear decals, motivated by the new geometry above rather than a uniform tint: a drip stain at
   // a pipe joint, a streak trail running off another bracket, and a soot bloom by the junction
-  // box. Opaque-white-base multiply decals, matching the convention `addGrimeOverlay` in ctx.ts
-  // uses — a cleared canvas would premultiply to a hard black quad under MultiplyBlending.
+  // box. Round 4 rebuilt the drip/soot textures themselves (ceilingTextures.ts) to run in one
+  // dominant direction — gravity for the drip, a drift-biased convection plume for the soot —
+  // instead of blooming out as a symmetric radial blob. Opaque-white-base multiply decals,
+  // matching the convention `addGrimeOverlay` in ctx.ts uses — a cleared canvas would
+  // premultiply to a hard black quad under MultiplyBlending.
   // ===============================================================================================
   const addDecal = (
     map: THREE.Texture,

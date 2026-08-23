@@ -14,6 +14,9 @@ import {
   buildEdgeShadowTexture,
   buildHandWearTexture,
   buildDeckStencilTexture,
+  buildContactShadowTexture,
+  buildAirlockHazardTexture,
+  buildCorrosionDecalTexture,
 } from './airlockTextures';
 
 const HALF_D = ROOM_D / 2;
@@ -35,12 +38,15 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
   ]);
 
   // Warm practical over the doorway — the same fixture type as every other door pool in the room.
-  // Toned down from the round-2 value (1.1 / 4.2) which the measured value structure flagged as
-  // the single largest highlight-ceiling miss in this crop (p95 0.894 vs reference 0.471): at
-  // this close a range the old settings blew the bone-white deck out under the fixture well past
-  // the reference's ceiling. Kept warm and close, just dimmer and shorter-reaching.
-  const doorLight = new THREE.PointLight(0xffd9a0, 0.55, 3.6, 2);
-  doorLight.position.set(0, 3.1, HALF_D - 0.4);
+  // Round-4 brief still measured this crop's p95 at 0.753 against a reference ceiling of 0.471
+  // (delta +0.282) — the critic named it directly as "a single blown-out bloom at the door that
+  // flattens floor detail in the midground". The round-2 fix only dimmed intensity; the bigger
+  // problem was proximity: sitting 0.4m in front of the door leaf put the kit's own shiny metal
+  // at near-point-blank range, so the light hit that surface hard enough to bloom regardless of
+  // intensity. Pulled back another 0.7m off the leaf and dropped intensity again so it now reads
+  // as a soft warm pool spilling onto the sill rather than a hot source next to reflective metal.
+  const doorLight = new THREE.PointLight(0xffd9a0, 0.3, 3.0, 2);
+  doorLight.position.set(0, 2.9, HALF_D - 1.1);
   ctx.scene.add(doorLight);
 
   // ===== shared material variation =====
@@ -66,7 +72,7 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
     roughness: 1,
     metalness: 0.15,
     emissive: 0x5a1c0c,
-    emissiveIntensity: 0.35,
+    emissiveIntensity: 0.26,
   });
   for (const side of [-1, 1] as const) {
     const jamb = new THREE.Mesh(trimGeo, trimMat);
@@ -170,4 +176,96 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
   deckStencil.position.set(0, 0.022, HALF_D - 1.85);
   deckStencil.renderOrder = 1;
   ctx.scene.add(deckStencil);
+
+  // ===== breaking the mirror =====
+  // Round-4's critic named the door bay's near-mirror left/right massing (matched decal, matched
+  // locker/panel weight) as the single biggest gap. The keypad cluster above already lives only on
+  // the left; everything below is deliberately lopsided in kind, not just position — a wall-mounted
+  // hose reel on the right at a different height than the keypad, and a floor crate in the midground
+  // on the left at a different depth than either — so the bay reads as something crews actually use
+  // unevenly rather than a symmetric kit placement. They also give the midground floor between spawn
+  // and the door real geometry to catch light, instead of the flat run the blown-out door pool used
+  // to wash out.
+
+  const contactShadowMat = new THREE.MeshBasicMaterial({
+    map: buildContactShadowTexture(),
+    transparent: true,
+    depthWrite: false,
+  });
+
+  // Hose reel, right jamb — deliberately not a mirror of the left keypad: lower, rounder, and
+  // rubber rather than painted steel.
+  const hoseBracketMat = new THREE.MeshStandardMaterial({
+    map: steelMap,
+    roughnessMap: steelRough,
+    normalMap: steelNormal,
+    roughness: 0.8,
+    metalness: 0.4,
+  });
+  const hoseBracket = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.32, 0.1), hoseBracketMat);
+  hoseBracket.position.set(1.65, 0.98, HALF_D - 0.36);
+  hoseBracket.castShadow = true;
+  hoseBracket.receiveShadow = true;
+  ctx.scene.add(hoseBracket);
+
+  const hoseBracketShadow = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.18), edgeShadowMat);
+  hoseBracketShadow.position.set(1.65, 0.83, HALF_D - 0.358);
+  hoseBracketShadow.renderOrder = 1;
+  ctx.scene.add(hoseBracketShadow);
+
+  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x232326, roughness: 0.95, metalness: 0.02 });
+  const hoseReel = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.045, 10, 24), rubberMat);
+  hoseReel.rotation.y = Math.PI / 2;
+  hoseReel.position.set(1.65, 0.86, HALF_D - 0.28);
+  hoseReel.castShadow = true;
+  hoseReel.receiveShadow = true;
+  ctx.scene.add(hoseReel);
+
+  // Corrosion bleeding from the bracket's top bolts — localised wear at the joint, per the brief.
+  const corrosionMat = new THREE.MeshBasicMaterial({
+    map: buildCorrosionDecalTexture(),
+    transparent: true,
+    depthWrite: false,
+  });
+  const hoseCorrosion = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), corrosionMat);
+  hoseCorrosion.position.set(1.65, 1.16, HALF_D - 0.355);
+  hoseCorrosion.renderOrder = 1;
+  ctx.scene.add(hoseCorrosion);
+
+  // Floor crate, left midground — off the walking lane, ahead of the keypad rather than level
+  // with it, giving the approach floor real height and a shadow-catching edge instead of the flat
+  // run the old door light used to blow to a shapeless bloom.
+  const crateMat = new THREE.MeshStandardMaterial({
+    map: steelMap,
+    roughnessMap: steelRough,
+    normalMap: steelNormal,
+    roughness: 0.7,
+    metalness: 0.3,
+  });
+  const crate = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.46, 0.44), crateMat);
+  crate.position.set(-1.35, 0.23, HALF_D - 1.95);
+  crate.rotation.y = 0.4;
+  crate.castShadow = true;
+  crate.receiveShadow = true;
+  ctx.scene.add(crate);
+
+  // Hazard-striped tie-down strap across the crate lid — the palette's yellow accent, and a chamfer
+  // break on the box's top edge rather than a bare sharp-cornered cube.
+  const hazardMat = new THREE.MeshStandardMaterial({
+    map: buildAirlockHazardTexture(),
+    roughness: 0.8,
+    metalness: 0.1,
+  });
+  const crateStrap = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.06, 0.48), hazardMat);
+  crateStrap.position.set(-1.35, 0.47, HALF_D - 1.95);
+  crateStrap.rotation.y = 0.4;
+  crateStrap.castShadow = true;
+  crateStrap.receiveShadow = true;
+  ctx.scene.add(crateStrap);
+
+  const crateShadow = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), contactShadowMat);
+  crateShadow.rotation.x = -Math.PI / 2;
+  crateShadow.position.set(-1.35, 0.012, HALF_D - 1.95);
+  crateShadow.renderOrder = 1;
+  ctx.scene.add(crateShadow);
 }

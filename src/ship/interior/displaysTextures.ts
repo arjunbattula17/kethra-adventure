@@ -845,9 +845,12 @@ export function buildPaintedPlateMaps(): SurfaceMaps {
   rgh.c.fillRect(0, 0, size, size);
 
   // Roller texture in the paint: broad tonal drift so a flat wall of it is never one value.
+  // Amplitude widened from the previous 0.05-0.11 pass -- at that range the drift resolved as
+  // near-uniform grey by the time a face was seen from normal play distance, which is most of why
+  // the console shell read as flat plastic.
   for (let i = 0; i < 120; i++) {
     alb.c.save();
-    alb.c.globalAlpha = 0.05 + rand() * 0.06;
+    alb.c.globalAlpha = 0.07 + rand() * 0.1;
     alb.c.fillStyle = rand() > 0.5 ? '#828d99' : '#5c646e';
     alb.c.beginPath();
     alb.c.arc(rand() * size, rand() * size, 30 + rand() * 90, 0, Math.PI * 2);
@@ -856,8 +859,8 @@ export function buildPaintedPlateMaps(): SurfaceMaps {
   }
   for (let i = 0; i < 260; i++) {
     rgh.c.save();
-    rgh.c.globalAlpha = 0.12 + rand() * 0.18;
-    rgh.c.fillStyle = rough(0.62 + rand() * 0.28);
+    rgh.c.globalAlpha = 0.14 + rand() * 0.22;
+    rgh.c.fillStyle = rough(0.55 + rand() * 0.38);
     rgh.c.beginPath();
     rgh.c.arc(rand() * size, rand() * size, 12 + rand() * 46, 0, Math.PI * 2);
     rgh.c.fill();
@@ -922,6 +925,37 @@ export function buildPaintedPlateMaps(): SurfaceMaps {
     hgt.c.fillStyle = 'rgb(112,112,112)';
     hgt.c.fillRect(x, y, w, hh);
     hgt.c.restore();
+  }
+
+  // Larger corner chips: the 1-7 px scatter above reads as noise from normal play distance --
+  // these are big enough (up to ~28 px, ~5% of the plate) to actually register as paint knocked
+  // off where two edges meet, which is where impacts happen.
+  for (const cx of [0, 512]) {
+    for (const cy of [0, 512]) {
+      for (let i = 0; i < 3; i++) {
+        const x = cx + (cx === 0 ? 1 : -1) * rand() * 46;
+        const y = cy + (cy === 0 ? 1 : -1) * rand() * 46;
+        const r = 6 + rand() * 14;
+        alb.c.save();
+        alb.c.globalAlpha = 0.55 + rand() * 0.3;
+        alb.c.fillStyle = '#aeb8c1';
+        alb.c.beginPath();
+        alb.c.arc(x, y, r, 0, Math.PI * 2);
+        alb.c.fill();
+        alb.c.restore();
+        rgh.c.fillStyle = rough(0.22 + rand() * 0.12);
+        rgh.c.beginPath();
+        rgh.c.arc(x, y, r, 0, Math.PI * 2);
+        rgh.c.fill();
+        hgt.c.save();
+        hgt.c.globalAlpha = 0.55;
+        hgt.c.fillStyle = 'rgb(108,108,108)';
+        hgt.c.beginPath();
+        hgt.c.arc(x, y, r, 0, Math.PI * 2);
+        hgt.c.fill();
+        hgt.c.restore();
+      }
+    }
   }
 
   // Bolt heads at the plate corners: raised in height, bare and smooth in roughness.
@@ -1266,6 +1300,58 @@ export function buildVentSootTexture(seed: number, plumes: number): THREE.Canvas
   edge2.addColorStop(1, 'rgba(255,255,255,0)');
   c.fillStyle = edge2;
   c.fillRect(w * 0.86, 0, w * 0.14, h);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/**
+ * Bright worn-through streak decal: irregular light blotches with a few directional scratch
+ * lines through them, standing in for paint rubbed down to bare metal at a corner or handhold.
+ * Regular alpha blend, not multiply -- this decal LIGHTENS the surface underneath, the opposite
+ * direction from the soot/grime decals, so a corner can carry both a dark pooled-grime patch and
+ * a light rubbed-through patch instead of one uniform tint.
+ */
+export function buildScuffTexture(seed: number): THREE.CanvasTexture {
+  const w = 256;
+  const h = 128;
+  const rand = rng(seed);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const c = canvas.getContext('2d')!;
+  c.clearRect(0, 0, w, h);
+
+  const blotches = 5 + Math.floor(rand() * 4);
+  for (let i = 0; i < blotches; i++) {
+    const x = rand() * w;
+    const y = h * 0.3 + rand() * h * 0.5;
+    const r = 10 + rand() * 26;
+    const g = c.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(198,204,210,0.85)');
+    g.addColorStop(0.5, 'rgba(180,188,196,0.4)');
+    g.addColorStop(1, 'rgba(180,188,196,0)');
+    c.fillStyle = g;
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+  }
+  // Directional scratch lines through the blotches -- the detail that sells "rubbed" over "spilled".
+  for (let i = 0; i < 10; i++) {
+    const y = h * 0.35 + rand() * h * 0.4;
+    const x0 = rand() * w * 0.6;
+    const len = 20 + rand() * 60;
+    c.save();
+    c.globalAlpha = 0.3 + rand() * 0.3;
+    c.strokeStyle = 'rgba(210,216,222,1)';
+    c.lineWidth = 0.8 + rand() * 1.2;
+    c.beginPath();
+    c.moveTo(x0, y);
+    c.lineTo(x0 + len, y + (rand() - 0.5) * 6);
+    c.stroke();
+    c.restore();
+  }
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;

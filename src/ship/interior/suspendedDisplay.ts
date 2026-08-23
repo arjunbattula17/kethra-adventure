@@ -8,6 +8,7 @@ import {
   buildFrameLabelTexture,
   buildGlassSmudgeMaps,
   buildPaintedPlateMaps,
+  buildScuffTexture,
   buildVentSootTexture,
   buildSweepTexture,
   paneUvRect,
@@ -117,6 +118,33 @@ function grimeDecal(
       premultipliedAlpha: true,
       depthWrite: false,
     }),
+  );
+  mesh.position.set(x, y, z);
+  mesh.rotation.z = rotZ;
+  mesh.renderOrder = 1;
+  parent.add(mesh);
+}
+
+/**
+ * Regular-alpha-blended wear decal -- the lightening counterpart to `grimeDecal`'s multiply
+ * darkening. Paint rubbed through to bare metal at a corner or handhold brightens the surface
+ * underneath rather than tinting it, so pairing this with `grimeDecal` at the same joint gives the
+ * joint actual contrast instead of one uniform darkened patch.
+ */
+function scuffDecal(
+  parent: THREE.Object3D,
+  tex: THREE.Texture,
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+  z: number,
+  opacity: number,
+  rotZ = 0,
+): void {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity, depthWrite: false }),
   );
   mesh.position.set(x, y, z);
   mesh.rotation.z = rotZ;
@@ -419,12 +447,36 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   // --- localised wear ----------------------------------------------------------------------------------
   // Wear where use puts it, not as a tint. Heat staining climbs the lower bezel out of the louvre
   // mouths, and grime runs down the top rail from under the two pod conduits -- the two places on
-  // this assembly where something actually vents and something actually drips.
-  const ventSoot = buildVentSootTexture(4412, 13);
-  const dripSoot = buildVentSootTexture(9903, 4);
-  grimeDecal(rig, ventSoot, GLASS_W, 0.07, 0, -(FRAME_HY - 0.042), BEZEL_Z + 0.047, 0.85);
+  // this assembly where something actually vents and something actually drips. Round-4 critique was
+  // that this read as sparse and low-contrast against the reference, so both bands are wider, denser
+  // and darker here than the previous pass, and every bezel corner below adds a second, independent
+  // wear event (grime pooling paired with a rubbed-through scuff) rather than relying on these two
+  // alone to carry the whole assembly.
+  const ventSoot = buildVentSootTexture(4412, 16);
+  const dripSoot = buildVentSootTexture(9903, 5);
+  grimeDecal(rig, ventSoot, GLASS_W, 0.1, 0, -(FRAME_HY - 0.05), BEZEL_Z + 0.047, 0.95);
   for (const sx of [-1, 1] as const) {
-    grimeDecal(rig, dripSoot, 0.46, 0.066, sx * 0.95, FRAME_HY - 0.042, BEZEL_Z + 0.047, 0.7, Math.PI);
+    grimeDecal(rig, dripSoot, 0.56, 0.1, sx * 0.95, FRAME_HY - 0.05, BEZEL_Z + 0.047, 0.88, Math.PI);
+  }
+  // Grime pooled at the four bezel corners -- the literal meeting point of the horizontal and
+  // vertical bezel strips and the gusset plate over them -- paired with a rubbed-through scuff
+  // where a hand would brace against the same corner. Dark and light sitting right next to each
+  // other reads as actual wear; either alone reads as a tint.
+  const cornerGrime = buildVentSootTexture(2201, 3);
+  const cornerScuff = buildScuffTexture(6605);
+  for (const sx of [-1, 1] as const) {
+    for (const sy of [-1, 1] as const) {
+      grimeDecal(
+        rig, cornerGrime, 0.24, 0.16,
+        sx * (FRAME_HX - 0.1), sy * (FRAME_HY - 0.1), BEZEL_Z + 0.058,
+        0.75, sy > 0 ? Math.PI : 0,
+      );
+      scuffDecal(
+        rig, cornerScuff, 0.16, 0.1,
+        sx * (FRAME_HX - 0.26), sy * (FRAME_HY - 0.13), BEZEL_Z + 0.058,
+        0.55, sx * sy > 0 ? 0.5 : -0.5,
+      );
+    }
   }
   // Handhold: the underside lip of the bezel is what a crewman grabs to swing the array on its
   // brackets, so the paint there is rubbed thin rather than dirtied.
@@ -457,6 +509,9 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
     box(rig, brightSteelMat, 0.43, 0.02, 0.21, sx * 0.8, FRAME_HY + 0.124, -0.03);
     box(rig, recessMat, 0.3, 0.05, 0.2, sx * 0.8, FRAME_HY + 0.01, -0.03);
     box(rig, redBankMat, 0.24, 0.03, 0.02, sx * 0.8, FRAME_HY + 0.055, 0.065, false);
+    // Heat soot bleeding down the pod face under the alarm bank -- the one place on this pod that
+    // actually gets hot.
+    grimeDecal(rig, ventSoot, 0.26, 0.09, sx * 0.8, FRAME_HY - 0.01, 0.072, 0.6, Math.PI);
     // Copper flex conduit dropping off the pod -- an accent, deliberately never a large surface.
     const conduit = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.017, 6, 12, Math.PI * 1.35), copperMat);
     conduit.position.set(sx * 1.06, FRAME_HY - 0.01, -0.11);

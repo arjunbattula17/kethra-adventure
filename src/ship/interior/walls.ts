@@ -2,6 +2,15 @@ import * as THREE from 'three';
 import type { InteriorCtx } from './ctx';
 import { ROOM_W, ROOM_D, addGrimeOverlay } from './ctx';
 import { placeKitPiece, preloadKit, KIT_TILE } from './kit';
+import {
+  buildWallPlateSet,
+  buildGrungeRoughTexture,
+  buildLowerDirtTexture,
+  buildScuffTexture,
+  buildStencilTextTexture,
+  buildChevronTexture,
+  buildDripTexture,
+} from './wallsTextures';
 
 const HALF_W = ROOM_W / 2; // 6
 const HALF_D = ROOM_D / 2; // 8
@@ -14,12 +23,15 @@ const HALF_D = ROOM_D / 2; // 8
 // reaches them — most of the enlarged room, per this round's brief — they render pure black:
 // metals have no diffuse term, so zero specular light in equals zero light out. MI_Trim_03 (the
 // dominant flat panel face, ~two-thirds of every wall/column surface by triangle count) is fully
-// dielectric already, but its baked albedo runs bright (T_Trim_03_BaseColor.png mean 0.66), which
-// is what blows out under direct light. MI_Trim_03_Cables_Blue (the corner-cap trim) ships with an
-// empty pbrMetallicRoughness block — no texture at all, so it falls back to glTF's default white/
-// full-metal/full-rough and swings between the same two failure modes. None of this is exposure;
-// it is the "give distinct materials genuinely distinct roughness/metalness" gap called out for
-// every piece, so it gets fixed once per unique material rather than left for lighting to hide.
+// dielectric already, but its baked albedo runs bright (T_Trim_03_BaseColor.png mean 0.66) and is
+// nearly flat per-texel — that is what blows out p95 under direct light AND what the round-4
+// critic means by "wall/column materials read as smooth gray plastic with little surface
+// variation": a bright, low-variance bake reads as plastic no matter how the scalar roughness is
+// tuned, because there is nothing for grazing light to catch. MI_Trim_03_Cables_Blue (the
+// corner-cap trim) ships with an empty pbrMetallicRoughness block — no texture at all, so it falls
+// back to glTF's default white/full-metal/full-rough. None of this is exposure; it is the "give
+// distinct materials genuinely distinct roughness/metalness" gap called out for every piece, so it
+// gets fixed once per unique material rather than left for lighting to hide.
 const groundedMaterials = new Set<THREE.Material>();
 const SHADOW_FLOOR = new THREE.Color('#262b31');
 
@@ -41,23 +53,47 @@ function groundKitMaterial(mat: THREE.Material): void {
       mat.metalness = 0.6;
       mat.roughness = 1.6;
       break;
-    case 'MI_Trim_03':
-      // The dominant painted-panel face: tint its bright baked albedo down toward the brief's
-      // painted-panel range and rough it up so it stops reading as glossy plastic.
-      mat.color.multiplyScalar(0.72);
-      mat.roughness = 2.2;
+    case 'MI_Trim_03': {
+      // The dominant painted-panel face, ~two-thirds of every wall/column surface: replace the
+      // kit's own overbright, near-flat bake with a procedural bolted-plate set (real seams,
+      // per-plate tone variance, brushed grain, paint chips down to bare steel) tuned straight to
+      // the brief's painted-panel palette. `map` carries the correct albedo range on its own now,
+      // so the colour tint resets to white rather than the old post-hoc multiplyScalar(0.72), and
+      // roughness/metalness go through the packed ORM map instead of a flat scalar.
+      const plate = buildWallPlateSet('painted', 4, 3);
+      mat.color.set(0xffffff);
+      mat.map = plate.map;
+      mat.normalMap = plate.normalMap;
+      mat.roughnessMap = plate.ormMap;
+      mat.metalnessMap = plate.ormMap;
+      mat.roughness = 1;
+      mat.metalness = 1;
+      mat.needsUpdate = true;
       break;
-    case 'MI_Trim_03_Dark':
-      // Same ORM curve as MI_Trim_03 (already fully dielectric, already dark), just roughened to
-      // match — this is the recessed/seam variant where grime collects.
-      mat.roughness = 1.6;
+    }
+    case 'MI_Trim_03_Dark': {
+      // Recessed/seam variant — same treatment at a tighter plate pitch and the darker recess
+      // palette, since this is where grime collects.
+      const plate = buildWallPlateSet('dark', 2, 2);
+      mat.color.set(0xffffff);
+      mat.map = plate.map;
+      mat.normalMap = plate.normalMap;
+      mat.roughnessMap = plate.ormMap;
+      mat.metalnessMap = plate.ormMap;
+      mat.roughness = 1;
+      mat.metalness = 1;
+      mat.needsUpdate = true;
       break;
+    }
     case 'MI_Trim_03_Cables_Blue':
-      // No baseColor/ORM texture on this one at all, so the JS-side scalars are the only PBR
-      // response it has.
+      // No baseColor/ORM texture on this one at all. The JS-side scalars set its base response;
+      // a shared grunge roughness map breaks up what would otherwise be one uniform specular
+      // patch across every corner cap in the room.
       mat.color.set('#454f59');
       mat.metalness = 0.4;
       mat.roughness = 0.55;
+      mat.roughnessMap = buildGrungeRoughTexture();
+      mat.needsUpdate = true;
       break;
     default:
       break;
@@ -90,10 +126,48 @@ function inwardYaw(nx: number, nz: number): number {
   return Math.atan2(nx, nz);
 }
 
+// WallAstra_Straight's local geometry (checked against the raw glTF POSITION accessor bounds, not
+// guessed) sits entirely off-centre in local X, spanning roughly [-2.77, -1.60] — the near bound
+// (-1.60) is the room-facing surface, the far bound (-2.77) is the hull-exterior surface. Combined
+// with the yaw=0/PI placement convention above, the room-facing face of a side bay lands at
+// `pos.x + s * 1.60` in world space (verified for both s=+-1 by working the rotation through by
+// hand), 1.58 with a small inward nudge so multiply/alpha decals draw in front of the panel
+// instead of z-fighting inside it.
+function bayFaceX(x: number, s: -1 | 1): number {
+  return x + s * 1.58;
+}
+
 interface Placement {
   name: string;
   pos: [number, number, number];
   yaw: number;
+}
+
+/** A flat, non-shadowed overlay plane for decals/wear — same recipe as ctx.addGrimeOverlay, but
+ * parameterised over any of this module's own procedural textures instead of the shared grime map. */
+function addWallDecal(
+  ctx: InteriorCtx,
+  tex: THREE.CanvasTexture,
+  width: number,
+  height: number,
+  position: THREE.Vector3,
+  yaw: number,
+  opacity = 0.85,
+  blending: THREE.Blending = THREE.NormalBlending,
+): void {
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex,
+    transparent: true,
+    opacity,
+    blending,
+    premultipliedAlpha: blending === THREE.MultiplyBlending,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
+  mesh.position.copy(position);
+  mesh.rotation.set(0, yaw, 0);
+  mesh.renderOrder = 1;
+  ctx.scene.add(mesh);
 }
 
 /**
@@ -121,12 +195,14 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
   // self-intersecting "leaning" panels on wallLeft.png/wallRight.png. The fix is yaw 0/PI (leaves
   // local Z on world Z) plus the same tile-centred x used for the corner pass below, so the thin
   // side lands flush on the true boundary instead of centred on it.
+  const sideBays: { x: number; z: number; s: -1 | 1 }[] = [];
   for (const s of [-1, 1] as const) {
     const x = s * (HALF_W - KIT_TILE / 2);
     const yaw = s > 0 ? Math.PI : 0;
     for (const z of [-KIT_TILE / 2, KIT_TILE / 2]) {
       jobs.push({ name: WALL_BODY, pos: [x, 0, z], yaw });
       jobs.push({ name: WALL_TOP, pos: [x, 0, z], yaw });
+      sideBays.push({ x, z, s });
     }
   }
 
@@ -173,5 +249,98 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
       new THREE.Euler(0, c.yaw, 0),
       0.3,
     );
+    // Matching corrosion bloom at the *ceiling* joint — condensation and grime collect at both
+    // ends of a structural column, not just the deck, and a single drip cue at the base read as
+    // a token gesture rather than a motivated wear pattern.
+    addWallDecal(
+      ctx,
+      buildDripTexture(),
+      0.55,
+      0.75,
+      new THREE.Vector3(c.pos[0], 2.72, c.pos[2]),
+      c.yaw,
+      0.6,
+    );
+  }
+
+  // ----- per-bay dressing: every side bay gets a floor-level dirt/scuff pass (motivated by boots
+  // and trolleys working the walking lane) plus one distinct secondary element so the four bays
+  // read as four different pieces of a lived-in wall instead of one flat panel copy-pasted four
+  // times — the "block-out feel" the critic named directly. -----
+  const faceYawOf = (s: -1 | 1) => inwardYaw(-s, 0);
+  sideBays.forEach((bay, i) => {
+    const fx = bayFaceX(bay.x, bay.s);
+    const yaw = faceYawOf(bay.s);
+
+    addWallDecal(ctx, buildLowerDirtTexture(), 3.6, 1.15, new THREE.Vector3(fx, 0.58, bay.z), yaw, 0.85, THREE.MultiplyBlending);
+    addWallDecal(ctx, buildScuffTexture(), 3.2, 0.5, new THREE.Vector3(fx, 0.34, bay.z), yaw, 0.55);
+
+    if (i % 2 === 0) {
+      // Stencilled bay number, upper wall — every bay in the reference carries its own placard
+      // or stencil rather than a repeated motif.
+      const id = String(41 + i * 3).padStart(2, '0');
+      addWallDecal(ctx, buildStencilTextTexture(id), 1.3, 0.42, new THREE.Vector3(fx, 2.5, bay.z), yaw, 0.8);
+    } else {
+      // Hazard chevron strip, mid-wall — a caution mark near the bay's working edge.
+      addWallDecal(ctx, buildChevronTexture(), 1.05, 0.32, new THREE.Vector3(fx, 1.55, bay.z + 0.85), yaw, 0.8);
+    }
+  });
+
+  // Small flanged junction boxes — real raised geometry (per the brief: "a 2-4cm raised rib reads
+  // better than a texture at this scale"), one per side wall, at different heights so the pair
+  // reads as two independent fixtures rather than a mirrored copy.
+  const boxRoughMap = buildGrungeRoughTexture();
+  const junctionBays = [sideBays[0], sideBays[3]];
+  junctionBays.forEach((bay, i) => {
+    const fx = bayFaceX(bay.x, bay.s);
+    const yaw = faceYawOf(bay.s);
+    const y = i === 0 ? 1.92 : 1.28;
+
+    const flangeMat = new THREE.MeshStandardMaterial({ color: '#454c54', roughness: 0.6, metalness: 0.5, roughnessMap: boxRoughMap, emissive: SHADOW_FLOOR, emissiveIntensity: 0.1 });
+    const flange = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.07), flangeMat);
+    flange.position.set(fx + bay.s * 0.02, y, bay.z);
+    flange.rotation.set(0, yaw, 0);
+    flange.castShadow = true;
+    flange.receiveShadow = true;
+    ctx.scene.add(flange);
+
+    const coverMat = new THREE.MeshStandardMaterial({ color: '#22262b', roughness: 0.75, metalness: 0.15, roughnessMap: boxRoughMap, emissive: SHADOW_FLOOR, emissiveIntensity: 0.1 });
+    const cover = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.02), coverMat);
+    cover.position.set(fx + bay.s * 0.045, y, bay.z);
+    cover.rotation.set(0, yaw, 0);
+    cover.castShadow = true;
+    cover.receiveShadow = true;
+    ctx.scene.add(cover);
+  });
+
+  // ----- warm practical sconces, one per side wall, grounded in a visible housing rather than a
+  // bare light — the round's "little warm/cool pooling" gap is a material/lighting-response
+  // problem this module can answer directly on the surfaces it owns. -----
+  const SCONCE_COLOR = 0xffd9a0;
+  const sconceColumns = [columns[0], columns[2]]; // one per side wall (both z = -KIT_TILE/2)
+  for (const c of sconceColumns) {
+    const housingMat = new THREE.MeshStandardMaterial({
+      color: '#2b3138',
+      roughness: 0.55,
+      metalness: 0.4,
+      emissive: new THREE.Color(SCONCE_COLOR),
+      emissiveIntensity: 0.7,
+    });
+    const housing = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.1, 0.16), housingMat);
+    housing.position.set(c.pos[0], 2.3, c.pos[2]);
+    housing.rotation.set(0, c.yaw, 0);
+    housing.castShadow = true;
+    housing.receiveShadow = true;
+    ctx.scene.add(housing);
+
+    const lamp = new THREE.PointLight(SCONCE_COLOR, 0.5, 3.2, 2);
+    lamp.position.set(c.pos[0], 2.24, c.pos[2]);
+    ctx.scene.add(lamp);
+
+    const baseIntensity = lamp.intensity;
+    const phase = Math.random() * Math.PI * 2;
+    ctx.animated.push((elapsed) => {
+      lamp.intensity = baseIntensity * (0.9 + 0.1 * Math.sin(elapsed * 1.7 + phase));
+    });
   }
 }

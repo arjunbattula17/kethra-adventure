@@ -100,16 +100,23 @@ export function buildFloor(ctx: InteriorCtx): void {
     map: buildPaintedDeckTexture(ROOM_W / 2.4, ROOM_D / 2.4),
     roughnessMap: buildDeckRoughnessTexture(ROOM_W / 2.4, ROOM_D / 2.4),
     normalMap: buildDeckNormalTexture(ROOM_W / 1.2, ROOM_D / 1.2),
-    normalScale: new THREE.Vector2(0.7, 0.7),
+    normalScale: new THREE.Vector2(0.95, 0.95),
     roughness: 1.0,
     metalness: 0.0,
     envMapIntensity: 0.35,
     side: THREE.DoubleSide,
   });
   // Rib tops are walked on, so they burnish lighter and smoother than the bay they divide.
-  const deckRibMat = new THREE.MeshStandardMaterial({ color: 0xb2ab9c, roughness: 0.52, metalness: 0.08, envMapIntensity: 0.5 });
-  const boltMat = new THREE.MeshStandardMaterial({ color: 0x8e939c, roughness: 0.38, metalness: 0.78, envMapIntensity: 0.85 });
-  const plateMat = new THREE.MeshStandardMaterial({ color: 0x6f747d, roughness: 0.33, metalness: 0.76, envMapIntensity: 0.8 });
+  const deckRibMat = new THREE.MeshStandardMaterial({ color: 0xb2ab9c, roughness: 0.56, metalness: 0.08, envMapIntensity: 0.5 });
+  // Metal trim roughness/metalness pulled back from the previous round's near-mirror values: with
+  // hundreds of bolt heads and rail edges catching the key + pendant + sconce lights at once, a
+  // roughness in the 0.26-0.38 band turns each one into a small blown-white speck, which is what
+  // dragged this round's measured p95 above the reference (there is no scene environment map, so
+  // this specular response comes entirely from direct lights, not envMapIntensity). Still clearly
+  // more reflective than the painted deck (metalness 0 there) so the material-response contrast
+  // the brief asks for survives — the hotspots are just tamed rather than removed.
+  const boltMat = new THREE.MeshStandardMaterial({ color: 0x8e939c, roughness: 0.5, metalness: 0.62, envMapIntensity: 0.85 });
+  const plateMat = new THREE.MeshStandardMaterial({ color: 0x6f747d, roughness: 0.42, metalness: 0.6, envMapIntensity: 0.8 });
   const darkSteelMat = new THREE.MeshStandardMaterial({ color: 0x4b515b, roughness: 0.55, metalness: 0.45, envMapIntensity: 0.55 });
   // Not a hole: the reference's recesses are dark *material* that still reads in shadow.
   const voidMat = new THREE.MeshStandardMaterial({ color: 0x2b2f36, roughness: 0.92, metalness: 0.05, envMapIntensity: 0.2 });
@@ -117,12 +124,12 @@ export function buildFloor(ctx: InteriorCtx): void {
     color: 0xffffff,
     map: buildTreadPlateTexture(2.2, 3.2),
     normalMap: buildTreadNormalTexture(2.2, 3.2),
-    normalScale: new THREE.Vector2(0.9, 0.9),
+    normalScale: new THREE.Vector2(1.05, 1.05),
     roughness: 0.62,
     metalness: 0.3,
     envMapIntensity: 0.55,
   });
-  const wornEdgeMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.26, metalness: 0.82, envMapIntensity: 1.0 });
+  const wornEdgeMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.34, metalness: 0.68, envMapIntensity: 1.0 });
   const paintWhiteMat = new THREE.MeshStandardMaterial({ color: 0xbdb8ab, roughness: 0.82, metalness: 0.0, envMapIntensity: 0.3 });
   const grateMat = new THREE.MeshStandardMaterial({ color: 0x8d7238, roughness: 0.52, metalness: 0.5, envMapIntensity: 0.6 });
 
@@ -204,17 +211,20 @@ export function buildFloor(ctx: InteriorCtx): void {
   ctx.floorMeshes.push(floor);
 
   // A burnished traffic zone in front of the console — differs from the surrounding deck by
-  // *roughness*, not albedo, so it reads as worn paint rather than a bright decal.
+  // *roughness*, not albedo, so it reads as worn paint rather than a bright decal. Roughness eased
+  // up from the previous round's 0.38: under the room's stacked key + pendant + cool console
+  // lights that low a roughness read as a mirror streak across the middle of the deck, which is
+  // the single biggest specular contributor to this round's blown-highlight miss.
   const polishMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
     map: buildPaintedDeckTexture(1.6, 1.2),
     normalMap: buildDeckNormalTexture(3.2, 2.4),
     normalScale: new THREE.Vector2(0.35, 0.35),
-    roughness: 0.38,
-    metalness: 0.1,
+    roughness: 0.56,
+    metalness: 0.05,
     envMapIntensity: 0.45,
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.55,
     depthWrite: false,
   });
   const polish = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 3.0), polishMat);
@@ -353,6 +363,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   // rail, and the white lane line the reference paints just outboard of it.
   const troughBase = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, insetD), voidMat);
   troughBase.position.set(TROUGH_X, 0.012, INSET_CZ);
+  troughBase.receiveShadow = true;
   add(troughBase);
   const slatXforms: Xform[] = [];
   for (let z = INSET_Z0 + 0.07; z < INSET_Z1; z += 0.125) slatXforms.push({ p: [TROUGH_X, 0.028, z] });
@@ -360,6 +371,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   const troughRail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.055, insetD + 0.1), plateMat);
   troughRail.position.set(TROUGH_X + 0.21, 0.028, INSET_CZ);
   troughRail.castShadow = true;
+  troughRail.receiveShadow = true;
   add(troughRail);
   addContact('strip', TROUGH_X + 0.5, INSET_CZ, insetD + 0.2, 0.36, Math.PI / 2, 0.0115);
   const whiteLine = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.006, insetD + 0.4), paintWhiteMat);
@@ -447,17 +459,21 @@ export function buildFloor(ctx: InteriorCtx): void {
     const hatchFrame = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.05, 0.08), plateMat);
     hatchFrame.position.set(hatchX, 0.025, hatchZ + oz);
     hatchFrame.castShadow = true;
+    hatchFrame.receiveShadow = true;
     add(hatchFrame);
   }
   for (const ox of [0.53, -0.53]) {
     const hatchFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 1.14), plateMat);
     hatchFrame.position.set(hatchX + ox, 0.025, hatchZ);
     hatchFrame.castShadow = true;
+    hatchFrame.receiveShadow = true;
     add(hatchFrame);
   }
   const handle = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.016, 6, 14, Math.PI), plateMat);
   handle.rotation.set(Math.PI / 2, 0, 0);
   handle.position.set(hatchX + 0.26, 0.052, hatchZ);
+  handle.castShadow = true;
+  handle.receiveShadow = true;
   add(handle);
   const hingeGeo = new THREE.CylinderGeometry(0.028, 0.028, 0.14, 8);
   add(instance(hingeGeo, plateMat, [
@@ -565,6 +581,8 @@ export function buildFloor(ctx: InteriorCtx): void {
   // Short cross run just inboard of the airlock threshold.
   const crossChannel = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.035, 0.11), darkSteelMat);
   crossChannel.position.set(0, 0.017, HALF_D - 0.5);
+  crossChannel.castShadow = true;
+  crossChannel.receiveShadow = true;
   add(crossChannel);
   const crossStrip = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.012, 0.045), ledMat);
   crossStrip.position.set(0, 0.036, HALF_D - 0.5);

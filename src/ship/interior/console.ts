@@ -312,14 +312,24 @@ function addLed(
   ctx.statusLights.push({ mesh: m, material, phase: (x * 7.3 + y * 3.1 + z * 1.7) % 6.28, onIntensity: 1.1 });
 }
 
-/** A bezelled monitor: recessed dark frame, hooded top lip, indicator dot and corner bolts. */
+/**
+ * A single monitor pane. `frame` toggles between two very different jobs:
+ *
+ * - `frame: true` (the default) is a complete standalone monitor — its own steel surround,
+ *   hood and corner bolts — for a screen that really is alone (the journal terminal).
+ * - `frame: false` is a bare glass-in-bezel pane with no hardware of its own, for screens that
+ *   are windows into a *shared* housing built once by the caller. Six fully-framed monitors
+ *   stacked together is exactly the "several screen assets piled on top of each other" read the
+ *   critique called out; one housing with six windows in it reads as a single designed
+ *   instrument instead.
+ */
 function addScreen(
   ctx: InteriorCtx,
   parent: THREE.Object3D,
   kit: Kit,
   o: {
     x: number; y: number; z: number; yaw: number; tilt: number; w: number; h: number;
-    tex: THREE.Texture; intensity?: number; hood?: boolean;
+    tex: THREE.Texture; intensity?: number; frame?: boolean;
   },
 ): THREE.MeshStandardMaterial {
   const g = new THREE.Group();
@@ -328,13 +338,16 @@ function addScreen(
   g.rotation.set(o.tilt, o.yaw, 0);
   parent.add(g);
 
-  const bw = o.w + 0.075;
-  const bh = o.h + 0.075;
-  const bezel = mesh(g, chamferBox(bw, bh, 0.055, 0.014), kit.charcoal, 0, 0, -0.02);
+  const framed = o.frame !== false;
+  const bw = o.w + (framed ? 0.075 : 0.04);
+  const bh = o.h + (framed ? 0.075 : 0.04);
+  const bezel = mesh(g, chamferBox(bw, bh, 0.05, 0.013), kit.charcoal, 0, 0, -0.018);
   bezel.castShadow = true;
 
-  // A thin bright surround catches the practicals and separates the screen from the dark bank.
-  mesh(g, chamferBox(bw + 0.03, bh + 0.03, 0.02, 0.008), kit.steel, 0, 0, -0.045);
+  if (framed) {
+    // A thin bright surround catches the practicals and separates the screen from the dark bank.
+    mesh(g, chamferBox(bw + 0.03, bh + 0.03, 0.02, 0.008), kit.steel, 0, 0, -0.045);
+  }
 
   const faceMat = new THREE.MeshStandardMaterial({
     color: 0x0a1620,
@@ -347,15 +360,15 @@ function addScreen(
   });
   mesh(g, new THREE.PlaneGeometry(o.w, o.h), faceMat, 0, 0, 0.014);
 
-  if (o.hood !== false) {
+  if (framed) {
     const hood = mesh(g, chamferBox(bw + 0.02, 0.022, 0.085, 0.008), kit.steel, 0, bh / 2 + 0.012, 0.03);
     hood.rotation.x = 0.28;
+    // Bolts sit proud of the bezel front face, in the border outside the glass.
+    cornerBolts(g, kit, bw, bh, 0.015, 0.019);
   }
-  // Bottom lip with a vent slot and a power dot.
-  mesh(g, chamferBox(bw, 0.03, 0.05, 0.01), kit.steel, 0, -bh / 2 - 0.008, 0.012);
-  addLed(ctx, g, kit, bw / 2 - 0.05, -bh / 2 - 0.008, 0.04, 0x6fe4ff, false);
-  // Bolts sit proud of the bezel front face, in the 3.7 cm border outside the glass.
-  cornerBolts(g, kit, bw, bh, 0.015, 0.019);
+  // A small power dot survives on every pane — the one piece of hardware that reads as
+  // per-instrument rather than per-cluster, whether or not the cluster owns the framing.
+  addLed(ctx, g, kit, bw / 2 - 0.035, -bh / 2 - 0.004, 0.02, 0x6fe4ff, false);
 
   return faceMat;
 }
@@ -714,10 +727,34 @@ function buildMonitorBank(ctx: InteriorCtx, kit: Kit): THREE.Group {
   g.position.set(0, 0, DESK_Z);
   ctx.scene.add(g);
 
-  // Dark backplane so the screens read against near-black, as in the reference.
+  // Dark backplane so the screens read against near-black, as in the reference. This is the
+  // instrument's single housing: every screen below is unframed and sits in it as a cut window,
+  // so the bank reads as one milled unit wrapping six displays rather than six separate monitors
+  // set side by side.
   const back = mesh(g, chamferBox(3.05, 1.14, 0.12, 0.025), kit.dark, 0, 1.44, -0.66);
   back.castShadow = true;
   back.receiveShadow = true;
+  // One steel frame around the whole housing, with the bolts that used to ring every individual
+  // screen moved here — a dozen bolts holding down one cabinet, not four bolts times six panes.
+  // The top edge is already carried by the existing coaming bar just below; only the bottom
+  // needs a matching rail to close the frame.
+  mesh(g, chamferBox(3.11, 0.05, 0.14, 0.012), kit.steel, 0, 1.44 - 0.57, -0.66);
+  cornerBolts(g, kit, 3.05, 1.14, -0.595, 0.06);
+
+  // Mullions tying the two tiers into one grid instead of a stack of loose panes: a horizontal
+  // rail between the rows, and a vertical divider between each screen within a row.
+  mesh(g, chamferBox(2.92, 0.045, 0.2, 0.012), kit.steel, 0, 1.635, -0.52);
+  for (const sx of [-1, 1]) {
+    const lowerDiv = mesh(g, chamferBox(0.03, 0.5, 0.16, 0.008), kit.steel, sx * 0.51, 1.485, -0.46);
+    lowerDiv.rotation.x = -0.28;
+    const upperDiv = mesh(g, chamferBox(0.03, 0.42, 0.14, 0.008), kit.steel, sx * 0.41, 1.805, -0.57);
+    upperDiv.rotation.x = -0.07;
+  }
+  // Single shared canopy over the whole upper row, replacing what used to be three individual
+  // screen hoods — one roof over the instrument, not one roof per pane.
+  const canopy = mesh(g, chamferBox(2.5, 0.05, 0.16, 0.014), kit.steel, 0, 1.98, -0.5);
+  canopy.rotation.x = 0.3;
+  canopy.castShadow = true;
 
   for (const sx of [-1, 1]) {
     mesh(g, chamferBox(0.11, 1.06, 0.22, 0.024), kit.steel, sx * 1.36, 1.44, -0.54);
@@ -749,14 +786,16 @@ function buildMonitorBank(ctx: InteriorCtx, kit: Kit): THREE.Group {
 
   const faces: THREE.MeshStandardMaterial[] = [];
   // Lower tier — wide, angled up off the deck. Bottom edge clears the deck's raised back lip.
-  faces.push(addScreen(ctx, g, kit, { x: -0.93, y: 1.47, z: -0.44, yaw: 0.26, tilt: -0.3, w: 0.82, h: 0.44, tex: navTex }));
-  faces.push(addScreen(ctx, g, kit, { x: 0, y: 1.5, z: -0.48, yaw: 0, tilt: -0.26, w: 1.06, h: 0.48, tex: commsTex, intensity: 1.35 }));
-  faces.push(addScreen(ctx, g, kit, { x: 0.93, y: 1.47, z: -0.44, yaw: -0.26, tilt: -0.3, w: 0.82, h: 0.44, tex: statusTex }));
+  // `frame: false` on every pane here: the housing built above already owns the surround, the
+  // hood and the bolts, so these six calls contribute only glass in a thin recess.
+  faces.push(addScreen(ctx, g, kit, { x: -0.93, y: 1.47, z: -0.44, yaw: 0.26, tilt: -0.3, w: 0.82, h: 0.44, tex: navTex, frame: false }));
+  faces.push(addScreen(ctx, g, kit, { x: 0, y: 1.5, z: -0.48, yaw: 0, tilt: -0.26, w: 1.06, h: 0.48, tex: commsTex, intensity: 1.35, frame: false }));
+  faces.push(addScreen(ctx, g, kit, { x: 0.93, y: 1.47, z: -0.44, yaw: -0.26, tilt: -0.3, w: 0.82, h: 0.44, tex: statusTex, frame: false }));
   // Upper tier — near vertical and set 12 cm further back, so it steps up behind the lower row
   // rather than stacking clear of it. Its bottom edge is deliberately overlapped.
-  faces.push(addScreen(ctx, g, kit, { x: -0.79, y: 1.79, z: -0.56, yaw: 0.18, tilt: -0.08, w: 0.6, h: 0.28, tex: sysTex, intensity: 1.5 }));
-  faces.push(addScreen(ctx, g, kit, { x: 0, y: 1.82, z: -0.58, yaw: 0, tilt: -0.06, w: 0.66, h: 0.3, tex: navTex, intensity: 1.5 }));
-  faces.push(addScreen(ctx, g, kit, { x: 0.79, y: 1.79, z: -0.56, yaw: -0.18, tilt: -0.08, w: 0.6, h: 0.28, tex: diagTex, intensity: 1.5 }));
+  faces.push(addScreen(ctx, g, kit, { x: -0.79, y: 1.79, z: -0.56, yaw: 0.18, tilt: -0.08, w: 0.6, h: 0.28, tex: sysTex, intensity: 1.5, frame: false }));
+  faces.push(addScreen(ctx, g, kit, { x: 0, y: 1.82, z: -0.58, yaw: 0, tilt: -0.06, w: 0.66, h: 0.3, tex: navTex, intensity: 1.5, frame: false }));
+  faces.push(addScreen(ctx, g, kit, { x: 0.79, y: 1.79, z: -0.56, yaw: -0.18, tilt: -0.08, w: 0.6, h: 0.28, tex: diagTex, intensity: 1.5, frame: false }));
 
   // Cable looms dropping from the bank down behind the desk.
   const cableMat = kit.rubber;

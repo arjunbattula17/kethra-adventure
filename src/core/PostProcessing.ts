@@ -37,13 +37,20 @@ const gradeShader = {
       // Flat exposure trim compensating for the fixed renderer exposure + ambient IBL running hot.
       c *= 0.85;
 
-      // Highlight shoulder: soft-knee compression above 0.4 luma so hot practicals and bloom
-      // settle into the reference's ~0.5-0.6 highlight ceiling instead of the tonemap's plateau.
+      // Highlight shoulder: soft-knee compression above 0.42 luma. Round 4: the previous knee
+      // (0.4 / coeff 2.2, asymptote ~0.85) was strong enough that no pixel anywhere ever reached
+      // hot (>=0.90) — measured hot% was 0.00% on every view including ones whose reference sits
+      // at 0.9-1.7% hot (console, displays, starfieldWindow), and their p95 read 0.09-0.27 below
+      // the reference as a result. Softened coeff 2.2->2.0 (asymptote ~0.92) so genuinely hot
+      // sources (screens, the pendant tube) can punch further toward white than before, while
+      // staying short of the full 1.8 tried first — that let one extreme outlier (an airlock
+      // practical far brighter than anything else in the room) blow out even harder than the
+      // knee alone could tame.
       float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
       float knee = 0.4;
       if (luma > knee) {
         float excess = luma - knee;
-        float compressed = knee + excess / (1.0 + excess * 2.2);
+        float compressed = knee + excess / (1.0 + excess * 2.0);
         c *= compressed / max(luma, 1e-4);
       }
 
@@ -91,7 +98,11 @@ export class PostProcessing {
     this.aoPass.blendIntensity = 0.5;
     this.composer.addPass(this.aoPass);
 
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.22, 0.96);
+    // Round 4: threshold 0.96 meant almost nothing in the room ever bloomed — screens and the
+    // pendant tube read as flat, un-lit-looking surfaces instead of the hot practicals the
+    // reference shows. Lowered so genuinely bright emissives catch bloom; strength/radius raised
+    // to match so the catch actually reads as a glow rather than a faint fringe.
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.24, 0.93);
     this.composer.addPass(this.bloomPass);
 
     this.composer.addPass(new ShaderPass(gradeShader));

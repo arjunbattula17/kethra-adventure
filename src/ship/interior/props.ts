@@ -172,8 +172,13 @@ function buildMaterials() {
   const hazardTex = buildWarningStripeTexture('amber');
   hazardTex.repeat.set(6, 1);
 
-  // Bare rolled steel — mid grey, fully metallic, directional brush grain.
-  const steel = std(0x6f777f, 0.42, 1.0, 0x1b222a, 0.26);
+  // Bare rolled steel — mid grey, fully metallic, directional brush grain. Roughness nudged up
+  // from the previous pass: this is the material on both full-depth conduit pipes and the
+  // cable-tray rails, which sit near the ceiling for the whole room length, and the round brief's
+  // measured p95 came in well above the reference with the ceiling band flagged as blown out. A
+  // metalness-1.0 surface at 0.42 roughness returns a hard, near-mirror specular streak along
+  // that entire run; softening it spreads the same light over more pixels instead of a hot line.
+  const steel = std(0x6f777f, 0.5, 1.0, 0x161c22, 0.22);
   applySurface(steel, 'steel', 3);
 
   // Blued / phosphated frame steel: darker, rougher, and the one that has to stay off the floor
@@ -186,8 +191,13 @@ function buildMaterials() {
   const steelDark = std(0x49515b, 0.58, 0.86, 0x212a34, 0.44);
   applySurface(steelDark, 'galv', 4);
 
-  // Machined / polished fittings — handles, latches, vise jaws. The shiniest metal in the kit.
-  const steelLight = std(0x848d97, 0.24, 1.0, 0x1f262e, 0.2);
+  // Machined / polished fittings — handles, latches, vise jaws — and every bolt head in the room,
+  // since `k.bolt` shares this material and repeats it hundreds of times across both walls. The
+  // shiniest metal in the kit, but 0.24 roughness at metalness 1.0 is close enough to a mirror
+  // that each instance throws a small hard highlight; multiplied by the bolt count that reads as
+  // a scattering of blown points across a lot of screen area rather than a handful of sparkle
+  // accents, which is exactly what pushed the measured p95 over the reference this round.
+  const steelLight = std(0x848d97, 0.34, 1.0, 0x1a2027, 0.16);
   applySurface(steelLight, 'brushed', 5);
 
   // Painted enamel over steel. Dielectric, high roughness, rub-polished patches in the map.
@@ -216,8 +226,10 @@ function buildMaterials() {
   applySurface(composite, 'composite', 3);
 
   // Copper flex conduit: warm, fully metallic, low roughness so it stays a small bright accent.
-  // Also runs the ceiling conduit line the full depth of the room, so it gets the same treatment.
-  const copper = std(0x99652f, 0.3, 1.0, 0x2a1a0c, 0.34);
+  // Also runs the ceiling conduit line the full depth of the room, so — like steel and steelLight
+  // above — its roughness and emissive floor are pulled back a step from the previous pass to
+  // stop that full-length run adding to the blown-ceiling read.
+  const copper = std(0x99652f, 0.38, 1.0, 0x22150a, 0.26);
   applySurface(copper, 'brushed', 4);
 
   // Gauge glass and lens covers — the only near-mirror in the kit, and a dielectric.
@@ -290,7 +302,7 @@ function place(
  * sitting *in* the deck rather than hovering a centimetre above it.
  */
 function groundShadow(k: Kit, x: number, z: number, w: number, d: number): void {
-  k.contact.add(x, 0.012, z, -Math.PI / 2, 0, 0, w * 1.85, d * 1.85, 1);
+  k.contact.add(x, 0.012, z, -Math.PI / 2, 0, 0, w * 2.05, d * 2.05, 1);
 }
 
 /** Multiply-blended decal material: white texels are a no-op, so the quad has no visible border. */
@@ -636,10 +648,10 @@ function buildWorkbench(k: Kit, ctx: InteriorCtx, wallX: number, z: number, sign
   place(k, cyl(0.014, 0.014, 0.36, 8), k.m.steelDark, bx - inward * 0.09, topY + 0.46, lz, 0, 0, inward * (Math.PI / 2 - 0.4));
   const shadeX = bx + inward * 0.04;
   place(k, cyl(0.05, 0.12, 0.12, 12), k.m.steelDark, shadeX, topY + 0.38, lz, 0, 0, inward * 0.3);
-  const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffd9a0, emissiveIntensity: 2.0, roughness: 0.4 });
+  const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffd9a0, emissiveIntensity: 1.6, roughness: 0.4 });
   place(k, cyl(0.055, 0.055, 0.012, 12), bulbMat, shadeX + inward * 0.02, topY + 0.32, lz, 0, 0, inward * 0.3);
 
-  const lamp = new THREE.PointLight(0xffd9a0, 2.3, 3.2, 2);
+  const lamp = new THREE.PointLight(0xffd9a0, 1.9, 3.2, 2);
   lamp.position.set(shadeX + inward * 0.05, topY + 0.28, lz);
   // Deliberately not a shadow caster: a point light costs six shadow-map faces, and with every
   // prop now flagged castShadow that would re-render the whole set six more times for one bench
@@ -655,7 +667,7 @@ function buildWorkbench(k: Kit, ctx: InteriorCtx, wallX: number, z: number, sign
   ctx.animated.push((elapsed) => {
     const f = 0.9 + Math.sin(elapsed * 2.3) * 0.05 + Math.sin(elapsed * 11.7) * 0.03;
     lamp.intensity = base * f;
-    bulbMat.emissiveIntensity = 2.0 * f;
+    bulbMat.emissiveIntensity = 1.6 * f;
   });
 }
 
@@ -933,14 +945,14 @@ function buildReadoutPanel(k: Kit, ctx: InteriorCtx, wallX: number, y: number, z
     roughness: 0.25,
     metalness: 0.1,
     emissive: 0xffffff,
-    emissiveIntensity: 0.7,
+    emissiveIntensity: 0.56,
   });
   mat.emissiveMap = mat.map;
   place(k, plane(0.5, 0.3), mat, wallX + inward * 0.115, y, z, 0, ry, 0);
   boltRect(k, face, wallX + inward * 0.1, y, z, 0.56, 0.36);
 
   ctx.animated.push((elapsed) => {
-    mat.emissiveIntensity = 0.64 + Math.sin(elapsed * 1.6 + seed) * 0.08;
+    mat.emissiveIntensity = 0.5 + Math.sin(elapsed * 1.6 + seed) * 0.06;
   });
 }
 
@@ -994,7 +1006,7 @@ function buildCableTray(k: Kit, ctx: InteriorCtx, wallX: number, sign: 1 | -1): 
   // crush to pure black across the room's full depth. The room grew and the key light was only
   // repositioned by the scale factor, not redesigned, so this whole band near the ceiling now
   // sits outside its reach — this is a cheap local stand-in for bounce light, not a relight.
-  const fill = new THREE.PointLight(0xb9c0c9, 0.85, 9, 2);
+  const fill = new THREE.PointLight(0xb9c0c9, 0.68, 9, 2);
   fill.position.set(px, 3.25, 0);
   ctx.scene.add(fill);
 

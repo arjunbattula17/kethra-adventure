@@ -7,11 +7,14 @@ import * as THREE from 'three';
  * deviation in the overhead read.
  *
  * Every structural map ships as a triple: albedo, a companion roughness and a normal derived
- * from the same height field, so seams, rivets and dents all agree with each other and the
- * plating breaks up specular instead of reading as one uniform sheen.
+ * from the same height field, so oxidation, grain and dents all agree with each other and the
+ * plating breaks up specular instead of reading as one uniform sheen. Panel seams and rivets are
+ * NOT baked into these maps — they are real raised/instanced geometry built in ceiling.ts, laid
+ * out on an irregular grid so they read as hand-placed plating rather than a tiled repeating
+ * decal.
  */
 
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -88,19 +91,24 @@ function heightToNormal(src: HTMLCanvasElement, strength: number): THREE.CanvasT
  * ---------------------------------------------------------------------------------------- */
 
 const PLATE_S = 512;
-/** Panel seam lines within one tile — 2x2 panels. */
-const PLATE_SEAMS = [0, PLATE_S / 2];
-const PLATE_RIVET_STEP = 32;
+/**
+ * Nominal anchor coordinates for wear clustering only — panel seams and rivets are real raised
+ * geometry now (built in ceiling.ts, irregularly spaced so they read as hand-placed rather than
+ * a stamped repeating grid). Nothing here is drawn as a line; these three coordinates just give
+ * corrosion and paint-chip placement below a "hugs an edge" bias instead of scattering evenly.
+ */
+const PLATE_GRID = [0, PLATE_S / 3, (PLATE_S * 2) / 3];
 
 let plateMap: THREE.CanvasTexture | null = null;
 let plateRough: THREE.CanvasTexture | null = null;
 let plateNormal: THREE.CanvasTexture | null = null;
 
 /**
- * Bolted grey-steel plate. Layered as: cool base, metre-scale oxidation blooms (teal-green
- * patina and warm ochre, both drawn from the reference's ceiling plating), brushed grain,
- * seams with a lit lip, rivet rows, and corrosion/chipping that only ever hugs a seam or a
- * rivet — wear where use puts it, not a uniform tint.
+ * Bolted grey-steel plate surface grain. Layered as: cool base, metre-scale oxidation blooms
+ * (teal-green patina and warm ochre, both drawn from the reference's ceiling plating), brushed
+ * grain, and corrosion/chipping biased toward a few implied seam lines — wear where use puts it,
+ * not a uniform tint. The seams and rivets themselves are real raised geometry built in
+ * ceiling.ts, not drawn here, so the grid reads as hand-placed plating rather than a tiled decal.
  */
 export function buildCeilingPlateTexture(): THREE.CanvasTexture {
   if (plateMap) return plateMap;
@@ -153,66 +161,37 @@ export function buildCeilingPlateTexture(): THREE.CanvasTexture {
     g.stroke();
   }
 
-  // Panel seams: dark groove with a lit lip above it.
-  g.lineCap = 'butt';
-  for (const s of PLATE_SEAMS) {
-    tileable(g, S, () => {
-      g.fillStyle = '#353d48';
-      g.fillRect(s - 2.5, -S, 5, S * 3);
-      g.fillRect(-S, s - 2.5, S * 3, 5);
-      g.fillStyle = 'rgba(154,166,180,0.55)';
-      g.fillRect(s - 4, -S, 1.5, S * 3);
-      g.fillRect(-S, s - 4, S * 3, 1.5);
-      g.fillStyle = 'rgba(30,34,41,0.4)';
-      g.fillRect(s + 3, -S, 2, S * 3);
-      g.fillRect(-S, s + 3, S * 3, 2);
-    });
-  }
-
-  // Rivet rows tracking every seam.
-  const rivet = (x: number, y: number) => {
-    tileable(g, S, () => {
-      g.fillStyle = 'rgba(26,30,37,0.55)';
-      g.beginPath();
-      g.arc(x + 0.8, y + 1.1, 3.4, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = '#717c8b';
-      g.beginPath();
-      g.arc(x, y, 3.0, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = 'rgba(182,194,208,0.85)';
-      g.beginPath();
-      g.arc(x - 0.8, y - 0.9, 1.5, 0, Math.PI * 2);
-      g.fill();
-    });
-  };
-  for (const s of PLATE_SEAMS) {
-    for (let t = PLATE_RIVET_STEP / 2; t < S; t += PLATE_RIVET_STEP) {
-      rivet(s, t);
-      rivet(t, s);
-    }
-  }
-
-  // Localised corrosion — small, and only ever hugging a seam or a rivet line.
+  // Localised corrosion — small, and biased toward the nominal grid lines (the real seam ribs
+  // sit near these in world space once ceiling.ts lays out its irregular panel grid), never a
+  // clean radial blob: an elongated streak-shaped smear, not a symmetric splotch.
   for (let i = 0; i < 46; i++) {
     const alongX = rnd() < 0.5;
-    const s = PLATE_SEAMS[rnd() < 0.5 ? 0 : 1];
+    const s = PLATE_GRID[Math.floor(rnd() * PLATE_GRID.length)];
     const t = rnd() * S;
-    const x = alongX ? t : s + (rnd() - 0.5) * 26;
-    const y = alongX ? s + (rnd() - 0.5) * 26 : t;
-    const r = 6 + rnd() * 18;
-    const grad = g.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, `rgba(148,98,54,${0.18 + rnd() * 0.22})`);
-    grad.addColorStop(0.6, 'rgba(94,66,44,0.10)');
+    const x = alongX ? t : s + (rnd() - 0.5) * 30;
+    const y = alongX ? s + (rnd() - 0.5) * 30 : t;
+    const len = 14 + rnd() * 46;
+    const wid = 4 + rnd() * 10;
+    const a = alongX ? (rnd() - 0.5) * 0.5 : Math.PI / 2 + (rnd() - 0.5) * 0.5;
+    const grad = g.createLinearGradient(x - Math.cos(a) * len * 0.5, y - Math.sin(a) * len * 0.5, x + Math.cos(a) * len * 0.5, y + Math.sin(a) * len * 0.5);
+    grad.addColorStop(0, 'rgba(94,66,44,0)');
+    grad.addColorStop(0.5, `rgba(148,98,54,${0.22 + rnd() * 0.22})`);
     grad.addColorStop(1, 'rgba(94,66,44,0)');
-    g.fillStyle = grad;
-    tileable(g, S, () => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); });
+    g.strokeStyle = grad;
+    g.lineWidth = wid;
+    g.lineCap = 'round';
+    tileable(g, S, () => {
+      g.beginPath();
+      g.moveTo(x - Math.cos(a) * len * 0.5, y - Math.sin(a) * len * 0.5);
+      g.lineTo(x + Math.cos(a) * len * 0.5, y + Math.sin(a) * len * 0.5);
+      g.stroke();
+    });
   }
 
   // Chipped paint flecks at panel corners: bare pale metal, with a dark lip on the low side.
   for (let i = 0; i < 70; i++) {
-    const s = PLATE_SEAMS[rnd() < 0.5 ? 0 : 1];
-    const o = PLATE_SEAMS[rnd() < 0.5 ? 0 : 1];
+    const s = PLATE_GRID[Math.floor(rnd() * PLATE_GRID.length)];
+    const o = PLATE_GRID[Math.floor(rnd() * PLATE_GRID.length)];
     const x = s + (rnd() - 0.5) * 46;
     const y = o + (rnd() - 0.5) * 46;
     const rx = 2 + rnd() * 5;
@@ -275,31 +254,6 @@ export function buildCeilingPlateRoughness(): THREE.CanvasTexture {
     g.lineTo(x + len, y + (rnd() - 0.5) * 2);
     g.stroke();
   }
-  // Seam grooves collect grime; the lit lip beside them is worn smooth.
-  for (const s of PLATE_SEAMS) {
-    tileable(g, S, () => {
-      g.fillStyle = 'rgba(28,28,28,0.85)';
-      g.fillRect(s - 2, -S, 4, S * 3);
-      g.fillRect(-S, s - 2, S * 3, 4);
-      g.fillStyle = 'rgba(255,255,255,0.55)';
-      g.fillRect(s - 4, -S, 1.5, S * 3);
-      g.fillRect(-S, s - 4, S * 3, 1.5);
-    });
-  }
-  // Rivet heads are rubbed bright.
-  for (const s of PLATE_SEAMS) {
-    for (let t = PLATE_RIVET_STEP / 2; t < S; t += PLATE_RIVET_STEP) {
-      for (const [px, py] of [[s, t], [t, s]] as [number, number][]) {
-        tileable(g, S, () => {
-          g.fillStyle = 'rgba(255,255,255,0.5)';
-          g.beginPath();
-          g.arc(px, py, 3, 0, Math.PI * 2);
-          g.fill();
-        });
-      }
-    }
-  }
-
   plateRough = toTexture(canvas, false);
   return plateRough;
 }
@@ -325,36 +279,6 @@ export function buildCeilingPlateNormal(): THREE.CanvasTexture {
     grad.addColorStop(1, 'rgba(128,128,128,0)');
     g.fillStyle = grad;
     tileable(g, S, () => { g.beginPath(); g.ellipse(x, y, r, r * (0.5 + rnd() * 0.9), rnd() * 3, 0, Math.PI * 2); g.fill(); });
-  }
-
-  // Seam: a groove with a raised lip on one side, matching the albedo.
-  for (const s of PLATE_SEAMS) {
-    tileable(g, S, () => {
-      g.fillStyle = '#3c3c3c';
-      g.fillRect(s - 2.5, -S, 5, S * 3);
-      g.fillRect(-S, s - 2.5, S * 3, 5);
-      g.fillStyle = '#c8c8c8';
-      g.fillRect(s - 4.5, -S, 2, S * 3);
-      g.fillRect(-S, s - 4.5, S * 3, 2);
-    });
-  }
-
-  // Proud rivet domes.
-  for (const s of PLATE_SEAMS) {
-    for (let t = PLATE_RIVET_STEP / 2; t < S; t += PLATE_RIVET_STEP) {
-      for (const [px, py] of [[s, t], [t, s]] as [number, number][]) {
-        tileable(g, S, () => {
-          const d = g.createRadialGradient(px, py, 0, px, py, 3.6);
-          d.addColorStop(0, 'rgba(255,255,255,0.95)');
-          d.addColorStop(0.75, 'rgba(190,190,190,0.6)');
-          d.addColorStop(1, 'rgba(128,128,128,0)');
-          g.fillStyle = d;
-          g.beginPath();
-          g.arc(px, py, 3.6, 0, Math.PI * 2);
-          g.fill();
-        });
-      }
-    }
   }
 
   // Scratches and weld beads.
@@ -799,36 +723,46 @@ export function buildCeilingDripTexture(): THREE.CanvasTexture {
   g.fillStyle = '#ffffff';
   g.fillRect(0, 0, S, S);
 
-  const core = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S * 0.44);
+  // Source stain sits near the top of the quad — the joint itself — and the whole decal runs
+  // downward from there under gravity, rather than blooming out symmetrically in every direction.
+  const srcX = S * 0.5;
+  const srcY = S * 0.22;
+  const core = g.createRadialGradient(srcX, srcY, 0, srcX, srcY, S * 0.22);
   core.addColorStop(0, 'rgba(96,70,44,0.85)');
-  core.addColorStop(0.45, 'rgba(140,112,80,0.45)');
+  core.addColorStop(0.5, 'rgba(140,112,80,0.4)');
   core.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = core;
   g.fillRect(0, 0, S, S);
 
-  for (let i = 0; i < 30; i++) {
-    const a = rnd() * Math.PI * 2;
-    const len = 26 + rnd() * 82;
-    const x = S / 2 + Math.cos(a) * (8 + rnd() * 24);
-    const y = S / 2 + Math.sin(a) * (8 + rnd() * 24);
-    const grad = g.createLinearGradient(x, y, x + Math.cos(a) * len, y + Math.sin(a) * len);
+  // Drip trails: angle varies only a little either side of straight down, tapering and fading
+  // as they travel — a directional run, not a radial splat.
+  for (let i = 0; i < 22; i++) {
+    const a = Math.PI / 2 + (rnd() - 0.5) * 0.9;
+    const len = 60 + rnd() * 140;
+    const startR = rnd() * S * 0.08;
+    const x = srcX + Math.cos(a) * startR;
+    const y = srcY + Math.sin(a) * startR;
+    const ex = x + Math.cos(a) * len;
+    const ey = y + Math.sin(a) * len;
+    const grad = g.createLinearGradient(x, y, ex, ey);
     grad.addColorStop(0, `rgba(104,72,42,${0.4 + rnd() * 0.3})`);
     grad.addColorStop(1, 'rgba(255,255,255,0)');
     g.strokeStyle = grad;
-    g.lineWidth = 2 + rnd() * 7;
+    g.lineWidth = 1.5 + rnd() * 4.5;
     g.lineCap = 'round';
     g.beginPath();
     g.moveTo(x, y);
-    g.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+    g.lineTo(ex, ey);
     g.stroke();
   }
-  // A few darker pits right at the joint.
-  for (let i = 0; i < 14; i++) {
-    const x = S / 2 + (rnd() - 0.5) * S * 0.5;
-    const y = S / 2 + (rnd() - 0.5) * S * 0.5;
-    const r = 4 + rnd() * 15;
+  // Darker pits trailing down the run, not scattered in a centred square.
+  for (let i = 0; i < 12; i++) {
+    const t = rnd();
+    const x = srcX + (rnd() - 0.5) * S * 0.18 * (1 - t * 0.5);
+    const y = srcY + t * S * 0.55;
+    const r = 3 + rnd() * 10;
     const d = g.createRadialGradient(x, y, 0, x, y, r);
-    d.addColorStop(0, `rgba(76,50,28,${0.4 + rnd() * 0.3})`);
+    d.addColorStop(0, `rgba(76,50,28,${0.35 + rnd() * 0.3})`);
     d.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = d;
     g.beginPath();
@@ -854,17 +788,37 @@ export function buildCeilingSootTexture(): THREE.CanvasTexture {
   g.fillStyle = '#ffffff';
   g.fillRect(0, 0, S, S);
 
-  // Convection tongues first, so the core sits on top of them.
-  for (let i = 0; i < 46; i++) {
-    const a = rnd() * Math.PI * 2;
-    const len = 40 + rnd() * 78;
+  // Convection drift: heat off the lamp rises and drifts to one side on the room's airflow, so
+  // the tongues cluster around one dominant direction instead of spreading evenly in 360° — a
+  // directional plume, not a symmetric splat.
+  const driftAngle = -Math.PI * 0.62;
+  for (let i = 0; i < 40; i++) {
+    const a = driftAngle + (rnd() - 0.5) * 1.5;
+    const len = 34 + rnd() * 92;
     const grad = g.createLinearGradient(
       S / 2, S / 2, S / 2 + Math.cos(a) * len, S / 2 + Math.sin(a) * len,
     );
     grad.addColorStop(0, `rgba(72,66,60,${0.3 + rnd() * 0.25})`);
     grad.addColorStop(1, 'rgba(255,255,255,0)');
     g.strokeStyle = grad;
-    g.lineWidth = 6 + rnd() * 20;
+    g.lineWidth = 5 + rnd() * 16;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(S / 2, S / 2);
+    g.lineTo(S / 2 + Math.cos(a) * len, S / 2 + Math.sin(a) * len);
+    g.stroke();
+  }
+  // A handful of short tongues the other way — the source still radiates a little close in.
+  for (let i = 0; i < 10; i++) {
+    const a = rnd() * Math.PI * 2;
+    const len = 14 + rnd() * 22;
+    const grad = g.createLinearGradient(
+      S / 2, S / 2, S / 2 + Math.cos(a) * len, S / 2 + Math.sin(a) * len,
+    );
+    grad.addColorStop(0, `rgba(72,66,60,${0.22 + rnd() * 0.18})`);
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.strokeStyle = grad;
+    g.lineWidth = 4 + rnd() * 10;
     g.lineCap = 'round';
     g.beginPath();
     g.moveTo(S / 2, S / 2);
@@ -872,24 +826,30 @@ export function buildCeilingSootTexture(): THREE.CanvasTexture {
     g.stroke();
   }
 
-  // Warm scorch ring, then the carbon core.
-  const ring = g.createRadialGradient(S / 2, S / 2, S * 0.1, S / 2, S / 2, S * 0.46);
+  // Warm scorch ring, elongated along the drift axis rather than a perfect circle, then the
+  // carbon core sitting tight over the source.
+  g.save();
+  g.translate(S / 2, S / 2);
+  g.rotate(driftAngle);
+  g.scale(1, 0.62);
+  const ring = g.createRadialGradient(0, 0, S * 0.08, 0, 0, S * 0.42);
   ring.addColorStop(0, 'rgba(150,120,86,0.35)');
   ring.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = ring;
-  g.fillRect(0, 0, S, S);
+  g.fillRect(-S, -S, S * 2, S * 2);
+  g.restore();
 
-  const core = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S * 0.24);
+  const core = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S * 0.2);
   core.addColorStop(0, 'rgba(46,42,40,0.82)');
   core.addColorStop(0.6, 'rgba(96,88,80,0.4)');
   core.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = core;
   g.fillRect(0, 0, S, S);
 
-  // Speckle so the core is not a clean airbrushed blob.
+  // Speckle biased along the drift direction so the core doesn't read as a clean airbrushed disc.
   for (let i = 0; i < 220; i++) {
-    const a = rnd() * Math.PI * 2;
-    const d = rnd() * rnd() * S * 0.44;
+    const a = driftAngle + (rnd() - 0.5) * 1.8;
+    const d = rnd() * rnd() * S * 0.5;
     const x = S / 2 + Math.cos(a) * d;
     const y = S / 2 + Math.sin(a) * d;
     g.fillStyle = `rgba(56,52,48,${0.1 + rnd() * 0.3})`;

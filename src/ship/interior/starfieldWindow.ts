@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { applyPbr } from '../../core/TextureLibrary';
 import { buildHazardStripeTexture, buildStencilPlacardTexture } from '../ShipTextures';
 import type { InteriorCtx } from './ctx';
-import { ROOM_D } from './ctx';
+import { ROOM_D, ROOM_W, addGrimeOverlay } from './ctx';
 import {
   buildAoTexture,
   buildDistantStarTexture,
@@ -257,7 +257,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   function ao(
     shape: keyof typeof aoTex, opacity: number,
     w: number, h: number, x: number, y: number, z: number,
-    rotZ = 0, rotX = 0,
+    rotZ = 0, rotX = 0, rotY = 0,
   ): void {
     const key = `${shape}|${opacity}`;
     let mat = aoMats.get(key);
@@ -271,7 +271,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     const m = new THREE.Mesh(aoPlane, mat);
     m.scale.set(w, h, 1);
     m.position.set(x, y, z);
-    m.rotation.set(rotX, 0, rotZ);
+    m.rotation.set(rotX, rotY, rotZ);
     m.renderOrder = 4;
     ctx.scene.add(m);
   }
@@ -786,6 +786,92 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     dripB.renderOrder = 2;
     ctx.scene.add(dripB);
   }
+
+  // ===== starboard corner service run ==================================================
+  // The bay's own material pass stops dead at the jamb (x = FRAME_HW = 5.6); the last ~0.4 m
+  // to the side wall at x = ROOM_W/2, and the ceiling above it, belong to a different module and
+  // measured as one flat, evenly-lit panel sitting right next to this assembly's worn frame —
+  // the single gap the last review called out. Rather than touch that module's file, this
+  // dresses the seam from the bay's own side: a ribbed duct carrying service off the shutter
+  // housing into the corner, a conduit-and-junction stack climbing the neighbour wall in the
+  // same material vocabulary as the rest of the bay, and grime laid straight onto that wall and
+  // ceiling with `addGrimeOverlay` — the tool every module has for dressing a seam it doesn't
+  // own. Everything here stays behind z = -5.15, same as the rest of the bay's walkway margin.
+  const CORNER_X = ROOM_W / 2 - 0.14;    // 5.86, just inboard of the side wall
+  const CORNER_Z0 = WALL_Z + 0.35;       // -7.55, hugging the back wall
+  const CORNER_Z1 = -5.4;                // stops well behind the -5.15 walkway limit
+  const CORNER_MIDZ = (CORNER_Z0 + CORNER_Z1) / 2;
+
+  // Ceiling duct: a short leg off the shutter housing turning to run toward the player, ribbed
+  // with real cross-section rings — relief a grazing light can actually catch — rather than a
+  // texture standing in for geometry.
+  slab(ctx, steelDarkMat, 0.5, 0.3, 0.3, 5.65, 4.58, CORNER_Z0);
+  slab(ctx, steelNoseMat, 0.34, 0.34, 0.34, CORNER_X, 4.58, CORNER_Z0);
+  slab(ctx, steelDarkMat, 0.3, 0.3, CORNER_Z1 - CORNER_Z0 - 0.3, CORNER_X, 4.58, CORNER_MIDZ + 0.15);
+  slab(ctx, steelNoseMat, 0.34, 0.34, 0.16, CORNER_X, 4.58, CORNER_Z1);
+  for (let zz = CORNER_Z0 + 0.22; zz < CORNER_Z1 - 0.1; zz += 0.24) {
+    slat(0.36, 0.36, 0.045, CORNER_X, 4.58, zz);
+    bolt(CORNER_X - 0.16, 4.58, zz);
+    bolt(CORNER_X + 0.16, 4.58, zz);
+  }
+  for (const zz of [CORNER_Z0 + 0.4, CORNER_Z0 + 1.3, CORNER_Z1 - 0.35]) {
+    slat(0.04, 0.42, 0.04, CORNER_X, 4.82, zz);   // hangers up to the ceiling
+  }
+  ao('bottom', 0.55, 0.5, 1.9, CORNER_X, 4.42, CORNER_MIDZ);
+  // Warm practical clipped to the duct: the fixture-type split the brief calls for — every
+  // overhead run reads warm, every screen and LED strip stays cool.
+  slab(ctx, warmStripMat, 0.06, 0.5, 0.06, CORNER_X - 0.22, 4.58, CORNER_MIDZ);
+  const cornerLamp = new THREE.PointLight(0xffd9a0, 0.55, 2.6, 2);
+  cornerLamp.position.set(CORNER_X - 0.26, 4.5, CORNER_MIDZ);
+  ctx.scene.add(cornerLamp);
+
+  // Vertical stack climbing the neighbour wall from the deck to the duct: a vented junction box,
+  // a status light, a conduit pair and a drip stain — the same worn-steel vocabulary as the rest
+  // of the bay, planted on the one wall the bay's own material pass never reaches.
+  slab(ctx, recessMat, 0.14, 0.62, 0.44, CORNER_X, 2.05, -6.3);
+  for (let k = 0; k < 5; k++) slat(0.05, 0.035, 0.34, CORNER_X + 0.045, 1.86 + k * 0.08, -6.3);
+  slab(ctx, steelNoseMat, 0.18, 0.06, 0.5, CORNER_X + 0.02, 2.4, -6.3);
+  ao('radial', 0.5, 0.9, 0.7, CORNER_X - 0.01, 2.05, -6.3, 0, 0, -Math.PI / 2);
+  const cornerDotMat = new THREE.MeshStandardMaterial({
+    color: 0x141820, roughness: 0.25, metalness: 0.1,
+    emissive: 0x4fd8f0, emissiveIntensity: 1.4,
+  });
+  const cornerDotMesh = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), cornerDotMat);
+  cornerDotMesh.position.set(CORNER_X - 0.06, 2.42, -6.21);
+  ctx.scene.add(cornerDotMesh);
+  ctx.statusLights.push({ mesh: cornerDotMesh, material: cornerDotMat, phase: 2.3, onIntensity: 1.9 });
+  for (const dx of [-0.09, 0.09]) {
+    const cornerConduit = new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+        new THREE.Vector3(CORNER_X + dx, 4.4, CORNER_Z0 + 0.1),
+        new THREE.Vector3(CORNER_X + dx * 1.4, 3.2, -6.3),
+        new THREE.Vector3(CORNER_X + dx * 1.2, 1.6, -6.32),
+        new THREE.Vector3(CORNER_X + dx, 0.3, -6.34),
+      ]), 20, 0.024, 7, false),
+      rubberMat,
+    );
+    cornerConduit.castShadow = true;
+    ctx.scene.add(cornerConduit);
+  }
+  const cornerDrip = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 1.4), dripMat);
+  cornerDrip.position.set(CORNER_X - 0.001, 1.5, -6.29);
+  cornerDrip.rotation.y = -Math.PI / 2;
+  cornerDrip.renderOrder = 2;
+  ctx.scene.add(cornerDrip);
+
+  // Grime laid straight onto the neighbour's own wall and ceiling planes.
+  addGrimeOverlay(
+    ctx, 3.0, 4.0,
+    new THREE.Vector3(ROOM_W / 2 - 0.03, 2.3, -6.4),
+    new THREE.Euler(0, -Math.PI / 2, 0),
+    0.4,
+  );
+  addGrimeOverlay(
+    ctx, 2.2, 3.2,
+    new THREE.Vector3(5.3, 4.9, -6.3),
+    new THREE.Euler(Math.PI / 2, 0, 0),
+    0.32,
+  );
 
   // ===== instanced batches =============================================================
   const slats = new THREE.InstancedMesh(UNIT_BOX, slatMat, slatXforms.length);

@@ -834,13 +834,132 @@ export function buildControlFaceTexture(label: string, accent: 'amber' | 'cyan' 
 
 const secondaryCache = new Map<string, THREE.CanvasTexture>();
 
-/** Two extra monitor readouts for the upper tier of the bank, in the same cool screen family. */
+/**
+ * Small vector line-icon glyphs for the subsystem/diagnostic readouts. Drawn as strokes rather
+ * than font glyphs so they stay crisp scaled to any size, instead of relying on a bitmap font at
+ * a size too small to read — the "low-resolution UI icon" critique was aimed squarely at this
+ * screen family, which previously had no icons at all, just text and bars.
+ */
+function drawSysIcon(ctx: CanvasRenderingContext2D, kind: string, cx: number, cy: number, r: number, rgb: string): void {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = `rgba(${rgb},0.95)`;
+  ctx.fillStyle = `rgba(${rgb},0.95)`;
+  ctx.lineWidth = Math.max(1.6, r * 0.16);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  switch (kind) {
+    case 'life': {
+      // Heartbeat pulse trace.
+      ctx.beginPath();
+      ctx.moveTo(-r, 0);
+      ctx.lineTo(-r * 0.35, 0);
+      ctx.lineTo(-r * 0.15, -r * 0.8);
+      ctx.lineTo(r * 0.05, r * 0.8);
+      ctx.lineTo(r * 0.3, 0);
+      ctx.lineTo(r, 0);
+      ctx.stroke();
+      break;
+    }
+    case 'reactor': {
+      // Atom: nucleus plus two crossed elliptical orbits.
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      for (const rot of [0.55, -0.55]) {
+        ctx.save();
+        ctx.rotate(rot);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r, r * 0.42, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      break;
+    }
+    case 'thrust': {
+      // Twin nozzle-flame silhouette.
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.5, -r * 0.7);
+      ctx.lineTo(r * 0.5, -r * 0.7);
+      ctx.lineTo(r * 0.22, r * 0.3);
+      ctx.lineTo(r * 0.5, r * 0.8);
+      ctx.lineTo(0, r * 0.35);
+      ctx.lineTo(-r * 0.5, r * 0.8);
+      ctx.lineTo(-r * 0.22, r * 0.3);
+      ctx.closePath();
+      ctx.stroke();
+      break;
+    }
+    case 'shield': {
+      ctx.beginPath();
+      ctx.moveTo(0, -r);
+      ctx.lineTo(r * 0.8, -r * 0.55);
+      ctx.lineTo(r * 0.8, r * 0.25);
+      ctx.lineTo(0, r);
+      ctx.lineTo(-r * 0.8, r * 0.25);
+      ctx.lineTo(-r * 0.8, -r * 0.55);
+      ctx.closePath();
+      ctx.stroke();
+      break;
+    }
+    case 'comms': {
+      // Broadcast arcs off a source dot.
+      ctx.beginPath();
+      ctx.arc(0, r * 0.3, r * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      for (const rr of [0.5, 0.85]) {
+        ctx.beginPath();
+        ctx.arc(0, r * 0.3, r * rr, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+      }
+      break;
+    }
+    default: {
+      // Nav: compass ring with a needle.
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.7);
+      ctx.lineTo(r * 0.18, r * 0.15);
+      ctx.lineTo(0, r * 0.7);
+      ctx.lineTo(-r * 0.18, r * 0.15);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/** Corner reticle brackets — the "this is an instrument, not a poster" framing device the
+ *  diagnostic readout uses in place of a plain rectangle. */
+function drawReticle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, rgb: string): void {
+  const arm = Math.min(w, h) * 0.22;
+  ctx.strokeStyle = `rgba(${rgb},0.55)`;
+  ctx.lineWidth = 2;
+  for (const [cx, cy, dx, dy] of [
+    [x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1],
+  ] as const) {
+    ctx.beginPath();
+    ctx.moveTo(cx + arm * dx, cy);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(cx, cy + arm * dy);
+    ctx.stroke();
+  }
+}
+
+/**
+ * Two extra monitor readouts for the upper tier of the bank, in the same cool screen family.
+ * Rendered at 1.75x the previous canvas size — these panes are the smallest in the cluster and
+ * the ones a close crop lands on hardest, so their text and icon strokes were the first thing to
+ * go soft.
+ */
 export function buildSecondaryScreenTexture(variant: 'sys' | 'diag'): THREE.CanvasTexture {
   const cached = secondaryCache.get(variant);
   if (cached) return cached;
 
-  const w = 384;
-  const h = 224;
+  const w = 672;
+  const h = 392;
   const [canvas, ctx] = canvas2d(w, h);
   const rand = rng(variant === 'sys' ? 4242 : 8484);
 
@@ -848,70 +967,76 @@ export function buildSecondaryScreenTexture(variant: 'sys' | 'diag'): THREE.Canv
   ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = 'rgba(79,216,240,0.12)';
   ctx.lineWidth = 1;
-  for (let y = 0; y < h; y += 18) {
+  for (let y = 0; y < h; y += 32) {
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(w, y);
     ctx.stroke();
   }
+  drawReticle(ctx, 8, 8, w - 16, h - 16, '79,216,240');
 
   if (variant === 'sys') {
     ctx.fillStyle = 'rgba(216,166,58,0.9)';
-    ctx.font = 'bold 13px monospace';
-    ctx.fillText('SUBSYSTEM LOAD', 14, 22);
-    const names = ['LIFE SUP', 'REACTOR', 'THRUST', 'SHIELD', 'COMMS', 'NAV'];
-    names.forEach((n, i) => {
-      const y = 44 + i * 27;
-      ctx.fillStyle = 'rgba(120,220,235,0.6)';
-      ctx.font = '11px monospace';
-      ctx.fillText(n, 14, y + 10);
+    ctx.font = 'bold 23px monospace';
+    ctx.fillText('SUBSYSTEM LOAD', 26, 40);
+    const rows: [string, string][] = [
+      ['LIFE SUP', 'life'], ['REACTOR', 'reactor'], ['THRUST', 'thrust'],
+      ['SHIELD', 'shield'], ['COMMS', 'comms'], ['NAV', 'nav'],
+    ];
+    rows.forEach(([n, icon], i) => {
+      const y = 78 + i * 48;
+      const rgb = '120,220,235';
+      drawSysIcon(ctx, icon, 34, y + 14, 15, rgb);
+      ctx.fillStyle = `rgba(${rgb},0.65)`;
+      ctx.font = '19px monospace';
+      ctx.fillText(n, 60, y + 20);
       const pct = 0.25 + rand() * 0.72;
       ctx.strokeStyle = 'rgba(79,216,240,0.35)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(104, y, 200, 13);
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(198, y, 352, 23);
       ctx.fillStyle = pct > 0.85 ? 'rgba(224,85,47,0.85)' : 'rgba(79,216,240,0.75)';
-      ctx.fillRect(104, y, 200 * pct, 13);
+      ctx.fillRect(198, y, 352 * pct, 23);
       ctx.fillStyle = 'rgba(168,240,255,0.85)';
-      ctx.font = '10px monospace';
-      ctx.fillText(`${Math.round(pct * 100)}%`, 312, y + 11);
+      ctx.font = '17px monospace';
+      ctx.fillText(`${Math.round(pct * 100)}%`, 562, y + 19);
     });
   } else {
     ctx.fillStyle = 'rgba(216,166,58,0.9)';
-    ctx.font = 'bold 13px monospace';
-    ctx.fillText('HULL DIAGNOSTIC', 14, 22);
+    ctx.font = 'bold 23px monospace';
+    ctx.fillText('HULL DIAGNOSTIC', 26, 40);
     // Top-down wireframe hull with two flagged sections.
     ctx.save();
-    ctx.translate(w / 2, h * 0.58);
+    ctx.translate(w / 2, h * 0.56);
     ctx.strokeStyle = 'rgba(120,220,235,0.8)';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(0, -76);
-    ctx.lineTo(34, -20);
-    ctx.lineTo(46, 52);
-    ctx.lineTo(18, 70);
-    ctx.lineTo(-18, 70);
-    ctx.lineTo(-46, 52);
-    ctx.lineTo(-34, -20);
+    ctx.moveTo(0, -133);
+    ctx.lineTo(60, -35);
+    ctx.lineTo(80, 91);
+    ctx.lineTo(32, 123);
+    ctx.lineTo(-32, 123);
+    ctx.lineTo(-80, 91);
+    ctx.lineTo(-60, -35);
     ctx.closePath();
     ctx.stroke();
     ctx.strokeStyle = 'rgba(79,216,240,0.35)';
-    ctx.lineWidth = 1;
-    for (let i = -60; i < 70; i += 18) {
+    ctx.lineWidth = 1.5;
+    for (let i = -105; i < 123; i += 31) {
       ctx.beginPath();
-      ctx.moveTo(-46, i);
-      ctx.lineTo(46, i);
+      ctx.moveTo(-80, i);
+      ctx.lineTo(80, i);
       ctx.stroke();
     }
     ctx.fillStyle = 'rgba(224,85,47,0.5)';
-    ctx.fillRect(-46, 16, 30, 20);
+    ctx.fillRect(-80, 28, 52, 35);
     ctx.fillStyle = 'rgba(216,166,58,0.5)';
-    ctx.fillRect(16, -22, 26, 18);
+    ctx.fillRect(28, -38, 46, 31);
     ctx.restore();
     ctx.fillStyle = 'rgba(255,150,120,0.9)';
-    ctx.font = '10px monospace';
-    ctx.fillText('SEC 4-B  BREACH', 14, h - 30);
+    ctx.font = '17px monospace';
+    ctx.fillText('SEC 4-B  BREACH', 26, h - 52);
     ctx.fillStyle = 'rgba(216,166,58,0.8)';
-    ctx.fillText('SEC 2-C  STRESS', 14, h - 14);
+    ctx.fillText('SEC 2-C  STRESS', 26, h - 24);
   }
 
   ctx.fillStyle = 'rgba(0,0,0,0.15)';
