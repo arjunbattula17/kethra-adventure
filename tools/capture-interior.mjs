@@ -17,6 +17,8 @@ const VIEWS = {
   console:   { pos: [0, 1.60, -1.5],  yaw: 0,           pitch: -0.10,  fov: 62 },
   displays:  { pos: [0, 1.62, -0.2],  yaw: 0,           pitch: 0.16,   fov: 62 },
   airlock:   { pos: [0, 1.60, 1.0],   yaw: Math.PI,     pitch: 0.02,   fov: 70 },
+  props:     { pos: [-1.4, 1.60, 3.2], yaw: -1.15,       pitch: -0.06,  fov: 70 },
+  window:    { pos: [2.3, 1.62, -1.1], yaw: -0.34,       pitch: 0.13,   fov: 70 },
 };
 
 mkdirSync(outDir, { recursive: true });
