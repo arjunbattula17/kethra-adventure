@@ -3,7 +3,30 @@
   src: local('Segoe UI');
 }
 
+/* Rajdhani — SIL Open Font License, self-hosted (see public/fonts/CREDITS.md) so titles don't
+   depend on an external stylesheet fetch. Used for headings only; body copy stays on the
+   system sans for readability at small sizes. */
+@font-face {
+  font-family: 'Rajdhani';
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/rajdhani-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Rajdhani';
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/rajdhani-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Rajdhani';
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/rajdhani-700.woff2') format('woff2');
+}
+
 :root {
+  --font-display: 'Rajdhani', 'ui-sans', 'Segoe UI', system-ui, sans-serif;
   --accent: #d9a441;
   --accent-dim: #8a6a2e;
   --ink: #eae2d0;
@@ -118,6 +141,8 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
+  font-family: var(--font-display);
+  font-weight: 600;
   text-transform: uppercase;
   font-size: 10px;
   color: var(--accent);
@@ -222,11 +247,18 @@ html, body {
   box-shadow: 0 20px 60px rgba(0,0,0,0.6);
   color: var(--ink);
   padding: 28px 32px;
+  animation: panel-fade-in 0.3s ease;
+}
+@keyframes panel-fade-in {
+  from { opacity: 0; transform: scale(0.97) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .panel h2 {
   margin: 0 0 4px;
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 24px;
   letter-spacing: 0.05em;
   color: var(--accent);
   text-transform: uppercase;
@@ -243,7 +275,7 @@ html, body {
 
 /* Dialogue */
 #dialogue-panel { width: 620px; }
-#dialogue-speaker { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 600; margin-bottom: 8px; }
+#dialogue-speaker { font-family: var(--font-display); font-size: 15px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 600; margin-bottom: 8px; }
 #dialogue-text { font-size: 16px; line-height: 1.6; margin-bottom: 18px; min-height: 70px; }
 #dialogue-options { display: flex; flex-direction: column; gap: 8px; }
 .dialogue-option {
@@ -347,7 +379,8 @@ html, body {
   filter: drop-shadow(0 2px 6px rgba(0,0,0,0.8));
 }
 .map-title {
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 22px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--accent);
