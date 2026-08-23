@@ -28,7 +28,10 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
-await page.goto(baseUrl + '?skipIntro=1&newGame=1', { waitUntil: 'load' });
+// 'load' has been observed to hang indefinitely in this environment even once the page is fully
+// interactive (no pending requests) — domcontentloaded plus the explicit __DEBUG__ poll below is
+// an equivalent readiness check that doesn't wedge.
+await page.goto(baseUrl + '?skipIntro=1&newGame=1', { waitUntil: 'domcontentloaded', timeout: 20000 });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 20000 });
 await page.waitForFunction(() => {
   const s = window.__DEBUG__.engine.getCurrentScene?.();
