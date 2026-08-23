@@ -253,9 +253,13 @@ function buildMaterials() {
     copper,
     glass,
     hazard,
-    ledCyan: std(0x4fd8f0, 0.3, 0.0, 0x4fd8f0, 2.0),
-    ledAmber: std(0xffd9a0, 0.3, 0.0, 0xffd9a0, 1.85),
-    ledRed: std(0xe0552f, 0.3, 0.0, 0xe0552f, 1.85),
+    // Trimmed a step for round 5: the measured p95 sits well above the reference and the brief's
+    // one clear cool focal point is the screen bank, not this kit's own indicator LEDs — with ~20
+    // console buttons plus every junction box and status dot sharing these three materials, each
+    // one running near-max was broadening the highlight ceiling across the whole frame.
+    ledCyan: std(0x4fd8f0, 0.3, 0.0, 0x4fd8f0, 1.5),
+    ledAmber: std(0xffd9a0, 0.3, 0.0, 0xffd9a0, 1.45),
+    ledRed: std(0xe0552f, 0.3, 0.0, 0xe0552f, 1.45),
   };
 }
 
@@ -297,12 +301,33 @@ function place(
 }
 
 /**
- * Baked contact occlusion under a floor-standing prop. `w` and `d` are the prop footprint; the
- * decal is drawn wider so the penumbra falls outside the silhouette and the prop reads as
- * sitting *in* the deck rather than hovering a centimetre above it.
+ * Baked contact occlusion under a floor-standing prop. `w` and `d` are the prop footprint. Two
+ * decals are stacked: a wide, soft one whose penumbra falls outside the silhouette — so the prop
+ * reads as sitting *in* the deck rather than hovering above it — and a tighter one scaled close
+ * to the footprint itself. Multiply-blending compounds the two, so the darkest value lands right
+ * where the prop actually meets the floor instead of the whole thing reading as one even AO wash.
  */
 function groundShadow(k: Kit, x: number, z: number, w: number, d: number): void {
   k.contact.add(x, 0.012, z, -Math.PI / 2, 0, 0, w * 2.05, d * 2.05, 1);
+  k.contact.add(x, 0.013, z, -Math.PI / 2, 0, 0, w * 1.1, d * 1.1, 1);
+}
+
+/**
+ * Small pooled practical hung near a hero prop cluster — a real point-light falloff the eye
+ * reads as illumination rather than base ambient, which is what the round-5 critique means by
+ * "hero pooling." Non-shadow-casting: the stacked contact decals above carry the grounding cost,
+ * this only needs to paint a soft warm or cool wash on the floor and lower wall around the prop.
+ */
+function heroPool(
+  ctx: InteriorCtx, x: number, y: number, z: number,
+  color: number, intensity: number, distance: number, phase: number,
+): void {
+  const light = new THREE.PointLight(color, intensity, distance, 2);
+  light.position.set(x, y, z);
+  ctx.scene.add(light);
+  ctx.animated.push((elapsed) => {
+    light.intensity = intensity * (0.94 + Math.sin(elapsed * 1.7 + phase) * 0.06);
+  });
 }
 
 /** Multiply-blended decal material: white texels are a no-op, so the quad has no visible border. */
@@ -708,7 +733,7 @@ function buildRelayRack(k: Kit, ctx: InteriorCtx, x: number, z: number, ry: numb
     const ledMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, roughness: 0.35 });
     const [ex, ez] = local(x, z, w / 2 - 0.13, d / 2 + 0.058, ry);
     const led = place(k, cyl(0.014, 0.014, 0.012, 8), ledMat, ex, uy + 0.07, ez, ledRx, ledRy, ledRz);
-    ctx.statusLights.push({ mesh: led, material: ledMat, phase: i * 1.3, onIntensity: 2.0 });
+    ctx.statusLights.push({ mesh: led, material: ledMat, phase: i * 1.3, onIntensity: 1.5 });
   }
 
   // Cable loom from the rack top up toward the wall conduit run.
@@ -907,7 +932,7 @@ function buildJunctionBox(
 
   const mat = new THREE.MeshStandardMaterial({ color: ledColor, emissive: ledColor, emissiveIntensity: 0.3, roughness: 0.35 });
   const led = place(k, cyl(0.016, 0.016, 0.012, 8), mat, x + inward * 0.14, y + 0.09, z, 0, 0, Math.PI / 2);
-  ctx.statusLights.push({ mesh: led, material: mat, phase: (z + y) * 1.7, onIntensity: 1.85 });
+  ctx.statusLights.push({ mesh: led, material: mat, phase: (z + y) * 1.7, onIntensity: 1.4 });
 }
 
 /** Flanged valve station: stub pipe, body, hand wheel and a gauge. */
@@ -945,14 +970,16 @@ function buildReadoutPanel(k: Kit, ctx: InteriorCtx, wallX: number, y: number, z
     roughness: 0.25,
     metalness: 0.1,
     emissive: 0xffffff,
-    emissiveIntensity: 0.56,
+    emissiveIntensity: 0.4,
   });
   mat.emissiveMap = mat.map;
   place(k, plane(0.5, 0.3), mat, wallX + inward * 0.115, y, z, 0, ry, 0);
   boltRect(k, face, wallX + inward * 0.1, y, z, 0.56, 0.36);
 
+  // Trimmed from 0.5 for round 5 — the measured p95 sits above the reference, and two of these
+  // full-white-emissive screens were a large share of the frame's brightest-quartile pixels.
   ctx.animated.push((elapsed) => {
-    mat.emissiveIntensity = 0.5 + Math.sin(elapsed * 1.6 + seed) * 0.06;
+    mat.emissiveIntensity = 0.4 + Math.sin(elapsed * 1.6 + seed) * 0.06;
   });
 }
 
@@ -1236,9 +1263,14 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   buildCrate(k, crateBone, m.paintBone, -WALL_X + 0.4, 0, 3.68, faceRy(-1) + 0.22, 0.5, 0.38, 0.44);
   buildCableSpool(k, -WALL_X + 0.52, 4.4, -1);
   buildExtinguisher(k, -WALL_X, 5.15, -1);
+  // Warm pool grounding the crate/canister cluster in the foreground — the round-5 critique
+  // wants strong hero pooling under the set-dressed props, not just base fill.
+  heroPool(ctx, -WALL_X + 0.55, 1.1, 1.3, 0xffd9a0, 0.9, 2.8, 3.0);
 
   // ----- right wall floor line -----
   buildRelayRack(k, ctx, WALL_X - 0.36, -5.05, faceRy(1));
+  // Cool pool echoing the rack's own status LEDs — grounds the comms cluster as its own lit zone.
+  heroPool(ctx, WALL_X - 0.6, 1.5, -5.0, 0x4fd8f0, 0.75, 2.3, 0.4);
   buildDrumStack(k, WALL_X - 0.62, -3.55);
   buildLockerBank(k, WALL_X - 0.3, -1.6, faceRy(1), ['A-1', 'A-2']);
   buildCrate(k, crateSteel, m.paintGrey, WALL_X - 0.46, 0, 0.1, faceRy(1), 0.8, 0.6, 0.68);
@@ -1247,6 +1279,8 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   buildWasteBin(k, WALL_X - 0.42, 5.35);
   buildFirstAidCabinet(k, WALL_X, 5.0, 1);
   buildRiser(k, WALL_X - 0.24, -5.72, 1);
+  // Warm work-light pool over the tool chest / first-aid cluster.
+  heroPool(ctx, WALL_X - 0.55, 1.0, 4.85, 0xffd9a0, 1.0, 2.4, 1.8);
 
   // ----- airlock wall: suit lockers one side, hose reel and cargo the other -----
   buildLockerBank(k, -3.05, FRONT_Z - 0.34, Math.PI, ['EVA-1', 'EVA-2']);
@@ -1286,7 +1320,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
       const color = dotColors[i % dotColors.length];
       const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.2, roughness: 0.4 });
       const dot = place(k, cyl(0.028, 0.028, 0.02, 10), mat, wallX + inward * 0.21, 1.58 + i * 0.16, cz, 0, 0, Math.PI / 2);
-      ctx.statusLights.push({ mesh: dot, material: mat, phase: cz + i * 1.1, onIntensity: 1.7 });
+      ctx.statusLights.push({ mesh: dot, material: mat, phase: cz + i * 1.1, onIntensity: 1.3 });
     }
   }
 

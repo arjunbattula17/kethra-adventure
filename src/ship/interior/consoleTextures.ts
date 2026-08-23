@@ -1120,3 +1120,114 @@ export function buildVentNormalTexture(): THREE.CanvasTexture {
   ventNormalTex = finishData(heightToNormal(height, 3.4));
   return ventNormalTex;
 }
+
+const stainCache = new Map<string, THREE.CanvasTexture>();
+
+/**
+ * Irregular floor stain decal — soot-black scorching or leaked-oil darkening, built from
+ * overlapping soft-edged lobes so the outline is ragged rather than a perfect circle. This is the
+ * "battle damage" beat the r5 brief calls for: a specific, motivated mark (an old short, a leaking
+ * fitting) rather than another clean tinted surface.
+ */
+export function buildStainDecalTexture(kind: 'oil' | 'scorch'): THREE.CanvasTexture {
+  const cached = stainCache.get(kind);
+  if (cached) return cached;
+  const S = 256;
+  const [canvas, ctx] = canvas2d(S, S);
+  const rand = rng(kind === 'scorch' ? 7777 : 8888);
+  ctx.clearRect(0, 0, S, S);
+
+  const cx = S / 2;
+  const cy = S / 2;
+  const core = kind === 'scorch' ? '10,9,8' : '14,12,9';
+  const rim = kind === 'scorch' ? '46,32,22' : '38,30,18';
+
+  for (let i = 0; i < 9; i++) {
+    const a0 = (i / 9) * Math.PI * 2 + rand() * 0.3;
+    const rr = S * (0.15 + rand() * 0.14);
+    const lx = cx + Math.cos(a0) * rr * 0.5;
+    const ly = cy + Math.sin(a0) * rr * 0.5;
+    const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, rr);
+    g.addColorStop(0, `rgba(${core},${0.5 + rand() * 0.25})`);
+    g.addColorStop(0.6, `rgba(${rim},0.28)`);
+    g.addColorStop(1, `rgba(${rim},0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(lx, ly, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Dense core where the damage/leak actually originated.
+  const gc = ctx.createRadialGradient(cx, cy, 0, cx, cy, S * 0.2);
+  gc.addColorStop(0, `rgba(${core},0.75)`);
+  gc.addColorStop(1, `rgba(${core},0)`);
+  ctx.fillStyle = gc;
+  ctx.beginPath();
+  ctx.arc(cx, cy, S * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (kind === 'scorch') {
+    // Fine soot speckle scattered outward from the core.
+    for (let i = 0; i < 140; i++) {
+      const a0 = rand() * Math.PI * 2;
+      const rr = S * 0.1 + rand() * S * 0.32;
+      const x = cx + Math.cos(a0) * rr;
+      const y = cy + Math.sin(a0) * rr;
+      ctx.fillStyle = `rgba(20,17,14,${0.06 + rand() * 0.12})`;
+      ctx.beginPath();
+      ctx.arc(x, y, 0.6 + rand() * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // Oil sheen: a faint cool glint along one edge of the stain, where light catches the film.
+    ctx.globalCompositeOperation = 'lighter';
+    const gs = ctx.createRadialGradient(cx - S * 0.08, cy - S * 0.06, 0, cx - S * 0.08, cy - S * 0.06, S * 0.14);
+    gs.addColorStop(0, 'rgba(90,110,120,0.14)');
+    gs.addColorStop(1, 'rgba(90,110,120,0)');
+    ctx.fillStyle = gs;
+    ctx.fillRect(0, 0, S, S);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  const tex = finish(canvas, false);
+  stainCache.set(kind, tex);
+  return tex;
+}
+
+let seatWearTex: THREE.CanvasTexture | null = null;
+
+/**
+ * Seat wear decal: a lighter compressed sheen where an operator actually sits, with grime pooling
+ * toward the edges and a scatter of stray scuffs. Laid over the fabric seat pan, armrest pads and
+ * seat shell so the chair reads as sat-in rather than showroom-new — the critique's specific call-
+ * out alongside the floor tiles.
+ */
+export function buildSeatWearTexture(): THREE.CanvasTexture {
+  if (seatWearTex) return seatWearTex;
+  const S = 256;
+  const [canvas, ctx] = canvas2d(S, S);
+  const rand = rng(2718);
+  ctx.clearRect(0, 0, S, S);
+
+  const sheen = ctx.createRadialGradient(S * 0.5, S * 0.42, 4, S * 0.5, S * 0.42, S * 0.34);
+  sheen.addColorStop(0, 'rgba(222,224,226,0.16)');
+  sheen.addColorStop(0.7, 'rgba(222,224,226,0.05)');
+  sheen.addColorStop(1, 'rgba(222,224,226,0)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, S, S);
+
+  const grime = ctx.createRadialGradient(S * 0.5, S * 0.5, S * 0.28, S * 0.5, S * 0.5, S * 0.62);
+  grime.addColorStop(0, 'rgba(20,18,16,0)');
+  grime.addColorStop(1, 'rgba(20,18,16,0.28)');
+  ctx.fillStyle = grime;
+  ctx.fillRect(0, 0, S, S);
+
+  for (let i = 0; i < 20; i++) {
+    ctx.fillStyle = `rgba(24,20,16,${0.05 + rand() * 0.14})`;
+    ctx.beginPath();
+    ctx.ellipse(rand() * S, rand() * S, 3 + rand() * 10, 2 + rand() * 6, rand() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  seatWearTex = finish(canvas, false);
+  return seatWearTex;
+}

@@ -6,6 +6,7 @@ import {
   buildCableMaps,
   buildCommandArrayTexture,
   buildFrameLabelTexture,
+  buildGlassGlareTexture,
   buildGlassSmudgeMaps,
   buildPaintedPlateMaps,
   buildScuffTexture,
@@ -271,18 +272,21 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   });
 
   const arrayTex = buildCommandArrayTexture();
+  // This is the backlit LCD substrate ONLY -- the image itself. Round 4 put the glass response
+  // (roughnessMap/normalMap) on this same material, which is exactly what read as "a flat 2D
+  // overlay pasted onto the panel": one surface carrying both the picture and its own specular hit
+  // is a decal, not a display. The physical glass a viewer actually sees is a separate mesh added
+  // below, floating a few millimetres in front of this one, so the reflection and the image behind
+  // it are genuinely two different depths instead of one texture doing both jobs.
   const makeScreenMat = () =>
     new THREE.MeshStandardMaterial({
       // Base colour is the unlit LCD, and it is a dark teal rather than near-black so the panes
       // still carry material where the grade rolls off instead of punching six holes in the frame.
       color: 0x16323d,
       map: arrayTex,
-      normalMap: glassWear.normalMap,
-      normalScale: new THREE.Vector2(0.35, 0.35),
-      // Dust and finger smear vary the glass specular across the sheet; the front surface is
-      // otherwise a mirror, which is why it read as one flat plastic slab.
-      roughnessMap: glassWear.roughnessMap,
-      roughness: 1,
+      // Diffuse and matte, the way an LCD's own surface reads once you take the glass out of it --
+      // any glossiness the assembly shows now comes from the glass layer in front, not from this.
+      roughness: 0.7,
       emissive: 0xffffff,
       emissiveMap: arrayTex,
       emissiveIntensity: 0.92,
@@ -326,8 +330,9 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
     }
   }
 
-  // Animated scan sweep over the reticle. Sits in front of the glass but behind the mullion bars,
-  // so the bars occlude it exactly as they occlude the baked art underneath.
+  // Animated scan sweep over the reticle. Sits in front of the screen content but behind the
+  // physical glass and mullion bars, so both occlude it exactly as they occlude the baked art
+  // underneath.
   const sweepMat = new THREE.MeshBasicMaterial({
     map: buildSweepTexture(),
     transparent: true,
@@ -339,6 +344,45 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   sweep.position.set(0, 0, 0.016);
   sweep.renderOrder = 2;
   rig.add(sweep);
+
+  // --- physical glass ---------------------------------------------------------------------------
+  // One continuous sheet spanning the whole array, floating a few millimetres in front of the six
+  // phosphor panes above. This is the direct fix for the round-5 critique -- "the console's screen
+  // graphics read as flat 2D overlays pasted onto the panel rather than physically lit displays" --
+  // because it gives the assembly a real second surface with its own roughness/normal response
+  // (glassWear, built for this exact rect: dust speckle, bezel-lip grime, hand smears on the lower
+  // row) that the scene's environment map and point lights can actually hit, independently of
+  // whatever the image behind it is doing. A baked soft-glare pass rides on top of it, standing in
+  // for the room's practicals catching the glass, so the "there's real glass here" cue reads
+  // regardless of the exact camera angle a given capture lands on.
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0xd8ecf2,
+    transparent: true,
+    opacity: 0.1,
+    roughness: 1,
+    roughnessMap: glassWear.roughnessMap,
+    normalMap: glassWear.normalMap,
+    normalScale: new THREE.Vector2(0.4, 0.4),
+    metalness: 0,
+    envMapIntensity: 1.8,
+    depthWrite: false,
+  });
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(GLASS_W, GLASS_H), glassMat);
+  glass.position.set(0, 0, 0.02);
+  glass.renderOrder = 3;
+  rig.add(glass);
+
+  const glareMat = new THREE.MeshBasicMaterial({
+    map: buildGlassGlareTexture(),
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    opacity: 0.7,
+  });
+  const glare = new THREE.Mesh(new THREE.PlaneGeometry(GLASS_W, GLASS_H), glareMat);
+  glare.position.set(0, 0, 0.022);
+  glare.renderOrder = 4;
+  rig.add(glare);
 
   // --- mullions -------------------------------------------------------------------------------------
   // The reference's mullions are DARK bars silhouetted against the holo, and ours were polished
@@ -559,6 +603,17 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   // --- flanking auxiliary monitors --------------------------------------------------------------------------
   // Depth layering: smaller screens standing off the main array's plane on articulated arms, so
   // the assembly has a foreground element instead of reading as one flat slab.
+  // Shared physical-glass overlay for both aux heads -- the same phosphor/glass split as the main
+  // array, at a scale small enough that it doesn't need its own per-pane smudge map.
+  const auxGlassMat = new THREE.MeshStandardMaterial({
+    color: 0xd8ecf2,
+    transparent: true,
+    opacity: 0.12,
+    roughness: 0.3,
+    metalness: 0,
+    envMapIntensity: 1.6,
+    depthWrite: false,
+  });
   for (const sx of [-1, 1] as const) {
     const arm = new THREE.Group();
     arm.position.set(sx * (FRAME_HX + 0.02), -0.12, 0.02);
@@ -586,12 +641,18 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
       // These sit closer to camera than the main array and were reading as bright as it. Held
       // well under, so the array keeps the single focal point the brief asks for.
       emissiveIntensity: 0.58,
-      roughness: 0.16,
+      // Matte substrate, same split as the main array: the glossy response now lives on the glass
+      // pane in front, not baked into the same surface that carries the image.
+      roughness: 0.7,
       metalness: 0,
     });
     const auxScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.335, 0.25), auxMat);
     auxScreen.position.set(0, 0, 0.006);
     head.add(auxScreen);
+    const auxGlass = new THREE.Mesh(new THREE.PlaneGeometry(0.335, 0.25), auxGlassMat);
+    auxGlass.position.set(0, 0, 0.012);
+    auxGlass.renderOrder = 3;
+    head.add(auxGlass);
     // Rubber bezel gasket round the aux glass: the same cavity line the main array gets, at the
     // scale where the eye checks whether a small prop was actually built or just tinted.
     for (const sy of [-1, 1] as const) {

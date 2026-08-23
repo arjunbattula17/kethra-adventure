@@ -102,7 +102,13 @@ export class PostProcessing {
     // pendant tube read as flat, un-lit-looking surfaces instead of the hot practicals the
     // reference shows. Lowered so genuinely bright emissives catch bloom; strength/radius raised
     // to match so the catch actually reads as a glow rather than a faint fringe.
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.24, 0.93);
+    // Round 5: that radius was wide enough that a single very bright source (e.g. the airlock's
+    // own practical) smeared a soft halo across a large fraction of the frame, dragging p95 up
+    // 0.1-0.24 on several views — a spatial problem the grade shader's per-pixel curve can't fix,
+    // since it can't tell "one huge bloom halo" from "many small legitimate highlights" once
+    // they're both just bright pixels. Pulled radius/strength back a notch so bloom still reads
+    // as a glow around genuinely hot practicals without bleeding across half the deck.
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.34, 0.18, 0.93);
     this.composer.addPass(this.bloomPass);
 
     this.composer.addPass(new ShaderPass(gradeShader));

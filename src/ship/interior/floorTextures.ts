@@ -315,7 +315,47 @@ export function buildTreadNormalTexture(repeatX: number, repeatY: number): THREE
         h.fillRect(Math.random() * s, Math.random() * s, 1, 1);
       }
     });
-    c.drawImage(normalFromHeight(height, 6.5), 0, 0);
+    c.drawImage(normalFromHeight(height, 7.5), 0, 0);
+  });
+  return texture(canvas, repeatX, repeatY, false);
+}
+
+/**
+ * Roughness variation for the tread insert, keyed to the same dash grid as the diffuse/normal
+ * maps: boot-burnished dash tops read smoother, the recessed field between them stays mid-rough,
+ * and grime pooled where boots don't reach goes duller still. The insert is the surface closest
+ * to the camera in the foreground shot, and a single flat `roughness` value there is exactly the
+ * "flat untextured plastic" the recurring critique flags — this is what breaks the specular up.
+ * Base fill sits at the old flat 0.62 (roughness maps read linear, no gamma step) so swapping it
+ * in doesn't shift the plate's average brightness, only its variance.
+ */
+export function buildTreadRoughnessTexture(repeatX: number, repeatY: number): THREE.CanvasTexture {
+  const canvas = makeCanvas('treadRough', 256, (c, s) => {
+    c.fillStyle = '#9e9e9e';
+    c.fillRect(0, 0, s, s);
+    const step = 16;
+    for (let row = 0; row * step < s + step; row++) {
+      const y = row * step;
+      const offset = row % 2 === 0 ? 0 : step / 2;
+      for (let col = -1; col * step < s + step; col++) {
+        const x = col * step + offset;
+        c.save();
+        c.translate(x, y);
+        c.rotate(row % 2 === 0 ? 0.55 : -0.55);
+        c.fillStyle = '#7c7c7c';
+        c.fillRect(-5, -2, 11, 4);
+        c.fillStyle = '#686868';
+        c.fillRect(-4, -1, 9, 2);
+        c.restore();
+      }
+    }
+    // Dust and grime pooled in the low corners of the pattern dulls the specular further.
+    for (let i = 0; i < 14; i++) {
+      const x = Math.random() * s;
+      const y = Math.random() * s;
+      wrapped(c, s, () => blob(c, x, y, 20 + Math.random() * 46, '224,224,224', 0.5));
+    }
+    speckle(c, s, 5000, 'rgba(58,58,58,0.22)', 'rgba(224,224,224,0.2)');
   });
   return texture(canvas, repeatX, repeatY, false);
 }

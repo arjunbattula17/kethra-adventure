@@ -8,6 +8,7 @@ import {
   buildDeckNormalTexture,
   buildTreadPlateTexture,
   buildTreadNormalTexture,
+  buildTreadRoughnessTexture,
   buildDeckWearTexture,
   buildContactShadowTexture,
 } from './floorTextures';
@@ -124,8 +125,14 @@ export function buildFloor(ctx: InteriorCtx): void {
     color: 0xffffff,
     map: buildTreadPlateTexture(2.2, 3.2),
     normalMap: buildTreadNormalTexture(2.2, 3.2),
-    normalScale: new THREE.Vector2(1.05, 1.05),
-    roughness: 0.62,
+    normalScale: new THREE.Vector2(1.25, 1.25),
+    // Camera sits inside this insert's Z-range (spawn is z=4, insert runs 0.6-5.8), so the row
+    // right in front of the player fills most of the foreground frame — the "flat, under-detailed
+    // corrugated grate panel" the critic called out. A roughnessMap keyed to the same dash grid as
+    // the diffuse/normal maps is what turns that from one flat specular value into machined plate
+    // that actually catches light unevenly.
+    roughnessMap: buildTreadRoughnessTexture(2.2, 3.2),
+    roughness: 1.0,
     metalness: 0.3,
     envMapIntensity: 0.55,
   });
@@ -377,6 +384,27 @@ export function buildFloor(ctx: InteriorCtx): void {
   const whiteLine = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.006, insetD + 0.4), paintWhiteMat);
   whiteLine.position.set(TROUGH_X + 0.36, 0.004, INSET_CZ);
   add(whiteLine);
+
+  // ===== 4b. foreground grate wear =====
+  // Spawn is z=4, inside the insert's 0.6-5.8 span, so the plate row centred near z=3.2 sits
+  // right under the player and fills most of the foreground frame — the critic's single biggest
+  // gap ("the corrugated grate panel in the very front... comparatively flat"). The diffuse/normal
+  // maps alone read as a printed texture at that scale; what's missing is the localised wear the
+  // brief asks for — grime pooled in the seams a boot can't reach, scuffing down the row people
+  // actually stand on, and a couple of loose fasteners resting on the surface rather than only
+  // driven into it.
+  const rowCenterZ = [0, 1, 2].map((rz) => INSET_Z0 + plateD / 2 + rz * (plateD + gap));
+  addWear('scuff', 0, rowCenterZ[1], insetW - 0.08, plateD - 0.06, 0.14, 0.052);
+  addWear('scuff', -0.5, rowCenterZ[0], plateW * 1.7, plateD - 0.1, -0.22, 0.052);
+  addWear('oil', 0.55, rowCenterZ[1] - 0.25, 0.6, 0.6, 0.5, 0.053);
+  const seamZs = [(rowCenterZ[0] + rowCenterZ[1]) / 2, (rowCenterZ[1] + rowCenterZ[2]) / 2];
+  for (const sz of seamZs) addWear('grime', 0, sz, insetW + 0.04, gap + 0.18, 0, 0.054);
+  const colCenterX = [0, 1, 2].map((cx) => -INSET_HALF_X + plateW / 2 + cx * (plateW + gap));
+  const seamXs = [(colCenterX[0] + colCenterX[1]) / 2, (colCenterX[1] + colCenterX[2]) / 2];
+  for (const sx of seamXs) addWear('grime', sx, INSET_CZ, gap + 0.16, insetD - 0.1, 0, 0.054);
+  // Loose fasteners lying flat on the near plate, part of the same instanced bolt batch.
+  bolts.push({ p: [0.62, 0.054, rowCenterZ[1] - 0.35], r: [Math.PI / 2, 0.4, 0] });
+  bolts.push({ p: [-0.42, 0.054, rowCenterZ[1] + 0.3], r: [Math.PI / 2, 1.15, 0] });
 
   // ===== 5. ribbed threshold band =====
   // The horizontal ribbed step that splits the reference's foreground from the console bay.

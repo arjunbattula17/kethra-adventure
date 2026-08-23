@@ -56,8 +56,12 @@ export function buildLighting(ctx: InteriorCtx): void {
   // ceiling (p95 -0.153) because the pendant tube — the room's single hero highlight — wasn't
   // hot enough to punch through the grade's shoulder. Bumped both the tube's own emissive and
   // the lens material shared with troffers/sconces.
-  const matWarmTube = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.3, metalness: 0, emissive: WARM_HOT, emissiveIntensity: 1.65, emissiveMap: diffuserTex });
-  const matWarmLens = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.32, metalness: 0, emissive: WARM, emissiveIntensity: 1.18, emissiveMap: diffuserTex });
+  // Round-5 fix: p95 read +0.09 to +0.24 above the reference on floor/walls/props/starfieldWindow
+  // — broad areas of the frame sitting in a bright band rather than a few intentional highlights.
+  // Trimmed both fixture emissives a notch; the pendant/troffer/strip tubes still bloom, they just
+  // don't push as much raw area into the top of the range before the grade even runs.
+  const matWarmTube = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.3, metalness: 0, emissive: WARM_HOT, emissiveIntensity: 1.3, emissiveMap: diffuserTex });
+  const matWarmLens = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.32, metalness: 0, emissive: WARM, emissiveIntensity: 1.02, emissiveMap: diffuserTex });
   const matCoolLens = new THREE.MeshStandardMaterial({ color: 0x14191c, roughness: 0.28, metalness: 0, emissive: 0x9cecff, emissiveIntensity: 1.15 });
   const matAlarmLens = new THREE.MeshStandardMaterial({ color: 0x1c1210, roughness: 0.3, metalness: 0.1, emissive: 0xff3a2a, emissiveIntensity: 1.1 });
 
@@ -73,19 +77,24 @@ export function buildLighting(ctx: InteriorCtx): void {
   // +0.12) because every wall downlight's cone pool and every strip tube's graze bar were sized
   // and opacified to stack into a wide, bright halo. Cut both opacity and footprint so the same
   // fixtures still read as lit without flooding the frame.
-  const glowWarmCone = additive(coneTex, 0xffcf94, 0.3);
+  // Round-5 fix: same over-broad-brightness problem as the tube emissives above — cut another
+  // notch off every additive decal's opacity so the dozen-plus fixtures in this room stack to a
+  // readable glow instead of a washed floor/wall. Cone (the wall downlight's pool) took the
+  // biggest cut since the two hot ovals it makes on a straight-on wall shot were the single
+  // clearest p95 outlier in that view.
+  const glowWarmCone = additive(coneTex, 0xffcf94, 0.22);
   // Two pool strengths, because these stack: a dozen additive decals on the deck at one opacity
   // sums to a washed-out white floor. Only the pendants — the room's dominant practicals — get
   // the strong one; every secondary fixture drops a soft pool that reads only where it overlaps
   // otherwise-dark plating.
-  const glowWarmPool = additive(poolTex, 0xffd2a4, 0.4);
-  const glowWarmPoolSoft = additive(poolTex, 0xffcf9e, 0.15);
-  const glowWarmBar = additive(barTex, WARM, 0.28);
+  const glowWarmPool = additive(poolTex, 0xffd2a4, 0.32);
+  const glowWarmPoolSoft = additive(poolTex, 0xffcf9e, 0.1);
+  const glowWarmBar = additive(barTex, WARM, 0.2);
   const glowCoolPool = additive(poolTex, COOL, 0.34);
   const glowAlarmPool = additive(poolTex, ALARM, 0.3);
   const glowAlarmBar = additive(barTex, ALARM, 0.32);
 
-  const spriteWarm = new THREE.SpriteMaterial({ map: radialTex, color: 0xffe0b4, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.85 });
+  const spriteWarm = new THREE.SpriteMaterial({ map: radialTex, color: 0xffe0b4, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.66 });
 
   const matLouver = new THREE.MeshBasicMaterial({ color: 0x1b1f25, alphaMap: buildLouverTexture(), transparent: true, depthWrite: false });
 
@@ -162,7 +171,12 @@ export function buildLighting(ctx: InteriorCtx): void {
   // large surface in frame while the vertical walls fall off by cosine, and it's the room's only
   // shadow caster: one orthographic pass replaces the old point-light cubemap (6 faces) and gives
   // the ceiling beams/ducts/pendants real slanted shadow bars across the plating.
-  const key = new THREE.DirectionalLight(0xffeed6, 0.82);
+  // Round-5 fix: this is the room's dominant *up-facing*-surface light (steep elevation, so it
+  // lands mostly on the deck) — measured floor/console medians ran +0.08 to +0.15 over the
+  // reference while vertical-wall and ceiling-underside views it barely touches sat fine or under.
+  // Trimming it here (rather than the room-wide hemi/ambient) pulls the deck down without
+  // dragging the views this light barely reaches down with it.
+  const key = new THREE.DirectionalLight(0xffeed6, 0.66);
   key.position.set(6, 13, 7.3);
   key.target.position.set(-0.8, 0, -2.9);
   key.castShadow = true;
@@ -185,7 +199,7 @@ export function buildLighting(ctx: InteriorCtx): void {
 
   // Up-firing bounce fill standing in for radiosity off the bright deck — picks out the undersides
   // of the ceiling structure and every prop overhang, which a purely top-down rig leaves black.
-  const bounce = new THREE.DirectionalLight(0xf7e6ca, 0.32);
+  const bounce = new THREE.DirectionalLight(0xf7e6ca, 0.65);
   bounce.position.set(0, -4, 1.5);
   ctx.scene.add(bounce);
 
@@ -291,7 +305,7 @@ export function buildLighting(ctx: InteriorCtx): void {
 
     addWallBolts(side, z, SCONCE_Y, 0.24, 0.19);
 
-    const cone = wallGlow(side, z, SCONCE_Y - 0.92, 0.85, 1.35, glowWarmCone);
+    const cone = wallGlow(side, z, SCONCE_Y - 0.86, 0.72, 1.15, glowWarmCone);
     cone.renderOrder = 2;
     floorPool(side * 3.7, z, 1.7, 2.2, glowWarmPoolSoft);
 
@@ -300,11 +314,16 @@ export function buildLighting(ctx: InteriorCtx): void {
     sprite.position.set(wallX + inward * 0.2, SCONCE_Y - 0.12, z);
     ctx.scene.add(sprite);
 
-    if (withLight) {
-      const light = new THREE.PointLight(WARM, 0.85, 6.5, 1.7);
-      light.position.set(wallX + inward * 0.45, SCONCE_Y - 0.3, z);
-      ctx.scene.add(light);
-    }
+    // Round-5 fix: only 2 of these 8 fixtures ever carried a real PointLight — the rest were
+    // decal-only, which is exactly the "lit almost shadowlessly flat" / "nothing is grounded"
+    // failure mode: their cone and floor pool are painted on regardless of camera distance, with
+    // no actual falloff backing them, so peripheral views (props, airlock corridor) read as dark
+    // walls with disconnected bright stickers. Every sconce now casts real (if modest) light; the
+    // two hero fixtures stay brighter so the room still reads as having *a* dominant practical
+    // per wall run rather than uniform wash.
+    const light = new THREE.PointLight(WARM, withLight ? 0.85 : 0.22, withLight ? 6.5 : 4, 2.0);
+    light.position.set(wallX + inward * 0.45, SCONCE_Y - 0.3, z);
+    ctx.scene.add(light);
   };
   // Staggered rather than mirrored: two walls of evenly-opposed fixtures reads as a corridor
   // decal strip, and the reference's practicals are never symmetrical across the room.
@@ -335,7 +354,7 @@ export function buildLighting(ctx: InteriorCtx): void {
     tube(0.046, len - 0.24, 'z', lensMat, wallX + inward * 0.16, 3.29 + dY, z);
 
     const sprite = new THREE.Sprite(spriteWarm);
-    sprite.scale.set(0.5, 0.42, 1);
+    sprite.scale.set(0.38, 0.32, 1);
     sprite.position.set(wallX + inward * 0.16, 3.29 + dY, z);
     ctx.scene.add(sprite);
 
@@ -377,6 +396,15 @@ export function buildLighting(ctx: InteriorCtx): void {
     halo.position.set(x, CEIL_FACE - 0.105, z);
 
     floorPool(x, z, 2.8, 2.8, glowWarmPoolSoft);
+
+    // Round-5 fix: troffers had zero real light behind them anywhere in the room — four fixtures
+    // that only ever painted a lens/halo/floor decal. That's most of why the ceiling view read
+    // -0.055 under the reference median: the ceiling structure around the fixture had nothing
+    // actually lighting it. Weak, short-throw so it grounds its own alcove without adding new
+    // wall/floor hot spots.
+    const light = new THREE.PointLight(WARM, 0.28, 4.5, 2.0);
+    light.position.set(x, CEIL_FACE - 0.35, z);
+    ctx.scene.add(light);
   };
   for (const x of [-2.75 * (4 / 3), 2.75 * (4 / 3)]) {
     addTroffer(x, (-3.0 * 4) / 3);

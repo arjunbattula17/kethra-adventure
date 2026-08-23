@@ -5,6 +5,7 @@ import { placeKitPiece, preloadKit, KIT_TILE } from './kit';
 import {
   buildWallPlateSet,
   buildGrungeRoughTexture,
+  buildUpperAOTexture,
   buildLowerDirtTexture,
   buildScuffTexture,
   buildStencilTextTexture,
@@ -49,9 +50,12 @@ function groundKitMaterial(mat: THREE.Material): void {
       // Bolts and rails: keep them metallic (this is the "bare steel" role) but pull them back
       // from mirror-metal so ambient fill still reaches them and their specular peak stops
       // clipping. glTF's roughnessFactor here was the default 1 (identity), so a straight
-      // multiply is a no-op — replace it outright.
-      mat.metalness = 0.6;
-      mat.roughness = 1.6;
+      // multiply is a no-op — replace it outright. This round's measured p95 MISS ("too bright,"
+      // upper-wall trim reading blown) is this same metal catching direct light instead of
+      // scattering it — pulled further off mirror-metal (0.6 -> 0.5) and capped fully rough
+      // (was 1.6, past the point roughness does anything further) so a hit no longer flares.
+      mat.metalness = 0.5;
+      mat.roughness = 1;
       break;
     case 'MI_Trim_03': {
       // The dominant painted-panel face, ~two-thirds of every wall/column surface: replace the
@@ -274,6 +278,10 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
 
     addWallDecal(ctx, buildLowerDirtTexture(), 3.6, 1.15, new THREE.Vector3(fx, 0.58, bay.z), yaw, 0.85, THREE.MultiplyBlending);
     addWallDecal(ctx, buildScuffTexture(), 3.2, 0.5, new THREE.Vector3(fx, 0.34, bay.z), yaw, 0.55);
+    // Contact-shadow pooling at the ceiling seam — the top-edge counterpart to the floor dirt
+    // pass above, so every bay is grounded at both ends instead of floating between a lit floor
+    // and a flat, unshadowed top rail.
+    addWallDecal(ctx, buildUpperAOTexture(), 3.6, 0.85, new THREE.Vector3(fx, 4.58, bay.z), yaw, 0.7, THREE.MultiplyBlending);
 
     if (i % 2 === 0) {
       // Stencilled bay number, upper wall — every bay in the reference carries its own placard
@@ -311,6 +319,18 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     cover.castShadow = true;
     cover.receiveShadow = true;
     ctx.scene.add(cover);
+
+    // A live cyan indicator, the one deliberately cool fixture on this wall — the reference keeps
+    // warm and cool light strictly separated by fixture type (practicals warm, every screen/LED
+    // cool) rather than blending them, and this wall's only cool source otherwise was the corner
+    // status dots owned by other pieces.
+    const ledMat = new THREE.MeshStandardMaterial({ color: '#4fd8f0', emissive: '#4fd8f0', emissiveIntensity: 0.3, roughness: 0.35, metalness: 0 });
+    // A sphere rather than a cylinder: it reads the same from any angle, so it doesn't need a
+    // rotation combining the wall's yaw with a separate tilt to lie flush against the cover.
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 8), ledMat);
+    led.position.set(fx + bay.s * 0.06, y + 0.05, bay.z);
+    ctx.scene.add(led);
+    ctx.statusLights.push({ mesh: led, material: ledMat, phase: y * 1.7, onIntensity: 1.7 });
   });
 
   // ----- warm practical sconces, one per side wall, grounded in a visible housing rather than a
@@ -324,7 +344,11 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
       roughness: 0.55,
       metalness: 0.4,
       emissive: new THREE.Color(SCONCE_COLOR),
-      emissiveIntensity: 0.7,
+      // Pulled back from 0.7 — this round's measured p95 MISS is broad overbrightness rather
+      // than one blown pixel, and a warm emissive housing at every side-wall column was part of
+      // that budget. The point light below still carries the visible pool of warm light; the
+      // housing itself only needs to read as lit, not as the brightest thing on the wall.
+      emissiveIntensity: 0.45,
     });
     const housing = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.1, 0.16), housingMat);
     housing.position.set(c.pos[0], 2.3, c.pos[2]);
@@ -333,7 +357,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     housing.receiveShadow = true;
     ctx.scene.add(housing);
 
-    const lamp = new THREE.PointLight(SCONCE_COLOR, 0.5, 3.2, 2);
+    const lamp = new THREE.PointLight(SCONCE_COLOR, 0.4, 3.2, 2);
     lamp.position.set(c.pos[0], 2.24, c.pos[2]);
     ctx.scene.add(lamp);
 

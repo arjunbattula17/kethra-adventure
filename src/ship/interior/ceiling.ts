@@ -18,6 +18,7 @@ import {
   buildCeilingSootTexture,
   buildCeilingStreakTexture,
 } from './ceilingTextures';
+import { buildStencilPlacardTexture } from '../ShipTextures';
 
 /** Cumulative panel-boundary offsets across `total`, panel size varying ±`jitter` around `avg`. */
 function irregularGrid(total: number, avg: number, jitter: number, rnd: () => number): number[] {
@@ -177,6 +178,65 @@ export function buildCeiling(ctx: InteriorCtx): void {
   ctx.scene.add(rivetMesh);
 
   // ===============================================================================================
+  // Round 5: secondary joists + bolted gusset plates — the direct fix for the single named gap in
+  // this round's brief: "the main ceiling grid itself stays fairly repetitive and under-detailed
+  // (plain girders and panels)". The transverse beams above run one direction only, so from below
+  // they read as four parallel bars over a flat lid — nothing like the layered, cross-braced truss
+  // the reference implies. This crosses them with a second set of members along Z, hung directly
+  // under the transverse beams' bottom flange, with a real bolted gusset plate at every one of the
+  // 16 intersections — the brief's "assembled from bolted plates" language applied to the structure
+  // itself, not just the panel skin.
+  // ===============================================================================================
+  const BEAM_Y = ROOM_H - 0.22;
+  const BEAM_BOTTOM = BEAM_Y - 0.1;
+  const JOINT_Y = BEAM_BOTTOM - 0.08;
+  const GUSSET_Y = BEAM_BOTTOM - 0.015;
+
+  const jointMat = new THREE.MeshStandardMaterial({ color: 0x434b56, roughness: 0.58, metalness: 0.46 });
+  const jointGeo = new THREE.BoxGeometry(0.22, 0.16, ROOM_D - 0.3);
+  const jointXs = [-2.2, -1.3, 1.3, 2.6];
+  for (const x of jointXs) {
+    const joint = new THREE.Mesh(jointGeo, jointMat);
+    joint.position.set(x, JOINT_Y, 0);
+    joint.castShadow = true;
+    joint.receiveShadow = true;
+    ctx.scene.add(joint);
+  }
+
+  const gussetMat = new THREE.MeshStandardMaterial({ color: 0x7d8894, roughness: 0.48, metalness: 0.58 });
+  const gussetGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.03, 8);
+  const gussetPositions: [number, number][] = [];
+  for (const x of jointXs) for (const z of beamZs) gussetPositions.push([x, z]);
+  const gussetMesh = new THREE.InstancedMesh(gussetGeo, gussetMat, gussetPositions.length);
+  const gussetBoltMatrices: THREE.Matrix4[] = [];
+  {
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const axisY = new THREE.Vector3(0, 1, 0);
+    gussetPositions.forEach(([x, z], i) => {
+      const yaw = gridRnd() * Math.PI * 2;
+      q.setFromAxisAngle(axisY, yaw);
+      m.compose(new THREE.Vector3(x, GUSSET_Y, z), q, new THREE.Vector3(1, 1, 1));
+      gussetMesh.setMatrixAt(i, m);
+      for (const a of [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4]) {
+        const bx = x + Math.cos(a + yaw) * 0.09;
+        const bz = z + Math.sin(a + yaw) * 0.09;
+        gussetBoltMatrices.push(new THREE.Matrix4().makeTranslation(bx, GUSSET_Y - 0.024, bz));
+      }
+    });
+  }
+  gussetMesh.instanceMatrix.needsUpdate = true;
+  gussetMesh.castShadow = true;
+  gussetMesh.receiveShadow = true;
+  ctx.scene.add(gussetMesh);
+
+  const gussetBolts = new THREE.InstancedMesh(rivetGeo, rivetMat, gussetBoltMatrices.length);
+  gussetBoltMatrices.forEach((mat, i) => gussetBolts.setMatrixAt(i, mat));
+  gussetBolts.instanceMatrix.needsUpdate = true;
+  gussetBolts.castShadow = true;
+  ctx.scene.add(gussetBolts);
+
+  // ===============================================================================================
   // Corrugated deck accent — one patch of ribbed panelling breaking up the bolted-plate slab, set
   // in the console-end corner clear of every lighting.ts fixture footprint.
   // ===============================================================================================
@@ -255,6 +315,52 @@ export function buildCeiling(ctx: InteriorCtx): void {
   }
 
   // ===============================================================================================
+  // Round 5: flange couplings, a stop valve and a slung secondary cable along the pipe run. Bare
+  // pipe with no fittings reads as one plain cylinder no matter how good its texture is — the
+  // couplings and the valve wheel are what make it read as plumbing someone actually built.
+  // ===============================================================================================
+  const flangeMat = new THREE.MeshStandardMaterial({ color: 0x8b929c, roughness: 0.35, metalness: 0.75 });
+  const flangeGeo = new THREE.TorusGeometry(0.095, 0.022, 6, 14);
+  for (const z of [-4.8, 0, 4.8]) {
+    const flange = new THREE.Mesh(flangeGeo, flangeMat);
+    flange.rotation.x = Math.PI / 2;
+    flange.position.set(PIPE_X, PIPE_Y, z);
+    flange.castShadow = true;
+    ctx.scene.add(flange);
+  }
+  const valveBody = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.22, 10), trimMat);
+  valveBody.rotation.x = Math.PI / 2;
+  valveBody.position.set(PIPE_X, PIPE_Y, -1.6);
+  valveBody.castShadow = true;
+  ctx.scene.add(valveBody);
+  const valveStem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.16, 6), flangeMat);
+  valveStem.position.set(PIPE_X, PIPE_Y + 0.15, -1.6);
+  ctx.scene.add(valveStem);
+  const valveWheel = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.016, 6, 12), flangeMat);
+  valveWheel.rotation.x = Math.PI / 2;
+  valveWheel.position.set(PIPE_X, PIPE_Y + 0.24, -1.6);
+  valveWheel.castShadow = true;
+  ctx.scene.add(valveWheel);
+
+  // A second, thinner cable slung between the same brackets with real sag rather than pulled
+  // drum-tight — a catenary droop is what reads as a cable where a straight cylinder reads as
+  // another pipe.
+  const cableMat = new THREE.MeshStandardMaterial({ color: 0x181a1d, roughness: 0.75, metalness: 0.05 });
+  for (let i = 0; i < bracketZs.length - 1; i++) {
+    const z0 = bracketZs[i];
+    const z1 = bracketZs[i + 1];
+    const mid = (z0 + z1) / 2;
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(PIPE_X + 0.13, PIPE_Y - 0.02, z0),
+      new THREE.Vector3(PIPE_X + 0.15, PIPE_Y - 0.14, mid),
+      new THREE.Vector3(PIPE_X + 0.13, PIPE_Y - 0.02, z1),
+    ]);
+    const cable = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 0.014, 5, false), cableMat);
+    cable.castShadow = true;
+    ctx.scene.add(cable);
+  }
+
+  // ===============================================================================================
   // Junction boxes: base flange + smaller body for a chamfered silhouette rather than one sharp
   // box, mounted to the beam undersides away from every lighting.ts fixture.
   // ===============================================================================================
@@ -265,6 +371,21 @@ export function buildCeiling(ctx: InteriorCtx): void {
   };
   addJunctionBox(2.2, -6);
   addJunctionBox(-2.6, 6);
+
+  // Small blinking status LEDs on each box, tied into the shared status-blink loop that every
+  // other piece's indicator dots already run through — a junction box with no tell-tale reads as
+  // dead equipment.
+  const addJunctionLed = (x: number, z: number, color: number) => {
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x0c1014, emissive: color, emissiveIntensity: 0.9, roughness: 0.4, metalness: 0,
+    });
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), material);
+    led.position.set(x + 0.14, ROOM_H - 0.22 - 0.1 - 0.26 - 0.07, z);
+    ctx.scene.add(led);
+    ctx.statusLights.push({ mesh: led, material, phase: (x * 3.1 + z * 1.7) % 6.28, onIntensity: 1.3 });
+  };
+  addJunctionLed(2.2, -6, 0x4fd8f0);
+  addJunctionLed(-2.6, 6, 0xff4a2c);
 
   // ===============================================================================================
   // Recessed vent grilles — dark louvred housing let into the slab. A third, genuinely different
@@ -281,6 +402,59 @@ export function buildCeiling(ctx: InteriorCtx): void {
   };
   addVent(4.8, -3);
   addVent(-5.3, 2.6);
+
+  // ===============================================================================================
+  // Round 5: a recessed maintenance hatch with a real hinge-and-wheel-lock mechanism. A flat panel
+  // decal reads as paint; hardware you could actually turn reads as "assembled" the way the
+  // console's dials and switches do — this is the single richest hero prop this piece adds. Set at
+  // x=0, z=-3: clear of every joist (nearest at x=+-1.3), both beam lines it sits between (z=-2
+  // and the z=-4 troffers, which are also off on x=+-3.667), and the pendant column at z=-0.27/3.87.
+  // ===============================================================================================
+  const hatchMat = new THREE.MeshStandardMaterial({ color: 0x59616c, roughness: 0.5, metalness: 0.5 });
+  const hatchDarkMat = new THREE.MeshStandardMaterial({ color: 0x2c3138, roughness: 0.65, metalness: 0.3 });
+  const HATCH_X = 0;
+  const HATCH_Z = -3;
+  const HATCH_Y = SLAB_BOTTOM - 0.02;
+  box(1.1, 0.03, 1.1, HATCH_X, HATCH_Y, HATCH_Z, hatchDarkMat);
+  box(1.0, 0.025, 1.0, HATCH_X, HATCH_Y - 0.01, HATCH_Z, hatchMat);
+
+  // Hinge knuckles along the -X edge.
+  for (const dz of [-0.42, 0, 0.42]) {
+    const knuckle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.1, 8), hatchMat);
+    knuckle.rotation.x = Math.PI / 2;
+    knuckle.position.set(HATCH_X - 0.5, HATCH_Y - 0.02, HATCH_Z + dz);
+    knuckle.castShadow = true;
+    ctx.scene.add(knuckle);
+  }
+
+  // Central wheel-lock: hub, rim and four spokes, all lying flat in the ceiling's XZ plane so the
+  // wheel reads correctly looking straight up at it.
+  const wheelGroup = new THREE.Object3D();
+  wheelGroup.position.set(HATCH_X, HATCH_Y - 0.03, HATCH_Z);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.06, 10), hatchDarkMat);
+  hub.castShadow = true;
+  wheelGroup.add(hub);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.02, 6, 16), hatchMat);
+  rim.rotation.x = Math.PI / 2;
+  rim.castShadow = true;
+  wheelGroup.add(rim);
+  const spokeGeo = new THREE.BoxGeometry(0.26, 0.018, 0.018);
+  for (let i = 0; i < 4; i++) {
+    const spoke = new THREE.Mesh(spokeGeo, hatchMat);
+    spoke.rotation.y = (i * Math.PI) / 2;
+    spoke.castShadow = true;
+    wheelGroup.add(spoke);
+  }
+  ctx.scene.add(wheelGroup);
+
+  const hatchPlacardMat = new THREE.MeshStandardMaterial({
+    map: buildStencilPlacardTexture('MAINT-7', 'CEILING ACCESS'), roughness: 0.7, metalness: 0.15,
+  });
+  const hatchPlacard = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), hatchPlacardMat);
+  hatchPlacard.rotation.x = Math.PI / 2;
+  hatchPlacard.position.set(HATCH_X + 0.78, HATCH_Y, HATCH_Z);
+  hatchPlacard.receiveShadow = true;
+  ctx.scene.add(hatchPlacard);
 
   // ===============================================================================================
   // Wear decals, motivated by the new geometry above rather than a uniform tint: a drip stain at

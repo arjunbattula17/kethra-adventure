@@ -1246,6 +1246,67 @@ export function buildGlassSmudgeMaps(): { roughnessMap: THREE.CanvasTexture; nor
 }
 
 /**
+ * Additive specular-glare overlay for the physical glass pane sitting in front of the phosphor
+ * image (see suspendedDisplay.ts). Two soft diagonal light bars plus a scatter of tight point
+ * glints stand in for the room's practicals and screen-glow catching the true glass surface,
+ * baked in rather than left to whatever the runtime lights happen to be doing at render time --
+ * the same reasoning as the reticle's own baked bloom pad -- so the "there's real glass here" cue
+ * survives regardless of the exact camera angle a given capture lands on.
+ */
+export function buildGlassGlareTexture(): THREE.CanvasTexture {
+  const w = ARRAY_W;
+  const h = ARRAY_H;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const c = canvas.getContext('2d')!;
+  c.clearRect(0, 0, w, h);
+
+  // Wide soft bar -- the ceiling practical's reflection sweeping across the sheet.
+  c.save();
+  c.translate(w * 0.28, h * 0.1);
+  c.rotate(-0.55);
+  const bar1 = c.createLinearGradient(-40, 0, 40, 0);
+  bar1.addColorStop(0, 'rgba(255,255,255,0)');
+  bar1.addColorStop(0.5, 'rgba(240,250,255,0.16)');
+  bar1.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = bar1;
+  c.fillRect(-40, -h, 80, h * 3);
+  c.restore();
+
+  // Narrower, brighter secondary streak -- a closer light source catching the same sheet.
+  c.save();
+  c.translate(w * 0.7, h * 0.4);
+  c.rotate(-0.4);
+  const bar2 = c.createLinearGradient(-16, 0, 16, 0);
+  bar2.addColorStop(0, 'rgba(255,255,255,0)');
+  bar2.addColorStop(0.5, 'rgba(255,255,255,0.22)');
+  bar2.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = bar2;
+  c.fillRect(-16, -h, 32, h * 3);
+  c.restore();
+
+  // A few tight point glints -- crisp highlights off the panel's own micro-waviness.
+  const rand = rng(4471);
+  for (let i = 0; i < 6; i++) {
+    const x = w * (0.08 + rand() * 0.84);
+    const y = h * (0.1 + rand() * 0.8);
+    const r = 3 + rand() * 5;
+    const g = c.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,0.5)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/**
  * Soot / heat-stain decal for a multiply-blended overlay quad. White is "no change", so the map is
  * opaque white with dark plumes drawn into it -- an alpha-cut texture would multiply its cleared
  * pixels to black and stamp a rectangle onto the plate.

@@ -15,7 +15,9 @@ import {
   buildMicroMaps,
   buildPlateMaps,
   buildScuffDecalTexture,
+  buildSeatWearTexture,
   buildSecondaryScreenTexture,
+  buildStainDecalTexture,
   buildVentNormalTexture,
   buildVentTexture,
   type MicroKind,
@@ -439,6 +441,28 @@ function buildWear(ctx: InteriorCtx): void {
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   });
+  // Oil seep and an old scorch mark — the r5 critic's "battle damage" call-out. Motivated marks
+  // rather than another uniform tint: a leaked fitting and a patched-over short, not a wash.
+  const oilStain = new THREE.MeshStandardMaterial({
+    map: buildStainDecalTexture('oil'),
+    transparent: true,
+    roughness: 0.35,
+    metalness: 0,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  const scorch = new THREE.MeshStandardMaterial({
+    map: buildStainDecalTexture('scorch'),
+    transparent: true,
+    roughness: 0.95,
+    metalness: 0,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
 
   const decal = (
     mat: THREE.Material,
@@ -464,6 +488,15 @@ function buildWear(ctx: InteriorCtx): void {
   decal(drip, 0.56, 0.3, [1.3, 0.85, -3.2], [0, 0, 0]);
   // Boot scuffing on the strip of plinth in front of the operator well.
   decal(scuff, 2.6, 0.4, [0, 0.089, -3.03], [-Math.PI / 2, 0, 0]);
+  // A second scuffed lane further out, where a walk-up pauses before reaching for the wing pods.
+  decal(scuff, 1.6, 0.3, [0, 0.089, -2.55], [-Math.PI / 2, 0, 0]);
+  // Leaked-fitting oil stain and an old scorch mark flanking the boot lane — floor damage that
+  // reads as lived-in rather than another clean tinted panel.
+  decal(oilStain, 0.55, 0.5, [-1.9, 0.089, -3.0], [-Math.PI / 2, 0, 0]);
+  decal(scorch, 0.5, 0.46, [1.9, 0.089, -3.0], [-Math.PI / 2, 0, 0]);
+  // Impact scorch on the plinth's own deck plate, right where the starboard pod's anchor foot
+  // meets it — corrosion/damage at the joint the brief calls out by name.
+  decal(scorch, 0.4, 0.36, [2.0, 0.088, -4.15], [-Math.PI / 2, 0, 0]);
 }
 
 /**
@@ -1003,7 +1036,29 @@ function buildChair(ctx: InteriorCtx, kit: Kit): THREE.Group {
     color: 0x454b55, alphaMap: meshTex, alphaTest: 0.5, side: THREE.DoubleSide,
     roughness: 0.94, metalness: 0.03,
   });
-  const seatShell = new THREE.MeshStandardMaterial({ color: 0x30363e, roughness: 0.78, metalness: 0.12 });
+  // Was a flat, mapless MeshStandardMaterial — exactly the "one uniform roughness, no texture"
+  // read the critique calls out. A moulded composite shell gets real pebbled grain instead.
+  const seatShell = microMaterial(0x30363e, 'composite', 12);
+  const wearMat = new THREE.MeshStandardMaterial({
+    map: buildSeatWearTexture(),
+    transparent: true,
+    roughness: 0.9,
+    metalness: 0,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  const oilRing = new THREE.MeshStandardMaterial({
+    map: buildStainDecalTexture('oil'),
+    transparent: true,
+    roughness: 0.35,
+    metalness: 0,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
 
   // Base: five tapered legs with castor yokes and wheels.
   const legGeo = chamferBox(0.055, 0.05, 0.34, 0.014);
@@ -1045,6 +1100,13 @@ function buildChair(ctx: InteriorCtx, kit: Kit): THREE.Group {
   mesh(g, chamferBox(0.46, 0.03, 0.44, 0.02), seatShell, 0, 0.615, -0.01);
   // Front edge waterfall.
   mesh(g, chamferBox(0.46, 0.055, 0.06, 0.022), kit.fabric, 0, 0.545, -0.24);
+  // Sat-in wear: a compressed sheen where an operator actually sits, dulling to grime at the
+  // edges — the chair half of the r5 critique's "clean/CG" call-out.
+  const seatWear = mesh(g, flatPlane(0.44, 0.42), wearMat, 0, 0.633, -0.01);
+  seatWear.renderOrder = 1;
+  // An old oil ring on the deck where the castor base has sat and leaked, unmoved, for years.
+  const baseRing = mesh(g, flatPlane(0.7, 0.7), oilRing, 0, 0.004, 0);
+  baseRing.renderOrder = 1;
 
   // Back frame: side rails, top rail, and a mesh panel between them.
   const backPivot = new THREE.Group();
@@ -1069,6 +1131,9 @@ function buildChair(ctx: InteriorCtx, kit: Kit): THREE.Group {
     mesh(g, chamferBox(0.04, 0.2, 0.05, 0.012), kit.blackTrim, sx * 0.26, 0.68, 0.11);
     mesh(g, chamferBox(0.05, 0.03, 0.26, 0.012), kit.blackTrim, sx * 0.26, 0.79, 0.02);
     mesh(g, chamferBox(0.075, 0.035, 0.24, 0.016), kit.fabric, sx * 0.26, 0.815, 0.02);
+    // Hand-worn sheen down the middle of the pad, where every reach for the console rubs it.
+    const armWear = mesh(g, flatPlane(0.06, 0.2), wearMat, sx * 0.26, 0.834, 0.02);
+    armWear.renderOrder = 1;
   }
 
   return g;

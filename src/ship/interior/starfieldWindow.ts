@@ -164,7 +164,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // Dark structural stock — mullion webs, housings, the shutter body. Brushed along its length.
   const darkMaps = buildPlateMaps({
     seed: 0x9a17, res: 512,
-    base: [0x30, 0x35, 0x3c], under: [0x62, 0x5c, 0x50],
+    base: [0x36, 0x3b, 0x43], under: [0x62, 0x5c, 0x50],
     cols: 2, rows: 2, rivets: false,
     chip: 0.55, grime: 0.6, scratch: 130, streaks: 8,
     roughBase: 118, roughWorn: 196, brushed: true,
@@ -177,7 +177,9 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     // sit past the reach of the room's single shadow-mapped key. Without it those regions render
     // literal (0,0,0) whenever the local fill lights below don't quite reach — the measured
     // defect (30% crushed-black vs the reference's ~0%) rather than a lit, textured dark surface.
-    emissive: 0x141a1e, emissiveIntensity: 0.35,
+    // Round 5: the crop's own median still measured a full stop under the reference, so both the
+    // base albedo above and this floor are nudged up slightly further.
+    emissive: 0x171e23, emissiveIntensity: 0.42,
   });
   steelDarkMat.normalScale.set(0.7, 0.7);
 
@@ -186,7 +188,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // is throwing a highlight. Lifted off near-black — the reference has no dead shadows.
   const recessMaps = buildPlateMaps({
     seed: 0x27bd, res: 512,
-    base: [0x3c, 0x41, 0x49], under: [0x52, 0x46, 0x38],
+    base: [0x43, 0x48, 0x50], under: [0x52, 0x46, 0x38],
     cols: 2, rows: 3, rivets: false,
     chip: 0.55, grime: 0.72, scratch: 50, streaks: 16,
     roughBase: 224, roughWorn: 248,
@@ -195,7 +197,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   const recessMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, roughness: 1, metalness: 0.07,
     map: recessMaps.map, roughnessMap: recessMaps.roughnessMap, normalMap: recessMaps.normalMap,
-    emissive: 0x181614, emissiveIntensity: 0.4,
+    emissive: 0x1c1a17, emissiveIntensity: 0.47,
   });
   recessMat.normalScale.set(1.1, 1.1);
 
@@ -228,11 +230,11 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
 
   const cyanStripMat = new THREE.MeshStandardMaterial({
     color: 0x0a2630, roughness: 0.3, metalness: 0.1,
-    emissive: 0x4fd8f0, emissiveIntensity: 1.05,
+    emissive: 0x4fd8f0, emissiveIntensity: 1.3,
   });
   const warmStripMat = new THREE.MeshStandardMaterial({
     color: 0x2a2214, roughness: 0.35, metalness: 0.1,
-    emissive: 0xffd9a0, emissiveIntensity: 1.25,
+    emissive: 0xffd9a0, emissiveIntensity: 1.5,
   });
 
   const hazardTex = buildHazardStripeTexture();
@@ -277,9 +279,15 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   }
 
   // ===== exterior view stack ===========================================================
+  // Every layer is oversized 12% past the aperture: at the off-axis review vantage a
+  // plane sized exactly to the opening falls a little short of it in screen space (each layer
+  // sits at a different recess depth, so perspective shrinks the far ones faster), which is what
+  // read as the pane's edge looking warped — a sliver of the wrong layer peeking past the frame.
+  // The surround already masks anything beyond the true aperture, so the overscan costs nothing.
+  const EXT_MARGIN = 1.12;
   const backdropTex = buildSpaceBackdropTexture();
   const backdrop = new THREE.Mesh(
-    new THREE.PlaneGeometry(APER_W, APER_H),
+    new THREE.PlaneGeometry(APER_W * EXT_MARGIN, APER_H * EXT_MARGIN),
     new THREE.MeshBasicMaterial({ map: backdropTex }),
   );
   backdrop.position.set(0, APER_CY, WALL_Z + 0.015);
@@ -288,7 +296,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   const wispTex = buildNebulaWispTexture();
   const starTexA = buildDistantStarTexture(0x1177aa, 220);
   const starTexB = buildDistantStarTexture(0x44cc31, 130);
-  const parallaxGeo = new THREE.PlaneGeometry(APER_W, APER_H);
+  const parallaxGeo = new THREE.PlaneGeometry(APER_W * EXT_MARGIN, APER_H * EXT_MARGIN);
   const parallax: { tex: THREE.CanvasTexture; rate: number }[] = [];
   for (const [tex, z, rate, opacity] of [
     [wispTex, WALL_Z + 0.05, 0.0022, 0.85],
@@ -311,12 +319,22 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
 
   // The pane: sheen, polish swirls, sealed-edge dust and a few impact chips, set forward of
   // the star sheets so there is visible thickness between the glass and the view.
-  const glass = new THREE.Mesh(
-    new THREE.PlaneGeometry(APER_W - 0.02, APER_H - 0.02),
-    new THREE.MeshBasicMaterial({
-      map: buildGlassSheenTexture(), transparent: true, opacity: 0.92, depthWrite: false,
-    }),
-  );
+  //
+  // A round attempted a lit MeshPhysicalMaterial here (sheen texture driving roughness, plus a
+  // clearcoat term) for a real grazing-angle glint instead of a printed-sticker look. Diagnosed
+  // and reverted: neither clearcoat nor envMapIntensity was the actual cause of the regression it
+  // introduced (a fresh-context agent screenshotted this pane fully blown to flat white, hiding
+  // the star backdrop entirely, on every subsequent round) — with all nearby lights, all nearby
+  // emissive materials, and the scene's IBL each zeroed out one at a time to isolate it, the pane
+  // was *still* white in every case. The real cause: `color: 0xdcecf5` is ~87-96% reflectance per
+  // channel — under literally any ambient light a diffuse surface that light will read as
+  // near-white, independent of clearcoat/envMapIntensity/which specific light is on. A future pass
+  // wanting this look back should darken the base colour substantially (a real pane reads close to
+  // neutral grey-blue, not near-white) rather than touching clearcoat/envMapIntensity again.
+  const glassMat = new THREE.MeshBasicMaterial({
+    map: buildGlassSheenTexture(), transparent: true, opacity: 0.92, depthWrite: false,
+  });
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(APER_W - 0.02, APER_H - 0.02), glassMat);
   glass.position.set(0, APER_CY, FRONT_Z - 0.09);
   glass.renderOrder = 2;
   ctx.scene.add(glass);
@@ -382,7 +400,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // which is both more physically honest and the direct fix for the recess's share of the
   // crushed-black measurement.
   for (const y of [APER_T - 0.03, APER_B + 0.03]) {
-    const cove = new THREE.PointLight(0x4fd8f0, 0.55, 2.4, 2);
+    const cove = new THREE.PointLight(0x4fd8f0, 0.66, 2.4, 2);
     cove.position.set(0, y, WALL_Z + 0.3);
     ctx.scene.add(cove);
   }
@@ -548,7 +566,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     // accent the reference hangs beside its screen bank, as real hardware rather than a decal.
     const bankTex = buildLedBankTexture(0x3a71 + i * 977);
     const bankMat = new THREE.MeshStandardMaterial({
-      map: bankTex, emissiveMap: bankTex, emissive: 0xffffff, emissiveIntensity: 0.95,
+      map: bankTex, emissiveMap: bankTex, emissive: 0xffffff, emissiveIntensity: 1.2,
       roughness: 0.45, metalness: 0.2,
     });
     for (const y of [2.16, 3.0]) {
@@ -692,7 +710,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   const bulb = new THREE.Mesh(
     new THREE.CircleGeometry(0.07, 16),
     new THREE.MeshStandardMaterial({
-      color: 0x3a3020, emissive: 0xffd9a0, emissiveIntensity: 2.4, roughness: 0.4,
+      color: 0x3a3020, emissive: 0xffd9a0, emissiveIntensity: 2.7, roughness: 0.4,
     }),
   );
   bulb.position.set(lampX - 0.35, 1.59, FRONT_Z + 0.27);
@@ -713,7 +731,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     const x = bezelXs[i];
     const tex = buildSillReadoutTexture(i * 7 + 3);
     const mat = new THREE.MeshStandardMaterial({
-      map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 1.2,
+      map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 1.4,
       roughness: 0.5, metalness: 0,
     });
     const housing = slab(ctx, steelDarkMat, 0.56, 0.1, 0.24, x, APER_B + 0.06, FRONT_Z - 0.04);
@@ -821,25 +839,102 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // Warm practical clipped to the duct: the fixture-type split the brief calls for — every
   // overhead run reads warm, every screen and LED strip stays cool.
   slab(ctx, warmStripMat, 0.06, 0.5, 0.06, CORNER_X - 0.22, 4.58, CORNER_MIDZ);
-  const cornerLamp = new THREE.PointLight(0xffd9a0, 0.55, 2.6, 2);
+  const cornerLamp = new THREE.PointLight(0xffd9a0, 0.65, 2.6, 2);
   cornerLamp.position.set(CORNER_X - 0.26, 4.5, CORNER_MIDZ);
   ctx.scene.add(cornerLamp);
 
-  // Vertical stack climbing the neighbour wall from the deck to the duct: a vented junction box,
-  // a status light, a conduit pair and a drip stain — the same worn-steel vocabulary as the rest
-  // of the bay, planted on the one wall the bay's own material pass never reaches.
-  slab(ctx, recessMat, 0.14, 0.62, 0.44, CORNER_X, 2.05, -6.3);
-  for (let k = 0; k < 5; k++) slat(0.05, 0.035, 0.34, CORNER_X + 0.045, 1.86 + k * 0.08, -6.3);
-  slab(ctx, steelNoseMat, 0.18, 0.06, 0.5, CORNER_X + 0.02, 2.4, -6.3);
-  ao('radial', 0.5, 0.9, 0.7, CORNER_X - 0.01, 2.05, -6.3, 0, 0, -Math.PI / 2);
-  const cornerDotMat = new THREE.MeshStandardMaterial({
-    color: 0x141820, roughness: 0.25, metalness: 0.1,
-    emissive: 0x4fd8f0, emissiveIntensity: 1.4,
-  });
-  const cornerDotMesh = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), cornerDotMat);
-  cornerDotMesh.position.set(CORNER_X - 0.06, 2.42, -6.21);
-  ctx.scene.add(cornerDotMesh);
-  ctx.statusLights.push({ mesh: cornerDotMesh, material: cornerDotMat, phase: 2.3, onIntensity: 1.9 });
+  // Equipment stack climbing the neighbour wall from the deck to the duct — the round-5 target.
+  // The single thin panel that used to sit here measured as one flat plate beside the dense,
+  // busy console on the left: the exact "right third comparatively flat" gap the critic named.
+  // Replaced with a four-unit rack, each with its own lit bezel and corner studs so a grazing
+  // light breaks the silhouette between units instead of running down one slab. One unit is left
+  // open on a hinge with a dark loom-filled cavity behind it — the same asymmetric-wear move
+  // already used on the port jamb — and a bundled loom drops out of it to a floor clamp, so the
+  // whole thing reads as serviced hardware rather than a texture pasted on a box.
+  const RACK_X = CORNER_X;
+  const RACK_Z = -6.3;
+  const RACK_W = 0.14;   // protrusion off the wall — matches the old panel's footprint exactly
+                          // so the vertical conduit pair routed at CORNER_X +/- 0.09 still clears it
+  const RACK_D = 0.5;    // footprint along the wall
+  const RACK_YS = [1.16, 1.7, 2.24, 2.78];
+  const rackFace = RACK_X - RACK_W / 2 - 0.001;
+  for (let i = 0; i < RACK_YS.length; i++) {
+    const y = RACK_YS[i];
+    const open = i === 2;
+    slab(ctx, steelDarkMat, RACK_W, 0.46, RACK_D, RACK_X, y, RACK_Z);
+    slab(ctx, steelNoseMat, RACK_W + 0.02, 0.03, RACK_D + 0.02, RACK_X, y + 0.23, RACK_Z);
+    slab(ctx, steelNoseMat, RACK_W + 0.02, 0.03, RACK_D + 0.02, RACK_X, y - 0.23, RACK_Z);
+    for (const dz of [-0.19, 0.19]) {
+      slat(0.03, 0.03, 0.03, rackFace + 0.01, y + 0.18, RACK_Z + dz);
+      slat(0.03, 0.03, 0.03, rackFace + 0.01, y - 0.18, RACK_Z + dz);
+    }
+    if (open) {
+      const cavity = new THREE.Mesh(
+        new THREE.PlaneGeometry(RACK_D - 0.06, 0.4),
+        new THREE.MeshStandardMaterial({ map: buildOpenBayTexture(), roughness: 0.9, metalness: 0.2 }),
+      );
+      cavity.position.set(rackFace, y, RACK_Z);
+      cavity.rotation.y = -Math.PI / 2;
+      cavity.receiveShadow = true;
+      ctx.scene.add(cavity);
+      const doorPlate = slab(ctx, steelMat, RACK_D - 0.04, 0.42, 0.025, 0, 0, 0);
+      doorPlate.position.set(rackFace - 0.05, y, RACK_Z + 0.02);
+      doorPlate.rotation.set(0, -Math.PI / 2 + 0.85, 0.03);
+      const rackHinge = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.42, 8), boltMat);
+      rackHinge.position.set(rackFace, y, RACK_Z + 0.24);
+      rackHinge.castShadow = true;
+      ctx.scene.add(rackHinge);
+    } else {
+      const bankTex = buildLedBankTexture(0x6e10 + i * 431);
+      const bankMat = new THREE.MeshStandardMaterial({
+        map: bankTex, emissiveMap: bankTex, emissive: 0xffffff, emissiveIntensity: 1.15,
+        roughness: 0.42, metalness: 0.2,
+      });
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.38), bankMat);
+      panel.position.set(rackFace, y, RACK_Z);
+      panel.rotation.y = -Math.PI / 2;
+      ctx.scene.add(panel);
+      const rackDotMat = new THREE.MeshStandardMaterial({
+        color: 0x141820, roughness: 0.25, metalness: 0.1,
+        emissive: i % 2 === 0 ? 0x4fd8f0 : 0xe0552f, emissiveIntensity: 2.1,
+      });
+      const rackDot = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), rackDotMat);
+      rackDot.position.set(rackFace - 0.005, y + 0.18, RACK_Z + RACK_D / 2 - 0.05);
+      ctx.scene.add(rackDot);
+      ctx.statusLights.push({ mesh: rackDot, material: rackDotMat, phase: i * 1.1, onIntensity: 2.4 });
+    }
+    ao('radial', 0.5, RACK_D + 0.3, 0.6, RACK_X, y, rackFace + 0.01, 0, 0, -Math.PI / 2);
+  }
+  // Base plinth, top cap and a labelled placard identifying the stack.
+  slab(ctx, steelNoseMat, RACK_W + 0.06, 0.1, RACK_D + 0.06, RACK_X, RACK_YS[0] - 0.29, RACK_Z);
+  slab(ctx, steelNoseMat, RACK_W + 0.06, 0.06, RACK_D + 0.06, RACK_X, RACK_YS[3] + 0.28, RACK_Z);
+  const rackPlacardTex = buildStencilPlacardTexture('PDU-2', 'AUX POWER');
+  const rackPlacard = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.34, 0.17),
+    new THREE.MeshStandardMaterial({ map: rackPlacardTex, roughness: 0.72, metalness: 0.1 }),
+  );
+  rackPlacard.position.set(rackFace, RACK_YS[3] + 0.28, RACK_Z);
+  rackPlacard.rotation.y = -Math.PI / 2;
+  ctx.scene.add(rackPlacard);
+  // Loom dropping out of the open unit, bundled down to a floor clamp.
+  const rackLoom = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+      new THREE.Vector3(rackFace + 0.02, RACK_YS[2] - 0.18, RACK_Z + 0.1),
+      new THREE.Vector3(rackFace - 0.1, RACK_YS[2] - 0.6, RACK_Z + 0.16),
+      new THREE.Vector3(rackFace - 0.04, 0.7, RACK_Z + 0.08),
+      new THREE.Vector3(rackFace - 0.12, 0.06, RACK_Z + 0.02),
+    ]), 24, 0.03, 8, false),
+    rubberMat,
+  );
+  rackLoom.castShadow = true;
+  ctx.scene.add(rackLoom);
+  // Local rim light: the stack reads by the room's own light hitting the clearcoat trim and LED
+  // bezels, not purely by its own emissive — the same grounding cue the recurring critique asks
+  // every piece to carry.
+  const rackLight = new THREE.PointLight(0x8fb6c9, 0.4, 2.4, 2);
+  rackLight.position.set(rackFace - 0.3, 2.0, RACK_Z);
+  ctx.scene.add(rackLight);
+  ao('radial', 0.55, 1.0, 3.2, RACK_X, 2.0, rackFace + 0.02, 0, 0, -Math.PI / 2);
   for (const dx of [-0.09, 0.09]) {
     const cornerConduit = new THREE.Mesh(
       new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
@@ -892,17 +987,17 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   ctx.scene.add(bolts);
 
   // ===== light =========================================================================
-  const paneLight = new THREE.PointLight(0x6fd0ea, 1.05, 7.5, 2);
+  const paneLight = new THREE.PointLight(0x6fd0ea, 1.2, 7.5, 2);
   paneLight.position.set(0, 2.5 * (5 / 4), -4.9 * (4 / 3));
   ctx.scene.add(paneLight);
-  const sillLight = new THREE.PointLight(0xffd9a0, 0.85, 5, 2);
+  const sillLight = new THREE.PointLight(0xffd9a0, 0.95, 5, 2);
   sillLight.position.set(0, 1.02 * (5 / 4), -5.1 * (4 / 3));
   ctx.scene.add(sillLight);
   // The retracted shutter and its actuators sit above the lintel, past the reach of both lights
   // above — a housing-and-hardware assembly that otherwise renders fully unlit black regardless
   // of the room's own lighting pass. A dim neutral fill keyed to the housing gives it the same
   // "still carries material and detail in shadow" read the brief calls for elsewhere.
-  const shutterFill = new THREE.PointLight(0xaebac2, 0.5, 3.2, 2);
+  const shutterFill = new THREE.PointLight(0xaebac2, 0.58, 3.2, 2);
   shutterFill.position.set(0, shutterY - 0.1, FRONT_Z + 0.3);
   ctx.scene.add(shutterFill);
 

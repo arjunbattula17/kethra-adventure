@@ -439,6 +439,41 @@ export function buildDustFilmTexture(): THREE.CanvasTexture {
 }
 
 /**
+ * Contact-shadow pooling where the wall meets the ceiling: a soft dark band at the top edge,
+ * gone by a third of the way down. The brief's "shadow pooling" gap is a grounding problem as
+ * much as a lighting one — every bay's top seam is a real occluded corner in the reference, and
+ * a flat, unshadowed top edge is what makes a lit panel read as a floating cutout instead of a
+ * bolted-in plate. Multiply-blended like the floor grime, and kept off pure black (max ~0.35
+ * darkening) so the seam still carries material under it rather than crushing to a void.
+ */
+export function buildUpperAOTexture(): THREE.CanvasTexture {
+  const w = 512;
+  const hgt = 200;
+  const [el, ctx] = canvas2d(w, hgt);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, hgt);
+  const grad = ctx.createLinearGradient(0, 0, 0, hgt);
+  grad.addColorStop(0, 'rgba(96,98,102,1)');
+  grad.addColorStop(0.4, 'rgba(190,190,192,1)');
+  grad.addColorStop(1, 'rgba(255,255,255,1)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, hgt);
+  // Uneven soot/condensation streaks dropping from the seam, so the band reads as accumulated
+  // grime rather than a rendered gradient.
+  for (let i = 0; i < 46; i++) {
+    const x = Math.random() * w;
+    const len = hgt * (0.15 + Math.random() * 0.55);
+    const wdt = 3 + Math.random() * 14;
+    const g = ctx.createLinearGradient(0, 0, 0, len);
+    g.addColorStop(0, 'rgba(70,70,72,0.55)');
+    g.addColorStop(1, 'rgba(70,70,72,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - wdt / 2, 0, wdt, len);
+  }
+  return finish(el);
+}
+
+/**
  * Splash-and-scuff dirt loading for the bottom of the wall, densest at the deck and gone by waist
  * height. Multiply-blended, so it darkens the plate underneath rather than painting a tint over it.
  */
