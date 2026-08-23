@@ -2,15 +2,14 @@
 // project needs no native image dependency.
 //
 //   node tools/imgtool.mjs crop <in.png> <out.png> <x> <y> <w> <h>
-//   node tools/imgtool.mjs pair <ours.png> <theirs.png> <outDir> <seed> <keyFile>
+//   node tools/imgtool.mjs pair <ours.png> <theirs.png> <outDir> <oursSlot A|B> <keyFile>
 //
 // `pair` normalises both images onto an identical letterboxed canvas and writes them as A.png /
-// B.png in an order decided by <seed>, so a critic reading the pair cannot tell which is which
-// from filename, resolution or aspect ratio. The mapping is written to <keyFile>, which lives
-// outside the directory the critic is given.
+// B.png, with our render placed in <oursSlot> (see blind-slots.mjs), so a critic reading the pair
+// cannot tell which is which from filename, resolution or aspect ratio. The mapping is written to
+// <keyFile>, which lives outside the directory the critic is given.
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 
 const PAIR_W = 1200;
 const PAIR_H = 800;
@@ -63,15 +62,18 @@ if (cmd === 'crop') {
   writeFileSync(outPath, await render(cropFn, { src: dataUrl(inPath), x: +x, y: +y, w: +w, h: +h }));
   console.log('cropped ->', outPath);
 } else if (cmd === 'pair') {
-  const [oursPath, theirsPath, outDir, seed, keyFile] = rest;
+  const [oursPath, theirsPath, outDir, oursSlot, keyFile] = rest;
+  if (oursSlot !== 'A' && oursSlot !== 'B') {
+    console.error('oursSlot must be A or B, got:', oursSlot);
+    process.exit(1);
+  }
   mkdirSync(outDir, { recursive: true });
   const ours = await render(fitFn, { src: dataUrl(oursPath), W: PAIR_W, H: PAIR_H });
   const theirs = await render(fitFn, { src: dataUrl(theirsPath), W: PAIR_W, H: PAIR_H });
-  // Deterministic-but-unguessable order: the critic sees only A.png/B.png.
-  const oursIsA = parseInt(createHash('sha256').update(String(seed)).digest('hex').slice(0, 8), 16) % 2 === 0;
+  const oursIsA = oursSlot === 'A';
   writeFileSync(`${outDir}/A.png`, oursIsA ? ours : theirs);
   writeFileSync(`${outDir}/B.png`, oursIsA ? theirs : ours);
-  writeFileSync(keyFile, JSON.stringify({ seed, A: oursIsA ? 'ours' : 'reference', B: oursIsA ? 'reference' : 'ours' }));
+  writeFileSync(keyFile, JSON.stringify({ A: oursIsA ? 'ours' : 'reference', B: oursIsA ? 'reference' : 'ours' }));
   console.log('paired ->', outDir, '(key at', keyFile + ')');
 } else {
   console.error('usage: imgtool.mjs crop|pair ...');
