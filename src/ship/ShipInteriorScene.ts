@@ -8,87 +8,25 @@ import { bus } from '../core/EventBus';
 import { getSharedEnvironment } from '../core/Environment';
 import { AudioSystem } from '../audio/AudioSystem';
 import { applyPbr } from '../core/TextureLibrary';
+import {
+  buildHazardStripeTexture,
+  buildConsoleScreenTexture,
+  buildStencilPlacardTexture,
+  buildFirstAidTexture,
+  buildWarningStripeTexture,
+  buildPanelGrimeTexture,
+} from './ShipTextures';
 
 const ROOM_W = 9;
 const ROOM_D = 12;
 const ROOM_H = 4;
+const WALL_SPLIT_Y = 2.3; // seam height between the worn lower hull band and the cleaner upper trim band
 
-function buildHazardStripeTexture(): THREE.CanvasTexture {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#14120a';
-  ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = '#d9a441';
-  const stripeW = size / 4;
-  for (let i = -1; i < 5; i++) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, size, size);
-    ctx.clip();
-    ctx.translate(i * stripeW * 2, 0);
-    ctx.rotate(Math.PI / 4);
-    ctx.fillRect(-size, -size, stripeW, size * 4);
-    ctx.restore();
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return tex;
-}
-
-function buildConsoleScreenTexture(): THREE.CanvasTexture {
-  const w = 512;
-  const h = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#061a22';
-  ctx.fillRect(0, 0, w, h);
-
-  // Radar sweep circle, left side.
-  const cx = 64;
-  const cy = h / 2;
-  ctx.strokeStyle = 'rgba(120,220,235,0.55)';
-  ctx.lineWidth = 1.5;
-  for (const r of [16, 32, 48]) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.strokeStyle = 'rgba(217,164,65,0.8)';
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + 44, cy - 20);
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(120,220,235,0.9)';
-  ctx.beginPath();
-  ctx.arc(cx + 18, cy + 10, 2.4, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Data bars, right side.
-  ctx.fillStyle = 'rgba(120,220,235,0.4)';
-  for (let i = 0; i < 8; i++) {
-    const bh = 6 + ((i * 37) % 40);
-    ctx.fillRect(150 + i * 14, h - 14 - bh, 8, bh);
-  }
-  ctx.fillStyle = 'rgba(217,164,65,0.85)';
-  ctx.font = '12px monospace';
-  ctx.fillText('NAV // OFFLINE', 150, 22);
-  ctx.fillStyle = 'rgba(120,220,235,0.5)';
-  ctx.font = '9px monospace';
-  ctx.fillText('SCN 04.1', 150, 36);
-
-  // Scanline texture.
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+interface StatusLight {
+  mesh: THREE.Mesh;
+  material: THREE.MeshStandardMaterial;
+  phase: number;
+  onIntensity: number;
 }
 
 export class ShipInteriorScene implements GameScene {
@@ -99,6 +37,8 @@ export class ShipInteriorScene implements GameScene {
   private floorMeshes: THREE.Object3D[] = [];
   private consoleGlow: THREE.PointLight[] = [];
   private starfield: THREE.Points | null = null;
+  private emergencyLight: THREE.PointLight | null = null;
+  private statusLights: StatusLight[] = [];
   private unsubShake: (() => void) | null = null;
   private stopAmbient: (() => void) | null = null;
 
@@ -110,7 +50,11 @@ export class ShipInteriorScene implements GameScene {
     UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x03040a);
     this.scene.environment = getSharedEnvironment();
-    this.scene.environmentIntensity = 0.6;
+    this.scene.environmentIntensity = 0.5;
+    // Light haze so geometry beyond a few meters softens into the dark rather than cutting off
+    // with a hard edge — the room is only 12 units deep, so density is kept low enough that the
+    // console/airlock are still crisp from spawn.
+    this.scene.fog = new THREE.FogExp2(0x05070c, 0.045);
     this.buildRoom();
     this.buildStarfieldWindow();
     this.buildAirlock();
@@ -131,12 +75,66 @@ export class ShipInteriorScene implements GameScene {
     bus.emit('scene:ship_interior:ready');
   }
 
+  // Stacks a worn lower hull band (ship_wall) under a cleaner upper trim band (ship_trim),
+  // with a warm amber seam strip between them — the layered-material read the brief asks for
+  // instead of one texture stretched across a whole wall.
+  private addBandedWall(w: number, d: number, cx: number, cz: number, lowerMat: THREE.Material, upperMat: THREE.Material, seamMat: THREE.Material): void {
+    const upperH = ROOM_H - WALL_SPLIT_Y;
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(w, WALL_SPLIT_Y, d), lowerMat);
+    lower.position.set(cx, WALL_SPLIT_Y / 2, cz);
+    lower.receiveShadow = true;
+    this.scene.add(lower);
+
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(w, upperH, d), upperMat);
+    upper.position.set(cx, WALL_SPLIT_Y + upperH / 2, cz);
+    upper.receiveShadow = true;
+    this.scene.add(upper);
+
+    const seam = new THREE.Mesh(new THREE.BoxGeometry(w * 0.98, 0.05, d + 0.02), seamMat);
+    seam.position.set(cx, WALL_SPLIT_Y, cz);
+    this.scene.add(seam);
+  }
+
+  private addGrimeOverlay(width: number, height: number, position: THREE.Vector3, rotation: THREE.Euler, opacity = 0.4): void {
+    const grimeMat = new THREE.MeshBasicMaterial({
+      map: buildPanelGrimeTexture(),
+      transparent: true,
+      opacity,
+      blending: THREE.MultiplyBlending,
+      premultipliedAlpha: true,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), grimeMat);
+    mesh.position.copy(position);
+    mesh.rotation.copy(rotation);
+    mesh.renderOrder = 1;
+    this.scene.add(mesh);
+  }
+
   private buildRoom(): void {
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0xaeb4c0, roughness: 0.6, metalness: 0.6, side: THREE.DoubleSide });
-    applyPbr(floorMat, 'metal_plate_02', [ROOM_W / 1.6, ROOM_D / 1.6]);
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x9aa0ae, roughness: 0.75, metalness: 0.4, side: THREE.DoubleSide });
-    applyPbr(wallMat, 'metal_plate', [ROOM_W / 2.2, ROOM_H / 2.2]);
-    const trimMat = new THREE.MeshStandardMaterial({ color: 0x181b22, roughness: 0.4, metalness: 0.5, side: THREE.DoubleSide });
+    // The downloaded PBR photo sets (worn/rusty metal, by nature of what "worn" looks like) are
+    // all quite dark on their own — average diffuse luminance well under half grey. A
+    // MeshStandardMaterial's base `color` can only ever DARKEN a texture (it's a multiply, capped
+    // at 1.0), never brighten it past its own pixel values, so no amount of scene lighting can
+    // pull detail out of them once compounded with ACES's shadow rolloff. A small flat emissive
+    // floor (independent of incoming light) keeps the worn/grimy detail from the texture itself
+    // visible while guaranteeing the room doesn't read as solid black in areas any real light
+    // doesn't directly reach.
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc4, roughness: 0.75, metalness: 0.45, side: THREE.DoubleSide, emissive: 0x4a3826, emissiveIntensity: 1.1 });
+    applyPbr(floorMat, 'ship_floor', [ROOM_W / 1.6, ROOM_D / 1.6]);
+
+    const wallLowerMat = new THREE.MeshStandardMaterial({ color: 0xb0a89c, roughness: 0.85, metalness: 0.35, emissive: 0x4a3826, emissiveIntensity: 1.1 });
+    applyPbr(wallLowerMat, 'ship_wall', [ROOM_W / 2.4, WALL_SPLIT_Y / 2]);
+    const wallUpperMat = new THREE.MeshStandardMaterial({ color: 0xc4cbd6, roughness: 0.7, metalness: 0.35, emissive: 0x2a3648, emissiveIntensity: 1.1 });
+    applyPbr(wallUpperMat, 'ship_trim', [ROOM_W / 2.4, (ROOM_H - WALL_SPLIT_Y) / 1.5]);
+    const sideLowerMat = new THREE.MeshStandardMaterial({ color: 0xb0a89c, roughness: 0.85, metalness: 0.35, emissive: 0x4a3826, emissiveIntensity: 1.1 });
+    applyPbr(sideLowerMat, 'ship_wall', [ROOM_D / 2.4, WALL_SPLIT_Y / 2]);
+    const sideUpperMat = new THREE.MeshStandardMaterial({ color: 0xc4cbd6, roughness: 0.7, metalness: 0.35, emissive: 0x2a3648, emissiveIntensity: 1.1 });
+    applyPbr(sideUpperMat, 'ship_trim', [ROOM_D / 2.4, (ROOM_H - WALL_SPLIT_Y) / 1.5]);
+    const seamMat = new THREE.MeshStandardMaterial({ color: 0xd9a441, roughness: 0.5, metalness: 0.5 });
+
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x585f6c, roughness: 0.75, metalness: 0.35, emissive: 0x4a3f30, emissiveIntensity: 1.2 });
+    applyPbr(ceilingMat, 'ship_console', [ROOM_W / 1.5, ROOM_D / 1.5]);
 
     const floor = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.2, ROOM_D), floorMat);
     floor.position.y = -0.1;
@@ -144,27 +142,44 @@ export class ShipInteriorScene implements GameScene {
     this.scene.add(floor);
     this.floorMeshes.push(floor);
 
-    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.15, ROOM_D), trimMat);
+    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.15, ROOM_D), ceilingMat);
     ceiling.position.y = ROOM_H;
     this.scene.add(ceiling);
 
-    const wallGeo = new THREE.BoxGeometry(ROOM_W, ROOM_H, 0.2);
-    const backWall = new THREE.Mesh(wallGeo, wallMat);
-    backWall.position.set(0, ROOM_H / 2, ROOM_D / 2);
-    backWall.receiveShadow = true;
-    this.scene.add(backWall);
+    // Airlock wall (+Z) and console wall (-Z), both banded worn-lower/clean-upper.
+    this.addBandedWall(ROOM_W, 0.2, 0, ROOM_D / 2, wallLowerMat, wallUpperMat, seamMat);
+    this.addBandedWall(ROOM_W, 0.2, 0, -ROOM_D / 2, wallLowerMat, wallUpperMat, seamMat);
+    // Side walls — geometry axes are swapped (thin dimension along X).
+    this.addBandedWall(0.2, ROOM_D, -ROOM_W / 2, 0, sideLowerMat, sideUpperMat, seamMat);
+    this.addBandedWall(0.2, ROOM_D, ROOM_W / 2, 0, sideLowerMat, sideUpperMat, seamMat);
 
-    const sideGeo = new THREE.BoxGeometry(0.2, ROOM_H, ROOM_D);
-    const leftWall = new THREE.Mesh(sideGeo, wallMat);
-    leftWall.position.set(-ROOM_W / 2, ROOM_H / 2, 0);
-    this.scene.add(leftWall);
-    const rightWall = new THREE.Mesh(sideGeo, wallMat);
-    rightWall.position.set(ROOM_W / 2, ROOM_H / 2, 0);
-    this.scene.add(rightWall);
+    // Grime passes on the two side walls and the floor break up PBR tiling repetition.
+    this.addGrimeOverlay(
+      ROOM_D - 1,
+      WALL_SPLIT_Y - 0.1,
+      new THREE.Vector3(-ROOM_W / 2 + 0.15, WALL_SPLIT_Y / 2, 0),
+      new THREE.Euler(0, Math.PI / 2, 0),
+      0.35,
+    );
+    this.addGrimeOverlay(
+      ROOM_D - 1,
+      WALL_SPLIT_Y - 0.1,
+      new THREE.Vector3(ROOM_W / 2 - 0.15, WALL_SPLIT_Y / 2, 0),
+      new THREE.Euler(0, -Math.PI / 2, 0),
+      0.35,
+    );
+    this.addGrimeOverlay(
+      ROOM_W - 0.6,
+      ROOM_D - 0.6,
+      new THREE.Vector3(0, 0.005, 0),
+      new THREE.Euler(-Math.PI / 2, 0, 0),
+      0.3,
+    );
 
     // ribbed floor trim panels for visual density
+    const ribMat = new THREE.MeshStandardMaterial({ color: 0x14161c, roughness: 0.5, metalness: 0.6 });
     for (let i = -5; i <= 5; i++) {
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.4, 0.02, 0.08), trimMat);
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.4, 0.02, 0.08), ribMat);
       trim.position.set(0, 0.01, i * 1.05);
       this.scene.add(trim);
     }
@@ -173,7 +188,7 @@ export class ShipInteriorScene implements GameScene {
   private buildStarfieldWindow(): void {
     const windowFrame = new THREE.Mesh(
       new THREE.BoxGeometry(6.4, 2.6, 0.15),
-      new THREE.MeshStandardMaterial({ color: 0x0c0e13, metalness: 0.85, roughness: 0.3 }),
+      new THREE.MeshStandardMaterial({ color: 0x0c0e13, metalness: 0.3, roughness: 0.8 }),
     );
     windowFrame.position.set(0, 2.2, -ROOM_D / 2 + 0.3);
     this.scene.add(windowFrame);
@@ -211,22 +226,42 @@ export class ShipInteriorScene implements GameScene {
     hazardTex.repeat.set(6, 1);
     const hazardMat = new THREE.MeshStandardMaterial({ map: hazardTex, roughness: 0.6, metalness: 0.3 });
 
+    // The airlock wall's front face sits at ROOM_D/2 - 0.1 (=5.9); every door element below
+    // is kept solidly in front of that (smaller z, closer to camera) with clear gaps between
+    // stages so nothing gets swallowed by the wall's own depth or z-fights against it.
     const kickstrip = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W - 0.4, 0.16, 0.05), hazardMat);
-    kickstrip.position.set(0, 0.1, ROOM_D / 2 - 0.08);
+    kickstrip.position.set(0, 0.1, ROOM_D / 2 - 0.2);
     this.scene.add(kickstrip);
 
-    const doorMat = new THREE.MeshStandardMaterial({ color: 0x3a3f4c, roughness: 0.4, metalness: 0.75 });
-    const doorRing = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.14, 12, 24), doorMat);
-    doorRing.position.set(0, 2.0, ROOM_D / 2 - 0.09);
-    this.scene.add(doorRing);
+    // Solid hex disc behind the door panel, slightly wider — its front cap shows as a
+    // striped ring around the panel edge instead of a razor-thin silhouette line.
+    const stripeTex = buildWarningStripeTexture('amber');
+    stripeTex.repeat.set(6, 1);
+    const frameMat = new THREE.MeshStandardMaterial({
+      map: stripeTex,
+      emissive: 0xd9a441,
+      emissiveMap: stripeTex,
+      emissiveIntensity: 0.35,
+      roughness: 0.7,
+      metalness: 0.2,
+      side: THREE.DoubleSide,
+    });
+    const doorFrame = new THREE.Mesh(new THREE.CylinderGeometry(1.32, 1.32, 0.06, 6), frameMat);
+    doorFrame.rotation.x = Math.PI / 2;
+    doorFrame.position.set(0, 2.0, ROOM_D / 2 - 0.2);
+    this.scene.add(doorFrame);
 
-    const doorPanel = new THREE.Mesh(new THREE.CircleGeometry(1.16, 24), new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.5, metalness: 0.6 }));
-    doorPanel.position.set(0, 2.0, ROOM_D / 2 - 0.07);
+    // Hexagonal airlock panel, echoing reference 3's hex-door language.
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0xaeb6c2, roughness: 0.75, metalness: 0.25 });
+    applyPbr(doorMat, 'ship_trim', [1, 1]);
+    const doorPanel = new THREE.Mesh(new THREE.CylinderGeometry(1.16, 1.16, 0.08, 6), doorMat);
+    doorPanel.rotation.x = Math.PI / 2;
+    doorPanel.position.set(0, 2.0, ROOM_D / 2 - 0.28);
     this.scene.add(doorPanel);
 
     const wheelMat = new THREE.MeshStandardMaterial({ color: 0xd9a441, emissive: 0xd9a441, emissiveIntensity: 0.3, roughness: 0.4, metalness: 0.6 });
     const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.05, 8, 16), wheelMat);
-    wheel.position.set(0, 2.0, ROOM_D / 2 - 0.02);
+    wheel.position.set(0, 2.0, ROOM_D / 2 - 0.35);
     this.scene.add(wheel);
     for (let i = 0; i < 4; i++) {
       const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.04), wheelMat);
@@ -235,37 +270,81 @@ export class ShipInteriorScene implements GameScene {
       this.scene.add(spoke);
     }
 
-    const doorLight = new THREE.PointLight(0xd9a441, 1.2, 4);
-    doorLight.position.set(0, 2.6, ROOM_D / 2 - 0.5);
+    // Warm pool of light in front of the airlock — kept well clear of the door surface
+    // (~0.9 units) so it doesn't reintroduce the bloom-blowout bug.
+    const doorLight = new THREE.PointLight(0xd9a441, 2.0, 6, 2);
+    doorLight.position.set(0, 2.3, ROOM_D / 2 - 1.7);
     this.scene.add(doorLight);
   }
 
   private buildConsole(): void {
-    const consoleMat = new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.4, metalness: 0.7 });
-    const screenTex = buildConsoleScreenTexture();
-    const screenMat = new THREE.MeshStandardMaterial({
+    const consoleMat = new THREE.MeshStandardMaterial({ color: 0x9aa2ad, roughness: 0.85, metalness: 0.15 });
+    applyPbr(consoleMat, 'ship_console', [1.5, 0.8]);
+
+    const navTex = buildConsoleScreenTexture('nav');
+    const navScreenMat = new THREE.MeshStandardMaterial({
       color: 0x0a1620,
       emissive: 0xffffff,
-      emissiveMap: screenTex,
-      emissiveIntensity: 0.45,
-      map: screenTex,
-      roughness: 0.3,
+      emissiveMap: navTex,
+      emissiveIntensity: 0.5,
+      map: navTex,
+      roughness: 0.9,
+      metalness: 0,
+    });
+    const statusTex = buildConsoleScreenTexture('status');
+    const statusScreenMat = new THREE.MeshStandardMaterial({
+      color: 0x180d04,
+      emissive: 0xffffff,
+      emissiveMap: statusTex,
+      emissiveIntensity: 0.55,
+      map: statusTex,
+      roughness: 0.9,
+      metalness: 0,
     });
 
-    const consoleBase = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 0.7), consoleMat);
+    const consoleBase = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.1, 0.7), consoleMat);
     consoleBase.position.set(0, 0.55, -3.6);
     consoleBase.castShadow = true;
     this.scene.add(consoleBase);
 
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.5, 0.05), screenMat);
-    screen.position.set(0, 1.15, -3.55);
-    screen.rotation.x = -0.35;
-    this.scene.add(screen);
+    // Both screens are thin emissive boxes tilted back toward the player; without an opaque
+    // backing plate their rear face glows just as brightly, showing the (unmirrored) screen
+    // content through the console from behind. A plain dark plate mounted just behind each
+    // screen blocks that without needing a per-face material array.
+    const backingMat = new THREE.MeshStandardMaterial({ color: 0x0a0b0e, roughness: 0.8, metalness: 0.1 });
 
-    const consoleLight = new THREE.PointLight(0x2f9fd6, 1.1, 4);
-    consoleLight.position.set(0, 1.2, -2.9);
-    this.scene.add(consoleLight);
-    this.consoleGlow.push(consoleLight);
+    const navBacking = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.56, 0.04), backingMat);
+    navBacking.position.set(-0.68, 1.16, -3.62);
+    navBacking.rotation.x = -0.35;
+    this.scene.add(navBacking);
+    const navScreen = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 0.05), navScreenMat);
+    navScreen.position.set(-0.68, 1.15, -3.55);
+    navScreen.rotation.x = -0.35;
+    this.scene.add(navScreen);
+
+    const statusBacking = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.56, 0.04), backingMat);
+    statusBacking.position.set(0.68, 1.16, -3.62);
+    statusBacking.rotation.x = -0.35;
+    this.scene.add(statusBacking);
+    const statusScreen = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 0.05), statusScreenMat);
+    statusScreen.position.set(0.68, 1.15, -3.55);
+    statusScreen.rotation.x = -0.35;
+    this.scene.add(statusScreen);
+
+    // Warm key light doubling as the console's pulsing "glow" accent — kept 0.9+ units
+    // away from the console/screens and within the 0.8-2.0 safe intensity band.
+    const keyLight = new THREE.PointLight(0xffb066, 1.0, 6, 2);
+    keyLight.position.set(0, 2.6, -3.0);
+    this.scene.add(keyLight);
+    this.consoleGlow.push(keyLight);
+
+    const placardTex = buildStencilPlacardTexture('NAV-01', 'CONSOLE');
+    const placard = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.5, 0.25),
+      new THREE.MeshStandardMaterial({ map: placardTex, roughness: 0.7, metalness: 0.15 }),
+    );
+    placard.position.set(1.1, 0.85, -3.24);
+    this.scene.add(placard);
 
     const seat = new THREE.Mesh(
       new THREE.CylinderGeometry(0.4, 0.45, 0.9, 12),
@@ -286,10 +365,9 @@ export class ShipInteriorScene implements GameScene {
     });
 
     // Journal terminal on the side wall
-    const journalTerminal = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 0.9, 0.12),
-      new THREE.MeshStandardMaterial({ color: 0x24303a, emissive: 0x274b3a, emissiveIntensity: 0.6 }),
-    );
+    const journalMat = new THREE.MeshStandardMaterial({ color: 0x24303a, emissive: 0x274b3a, emissiveIntensity: 0.5, roughness: 0.5, metalness: 0.4 });
+    applyPbr(journalMat, 'ship_trim', [0.5, 0.7]);
+    const journalTerminal = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.12), journalMat);
     journalTerminal.position.set(-ROOM_W / 2 + 0.15, 1.3, 1.5);
     journalTerminal.rotation.y = Math.PI / 2;
     this.scene.add(journalTerminal);
@@ -302,10 +380,9 @@ export class ShipInteriorScene implements GameScene {
     });
 
     // Repair station
-    const repairStation = new THREE.Mesh(
-      new THREE.BoxGeometry(0.7, 1.4, 0.5),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a24, emissive: 0xaa5522, emissiveIntensity: 0.35 }),
-    );
+    const repairMat = new THREE.MeshStandardMaterial({ color: 0x3a2a24, emissive: 0xaa5522, emissiveIntensity: 0.3, roughness: 0.5, metalness: 0.4 });
+    applyPbr(repairMat, 'ship_trim', [0.6, 1.2]);
+    const repairStation = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.4, 0.5), repairMat);
     repairStation.position.set(ROOM_W / 2 - 0.5, 0.7, 2.2);
     this.scene.add(repairStation);
     this.interaction.register({
@@ -320,7 +397,7 @@ export class ShipInteriorScene implements GameScene {
   private buildDetailProps(): void {
     const buttonColors = [0xd94f4f, 0xd9a441, 0x4fd98a, 0x4f8fd9];
     const buttonMat = (color: number) =>
-      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.2 });
+      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.7, roughness: 0.3, metalness: 0.2 });
     for (let row = 0; row < 2; row++) {
       for (let col = 0; col < 5; col++) {
         const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 10), buttonMat(buttonColors[(row * 5 + col) % buttonColors.length]));
@@ -330,27 +407,92 @@ export class ShipInteriorScene implements GameScene {
       }
     }
 
+    // Sagging ceiling cable bundles along both side walls (three tubes each, gentle droop).
     const cableMat = new THREE.MeshStandardMaterial({ color: 0x14161c, roughness: 0.6, metalness: 0.4 });
-    for (let i = 0; i < 4; i++) {
-      const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), cableMat);
-      cable.position.set(-ROOM_W / 2 + 0.25, 2.6, -3 + i * 1.3);
-      cable.rotation.z = 0.08 * (i % 2 === 0 ? 1 : -1);
-      this.scene.add(cable);
+    for (const x of [-ROOM_W / 2 + 0.3, ROOM_W / 2 - 0.3]) {
+      for (let i = 0; i < 3; i++) {
+        const yBase = ROOM_H - 0.25 - i * 0.07;
+        const curve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(x, yBase, -ROOM_D / 2 + 0.4),
+          new THREE.Vector3(x, yBase - 0.08, -ROOM_D / 4),
+          new THREE.Vector3(x, yBase, 0),
+          new THREE.Vector3(x, yBase - 0.08, ROOM_D / 4),
+          new THREE.Vector3(x, yBase, ROOM_D / 2 - 0.4),
+        ]);
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.03, 6, false), cableMat);
+        this.scene.add(tube);
+      }
     }
 
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0x2c313c, roughness: 0.45, metalness: 0.5 });
-    const sidePanel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.6, 2.4), panelMat);
-    sidePanel.position.set(-ROOM_W / 2 + 0.16, 1.4, -1);
-    this.scene.add(sidePanel);
-    for (let i = 0; i < 6; i++) {
-      const dotColor = i % 3 === 0 ? 0xd94f4f : 0x4fd98a;
-      const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(0.03, 8, 8),
-        new THREE.MeshStandardMaterial({ color: dotColor, emissive: dotColor, emissiveIntensity: 1.6 }),
-      );
-      dot.position.set(-ROOM_W / 2 + 0.21, 0.8 + i * 0.28, -1.9 + (i % 2) * 0.4);
-      this.scene.add(dot);
+    // Wall-mounted status light clusters (blinking, animated in update()).
+    const dotColors = [0xd94f4f, 0x4fd98a, 0xd9a441];
+    for (const cz of [-1.0, 3.0]) {
+      for (let i = 0; i < 3; i++) {
+        const color = dotColors[i % dotColors.length];
+        const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.2, roughness: 0.4 });
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), mat);
+        dot.position.set(-ROOM_W / 2 + 0.22, 1.6 + i * 0.14, cz);
+        this.scene.add(dot);
+        this.statusLights.push({ mesh: dot, material: mat, phase: Math.random() * Math.PI * 2, onIntensity: 1.3 });
+      }
     }
+
+    // Stencilled ID placards.
+    const placards: [string, string | undefined, THREE.Vector3, number][] = [
+      ['KB-215', 'MAINT BAY', new THREE.Vector3(-ROOM_W / 2 + 0.11, 1.9, -2.2), Math.PI / 2],
+      ['RST-04', 'HULL SEC', new THREE.Vector3(ROOM_W / 2 - 0.11, 1.9, 4.4), -Math.PI / 2],
+      ['OX-11', 'LIFE SUPPORT', new THREE.Vector3(-ROOM_W / 2 + 0.11, 1.9, 3.4), Math.PI / 2],
+    ];
+    for (const [id, sub, pos, rotY] of placards) {
+      const tex = buildStencilPlacardTexture(id, sub);
+      const placard = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.5, 0.25),
+        new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, metalness: 0.15 }),
+      );
+      placard.position.copy(pos);
+      placard.rotation.y = rotY;
+      this.scene.add(placard);
+    }
+
+    // Fire extinguisher against the left wall, near the airlock.
+    const extinguisherBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.1, 0.5, 10),
+      new THREE.MeshStandardMaterial({ color: 0xb32a1f, roughness: 0.45, metalness: 0.3 }),
+    );
+    extinguisherBody.position.set(-ROOM_W / 2 + 0.32, 0.35, 4.6);
+    this.scene.add(extinguisherBody);
+    const extinguisherCap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.09, 0.1, 10),
+      new THREE.MeshStandardMaterial({ color: 0x1c1f26, roughness: 0.5, metalness: 0.6 }),
+    );
+    extinguisherCap.position.set(-ROOM_W / 2 + 0.32, 0.65, 4.6);
+    this.scene.add(extinguisherCap);
+    const stripeTex = buildWarningStripeTexture('red');
+    stripeTex.repeat.set(3, 1);
+    const extinguisherBand = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.095, 0.095, 0.06, 10),
+      new THREE.MeshStandardMaterial({ map: stripeTex, roughness: 0.5 }),
+    );
+    extinguisherBand.position.set(-ROOM_W / 2 + 0.32, 0.5, 4.6);
+    this.scene.add(extinguisherBand);
+    const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.15), new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.5, metalness: 0.6 }));
+    bracket.position.set(-ROOM_W / 2 + 0.19, 0.4, 4.6);
+    this.scene.add(bracket);
+
+    // First-aid box against the right wall, mounted face-out.
+    const firstAidTex = buildFirstAidTexture();
+    const firstAidMats = [
+      new THREE.MeshStandardMaterial({ color: 0x5c1414, roughness: 0.6 }),
+      new THREE.MeshStandardMaterial({ color: 0x5c1414, roughness: 0.6 }),
+      new THREE.MeshStandardMaterial({ color: 0x5c1414, roughness: 0.6 }),
+      new THREE.MeshStandardMaterial({ color: 0x5c1414, roughness: 0.6 }),
+      new THREE.MeshStandardMaterial({ map: firstAidTex, roughness: 0.5 }),
+      new THREE.MeshStandardMaterial({ color: 0x5c1414, roughness: 0.6 }),
+    ];
+    const firstAidBox = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.12), firstAidMats);
+    firstAidBox.position.set(ROOM_W / 2 - 0.14, 1.4, 5.0);
+    firstAidBox.rotation.y = -Math.PI / 2;
+    this.scene.add(firstAidBox);
 
     const pipeMat = new THREE.MeshStandardMaterial({ color: 0x1c1f26, roughness: 0.5, metalness: 0.6 });
     for (const x of [-2.5, 2.5]) {
@@ -362,40 +504,59 @@ export class ShipInteriorScene implements GameScene {
   }
 
   private buildLighting(): void {
-    const ambient = new THREE.AmbientLight(0xaec3e0, 1.3);
+    // Soft cool-sky / warm-bounce ambient baseline. A near-black ground color (as opposed to
+    // AmbientLight's old flat 1.3) meant vertical walls — most of the room's visible surface —
+    // were only catching a thin sky-facing sliver; lifted the ground tone and intensity so the
+    // room reads before any point-light pool reaches it, matching "warm light pooling against
+    // COOL DARK shadow" rather than pooling against true black.
+    const hemi = new THREE.HemisphereLight(0x8ea3c4, 0x3a2c1e, 1.05);
+    this.scene.add(hemi);
+
+    // Flat, orientation-independent baseline on top of the hemisphere — measured directly
+    // against the running scene: hemisphere + point pools alone still left large wall/ceiling
+    // regions reading as solid black (0,0,0) despite "reasonable" intensities, because ACES
+    // tonemapping crushes mid-low values hard and HemisphereLight only lights vertical surfaces
+    // at half its nominal intensity (their normal is orthogonal to the light's sky/ground axis).
+    const ambient = new THREE.AmbientLight(0x9aa4b8, 0.6);
     this.scene.add(ambient);
 
-    const fill = new THREE.DirectionalLight(0xcfe0ff, 1.8);
-    fill.position.set(3, 5, 3);
-    this.scene.add(fill);
+    // Faint cold starlight drifting in through the window behind the console.
+    const starlight = new THREE.DirectionalLight(0x5a72a8, 0.3);
+    starlight.position.set(0, 5, -20);
+    this.scene.add(starlight);
 
-    const overheadA = new THREE.PointLight(0xdfe8ff, 0.8, 9, 1.6);
-    overheadA.position.set(0, ROOM_H - 0.7, -2);
+    // Overhead fill lights spread along the room's length (airlock end, mid-room, console end)
+    // with a soft decay so their pools actually overlap and cover the full 12-unit depth,
+    // instead of three isolated hotspots with dark gaps between them.
+    const overheadA = new THREE.PointLight(0xdfe8ff, 1.1, 11, 1.5);
+    overheadA.position.set(0, ROOM_H - 0.6, 4);
     this.scene.add(overheadA);
-
-    const overheadB = new THREE.PointLight(0xdfe8ff, 1.2, 9, 1.6);
-    overheadB.position.set(0, ROOM_H - 0.7, 3);
+    const overheadB = new THREE.PointLight(0xfff2df, 1.0, 11, 1.5);
+    overheadB.position.set(1.5, ROOM_H - 0.6, -0.5);
     this.scene.add(overheadB);
-
-    const overheadC = new THREE.PointLight(0xdfe8ff, 1.0, 8, 1.6);
-    overheadC.position.set(0, ROOM_H - 0.7, 5);
+    const overheadC = new THREE.PointLight(0x9fb8d9, 1.0, 11, 1.5);
+    overheadC.position.set(-1.5, ROOM_H - 0.6, -3);
     this.scene.add(overheadC);
 
-    const emergencyLight = new THREE.PointLight(0xff5533, 1.5, 8);
-    emergencyLight.position.set(-3, 3.5, -2);
+    const emergencyLight = new THREE.PointLight(0xff5533, 1.3, 7, 2);
+    emergencyLight.position.set(-3, 3.3, -1);
     this.scene.add(emergencyLight);
+    this.emergencyLight = emergencyLight;
   }
 
   private roomColliders(): THREE.Box3[] {
     const inset = 0.4;
     return [
-      new THREE.Box3(
-        new THREE.Vector3(-ROOM_W / 2, 0, ROOM_D / 2 - 0.5),
-        new THREE.Vector3(ROOM_W / 2, 3, ROOM_D / 2),
-      ),
+      // Airlock wall (+Z)
+      new THREE.Box3(new THREE.Vector3(-ROOM_W / 2, 0, ROOM_D / 2 - 0.5), new THREE.Vector3(ROOM_W / 2, 3, ROOM_D / 2)),
+      // Console wall (-Z)
+      new THREE.Box3(new THREE.Vector3(-ROOM_W / 2, 0, -ROOM_D / 2), new THREE.Vector3(ROOM_W / 2, 3, -ROOM_D / 2 + 0.5)),
       new THREE.Box3(new THREE.Vector3(-ROOM_W / 2 - 1, 0, -ROOM_D / 2), new THREE.Vector3(-ROOM_W / 2 + inset, 3, ROOM_D / 2)),
       new THREE.Box3(new THREE.Vector3(ROOM_W / 2 - inset, 0, -ROOM_D / 2), new THREE.Vector3(ROOM_W / 2 + 1, 3, ROOM_D / 2)),
-      new THREE.Box3(new THREE.Vector3(-1.3, 0, -3.9), new THREE.Vector3(1.3, 1.2, -3.2)),
+      // Console housing (3.0 x 1.1 x 0.7 centered 0, 0.55, -3.6)
+      new THREE.Box3(new THREE.Vector3(-1.5, 0, -3.95), new THREE.Vector3(1.5, 1.2, -3.25)),
+      // Repair station (0.7 x 1.4 x 0.5 centered ROOM_W/2-0.5, 0.7, 2.2)
+      new THREE.Box3(new THREE.Vector3(ROOM_W / 2 - 0.85, 0, 1.95), new THREE.Vector3(ROOM_W / 2 - 0.15, 1.4, 2.45)),
     ];
   }
 
@@ -403,9 +564,16 @@ export class ShipInteriorScene implements GameScene {
     this.player.update(dt);
     this.interaction.update(this.camera);
     for (const light of this.consoleGlow) {
-      light.intensity = 2.0 + Math.sin(elapsed * 2.2) * 0.3;
+      light.intensity = 1.5 + Math.sin(elapsed * 2.2) * 0.25;
     }
     if (this.starfield) this.starfield.rotation.y += dt * 0.0015;
+    if (this.emergencyLight) {
+      this.emergencyLight.intensity = 1.1 + Math.sin(elapsed * 3.1) * 0.2 + (Math.random() < 0.02 ? 0.4 : 0);
+    }
+    for (const status of this.statusLights) {
+      const on = Math.sin(elapsed * 5 + status.phase) > 0.4;
+      status.material.emissiveIntensity = on ? status.onIntensity : 0.15;
+    }
   }
 
   onResize(width: number, height: number): void {
