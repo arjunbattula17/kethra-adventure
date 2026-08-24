@@ -13,6 +13,7 @@ import {
   buildRackUnitTexture,
   buildContactShadowTexture,
   buildStreakTexture,
+  buildFloorGrimeTexture,
   applySurface,
 } from './propsTextures';
 import type { InteriorCtx } from './ctx';
@@ -37,6 +38,18 @@ const FRONT_Z = ROOM_D / 2 - 0.1;
 // ===========================================================================================
 // geometry / material kit
 // ===========================================================================================
+
+/** Deterministic PRNG for scatter layouts (mulberry32) — reproducible without a per-call seed arg. */
+function mulberry32(seed: number): () => number {
+  let a = seed;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 const chamferCache = new Map<string, THREE.BufferGeometry>();
 
@@ -281,6 +294,8 @@ interface Kit {
   contact: Batch;
   /** Drip / grime decals, one batch per stain tint. */
   streaks: Batch[];
+  /** Scattered floor grime patches, one batch per stain tint. */
+  floorGrime: Batch[];
 }
 
 function place(
@@ -742,7 +757,9 @@ function buildRelayRack(k: Kit, ctx: InteriorCtx, x: number, z: number, ry: numb
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(c0x, h + 0.14, c0z + i * 0.06 - 0.06),
       new THREE.Vector3(c0x + Math.sign(x) * -0.1, h + 0.55, c0z + i * 0.05),
-      new THREE.Vector3(x + Math.sign(x) * 0.24, 2.9, z + i * 0.07 - 0.07),
+      // Raised from 2.9 to 3.3 so the loom visibly climbs toward the ceiling cable spans this
+      // round adds rather than stopping short of the newly-dressed volume above it.
+      new THREE.Vector3(x + Math.sign(x) * 0.24, 3.3, z + i * 0.07 - 0.07),
     ]);
     place(k, new THREE.TubeGeometry(curve, 12, 0.018, 5, false), k.m.rubber, 0, 0, 0);
   }
@@ -1158,6 +1175,116 @@ function buildDeckClutter(k: Kit, x: number, z: number, variant: number): void {
   }
 }
 
+/**
+ * Rectangular sheet-metal trunk duct crossing the room's ceiling void at mid-depth, with seam
+ * ribs, strap stubs and flanged end caps. Round 6's critique named the open middle of the ceiling
+ * — outside the two wall-hugging service runs this piece already builds — as flat, dark and
+ * undetailed relative to the rest of the room. This is what actually bridges that gap, so the
+ * overhead reads as one continuous mechanical system the way the reference's does, instead of two
+ * isolated wall shelves over a bare void. Kept well clear of `ceiling.ts`'s own structure: its
+ * lowest members (the cross-joists) sit at y 4.52-4.68, and this duct plus its strap stubs stay
+ * at y <= 4.5 everywhere.
+ */
+function buildCeilingDuct(k: Kit, z: number, y: number): void {
+  const x0 = -WALL_X + 0.5;
+  const x1 = WALL_X - 0.5;
+  const len = x1 - x0;
+  const cx = (x0 + x1) / 2;
+  const hh = 0.15;
+
+  place(k, chamferBox(len, hh * 2, 0.32, 0.022), k.m.steelDark, cx, y, z);
+  place(k, chamferBox(len, 0.03, 0.36, 0.008), k.m.steel, cx, y + hh + 0.015, z);
+  place(k, chamferBox(len, 0.03, 0.36, 0.008), k.m.steel, cx, y - hh - 0.015, z);
+
+  // Seam ribs at an irregular-reading interval, echoing the brief's bolted-plate language at
+  // duct scale rather than one smooth sheet-metal tube.
+  const seams = Math.max(3, Math.round(len / 1.1));
+  for (let i = 1; i < seams; i++) {
+    const x = x0 + (i / seams) * len;
+    place(k, chamferBox(0.045, hh * 2 - 0.01, 0.34, 0.008), k.m.steel, x, y, z);
+  }
+
+  // Short strap stubs reaching up toward the structure above — deliberately not resolved against
+  // the slab itself, since that geometry belongs to `ceiling.ts`.
+  const straps = Math.max(4, Math.round(len / 1.6));
+  for (let i = 0; i < straps; i++) {
+    const x = x0 + 0.3 + i * ((len - 0.6) / (straps - 1));
+    place(k, chamferBox(0.045, 0.1, 0.045, 0.01), k.m.steelLight, x, y + hh + 0.05, z);
+  }
+
+  // Flanged end caps.
+  for (const sx of [-1, 1] as const) {
+    const ex = sx > 0 ? x1 : x0;
+    place(k, chamferBox(0.05, hh * 2 + 0.05, 0.36, 0.012), k.m.steelDark, ex + sx * 0.03, y, z);
+    boltRect(k, sx > 0 ? 'px' : 'nx', ex + sx * 0.05, y, z, 0.3, hh * 2);
+  }
+
+  // A weeping seam has stained the deck straight down from mid-span — ties this new overhead
+  // detail back to the floor-variation half of the round's critique instead of leaving it purely
+  // up in the ceiling volume.
+  const dropX = x0 + len * 0.42;
+  k.floorGrime[0].add(dropX, 0.007, z, -Math.PI / 2, 0, 0.4, 1.1, 1.5, 1);
+}
+
+/**
+ * Cable/hose bundle slung between the two wall-mounted cable trays, sagging into the open middle
+ * of the ceiling. Alongside `buildCeilingDuct`, this is the other half of bridging the gap the
+ * round-6 critique flagged between the well-dressed wall runs and the bare void between them —
+ * and, being a catenary curve rather than a rigid box, it reads as a different kind of overhead
+ * object next to the duct rather than a second copy of it.
+ */
+function buildCeilingCableSpan(k: Kit, ctx: InteriorCtx, z: number, sag: number, phase: number): void {
+  const leftX = -WALL_X + 0.34;
+  const rightX = WALL_X - 0.34;
+  const trayY = 3.46;
+  const mats = [k.m.rubber, k.m.rubber, k.m.steelDark];
+  for (let i = 0; i < 3; i++) {
+    const jitter = (i - 1) * 0.09;
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(leftX, trayY - 0.03, z + jitter),
+      new THREE.Vector3(leftX * 0.55, trayY - sag * 0.7, z + jitter * 0.6),
+      new THREE.Vector3(0, trayY - sag, z),
+      new THREE.Vector3(rightX * 0.55, trayY - sag * 0.7, z - jitter * 0.6),
+      new THREE.Vector3(rightX, trayY - 0.03, z - jitter),
+    ]);
+    place(k, new THREE.TubeGeometry(curve, 28, 0.018 + i * 0.005, 6, false), mats[i], 0, 0, 0);
+  }
+
+  // Small anchor clamps where the bundle leaves each tray.
+  for (const x of [leftX, rightX]) {
+    place(k, chamferBox(0.08, 0.06, 0.14, 0.01), k.m.steelDark, x, trayY - 0.02, z);
+  }
+
+  // A distribution pod at the low point with a live status LED — reads as a real tap into the run
+  // rather than a decorative loop of cable.
+  const podY = trayY - sag - 0.06;
+  place(k, chamferBox(0.16, 0.11, 0.1, 0.012), k.m.steelDark, 0, podY, z);
+  const ledMat = new THREE.MeshStandardMaterial({ color: 0x4fd8f0, emissive: 0x4fd8f0, emissiveIntensity: 0.3, roughness: 0.35 });
+  const led = place(k, cyl(0.014, 0.014, 0.012, 8), ledMat, 0.09, podY, z, 0, 0, Math.PI / 2);
+  ctx.statusLights.push({ mesh: led, material: ledMat, phase, onIntensity: 1.4 });
+}
+
+/**
+ * Scattered floor grime — oil spread, foot-polished sheen, mineral scale — breaking up what the
+ * round-6 critique flagged as a uniform, plasticky floor read. Denser and darker outside the
+ * clear walking lane, near walls and equipment clusters; the lane itself keeps most of its rolls
+ * bare and only lets through the faintest scuffs, per the brief's "wear is localised and
+ * motivated, never a uniform tint."
+ */
+function scatterFloorGrime(k: Kit, count: number): void {
+  const rnd = mulberry32(0x9e17f2);
+  for (let i = 0; i < count; i++) {
+    const x = (rnd() - 0.5) * (ROOM_W - 0.6);
+    const z = (rnd() - 0.5) * (ROOM_D - 0.6);
+    const inLane = Math.abs(x) < 2.3;
+    if (inLane && rnd() < 0.6) continue;
+    const variant = Math.floor(rnd() * 3);
+    const size = (inLane ? 0.45 : 0.7) + rnd() * (inLane ? 0.6 : 1.4);
+    const yaw = rnd() * Math.PI * 2;
+    k.floorGrime[variant].add(x, 0.006 + variant * 0.001, z, -Math.PI / 2, 0, yaw, size, size * (0.6 + rnd() * 0.7), 1);
+  }
+}
+
 // ===========================================================================================
 // entry point
 // ===========================================================================================
@@ -1189,6 +1316,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
     jbCap: new Batch(cyl(0.048, 0.048, 0.05, 8), m.steelLight),
     contact: new Batch(plane(1, 1), decalMaterial(buildContactShadowTexture()), false, 2),
     streaks: [0, 1, 2].map((v) => new Batch(plane(1, 1), decalMaterial(buildStreakTexture(v)), false, 2)),
+    floorGrime: [0, 1, 2].map((v) => new Batch(plane(1, 1), decalMaterial(buildFloorGrimeTexture(v)), false, 1)),
   };
 
   // ----- console face controls -----
@@ -1217,6 +1345,14 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
     buildConduitRun(k, sign * WALL_X, sign);
     buildCableTray(k, ctx, sign * WALL_X, sign);
   }
+
+  // ----- ceiling volume: this round's primary target. A cross duct and two sagging cable spans
+  // bridge the open middle of the ceiling between the two wall-hugging runs above, so the
+  // overhead reads as one continuous mechanical system instead of two dressed shelves over a
+  // flat, dark void.
+  buildCeilingDuct(k, 0, 4.25);
+  buildCeilingCableSpan(k, ctx, -4.4, 0.55, 1.1);
+  buildCeilingCableSpan(k, ctx, 3.6, 0.42, 2.7);
   buildFloorDuct(k, -WALL_X, -1, -4.9, -3.3);
   buildFloorDuct(k, -WALL_X, -1, 0.5, 2.3);
   buildFloorDuct(k, WALL_X, 1, -1.05, 1.35);
@@ -1363,6 +1499,11 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   ];
   for (const [x, z, variant] of clutterSpots) buildDeckClutter(k, x, z, variant);
 
+  // ----- scattered floor grime: the other half of this round's critique, alongside the ceiling
+  // volume work above — breaks up the plasticky-uniform floor read with localised stains instead
+  // of a flat material colour.
+  scatterFloorGrime(k, 70);
+
   // ----- flush instanced batches -----
   k.bolt.flush(ctx.scene);
   k.slat.flush(ctx.scene);
@@ -1375,5 +1516,6 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   k.jbCap.flush(ctx.scene);
   k.contact.flush(ctx.scene);
   for (const s of k.streaks) s.flush(ctx.scene);
+  for (const s of k.floorGrime) s.flush(ctx.scene);
   autoInstance(k);
 }

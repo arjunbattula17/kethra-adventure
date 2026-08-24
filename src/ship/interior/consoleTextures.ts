@@ -1193,6 +1193,60 @@ export function buildStainDecalTexture(kind: 'oil' | 'scorch'): THREE.CanvasText
   return tex;
 }
 
+let screenGlassTex: THREE.CanvasTexture | null = null;
+
+/**
+ * Overlay for the glass in front of every screen face: a raking fresnel streak, a soft warm blob
+ * where the ceiling practicals would catch the pane, faint reflected mullions at the edges, and a
+ * corner vignette. Laid over the emissive screen texture (and paired with a thin clearcoat glass
+ * plane that catches the real scene lights) so a monitor reads as a lit physical surface reflecting
+ * the room around it, not a flat graphic pasted onto the bezel — the r6 critique's #1 gap.
+ */
+export function buildScreenGlassTexture(): THREE.CanvasTexture {
+  if (screenGlassTex) return screenGlassTex;
+  const S = 256;
+  const [canvas, ctx] = canvas2d(S, S);
+  ctx.clearRect(0, 0, S, S);
+
+  // Corner vignette: an unlit sheet of glass under a single overhead key naturally reads darker at
+  // its corners than at its centre.
+  const vig = ctx.createRadialGradient(S * 0.5, S * 0.5, S * 0.14, S * 0.5, S * 0.5, S * 0.74);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.3)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, S, S);
+
+  // Raking fresnel streak, angled to agree with the console's own key light approaching from
+  // screen-right — the single strongest cue that the pane is a reflective surface, not a decal.
+  ctx.save();
+  ctx.translate(S * 0.6, S * 0.36);
+  ctx.rotate(-0.52);
+  const streak = ctx.createLinearGradient(-S, 0, S, 0);
+  streak.addColorStop(0, 'rgba(255,255,255,0)');
+  streak.addColorStop(0.47, 'rgba(255,255,255,0)');
+  streak.addColorStop(0.5, 'rgba(240,246,250,0.24)');
+  streak.addColorStop(0.53, 'rgba(255,255,255,0)');
+  streak.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = streak;
+  ctx.fillRect(-S, -S * 0.15, S * 2, S * 0.3);
+  ctx.restore();
+
+  // Soft warm blob — the ceiling strip lights reflected in the pane, kept small and off-centre.
+  const warm = ctx.createRadialGradient(S * 0.26, S * 0.14, 2, S * 0.26, S * 0.14, S * 0.3);
+  warm.addColorStop(0, 'rgba(255,217,160,0.15)');
+  warm.addColorStop(1, 'rgba(255,217,160,0)');
+  ctx.fillStyle = warm;
+  ctx.fillRect(0, 0, S, S);
+
+  // Reflected structure at the very edges — the mullions either side showing faintly in the glass.
+  ctx.fillStyle = 'rgba(8,12,16,0.12)';
+  ctx.fillRect(0, 0, S * 0.045, S);
+  ctx.fillRect(S * 0.955, 0, S * 0.045, S);
+
+  screenGlassTex = finish(canvas, false);
+  return screenGlassTex;
+}
+
 let seatWearTex: THREE.CanvasTexture | null = null;
 
 /**

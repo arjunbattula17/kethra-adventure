@@ -11,6 +11,7 @@ import {
   buildStencilTextTexture,
   buildChevronTexture,
   buildDripTexture,
+  buildRubberTexture,
 } from './wallsTextures';
 
 const HALF_W = ROOM_W / 2; // 6
@@ -46,16 +47,26 @@ function groundKitMaterial(mat: THREE.Material): void {
   mat.emissiveIntensity = 0.1;
   switch (mat.name) {
     case 'MI_Trim_01':
-    case 'MI_Trim_02':
-      // Bolts and rails: keep them metallic (this is the "bare steel" role) but pull them back
-      // from mirror-metal so ambient fill still reaches them and their specular peak stops
-      // clipping. glTF's roughnessFactor here was the default 1 (identity), so a straight
-      // multiply is a no-op — replace it outright. This round's measured p95 MISS ("too bright,"
-      // upper-wall trim reading blown) is this same metal catching direct light instead of
-      // scattering it — pulled further off mirror-metal (0.6 -> 0.5) and capped fully rough
-      // (was 1.6, past the point roughness does anything further) so a hit no longer flares.
+      // Rails: the large-area half of this pair (the long strips running every wall bay), so this
+      // is where broad-area brightness risk actually lives. Satin brushed steel, not polished —
+      // roughness stays high so a direct hit scatters instead of flaring, and the round-6 p95 MISS
+      // ("upper-wall trim reading blown") gets a further explicit albedo cut on top of the earlier
+      // metalness pull-back (0.6 -> 0.5), since a rough *metal* has no diffuse term to fall back on
+      // and reads exactly as bright as its base colour times the light that lands on it.
       mat.metalness = 0.5;
       mat.roughness = 1;
+      mat.color.multiplyScalar(0.82);
+      break;
+    case 'MI_Trim_02':
+      // Bolts: small fasteners, not a broad surface, so this is where the "give distinct materials
+      // genuinely distinct roughness/metalness" gap can be answered with a real polished-metal
+      // response instead of matching Trim_01's satin value — a bolt head that catches a hard
+      // glint reads as a fastener; one that's uniformly rough reads as the same grey plastic as
+      // the rail it's driven into. Low area keeps this safe against the p95 budget the rails
+      // spend.
+      mat.metalness = 0.75;
+      mat.roughness = 0.32;
+      mat.color.multiplyScalar(0.88);
       break;
     case 'MI_Trim_03': {
       // The dominant painted-panel face, ~two-thirds of every wall/column surface: replace the
@@ -288,6 +299,32 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
       // or stencil rather than a repeated motif.
       const id = String(41 + i * 3).padStart(2, '0');
       addWallDecal(ctx, buildStencilTextTexture(id), 1.3, 0.42, new THREE.Vector3(fx, 2.5, bay.z), yaw, 0.8);
+      if (i === 0) {
+        // One bay, and only one, gets a genuinely self-lit placard rather than a printed stencil
+        // — the round's critique named "no focal point" directly, and every other wall element
+        // here (stencils, chevrons, dirt) repeats identically across all four bays. A single
+        // backlit sign breaks that symmetry the way the reference's lit door number does, without
+        // adding the broad-area brightness a new floodlight would spend against the p95 budget:
+        // it's one small, tightly bounded emissive plane sitting behind the stencil's cut-outs.
+        const backlight = new THREE.MeshStandardMaterial({
+          color: '#0a1114',
+          roughness: 0.5,
+          metalness: 0,
+          emissive: '#4fd8f0',
+          emissiveIntensity: 0.55,
+        });
+        const backlightMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.5), backlight);
+        // A shade closer to the true wall surface than the decal's own nudge (bayFaceX uses
+        // 1.58) so the opaque backlight sits behind the transparent stencil in depth instead of
+        // fighting it for the same plane.
+        backlightMesh.position.set(bay.x + bay.s * 1.5, 2.5, bay.z);
+        backlightMesh.rotation.set(0, yaw, 0);
+        ctx.scene.add(backlightMesh);
+        const pulsePhase = Math.random() * Math.PI * 2;
+        ctx.animated.push((elapsed) => {
+          backlight.emissiveIntensity = 0.55 * (0.85 + 0.15 * Math.sin(elapsed * 1.1 + pulsePhase));
+        });
+      }
     } else {
       // Hazard chevron strip, mid-wall — a caution mark near the bay's working edge.
       addWallDecal(ctx, buildChevronTexture(), 1.05, 0.32, new THREE.Vector3(fx, 1.55, bay.z + 0.85), yaw, 0.8);
@@ -338,17 +375,18 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
   // problem this module can answer directly on the surfaces it owns. -----
   const SCONCE_COLOR = 0xffd9a0;
   const sconceColumns = [columns[0], columns[2]]; // one per side wall (both z = -KIT_TILE/2)
+  const gasketTex = buildRubberTexture();
   for (const c of sconceColumns) {
     const housingMat = new THREE.MeshStandardMaterial({
       color: '#2b3138',
       roughness: 0.55,
       metalness: 0.4,
       emissive: new THREE.Color(SCONCE_COLOR),
-      // Pulled back from 0.7 — this round's measured p95 MISS is broad overbrightness rather
-      // than one blown pixel, and a warm emissive housing at every side-wall column was part of
-      // that budget. The point light below still carries the visible pool of warm light; the
-      // housing itself only needs to read as lit, not as the brightest thing on the wall.
-      emissiveIntensity: 0.45,
+      // Round-6: lighting.ts's own hooded downlights already cover every wall run's practical
+      // fixture with a real cast light, so this housing is a redundant second warm source on the
+      // same wall — cut hard (0.45 -> 0.2) rather than removed outright, since the geometry itself
+      // is still a useful bit of secondary dressing. The point light below is cut to match.
+      emissiveIntensity: 0.2,
     });
     const housing = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.1, 0.16), housingMat);
     housing.position.set(c.pos[0], 2.3, c.pos[2]);
@@ -357,7 +395,19 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     housing.receiveShadow = true;
     ctx.scene.add(housing);
 
-    const lamp = new THREE.PointLight(SCONCE_COLOR, 0.4, 3.2, 2);
+    // Seal gasket around the housing's rim — a rubber material genuinely does not exist anywhere
+    // else on this wall (painted steel, bare steel and glass all already have a distinct response,
+    // rubber didn't), and matte non-metal black is the sharpest possible contrast against the
+    // metal housing it wraps.
+    const gasketMat = new THREE.MeshStandardMaterial({ color: '#1c1e21', map: gasketTex, roughness: 0.92, metalness: 0 });
+    const gasket = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.13, 0.19), gasketMat);
+    gasket.position.set(c.pos[0] - Math.sin(c.yaw) * 0.006, 2.3, c.pos[2] - Math.cos(c.yaw) * 0.006);
+    gasket.rotation.set(0, c.yaw, 0);
+    gasket.castShadow = true;
+    gasket.receiveShadow = true;
+    ctx.scene.add(gasket);
+
+    const lamp = new THREE.PointLight(SCONCE_COLOR, 0.18, 3.2, 2);
     lamp.position.set(c.pos[0], 2.24, c.pos[2]);
     ctx.scene.add(lamp);
 

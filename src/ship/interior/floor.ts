@@ -671,6 +671,80 @@ export function buildFloor(ctx: InteriorCtx): void {
   addWear('grime', 0, -HALF_D + 0.9, 4.2, 1.5);
   addWear('drip', hatchX + 0.55, hatchZ - 0.6, 1.0, 1.4, 0.3);
 
+  // ===== 15. floor cable runs + coiled hose =====
+  // The critic's single biggest gap: the open apron between the threshold band (z=-3.0) and the
+  // walkway insert (z=0.6) reads as bare repeating tile with nothing breaking it up. Two flex
+  // conduit runs cross it diagonally, motivated as power/data feeds — one plugs into the sub-deck
+  // hatch, the other into the near floor vent — plus a coiled hose reel, the same kind of loose
+  // floor-resting clutter the grate panels already establish for this module. Rubber cable gets
+  // its own low-metal, high-roughness response distinct from every steel/paint material above.
+  const cableMat = new THREE.MeshStandardMaterial({ color: 0x201d1a, roughness: 0.78, metalness: 0.06, envMapIntensity: 0.25 });
+  const coilMat = new THREE.MeshStandardMaterial({ color: 0xa8703a, roughness: 0.42, metalness: 0.55, envMapIntensity: 0.7 });
+  const clipGeo = new THREE.BoxGeometry(0.1, 0.02, 0.06);
+  const glandGeo = new THREE.BoxGeometry(0.16, 0.09, 0.12);
+
+  function buildCableRun(pts: [number, number][], y = 0.021, radius = 0.03): THREE.CatmullRomCurve3 {
+    const curve = new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, y, z)));
+    const geo = new THREE.TubeGeometry(curve, pts.length * 8, radius, 8, false);
+    const mesh = new THREE.Mesh(geo, cableMat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    add(mesh);
+    return curve;
+  }
+  function addCableClips(curve: THREE.CatmullRomCurve3, count: number, yTop: number) {
+    for (let i = 0; i < count; i++) {
+      const t = (i + 0.5) / count;
+      const p = curve.getPointAt(t);
+      const tangent = curve.getTangentAt(t);
+      const rot = Math.atan2(tangent.x, tangent.z);
+      bolts.push({ p: [p.x, yTop + 0.014, p.z] });
+      const clip = new THREE.Mesh(clipGeo, plateMat);
+      clip.position.set(p.x, yTop, p.z);
+      clip.rotation.y = rot;
+      clip.castShadow = true;
+      clip.receiveShadow = true;
+      add(clip);
+      addContact('pad', p.x, p.z, 0.24, 0.16, rot, 0.0112);
+    }
+  }
+
+  const runA = buildCableRun([[-HALF_W + 0.26, 0.3], [-4.4, -0.6], [-3.15, -1.35], [-2.05, -1.95]]);
+  addCableClips(runA, 3, 0.031);
+  const glandA = new THREE.Mesh(glandGeo, darkSteelMat);
+  glandA.position.set(-HALF_W + 0.22, 0.05, 0.3);
+  glandA.castShadow = true;
+  glandA.receiveShadow = true;
+  add(glandA);
+  addContact('pad', -HALF_W + 0.3, 0.3, 0.4, 0.32, 0, 0.0113);
+  addWear('grime', -3.6, -1.1, 1.6, 1.1, 0.6);
+
+  const runB = buildCableRun([[HALF_W - 0.26, 0.45], [4.1, -0.2], [3.35, -1.3], [2.85, -2.05]]);
+  addCableClips(runB, 3, 0.031);
+  const glandB = new THREE.Mesh(glandGeo, darkSteelMat);
+  glandB.position.set(HALF_W - 0.22, 0.05, 0.45);
+  glandB.castShadow = true;
+  glandB.receiveShadow = true;
+  add(glandB);
+  addContact('pad', HALF_W - 0.3, 0.45, 0.4, 0.32, 0, 0.0113);
+  addWear('grime', 3.7, -0.7, 1.5, 1.1, -0.5);
+
+  // Coiled hose reel resting on open deck — small saturated copper accent per the palette table,
+  // footprint well under a square metre so it stays an accent rather than a large rust surface.
+  const coilGroup = new THREE.Group();
+  coilGroup.position.set(4.3, 0.0, -0.8);
+  [0.32, 0.25, 0.18, 0.11].forEach((r, i) => {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.024, 6, 20), coilMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.012 + i * 0.001;
+    ring.castShadow = true;
+    ring.receiveShadow = true;
+    coilGroup.add(ring);
+  });
+  add(coilGroup);
+  addContact('pad', 4.3, -0.8, 0.9, 0.9, 0, 0.0113);
+  addWear('oil', 4.3, -0.55, 0.7, 0.6, 0.4);
+
   // ===== bolt batch =====
   add(instance(boltGeo, boltMat, bolts));
 }

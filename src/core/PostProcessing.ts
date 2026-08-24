@@ -37,20 +37,26 @@ const gradeShader = {
       // Flat exposure trim compensating for the fixed renderer exposure + ambient IBL running hot.
       c *= 0.85;
 
-      // Highlight shoulder: soft-knee compression above 0.42 luma. Round 4: the previous knee
-      // (0.4 / coeff 2.2, asymptote ~0.85) was strong enough that no pixel anywhere ever reached
-      // hot (>=0.90) — measured hot% was 0.00% on every view including ones whose reference sits
-      // at 0.9-1.7% hot (console, displays, starfieldWindow), and their p95 read 0.09-0.27 below
-      // the reference as a result. Softened coeff 2.2->2.0 (asymptote ~0.92) so genuinely hot
-      // sources (screens, the pendant tube) can punch further toward white than before, while
-      // staying short of the full 1.8 tried first — that let one extreme outlier (an airlock
-      // practical far brighter than anything else in the room) blow out even harder than the
-      // knee alone could tame.
+      // Highlight shoulder: soft-knee compression above the knee luma. Round 4/5 history: earlier
+      // knee/coeff pairs asymptoted at ~0.85-0.92, which is *below* the 0.90 "hot" bucket the
+      // exposure check counts — no pixel anywhere could ever read as hot regardless of source
+      // brightness. Round 6: measured p95 on console/displays/ceiling/starfieldWindow — the views
+      // whose reference crop is dominated by an actual emissive source (screens, pendant tube) —
+      // sat 0.10-0.23 *below* the reference, while median on those same views ran flat/low too.
+      // Raised the knee and loosened the coefficient so a genuinely bright source can clear 0.9
+      // and read as a real highlight instead of a soft grey; broad mid-lit surfaces (walls, floor)
+      // sit well under the new 0.48 knee so they pass through unchanged.
+      // Round 7: tried raising the knee/loosening the coefficient further to give
+      // ceiling/console/displays/starfieldWindow more highlight headroom, but A/B verified against
+      // repeated renders it moved those p95s by less than this measurement's own run-to-run noise
+      // (~0.01, from the alarm-beacon pulse's animation phase at capture time) while risking
+      // reopening floor/walls, which the lighting.ts trims below just fixed cleanly. Left as-is —
+      // the gamma+split-tone passes below already re-compress most of what a looser knee would add.
       float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-      float knee = 0.4;
+      float knee = 0.48;
       if (luma > knee) {
         float excess = luma - knee;
-        float compressed = knee + excess / (1.0 + excess * 2.0);
+        float compressed = knee + excess / (1.0 + excess * 1.15);
         c *= compressed / max(luma, 1e-4);
       }
 
@@ -108,7 +114,25 @@ export class PostProcessing {
     // since it can't tell "one huge bloom halo" from "many small legitimate highlights" once
     // they're both just bright pixels. Pulled radius/strength back a notch so bloom still reads
     // as a glow around genuinely hot practicals without bleeding across half the deck.
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.34, 0.18, 0.93);
+    // Round 6: console/displays/ceiling/starfieldWindow p95 still read 0.10-0.23 *below* the
+    // reference — those views' own emissive sources (screens, pendant tube) weren't clearing this
+    // threshold. Dropping it to 0.85 barely moved those (their pre-bloom luma sits below even the
+    // old threshold — the room's ACES tonemap/exposure just doesn't leave much headroom for a
+    // pass sitting this late in the chain) but did measurably worsen the airlock's own outlier
+    // practical (+0.224 -> +0.251 p95), which the round-5 note above already flagged as the one
+    // source bright enough to bloom-smear on its own. Settled at 0.89: a smaller nudge off the
+    // original 0.93 than round 5 left it, without reopening that regression.
+    // Round 7: tried a narrower radius (0.11) + lower threshold (0.82) + higher strength (0.55) to
+    // separate airlock's problem (bloom *area* — one hot practical smearing across a big fraction
+    // of its frame) from the under-bright views' problem (too little headroom at their own hot
+    // pixels). Measured worse on both counts: the tighter kernel concentrated rather than shrank
+    // the airlock halo (peak got hotter over a similar footprint, p95 +0.251 -> +0.29-ish), and the
+    // lower threshold didn't move the under-bright views beyond this measurement's own noise.
+    // Reverted strength/radius to the round-5 values and only nudged threshold up from 0.89 toward
+    // the original 0.93-0.95 range — round 6 found 0.85 "barely moved" the under-bright views while
+    // measurably worsening airlock, so undoing that trade recovers airlock without the cost. The
+    // real remaining lever for the under-bright views is their own fixtures directly (lighting.ts).
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.18, 0.94);
     this.composer.addPass(this.bloomPass);
 
     this.composer.addPass(new ShaderPass(gradeShader));

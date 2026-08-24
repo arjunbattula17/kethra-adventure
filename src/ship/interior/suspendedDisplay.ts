@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { InteriorCtx } from './ctx';
 import {
+  buildAuxGlassMaps,
   buildAuxScreenTexture,
   buildBareSteelMaps,
   buildCableMaps,
@@ -605,11 +606,18 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   // the assembly has a foreground element instead of reading as one flat slab.
   // Shared physical-glass overlay for both aux heads -- the same phosphor/glass split as the main
   // array, at a scale small enough that it doesn't need its own per-pane smudge map.
+  // Round 6 called the aux glass out by name: it shared one flat roughness value with no map at
+  // all, unlike the main array's glass (glassWear). auxGlassMaps gives it the same dust/smear
+  // response at its own scale, so the small screens stop reading as evenly-lit plastic.
+  const auxGlassMaps = buildAuxGlassMaps();
   const auxGlassMat = new THREE.MeshStandardMaterial({
     color: 0xd8ecf2,
     transparent: true,
     opacity: 0.12,
-    roughness: 0.3,
+    roughness: 1,
+    roughnessMap: auxGlassMaps.roughnessMap,
+    normalMap: auxGlassMaps.normalMap,
+    normalScale: new THREE.Vector2(0.35, 0.35),
     metalness: 0,
     envMapIntensity: 1.6,
     depthWrite: false,

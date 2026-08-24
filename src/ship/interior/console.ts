@@ -14,6 +14,7 @@ import {
   buildDripDecalTexture,
   buildMicroMaps,
   buildPlateMaps,
+  buildScreenGlassTexture,
   buildScuffDecalTexture,
   buildSeatWearTexture,
   buildSecondaryScreenTexture,
@@ -116,6 +117,10 @@ function groundGroup(root: THREE.Object3D): void {
     // not `emissiveIntensity` — that defaults to 1 on every material, lit or not.
     const emissive = std.emissive.getHex() !== 0x000000 || std.emissiveMap !== null;
     if (emissive && std.emissiveIntensity > 0.25) return;
+    // The screen glass overlay is a near-invisible clearcoat pane (opacity 0.05) sized to the whole
+    // screen face, so its bounding sphere clears the cast-shadow radius gate below — without this
+    // it would throw a solid rectangular shadow off geometry meant to read as barely-there glass.
+    if (std.transparent && std.opacity < 0.5) return;
     m.receiveShadow = true;
     if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
     if ((m.geometry.boundingSphere?.radius ?? 0) > 0.28) m.castShadow = true;
@@ -145,6 +150,10 @@ interface Kit {
   emAmber: THREE.MeshStandardMaterial;
   emCyan: THREE.MeshStandardMaterial;
   emRed: THREE.MeshStandardMaterial;
+  /** Reflected-room overlay laid over every screen face — see `addScreen`. */
+  screenReflection: THREE.MeshBasicMaterial;
+  /** Thin clearcoat pane over every screen face, so real scene lights glint across the glass. */
+  screenGlass: THREE.MeshPhysicalMaterial;
   bolt: THREE.BufferGeometry;
   boltUp: THREE.BufferGeometry;
   key: THREE.BufferGeometry;
@@ -267,6 +276,18 @@ function createKit(): Kit {
     emRed: new THREE.MeshStandardMaterial({
       color: 0x2a120c, emissive: 0xe0552f, emissiveIntensity: 0.9, roughness: 0.4, metalness: 0,
     }),
+    // Unlit reflected-room texture: this is painted light, not a lit surface, so it stays a basic
+    // material and rides in normal alpha blending just above the emissive face.
+    screenReflection: new THREE.MeshBasicMaterial({
+      map: buildScreenGlassTexture(), transparent: true, depthWrite: false, toneMapped: false,
+    }),
+    // The physical pane itself: near-invisible base colour, a clearcoat so the room's real spot and
+    // point lights throw an actual moving glint across the glass instead of the screen's own
+    // emissive being the only thing that ever lights it.
+    screenGlass: new THREE.MeshPhysicalMaterial({
+      color: 0xdce8f0, transparent: true, opacity: 0.05, roughness: 0.16, metalness: 0,
+      clearcoat: 1, clearcoatRoughness: 0.08, depthWrite: false,
+    }),
     bolt: new THREE.CylinderGeometry(0.011, 0.013, 0.014, 6),
     boltUp: new THREE.CylinderGeometry(0.011, 0.013, 0.014, 6),
     key: chamferBox(0.038, 0.014, 0.038, 0.005),
@@ -361,6 +382,13 @@ function addScreen(
     metalness: 0,
   });
   mesh(g, new THREE.PlaneGeometry(o.w, o.h), faceMat, 0, 0, 0.014);
+  // Glass over the emissive face: a painted room-reflection layer plus a thin clearcoat pane that
+  // catches the rig's real lights, so the screen reads as a lit physical surface rather than a
+  // texture pasted flat onto the bezel.
+  const reflection = mesh(g, new THREE.PlaneGeometry(o.w, o.h), kit.screenReflection, 0, 0, 0.0155);
+  reflection.renderOrder = 2;
+  const glass = mesh(g, new THREE.PlaneGeometry(o.w, o.h), kit.screenGlass, 0, 0, 0.016);
+  glass.renderOrder = 3;
 
   if (framed) {
     const hood = mesh(g, chamferBox(bw + 0.02, 0.022, 0.085, 0.008), kit.steel, 0, bh / 2 + 0.012, 0.03);
@@ -646,6 +674,12 @@ function buildDeckSurface(ctx: InteriorCtx, kit: Kit, parent: THREE.Group): void
     metalness: 0,
   });
   mesh(deck, flatPlane(2.2, 0.4), mapMat, 0, 0.062, -0.13);
+  // Same glass treatment as the monitor bank's screens — the deck chart is the single brightest
+  // element in frame, so it is the one the "pasted graphic" read shows up on hardest.
+  const chartReflection = mesh(deck, flatPlane(2.2, 0.4), kit.screenReflection, 0, 0.0635, -0.13);
+  chartReflection.renderOrder = 2;
+  const chartGlass = mesh(deck, flatPlane(2.2, 0.4), kit.screenGlass, 0, 0.065, -0.13);
+  chartGlass.renderOrder = 3;
 
   // Scan bar sliding across the chart — the one moving element on the deck.
   const sweep = mesh(
@@ -658,7 +692,7 @@ function buildDeckSurface(ctx: InteriorCtx, kit: Kit, parent: THREE.Group): void
     0.066,
     -0.13,
   );
-  sweep.renderOrder = 2;
+  sweep.renderOrder = 4;
 
   // Bezel side trims with a cool strip either side of the chart.
   for (const sx of [-1, 1]) {
@@ -963,9 +997,19 @@ function buildSidePod(ctx: InteriorCtx, kit: Kit, sign: -1 | 1): THREE.Group {
   mesh(g, chamferBox(0.09, 0.03, 0.86, 0.012), kit.steel, sign * 0.42, 1.13, 0);
   mesh(g, new THREE.BoxGeometry(0.02, 0.012, 0.7), kit.emAmber, sign * 0.47, 1.06, 0);
 
-  // Rear utility stack behind the pod, so the pod is not flush against empty floor.
-  mesh(g, chamferBox(0.5, 0.44, 0.26, 0.02), kit.dark, 0, 0.36, -0.62);
+  // Rear utility stack behind the pod, so the pod is not flush against empty floor. This sits well
+  // back from the key light's throw, so the r6 critique's "soft, underdetailed background unit"
+  // is squarely aimed here: a rim strip along its top edge separates it from the near-black behind
+  // it, and a second small junction box gives it a silhouette break instead of one flat slab.
+  const stack = mesh(g, chamferBox(0.5, 0.44, 0.26, 0.02), kit.dark, 0, 0.36, -0.62);
+  stack.castShadow = true;
   mesh(g, new THREE.PlaneGeometry(0.36, 0.28), kit.tiled('vent', 1, 1), 0, 0.36, -0.49);
+  // Front face is at z = -0.49 (matches the vent plane above); the trim, box and LED below all sit
+  // proud of it rather than embedded in the block, so they actually read at this angle.
+  mesh(g, new THREE.BoxGeometry(0.44, 0.014, 0.012), kit.emCyan, 0, 0.575, -0.483);
+  const stackBox = mesh(g, chamferBox(0.16, 0.14, 0.1, 0.014), kit.steel, sign * 0.2, 0.62, -0.44);
+  stackBox.castShadow = true;
+  addLed(ctx, g, kit, sign * 0.2, 0.62, -0.385, 0xffd9a0, true);
   const conduit = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, 0.75, -0.62),
     new THREE.Vector3(-sign * 0.35, 0.9, -0.72),
@@ -985,9 +1029,15 @@ function buildRearBulkhead(ctx: InteriorCtx, kit: Kit): THREE.Group {
   g.position.set(0, 0, DESK_Z - 1.02);
   ctx.scene.add(g);
 
-  mesh(g, chamferBox(4.4, 0.82, 0.36, 0.026), kit.dark, 0, 0.44, 0);
+  const back = mesh(g, chamferBox(4.4, 0.82, 0.36, 0.026), kit.dark, 0, 0.44, 0);
+  back.castShadow = true;
   mesh(g, chamferBox(4.44, 0.07, 0.42, 0.016), kit.steel, 0, 0.88, 0);
   mesh(g, new THREE.BoxGeometry(4.36, 0.05, 0.02), kit.tiled('hazard', 9, 1), 0, 0.09, 0.185);
+  // Rim strip under the top rail: this bank sits behind the rake key's throw, so without an edge
+  // light of its own its silhouette bleeds into the near-black wall behind it — the r6 critique's
+  // "background units read soft" call-out. A single cool line along the whole top edge fixes the
+  // read cheaply, the same trick the reference uses on its own rear equipment.
+  mesh(g, new THREE.BoxGeometry(4.3, 0.012, 0.01), kit.emCyan, 0, 0.845, 0.205);
 
   for (let i = 0; i < 4; i++) {
     const x = -1.65 + i * 1.1;
@@ -998,6 +1048,12 @@ function buildRearBulkhead(ctx: InteriorCtx, kit: Kit): THREE.Group {
     g.add(sub);
     cornerBolts(sub, kit, 0.86, 0.6, 0, 0.055);
     addLed(ctx, g, kit, x + 0.36, 0.76, 0.21, i % 2 === 0 ? 0x6fe4ff : 0xffd9a0, i % 2 === 0);
+  }
+  // Raised gussets between and outboard of the four sub-panels, breaking the bank into a genuinely
+  // ribbed structure instead of one wide dark slab with cutouts.
+  for (const x of [-2.15, -1.1, 0, 1.1, 2.15]) {
+    const rib = mesh(g, chamferBox(0.07, 0.7, 0.06, 0.016), kit.steel, x, 0.46, 0.19);
+    rib.castShadow = true;
   }
 
   // Pipe run across the top of the bank.

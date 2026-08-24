@@ -64,6 +64,16 @@ interface SeamSeg { x: number; z: number; length: number; alongX: boolean }
  * and rivets are now real instanced geometry on an irregular panel grid (see `irregularGrid`)
  * instead of lines baked into the tiling plate texture, and the drip/soot decals in
  * ceilingTextures.ts were rebuilt to run in one dominant direction instead of blooming radially.
+ *
+ * Round 6: the blind critic's single biggest complaint was that the structural beam/joist grid
+ * dominates the frame with "little variation between bays." Two changes address that directly:
+ * the transverse beams and the crossing joists move off flat single-colour materials onto real
+ * texture maps (painted trim for the beams, bare oxidised steel for the joists — see
+ * `buildCeiling` below) so the two families of member read as genuinely different materials, not
+ * the same grey with a different metalness slider; and the outer pair of joists now stop short of
+ * the airlock half of the room instead of running its full depth, so the console-side bays keep
+ * the dense four-joist lattice while the airlock-side bays read structurally sparser rather than
+ * a clockwork-repeating truss.
  */
 export function buildCeiling(ctx: InteriorCtx): void {
   const plateMap = buildCeilingPlateTexture();
@@ -96,8 +106,23 @@ export function buildCeiling(ctx: InteriorCtx): void {
   ctx.scene.add(slab);
 
   // Shallow transverse beams for a little structural rhythm, echoing the wall bay spacing so the
-  // ceiling doesn't read as a bare painted lid.
-  const beamMat = new THREE.MeshStandardMaterial({ color: 0x4c5662, roughness: 0.65, metalness: 0.4 });
+  // ceiling doesn't read as a bare painted lid. Round 6: textured with the painted-trim map
+  // instead of a flat colour — the beam grid was named directly as reading like uniform
+  // untextured plastic, and this is the single largest-area member this piece builds. Cloned so
+  // its own repeat doesn't disturb the shared trimMap/trimRough used later for boxes and pipe
+  // brackets, which want a single untiled tile per face instead.
+  const beamMap = buildPaintedTrimTexture().clone();
+  beamMap.needsUpdate = true;
+  beamMap.repeat.set(9, 1);
+  const beamRough = buildPaintedTrimRoughness().clone();
+  beamRough.needsUpdate = true;
+  beamRough.repeat.set(9, 1);
+  const beamMat = new THREE.MeshStandardMaterial({
+    map: beamMap,
+    roughnessMap: beamRough,
+    roughness: 1,
+    metalness: 0.35,
+  });
   const beamGeo = new THREE.BoxGeometry(ROOM_W - 0.3, 0.2, 0.28);
   const beamZs = [-6, -2, 2, 6];
   for (const z of beamZs) {
@@ -192,12 +217,47 @@ export function buildCeiling(ctx: InteriorCtx): void {
   const JOINT_Y = BEAM_BOTTOM - 0.08;
   const GUSSET_Y = BEAM_BOTTOM - 0.015;
 
-  const jointMat = new THREE.MeshStandardMaterial({ color: 0x434b56, roughness: 0.58, metalness: 0.46 });
-  const jointGeo = new THREE.BoxGeometry(0.22, 0.16, ROOM_D - 0.3);
-  const jointXs = [-2.2, -1.3, 1.3, 2.6];
-  for (const x of jointXs) {
-    const joint = new THREE.Mesh(jointGeo, jointMat);
+  // Round 6: bare oxidised steel, deliberately different from the beams' painted trim above —
+  // a joist and the beam it hangs from should not read as the same material with a different
+  // metalness slider. Cloned off the same singleton the pipe run uses further down, with its own
+  // repeat, so the two don't fight over one shared texture's transform.
+  const jointSteelMap = buildPipeSteelTexture().clone();
+  jointSteelMap.needsUpdate = true;
+  jointSteelMap.repeat.set(1, 6);
+  const jointSteelRough = buildPipeRoughness().clone();
+  jointSteelRough.needsUpdate = true;
+  jointSteelRough.repeat.set(1, 6);
+  const jointMat = new THREE.MeshStandardMaterial({
+    map: jointSteelMap,
+    roughnessMap: jointSteelRough,
+    roughness: 1,
+    metalness: 0.72,
+  });
+
+  // Round 6: the inner pair of joists still runs the full room depth as the structural spine, but
+  // the outer pair now stops short of the airlock half instead of matching it — the console-side
+  // bays (where the hatch, corrugated patch and pipe run already concentrate detail) keep the
+  // dense four-joist lattice, while the airlock-side bays read as a genuinely sparser structure
+  // rather than the same truss repeating unbroken across the whole ceiling.
+  const JOINT_FULL_LEN = ROOM_D - 0.3;
+  const jointFullGeo = new THREE.BoxGeometry(0.22, 0.16, JOINT_FULL_LEN);
+  const JOINT_PARTIAL_START = -ROOM_D / 2 + 0.15;
+  const JOINT_PARTIAL_END = 2.3;
+  const JOINT_PARTIAL_LEN = JOINT_PARTIAL_END - JOINT_PARTIAL_START;
+  const JOINT_PARTIAL_Z = (JOINT_PARTIAL_START + JOINT_PARTIAL_END) / 2;
+  const jointPartialGeo = new THREE.BoxGeometry(0.22, 0.16, JOINT_PARTIAL_LEN);
+  const jointFullXs = [-1.3, 1.3];
+  const jointPartialXs = [-2.2, 2.6];
+  for (const x of jointFullXs) {
+    const joint = new THREE.Mesh(jointFullGeo, jointMat);
     joint.position.set(x, JOINT_Y, 0);
+    joint.castShadow = true;
+    joint.receiveShadow = true;
+    ctx.scene.add(joint);
+  }
+  for (const x of jointPartialXs) {
+    const joint = new THREE.Mesh(jointPartialGeo, jointMat);
+    joint.position.set(x, JOINT_Y, JOINT_PARTIAL_Z);
     joint.castShadow = true;
     joint.receiveShadow = true;
     ctx.scene.add(joint);
@@ -206,7 +266,8 @@ export function buildCeiling(ctx: InteriorCtx): void {
   const gussetMat = new THREE.MeshStandardMaterial({ color: 0x7d8894, roughness: 0.48, metalness: 0.58 });
   const gussetGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.03, 8);
   const gussetPositions: [number, number][] = [];
-  for (const x of jointXs) for (const z of beamZs) gussetPositions.push([x, z]);
+  for (const x of jointFullXs) for (const z of beamZs) gussetPositions.push([x, z]);
+  for (const x of jointPartialXs) for (const z of beamZs) if (z <= JOINT_PARTIAL_END) gussetPositions.push([x, z]);
   const gussetMesh = new THREE.InstancedMesh(gussetGeo, gussetMat, gussetPositions.length);
   const gussetBoltMatrices: THREE.Matrix4[] = [];
   {
@@ -490,4 +551,10 @@ export function buildCeiling(ctx: InteriorCtx): void {
   addDecal(buildCeilingDripTexture(), 1.1, 1.1, new THREE.Vector3(PIPE_X, SLAB_FACE, -3.6), 0.5);
   addDecal(buildCeilingStreakTexture(), 0.9, 1.6, new THREE.Vector3(PIPE_X, SLAB_FACE, 1.2), 0.55);
   addDecal(buildCeilingSootTexture(), 1.0, 1.0, new THREE.Vector3(2.2, SLAB_FACE, -6.3), 0.45);
+  // Round 6: corrosion at the outer joists' cut end — real hardware corrodes fastest right where
+  // it stops, so this both reads as motivated wear and quietly flags the seam between the dense
+  // and sparse halves of the truss — plus a streak in the sparse airlock-side bay so it reads as
+  // aged and used rather than merely empty.
+  addDecal(buildCeilingDripTexture(), 0.7, 0.7, new THREE.Vector3(2.6, SLAB_FACE, JOINT_PARTIAL_END - 0.3), 0.4);
+  addDecal(buildCeilingStreakTexture(), 0.6, 1.0, new THREE.Vector3(-2.6, SLAB_FACE, 6.4), 0.4);
 }

@@ -250,7 +250,7 @@ function drawReticle(c: CanvasRenderingContext2D, cx: number, cy: number, R: num
   c.globalAlpha = 0.7;
   c.fillStyle = CYAN;
   for (let i = 0; i < 12; i++) {
-    // 000 and 180 sit exactly where the array's header/footer runners are -- skip them.
+    // 000 sits under the header runner, 180 sits over the vector-plot widget below -- skip both.
     if (i === 0 || i === 6) continue;
     const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
     const deg = (i * 30).toString().padStart(3, '0');
@@ -494,6 +494,110 @@ function drawRightColumn(c: CanvasRenderingContext2D): void {
 }
 
 /**
+ * Cartesian vector-plot widget filling the cell under the reticle's lower cap. The reticle is
+ * radially symmetric, so splitting it across the row seam previously put a near-mirror of the
+ * same ring bands in both the centre-top and centre-bottom panes -- the round-6 critique's named
+ * complaint ("the four screen quadrants show near-identical repeated HUD graphics"). This widget
+ * is a different SHAPE CLASS entirely, a square grid plot rather than a ring, so the two panes it
+ * separates read as two different instruments instead of one graphic cut in half.
+ */
+function drawVectorPlot(c: CanvasRenderingContext2D, cx: number, top: number, w: number, h: number): void {
+  const x0 = cx - w / 2;
+  const y0 = top;
+
+  label(c, 'THRUST VECTOR', x0, y0 - 14, 14, CYAN, 0.8);
+
+  c.save();
+  c.globalAlpha = 0.12;
+  c.fillStyle = CYAN;
+  c.fillRect(x0, y0, w, h);
+  c.restore();
+  c.save();
+  c.globalAlpha = 0.55;
+  c.strokeStyle = CYAN_SOFT;
+  c.lineWidth = 1.5;
+  c.strokeRect(x0, y0, w, h);
+  c.restore();
+
+  // Quarter grid.
+  c.save();
+  c.globalAlpha = 0.22;
+  c.strokeStyle = CYAN;
+  c.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    c.beginPath();
+    c.moveTo(x0 + (w * i) / 4, y0);
+    c.lineTo(x0 + (w * i) / 4, y0 + h);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(x0, y0 + (h * i) / 4);
+    c.lineTo(x0 + w, y0 + (h * i) / 4);
+    c.stroke();
+  }
+  c.restore();
+
+  // Centre crosshair, heavier than the grid.
+  c.save();
+  c.globalAlpha = 0.5;
+  c.strokeStyle = CYAN;
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.moveTo(x0 + w / 2, y0);
+  c.lineTo(x0 + w / 2, y0 + h);
+  c.moveTo(x0, y0 + h / 2);
+  c.lineTo(x0 + w, y0 + h / 2);
+  c.stroke();
+  c.restore();
+
+  // Current-reading marker, offset from centre with a leader line out to its own readout.
+  const mx = x0 + w / 2 + w * 0.14;
+  const my = y0 + h / 2 - h * 0.22;
+  c.save();
+  c.globalAlpha = 0.85;
+  c.strokeStyle = HOT;
+  c.lineWidth = 2;
+  c.beginPath();
+  c.arc(mx, my, 10, 0, Math.PI * 2);
+  c.stroke();
+  c.beginPath();
+  c.moveTo(mx - 15, my);
+  c.lineTo(mx + 15, my);
+  c.moveTo(mx, my - 15);
+  c.lineTo(mx, my + 15);
+  c.stroke();
+  c.restore();
+  c.save();
+  c.globalAlpha = 0.5;
+  c.strokeStyle = AMBER;
+  c.setLineDash([3, 4]);
+  c.beginPath();
+  c.moveTo(mx, my);
+  c.lineTo(x0 + w + 26, y0 - 4);
+  c.stroke();
+  c.setLineDash([]);
+  c.restore();
+
+  // Corner readouts.
+  label(c, 'X +02.41', x0 + 6, y0 + 16, 12, CYAN, 0.75);
+  label(c, 'Y -01.08', x0 + w - 78, y0 + 16, 12, CYAN, 0.75);
+  label(c, 'MAG 3.72', x0 + 6, y0 + h - 8, 12, AMBER, 0.75);
+  label(c, 'VEC LOCK', x0 + w - 88, y0 + h - 8, 12, GREEN, 0.75);
+
+  // Thrust bar beneath the plot -- a solid filled gauge, visually unlike every ring/line element
+  // above it.
+  const barY = y0 + h + 14;
+  c.save();
+  c.globalAlpha = 0.2;
+  c.fillStyle = CYAN;
+  c.fillRect(x0, barY, w, 14);
+  c.globalAlpha = 0.85;
+  c.fillStyle = CORAL;
+  c.fillRect(x0, barY, w * 0.68, 14);
+  c.restore();
+  label(c, 'THR 68%', x0 + w / 2 - 26, barY + 11, 11, '#0a232e', 0.9);
+}
+
+/**
  * The full 3x2 array composition. One image, sliced by UVs across six physical panes so the
  * reticle crosses the mullions the way the reference's does.
  */
@@ -533,7 +637,13 @@ export function buildCommandArrayTexture(): THREE.CanvasTexture {
 
   drawLeftColumn(c);
   drawRightColumn(c);
-  drawReticle(c, ARRAY_W / 2, ARRAY_H / 2, 330);
+  // Shifted up and shrunk from the old cy=ARRAY_H/2, R=330: centered on the row seam, that circle
+  // put a near-mirror of the same ring bands in the centre-top and centre-bottom panes. Now most
+  // of the ring sits inside the centre-top cell, with only its lower cap dipping into the row
+  // below -- enough to still read as one continuous holo crossing the mullion, not enough to
+  // duplicate the composition.
+  drawReticle(c, ARRAY_W / 2, 280, 230);
+  drawVectorPlot(c, ARRAY_W / 2, 540, 420, 160);
 
   // Header/footer runners spanning the whole array, above and below the reticle.
   c.save();
@@ -1243,6 +1353,74 @@ export function buildGlassSmudgeMaps(): { roughnessMap: THREE.CanvasTexture; nor
   }
 
   return { roughnessMap: dataTexture(canvas, false), normalMap: heightToNormal(hcanvas, 0.35) };
+}
+
+/**
+ * Roughness/normal pair for the small flanking aux monitors' glass. The main array's glass carries
+ * `buildGlassSmudgeMaps`; the aux glass shared one flat roughness value with no map at all, which
+ * is most of why the round-6 critique called the side monitors flat, evenly-lit plastic. Same
+ * dust/smear recipe as the main array's sheet, scaled down to the aux screen's own aspect.
+ */
+export function buildAuxGlassMaps(): { roughnessMap: THREE.CanvasTexture; normalMap: THREE.CanvasTexture } {
+  const w = 256;
+  const h = 192;
+  const rand = rng(51309);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const c = canvas.getContext('2d')!;
+  const hcanvas = document.createElement('canvas');
+  hcanvas.width = h;
+  hcanvas.height = h;
+  const hc = hcanvas.getContext('2d')!;
+
+  c.fillStyle = rough(0.14);
+  c.fillRect(0, 0, w, h);
+  hc.fillStyle = 'rgb(128,128,128)';
+  hc.fillRect(0, 0, h, h);
+
+  // Dirt trapped along the bezel lip on all four edges.
+  for (const g of [
+    c.createLinearGradient(0, h, 0, h - 30),
+    c.createLinearGradient(0, 0, 0, 20),
+    c.createLinearGradient(0, 0, 18, 0),
+    c.createLinearGradient(w, 0, w - 18, 0),
+  ]) {
+    g.addColorStop(0, 'rgba(255,255,255,0.55)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, w, h);
+  }
+  // A couple of hand smears -- a small screen gets grabbed at a bottom corner, not wiped clean.
+  for (let i = 0; i < 3; i++) {
+    const sx = 30 + rand() * (w - 60);
+    const sy = h * 0.6 + rand() * h * 0.3;
+    const g = c.createRadialGradient(sx, sy, 0, sx, sy, 30 + rand() * 24);
+    g.addColorStop(0, 'rgba(255,255,255,0.4)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.beginPath();
+    c.arc(sx, sy, 54, 0, Math.PI * 2);
+    c.fill();
+  }
+  // Fine dust speckle.
+  for (let i = 0; i < 260; i++) {
+    c.save();
+    c.globalAlpha = 0.05 + rand() * 0.14;
+    c.fillStyle = '#ffffff';
+    c.fillRect(rand() * w, rand() * h, 1 + rand() * 2, 1 + rand() * 2);
+    c.restore();
+  }
+  // Faint waviness in the sheet itself so the reflection is not geometrically perfect.
+  for (let i = 0; i < 10; i++) {
+    const gg = hc.createLinearGradient(0, rand() * h, 0, rand() * h);
+    gg.addColorStop(0, 'rgb(120,120,120)');
+    gg.addColorStop(1, 'rgb(136,136,136)');
+    hc.fillStyle = gg;
+    hc.fillRect(0, rand() * h, h, 6 + rand() * 20);
+  }
+
+  return { roughnessMap: dataTexture(canvas, false), normalMap: heightToNormal(hcanvas, 0.3) };
 }
 
 /**

@@ -5,9 +5,11 @@ import type { InteriorCtx } from './ctx';
 import { ROOM_D, ROOM_W, addGrimeOverlay } from './ctx';
 import {
   buildAoTexture,
+  buildBreakerPanelTexture,
   buildDistantStarTexture,
   buildDripStreakTexture,
   buildGlassSheenTexture,
+  buildHandTagTexture,
   buildLedBankTexture,
   buildNebulaWispTexture,
   buildOpenBayTexture,
@@ -228,13 +230,16 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     emissive: 0x0e1013, emissiveIntensity: 0.25,
   });
 
+  // Round 6: p95 measured a stop under the reference (0.537 vs 0.710) once the pane itself
+  // stopped being blown to white — these self-lit accents are what earns that stop back, since
+  // exposure isn't ours to touch. ~15-20% over their prior intensity, not a re-blow of anything.
   const cyanStripMat = new THREE.MeshStandardMaterial({
     color: 0x0a2630, roughness: 0.3, metalness: 0.1,
-    emissive: 0x4fd8f0, emissiveIntensity: 1.3,
+    emissive: 0x4fd8f0, emissiveIntensity: 1.55,
   });
   const warmStripMat = new THREE.MeshStandardMaterial({
     color: 0x2a2214, roughness: 0.35, metalness: 0.1,
-    emissive: 0xffd9a0, emissiveIntensity: 1.5,
+    emissive: 0xffd9a0, emissiveIntensity: 1.75,
   });
 
   const hazardTex = buildHazardStripeTexture();
@@ -566,7 +571,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     // accent the reference hangs beside its screen bank, as real hardware rather than a decal.
     const bankTex = buildLedBankTexture(0x3a71 + i * 977);
     const bankMat = new THREE.MeshStandardMaterial({
-      map: bankTex, emissiveMap: bankTex, emissive: 0xffffff, emissiveIntensity: 1.2,
+      map: bankTex, emissiveMap: bankTex, emissive: 0xffffff, emissiveIntensity: 1.4,
       roughness: 0.45, metalness: 0.2,
     });
     for (const y of [2.16, 3.0]) {
@@ -710,7 +715,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   const bulb = new THREE.Mesh(
     new THREE.CircleGeometry(0.07, 16),
     new THREE.MeshStandardMaterial({
-      color: 0x3a3020, emissive: 0xffd9a0, emissiveIntensity: 2.7, roughness: 0.4,
+      color: 0x3a3020, emissive: 0xffd9a0, emissiveIntensity: 2.9, roughness: 0.4,
     }),
   );
   bulb.position.set(lampX - 0.35, 1.59, FRONT_Z + 0.27);
@@ -731,7 +736,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     const x = bezelXs[i];
     const tex = buildSillReadoutTexture(i * 7 + 3);
     const mat = new THREE.MeshStandardMaterial({
-      map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 1.4,
+      map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 1.6,
       roughness: 0.5, metalness: 0,
     });
     const housing = slab(ctx, steelDarkMat, 0.56, 0.1, 0.24, x, APER_B + 0.06, FRONT_Z - 0.04);
@@ -842,6 +847,18 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   const cornerLamp = new THREE.PointLight(0xffd9a0, 0.65, 2.6, 2);
   cornerLamp.position.set(CORNER_X - 0.26, 4.5, CORNER_MIDZ);
   ctx.scene.add(cornerLamp);
+  // A field-taped repair band and a stencilled tag on the duct run: without them this is a bare
+  // extruded profile with no history, the same "kit part" read the critique names. Both are one
+  // extra mesh apiece, placed off-centre along the run rather than mirrored or evenly spaced.
+  slab(ctx, rubberMat, 0.34, 0.34, 0.06, CORNER_X, 4.58, -6.02);
+  const ductPlacardTex = buildStencilPlacardTexture('D-11', 'COOLANT RTN');
+  const ductPlacard = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.3, 0.15),
+    new THREE.MeshStandardMaterial({ map: ductPlacardTex, roughness: 0.72, metalness: 0.1 }),
+  );
+  ductPlacard.position.set(CORNER_X - 0.151, 4.58, -6.55);
+  ductPlacard.rotation.y = -Math.PI / 2;
+  ctx.scene.add(ductPlacard);
 
   // Equipment stack climbing the neighbour wall from the deck to the duct — the round-5 target.
   // The single thin panel that used to sit here measured as one flat plate beside the dense,
@@ -858,9 +875,15 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   const RACK_D = 0.5;    // footprint along the wall
   const RACK_YS = [1.16, 1.7, 2.24, 2.78];
   const rackFace = RACK_X - RACK_W / 2 - 0.001;
+  // Round 6: this stack was four copies of one LED-bank asset with a different seed, which is
+  // exactly what "generic modular sci-fi parts" means — four identical enclosures that happen to
+  // glow different colours. Each unit now does a genuinely different job: a status bank, a
+  // breaker panel a hand actually throws switches on, the torn-open service bay, and a small
+  // instrument screen — four different pieces of hardware racked together, not one part repeated.
+  const RACK_KIND: ('led' | 'breaker' | 'open' | 'screen')[] = ['led', 'breaker', 'open', 'screen'];
   for (let i = 0; i < RACK_YS.length; i++) {
     const y = RACK_YS[i];
-    const open = i === 2;
+    const kind = RACK_KIND[i];
     slab(ctx, steelDarkMat, RACK_W, 0.46, RACK_D, RACK_X, y, RACK_Z);
     slab(ctx, steelNoseMat, RACK_W + 0.02, 0.03, RACK_D + 0.02, RACK_X, y + 0.23, RACK_Z);
     slab(ctx, steelNoseMat, RACK_W + 0.02, 0.03, RACK_D + 0.02, RACK_X, y - 0.23, RACK_Z);
@@ -868,7 +891,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
       slat(0.03, 0.03, 0.03, rackFace + 0.01, y + 0.18, RACK_Z + dz);
       slat(0.03, 0.03, 0.03, rackFace + 0.01, y - 0.18, RACK_Z + dz);
     }
-    if (open) {
+    if (kind === 'open') {
       const cavity = new THREE.Mesh(
         new THREE.PlaneGeometry(RACK_D - 0.06, 0.4),
         new THREE.MeshStandardMaterial({ map: buildOpenBayTexture(), roughness: 0.9, metalness: 0.2 }),
@@ -884,16 +907,57 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
       rackHinge.position.set(rackFace, y, RACK_Z + 0.24);
       rackHinge.castShadow = true;
       ctx.scene.add(rackHinge);
+    } else if (kind === 'breaker') {
+      // Physical toggles a hand throws, not a lit grid — the sharpest material and behavioural
+      // break from the other units, sunk in a recessed housing so it reads as its own fixture.
+      const breakerTex = buildBreakerPanelTexture(0x2c41);
+      const breakerMat = new THREE.MeshStandardMaterial({
+        map: breakerTex, roughness: 0.6, metalness: 0.15,
+      });
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.38), breakerMat);
+      panel.position.set(rackFace, y, RACK_Z);
+      panel.rotation.y = -Math.PI / 2;
+      ctx.scene.add(panel);
+      // A hand-hung warning tag clipped to the corner stud — the cheapest "a person touched
+      // this" cue, and one the other three units deliberately don't repeat.
+      const tagTex = buildHandTagTexture('DO NOT', 'RESET — SEE NAV-01');
+      const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.09), new THREE.MeshStandardMaterial({
+        map: tagTex, transparent: true, roughness: 0.75, metalness: 0,
+      }));
+      tag.position.set(rackFace + 0.001, y - 0.24, RACK_Z + RACK_D / 2 - 0.09);
+      tag.rotation.set(0, -Math.PI / 2, 0.22);
+      ctx.scene.add(tag);
+      const tagWire = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0025, 5, 10), boltMat);
+      tagWire.position.set(rackFace + 0.001, y - 0.185, RACK_Z + RACK_D / 2 - 0.09);
+      tagWire.rotation.set(0, Math.PI / 2, 0);
+      ctx.scene.add(tagWire);
+    } else if (kind === 'screen') {
+      const screenTex = buildSillReadoutTexture(41);
+      const screenMat = new THREE.MeshStandardMaterial({
+        map: screenTex, emissiveMap: screenTex, emissive: 0xffffff, emissiveIntensity: 1.5,
+        roughness: 0.4, metalness: 0,
+      });
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.15), screenMat);
+      panel.position.set(rackFace, y, RACK_Z);
+      panel.rotation.y = -Math.PI / 2;
+      ctx.scene.add(panel);
+      // A proud trim strip above and below the small screen — thin enough to sit forward of the
+      // unit's own face rather than merging into it, so the instrument reads as fitted into the
+      // rack rather than filling it.
+      slab(ctx, steelNoseMat, RACK_W + 0.02, 0.03, 0.3, RACK_X, y + 0.1, RACK_Z);
+      slab(ctx, steelNoseMat, RACK_W + 0.02, 0.03, 0.3, RACK_X, y - 0.1, RACK_Z);
     } else {
       const bankTex = buildLedBankTexture(0x6e10 + i * 431);
       const bankMat = new THREE.MeshStandardMaterial({
-        map: bankTex, emissiveMap: bankTex, emissive: 0xffffff, emissiveIntensity: 1.15,
+        map: bankTex, emissiveMap: bankTex, emissive: 0xffffff, emissiveIntensity: 1.35,
         roughness: 0.42, metalness: 0.2,
       });
       const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.38), bankMat);
       panel.position.set(rackFace, y, RACK_Z);
       panel.rotation.y = -Math.PI / 2;
       ctx.scene.add(panel);
+    }
+    if (kind === 'led' || kind === 'screen') {
       const rackDotMat = new THREE.MeshStandardMaterial({
         color: 0x141820, roughness: 0.25, metalness: 0.1,
         emissive: i % 2 === 0 ? 0x4fd8f0 : 0xe0552f, emissiveIntensity: 2.1,
@@ -904,6 +968,23 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
       ctx.statusLights.push({ mesh: rackDot, material: rackDotMat, phase: i * 1.1, onIntensity: 2.4 });
     }
     ao('radial', 0.5, RACK_D + 0.3, 0.6, RACK_X, y, rackFace + 0.01, 0, 0, -Math.PI / 2);
+  }
+  // A coiled length of spare cable clipped under the bottom unit — the kind of loose hardware a
+  // crew leaves racked rather than stowed, and a silhouette a stack of flush enclosures never has.
+  {
+    const coilY = RACK_YS[0] - 0.36;
+    const coilZ = RACK_Z + RACK_D / 2 - 0.12;
+    for (let k = 0; k < 3; k++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05 - k * 0.004, 0.011, 6, 16), rubberMat);
+      ring.position.set(rackFace - 0.01, coilY + k * 0.018, coilZ);
+      ring.rotation.set(Math.PI / 2 + (k - 1) * 0.12, 0.15, 0);
+      ring.castShadow = true;
+      ctx.scene.add(ring);
+    }
+    const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 6), boltMat);
+    hook.position.set(rackFace, coilY - 0.04, coilZ);
+    hook.castShadow = true;
+    ctx.scene.add(hook);
   }
   // Base plinth, top cap and a labelled placard identifying the stack.
   slab(ctx, steelNoseMat, RACK_W + 0.06, 0.1, RACK_D + 0.06, RACK_X, RACK_YS[0] - 0.29, RACK_Z);

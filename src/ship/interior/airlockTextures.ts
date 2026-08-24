@@ -704,15 +704,15 @@ export function buildEdgeShadowTexture(): THREE.CanvasTexture {
 /**
  * Soft warm radial falloff for the door header's floor pool — an additive decal, not a dynamic
  * light, so its brightness is a value we set directly rather than something that can spike into
- * a bloom starburst off nearby metal. See the round-5 fix note on `doorFloorPool` in airlock.ts.
+ * a bloom starburst off nearby metal. See the round-6 fix note on `doorFloorPool` in airlock.ts.
  */
 export function buildDoorGlowTexture(): THREE.CanvasTexture {
   const S = 128;
   const [c, g] = canvas2d(S, S);
   const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
-  grad.addColorStop(0, 'rgba(255,221,176,0.85)');
-  grad.addColorStop(0.4, 'rgba(255,205,150,0.4)');
-  grad.addColorStop(0.75, 'rgba(255,196,130,0.1)');
+  grad.addColorStop(0, 'rgba(255,221,176,0.5)');
+  grad.addColorStop(0.4, 'rgba(255,205,150,0.22)');
+  grad.addColorStop(0.75, 'rgba(255,196,130,0.05)');
   grad.addColorStop(1, 'rgba(255,196,130,0)');
   g.fillStyle = grad;
   g.fillRect(0, 0, S, S);

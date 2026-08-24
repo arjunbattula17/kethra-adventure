@@ -39,47 +39,41 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
   ]);
 
   // Warm practical over the doorway — the same fixture type as every other door pool in the room.
-  // Round-5 brief measured this crop's p95 at 0.733 against a reference ceiling of 0.471 (delta
-  // +0.263) and named it directly: "the blown-out, overexposed key light at the airlock washes
-  // out surface detail right at the focal point". Round 4's fix only pulled the light 0.7m off the
-  // door leaf and trimmed intensity — not enough, because a point light at close range still hits
-  // the kit's shiny metal leaf hard enough to spike a specular hotspot into the bloom pass
-  // regardless of how gently the intensity is tuned. This round cuts the dynamic light itself
-  // decisively (half the intensity, tighter falloff, another 0.4m off the leaf, aimed down from
-  // near the ceiling instead of level with the metal) and moves the *visible* brightness onto two
-  // controlled emissive elements below — a lit header lens and a floor pool decal — whose values
-  // we set directly instead of leaving them exposed to inverse-square blowup next to reflective
-  // geometry we don't own.
-  const doorLight = new THREE.PointLight(0xffd9a0, 0.15, 2.2, 2);
-  doorLight.position.set(0, 3.3, HALF_D - 1.5);
-  ctx.scene.add(doorLight);
-
-  // Header lens: the actual "thing making the light" the brief calls for — an emissive strip under
-  // the placard whose brightness is a fixed material value, not a dynamic light next to metal.
+  // Round-6 brief measured this crop's p95 at 0.706 against a reference ceiling of 0.471 (delta
+  // +0.235) and named the cause directly: "the central floor light source is blown out to pure
+  // white, wiping out texture and value structure across the entire midground and doorway". Round
+  // 5 already cut the dynamic point light's intensity and moved it near the ceiling, but a point
+  // light next to the kit's shiny metal leaf still spiked a specular hotspot into the bloom pass no
+  // matter how gently it was tuned — so this round removes the dynamic light entirely. The visible
+  // "light source" is now only the two elements below, whose brightness is a fixed material value
+  // we set directly: a lit header lens, and a floor pool decal cut down hard enough to actually
+  // pool and fall off instead of flooding the whole midground.
   const headerLensMat = new THREE.MeshStandardMaterial({
     color: 0x1a1c20,
     roughness: 0.32,
     metalness: 0,
     emissive: 0xffd9a0,
-    emissiveIntensity: 1.05,
+    emissiveIntensity: 0.85,
   });
   const headerLens = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.05, 0.06), headerLensMat);
   headerLens.position.set(0, 4.02, HALF_D - 0.5);
+  headerLens.castShadow = true;
+  headerLens.receiveShadow = true;
   ctx.scene.add(headerLens);
 
-  // Floor pool the header lens throws onto the sill — an additive decal with an opacity we choose
-  // directly, so the "warm pool spilling onto the sill" reads without depending on a point light's
-  // falloff math next to the door leaf's metal.
+  // Floor pool the header lens throws onto the sill. Cut to roughly a third the footprint and
+  // under half the peak opacity of round 5's version, so it reads as a soft puddle hugging the
+  // threshold rather than a flood covering the approach floor.
   const doorGlowMat = new THREE.MeshBasicMaterial({
     map: buildDoorGlowTexture(),
     transparent: true,
-    opacity: 0.22,
+    opacity: 0.09,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  const doorFloorPool = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.9), doorGlowMat);
+  const doorFloorPool = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), doorGlowMat);
   doorFloorPool.rotation.x = -Math.PI / 2;
-  doorFloorPool.position.set(0, 0.024, HALF_D - 0.9);
+  doorFloorPool.position.set(0, 0.024, HALF_D - 0.6);
   doorFloorPool.renderOrder = 2;
   ctx.scene.add(doorFloorPool);
 

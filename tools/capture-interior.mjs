@@ -32,11 +32,15 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 // interactive (no pending requests) — domcontentloaded plus the explicit __DEBUG__ poll below is
 // an equivalent readiness check that doesn't wedge.
 await page.goto(baseUrl + '?skipIntro=1&newGame=1', { waitUntil: 'domcontentloaded', timeout: 20000 });
-await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 20000 });
+// The 2nd positional param to waitForFunction is `arg`, not `options` — passing the timeout object
+// there silently falls through to the 30s default instead of the intended timeout. Scene init with
+// the current procedural texture load measures ~33s, so both waits need `undefined` for arg and a
+// margin above that in options.
+await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 45000 });
 await page.waitForFunction(() => {
   const s = window.__DEBUG__.engine.getCurrentScene?.();
   return !!(s && s.player && s.constructor.name === 'ShipInteriorScene');
-}, { timeout: 30000 });
+}, undefined, { timeout: 45000 });
 await page.waitForTimeout(2500);
 
 // Hide HUD chrome so the screenshot is pure render.

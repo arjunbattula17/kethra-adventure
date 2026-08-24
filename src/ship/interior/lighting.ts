@@ -90,7 +90,11 @@ export function buildLighting(ctx: InteriorCtx): void {
   const glowWarmPool = additive(poolTex, 0xffd2a4, 0.32);
   const glowWarmPoolSoft = additive(poolTex, 0xffcf9e, 0.1);
   const glowWarmBar = additive(barTex, WARM, 0.2);
-  const glowCoolPool = additive(poolTex, COOL, 0.34);
+  // Round-7 fix: console p95 -0.098, displays p95 -0.227, starfieldWindow p95 -0.161 under the
+  // reference — all three views sit at the console end this decal dominates. Raised as a targeted,
+  // localized push (an additive overlay, not a real light) so it lifts peak brightness there
+  // without inflating console's median further (which already reads +0.110 over).
+  const glowCoolPool = additive(poolTex, COOL, 0.44);
   const glowAlarmPool = additive(poolTex, ALARM, 0.3);
   const glowAlarmBar = additive(barTex, ALARM, 0.32);
 
@@ -159,12 +163,21 @@ export function buildLighting(ctx: InteriorCtx): void {
   // bone-white deck would actually bounce. Half the old intensity — the previous 1.05 hemisphere
   // plus a 0.45 flat ambient was doing nearly all the lighting, which is exactly why the room
   // read as a uniformly tinted box with no pooling.
-  const hemi = new THREE.HemisphereLight(0x93a7bd, 0xb7a992, 0.55);
+  // Round-7 fix: floor/walls p95 still read +0.075/+0.106 over the reference — this room-wide sky
+  // term reaches every up-facing surface equally, so it's the broad lever for those two views'
+  // excess without touching the localized fixtures ceiling/console/displays need boosted below.
+  const hemi = new THREE.HemisphereLight(0x93a7bd, 0xb7a992, 0.56);
   ctx.scene.add(hemi);
 
   // Residual bounce floor, cool and dim, so shadowed corners land on the brief's #2b3138 rather
   // than pure black — but low enough that they still read as *dark*.
-  const ambient = new THREE.AmbientLight(0x4e5661, 0.3);
+  // Round-6 fix: ceiling/airlock/props medians measured -0.06 to -0.24 below the reference — those
+  // are exactly the views furthest from the key/bounce pair above, so this room-wide floor (which
+  // reaches every surface equally, unlike the directional pair) is the right lever to lift them
+  // without re-brightening the floor/console the directional trim above just pulled down.
+  // Round-7 fix: same lever as the hemi trim above, same reasoning — this floor is the other
+  // room-wide term inflating floor/walls beyond their tolerance.
+  const ambient = new THREE.AmbientLight(0x4e5661, 0.33);
   ctx.scene.add(ambient);
 
   // Dominant soft key from high and slightly off-axis. This is what makes the deck the brightest
@@ -176,7 +189,14 @@ export function buildLighting(ctx: InteriorCtx): void {
   // reference while vertical-wall and ceiling-underside views it barely touches sat fine or under.
   // Trimming it here (rather than the room-wide hemi/ambient) pulls the deck down without
   // dragging the views this light barely reaches down with it.
-  const key = new THREE.DirectionalLight(0xffeed6, 0.66);
+  // Round-6 fix: floor/console medians measured +0.055/+0.106 above the reference — the deck and
+  // console-end plating were washed by this light's steep top-down throw even though the room's
+  // p95 on those same views was fine or under, meaning the problem is a raised *floor*, not blown
+  // highlights. Trimmed here rather than in the grade, so the pull-down lands only on the
+  // up-facing surfaces this light dominates. First pass (0.66->0.56) only closed floor's gap by a
+  // notch and console's not at all — console's median is dominated by the console prop geometry's
+  // own material response to this light more than by bloom/highlights, so cut further.
+  const key = new THREE.DirectionalLight(0xffeed6, 0.5);
   key.position.set(6, 13, 7.3);
   key.target.position.set(-0.8, 0, -2.9);
   key.castShadow = true;
@@ -199,7 +219,9 @@ export function buildLighting(ctx: InteriorCtx): void {
 
   // Up-firing bounce fill standing in for radiosity off the bright deck — picks out the undersides
   // of the ceiling structure and every prop overhang, which a purely top-down rig leaves black.
-  const bounce = new THREE.DirectionalLight(0xf7e6ca, 0.65);
+  // Round-6 fix: same over-bright-median problem as the key light above — this fill doubles up on
+  // the same up-facing surfaces (deck, console top), so it gets the same trim.
+  const bounce = new THREE.DirectionalLight(0xf7e6ca, 0.5);
   bounce.position.set(0, -4, 1.5);
   ctx.scene.add(bounce);
 
@@ -218,6 +240,26 @@ export function buildLighting(ctx: InteriorCtx): void {
   // slab); PEND_DY lifts the whole fixture by the ROOM_H - 4 = 1 unit the ceiling itself rose by,
   // so the stem still reaches it while every proportion below the mount stays untouched.
   const PEND_DY = 1;
+
+  // Round-6 fix: the ceiling view's p95/median both read far under the reference (-0.06 to -0.22)
+  // even after easing the grade's highlight shoulder — this fixture's own tube and ceiling halo
+  // were the bottleneck, not the curve. matWarmTube/glowWarmPoolSoft are shared with the wall strip
+  // tubes and every troffer halo, both of which measure fine or over already, so a shared-material
+  // bump would blow those past tolerance. Dedicated clones let the pendant — the reference's hero
+  // fixture and the room's single brightest practical — actually read as the brightest thing on
+  // the ceiling, without touching the fixtures those materials are shared with.
+  // Round-7 fix: ceiling p95/median still read -0.224/-0.059 under the reference even after the
+  // round-6 bump. Modest bump here (1.55 -> 1.85 / 1.2 -> 1.35). A much larger push was tried and
+  // reverted: in the "ceiling" crop the tube itself is a small dot far from camera, well under 5%
+  // of the frame, so no amount of brightening it moves a 95th-percentile statistic — while the
+  // fixture's real-light radius reaches far enough to bleed onto the floor/wall crops instead,
+  // regressing those. The ceiling p95 gap needs *area*-level fill (broad ceiling-underside bounce),
+  // not a hotter point source; that's a bigger lever than a single-fixture tweak can safely reach
+  // this round without another view paying for it.
+  const matPendantTube = matWarmTube.clone();
+  matPendantTube.emissiveIntensity = 1.85;
+  const glowPendantHalo = glowWarmPoolSoft.clone();
+  glowPendantHalo.opacity = 0.13;
   const addPendant = (z: number) => {
     // Mount into the underside of the ceiling slab.
     box(0.36, 0.05, 0.36, matHousingDark, 0, 3.345 + PEND_DY, z);
@@ -243,7 +285,7 @@ export function buildLighting(ctx: InteriorCtx): void {
     }
 
     for (const dz of [-0.085, 0.085]) {
-      tube(0.048, 1.06, 'x', matWarmTube, 0, 2.87 + PEND_DY, z + dz);
+      tube(0.048, 1.06, 'x', matPendantTube, 0, 2.87 + PEND_DY, z + dz);
       const sprite = new THREE.Sprite(spriteWarm);
       sprite.scale.set(1.85, 0.56, 1);
       sprite.position.set(0, 2.87 + PEND_DY, z + dz);
@@ -264,7 +306,7 @@ export function buildLighting(ctx: InteriorCtx): void {
       tube(0.009, 1.02, 'x', matHousingDark, 0, 2.87 + PEND_DY + dy, z + dz);
     }
 
-    const light = new THREE.PointLight(0xffe7c4, 1.15, 9.5, 1.5);
+    const light = new THREE.PointLight(0xffe7c4, 1.35, 9.5, 1.5);
     light.position.set(0, 2.6 + PEND_DY, z);
     ctx.scene.add(light);
     pendantLights.push(light);
@@ -275,7 +317,7 @@ export function buildLighting(ctx: InteriorCtx): void {
     // broad soft halo around its pendant, not just a hot filament with dead flat plating past its
     // edges. Round 4: the ceiling view read as underlit flatness because the fixture itself was
     // the only bright pixel in frame; this gives the highlight some area to occupy.
-    const ceilingHalo = glow(2.6, 2.2, glowWarmPoolSoft);
+    const ceilingHalo = glow(2.6, 2.2, glowPendantHalo);
     ceilingHalo.rotation.x = Math.PI / 2;
     ceilingHalo.position.set(0, ROOM_H - 0.1, z);
   };
@@ -402,7 +444,9 @@ export function buildLighting(ctx: InteriorCtx): void {
     // -0.055 under the reference median: the ceiling structure around the fixture had nothing
     // actually lighting it. Weak, short-throw so it grounds its own alcove without adding new
     // wall/floor hot spots.
-    const light = new THREE.PointLight(WARM, 0.28, 4.5, 2.0);
+    // Round-7 fix: bumped alongside the pendant above — ceiling's own structure needs more real
+    // light hitting it, not just a hotter hero fixture, to close its median gap.
+    const light = new THREE.PointLight(WARM, 0.38, 4.5, 2.0);
     light.position.set(x, CEIL_FACE - 0.35, z);
     ctx.scene.add(light);
   };

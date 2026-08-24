@@ -867,3 +867,60 @@ export function buildStreakTexture(variant = 0): THREE.CanvasTexture {
   streakCache.set(variant, tex);
   return tex;
 }
+
+const floorGrimeCache = new Map<number, THREE.CanvasTexture>();
+
+/**
+ * Organic floor stain — spilled fluid, foot-polished sheen, mineral scale — for scattering flat
+ * across the deck. Unlike `buildStreakTexture` (a directional run for a vertical wall face under
+ * a leak), this pools and dries in place: several overlapping off-centre blobs instead of one
+ * gravity-fed line, feathered to a soft irregular edge so it reads as ground-in wear rather than a
+ * painted circle. Variant 0 is dark oily grime, 1 is pale mineral scale, 2 is a faint traffic
+ * sheen — mixing the three across a floor breaks up what would otherwise be one uniform tint.
+ */
+export function buildFloorGrimeTexture(variant = 0): THREE.CanvasTexture {
+  const hit = floorGrimeCache.get(variant);
+  if (hit) return hit;
+  const s = 256;
+  const [canvas, ctx] = makeCanvas(s, s);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, s, s);
+
+  const [tr, tg, tb, coreA] = [
+    [24, 22, 19, 0.48],
+    [150, 140, 116, 0.32],
+    [40, 43, 47, 0.2],
+  ][variant % 3];
+
+  for (let i = 0; i < 5; i++) {
+    const cx = s * (0.32 + Math.random() * 0.36);
+    const cy = s * (0.32 + Math.random() * 0.36);
+    const r = s * (0.16 + Math.random() * 0.2);
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, `rgba(${tr},${tg},${tb},${coreA})`);
+    g.addColorStop(0.6, `rgba(${tr},${tg},${tb},${coreA * 0.5})`);
+    g.addColorStop(1, `rgba(${tr},${tg},${tb},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+  }
+
+  // Fine speckle so the stain isn't a smooth airbrushed gradient up close.
+  for (let i = 0; i < 500; i++) {
+    ctx.fillStyle = `rgba(${tr},${tg},${tb},${0.03 + Math.random() * 0.1})`;
+    ctx.fillRect(Math.random() * s, Math.random() * s, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+
+  // Feather the whole border back to white (a no-op under multiply blending) so the decal has no
+  // visible boundary against clean deck, same convention as the streak texture's edge feather.
+  const edge = ctx.createRadialGradient(s / 2, s / 2, s * 0.24, s / 2, s / 2, s * 0.5);
+  edge.addColorStop(0, 'rgba(255,255,255,0)');
+  edge.addColorStop(1, 'rgba(255,255,255,1)');
+  ctx.fillStyle = edge;
+  ctx.fillRect(0, 0, s, s);
+
+  const tex = finish(canvas);
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  floorGrimeCache.set(variant, tex);
+  return tex;
+}

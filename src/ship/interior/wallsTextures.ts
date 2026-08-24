@@ -28,7 +28,12 @@ const PLATE: Record<PlateVariant, PlateSpec> = {
   steel: { base: '#69727b', hi: '#7d868f', lo: '#4d545c', seam: '#343a41', bare: '#9aa2ac', rough: 0.56, metal: 0.86, chip: 0.35 },
   // Painted band. Paint is a dielectric film, so it sits near metalness 0 and much rougher than
   // the bare steel around it — that difference is what stops the wall reading as one plastic.
-  painted: { base: '#7e848c', hi: '#8f959c', lo: '#666c74', seam: '#474d54', bare: '#8e959e', rough: 0.79, metal: 0.05, chip: 1 },
+  // Round-6 fix: base/hi previously averaged ~0.52-0.59 gamma-space luminance, at or past the top
+  // of the brief's own "wall steel, upper structure" range (#5d666f-#7c858f, ~0.40-0.52) — since
+  // this plate covers roughly two-thirds of every wall bay by area, that was the single largest
+  // contributor to the measured p95 MISS. Pulled inside the brief's range; `hi` now sits at its
+  // top bound instead of past it.
+  painted: { base: '#70767e', hi: '#7c858f', lo: '#5d666f', seam: '#474d54', bare: '#8e959e', rough: 0.79, metal: 0.05, chip: 1 },
   // Recessed / shadowed steel (#2b3138 – #3d444c).
   dark: { base: '#363d45', hi: '#434b53', lo: '#292f36', seam: '#1e232a', bare: '#7b838d', rough: 0.6, metal: 0.78, chip: 0.5 },
   // Deep recess backing. Kept well off pure black: the reference has almost no true black
