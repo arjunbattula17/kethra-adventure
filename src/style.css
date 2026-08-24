@@ -5,25 +5,15 @@
 
 /* Rajdhani — SIL Open Font License, self-hosted (see public/fonts/CREDITS.md) so titles don't
    depend on an external stylesheet fetch. Used for headings only; body copy stays on the
-   system sans for readability at small sizes. */
-@font-face {
-  font-family: 'Rajdhani';
-  font-weight: 500;
-  font-display: swap;
-  src: url('../fonts/rajdhani-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Rajdhani';
-  font-weight: 600;
-  font-display: swap;
-  src: url('../fonts/rajdhani-600.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Rajdhani';
-  font-weight: 700;
-  font-display: swap;
-  src: url('../fonts/rajdhani-700.woff2') format('woff2');
-}
+   system sans for readability at small sizes.
+   Registered from src/core/loadFonts.ts, not here: Vite's dev-mode CSS HMR injects this file's
+   text into a <style> tag rather than serving it as a real external stylesheet, so a relative
+   url() here resolves against the *document's* location instead of the CSS file's — landing on
+   /fonts/... instead of the correct /<base>/fonts/.... Production is unaffected (external .css
+   files resolve url() against their own location), but the base path is also three-way variable
+   now (dev default, GitHub Pages, Render), so a hardcoded absolute path here would only be
+   correct for one of the three. loadFonts.ts uses import.meta.env.BASE_URL, which Vite resolves
+   correctly in every mode. */
 
 :root {
   --font-display: 'Rajdhani', 'ui-sans', 'Segoe UI', system-ui, sans-serif;

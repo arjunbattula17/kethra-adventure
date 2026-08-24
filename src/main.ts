@@ -1,4 +1,5 @@
 import './style.css';
+import { loadFonts } from './core/loadFonts';
 import { Engine } from './core/Engine';
 import { UIManager } from './ui/UIManager';
 import { PanelManager } from './ui/PanelManager';
@@ -12,6 +13,8 @@ import { bus } from './core/EventBus';
 import { SaveSystem } from './core/SaveSystem';
 import { AudioSystem } from './audio/AudioSystem';
 import { setActiveEngine } from './core/EngineRegistry';
+
+loadFonts();
 
 const appEl = document.getElementById('app')!;
 const engine = new Engine(appEl);
