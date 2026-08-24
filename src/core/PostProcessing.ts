@@ -85,6 +85,8 @@ const gradeShader = {
   `,
 };
 
+export type QualityTier = 'high' | 'medium' | 'low';
+
 export class PostProcessing {
   composer: EffectComposer;
   private renderPass: RenderPass;
@@ -163,6 +165,16 @@ export class PostProcessing {
     this.composer.setSize(width, height);
     this.aoPass.setSize(Math.round(width * PostProcessing.AO_SCALE), Math.round(height * PostProcessing.AO_SCALE));
     this.bloomPass.setSize(width, height);
+  }
+
+  // Toggling pass.enabled is instant and free — EffectComposer just skips a disabled pass's
+  // render() call, no re-construction, no lost GL state. GTAOPass is the single most expensive
+  // pass measured (~4.5ms/frame, roughly fixed regardless of sample count — see the constructor
+  // note above), so it's the first thing to drop; bloom is comparatively cheap but still real
+  // cost on a genuinely weak device, so 'low' drops both.
+  setQuality(tier: QualityTier): void {
+    this.aoPass.enabled = tier === 'high';
+    this.bloomPass.enabled = tier !== 'low';
   }
 
   render(): void {
