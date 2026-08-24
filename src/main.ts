@@ -22,6 +22,15 @@ setActiveEngine(engine);
 
 UIManager.init();
 PanelManager.mount();
+// Every panel (map, journal, character sheet, dialogue, repair) opens through PanelManager, and
+// its overlay sits over the 3D view at only partial opacity with a CSS blur -- it was never fully
+// hiding the scene, just fading it. But nothing was pausing the *engine* underneath: the full
+// render pipeline (shadows, GTAO, bloom) kept running every frame at real cost while completely
+// invisible-to-irrelevant behind a menu, since mouse-look/movement are already disabled the moment
+// a panel opens (PanelManager.open() calls exitPointerLock()). Pausing here freezes the last frame
+// in place -- visually identical under a static blur, since nothing was meant to keep animating
+// behind a panel the player's actually looking at -- and stops paying for it.
+PanelManager.onOpenChange = (open) => engine.setPaused(open);
 AudioSystem.init();
 JournalSystem.init();
 RepairUI.init();

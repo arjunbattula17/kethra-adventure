@@ -27,7 +27,11 @@ class CharacterPanelImpl {
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Tab') {
       e.preventDefault();
-      if (!PanelManager.isOpen) this.open();
+      // The panel's own close-hint reads "TAB or ESC to close" -- Tab was only ever wired to
+      // open it, never to close it back (Escape happened to work only because PanelManager's
+      // own global listener handles it independently of this handler).
+      if (PanelManager.isOpen) PanelManager.close();
+      else this.open();
     }
   };
 
