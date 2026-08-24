@@ -345,6 +345,7 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   sweep.position.set(0, 0, 0.016);
   sweep.renderOrder = 2;
   rig.add(sweep);
+  ctx.noMerge.add(sweep); // its own rotation.z is animated per frame, below
 
   // --- physical glass ---------------------------------------------------------------------------
   // One continuous sheet spanning the whole array, floating a few millimetres in front of the six

@@ -216,6 +216,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   floor.receiveShadow = true;
   add(floor);
   ctx.floorMeshes.push(floor);
+  ctx.noMerge.add(floor); // the player's ground raycast target — keep its own identity
 
   // A burnished traffic zone in front of the console — differs from the surrounding deck by
   // *roughness*, not albedo, so it reads as worn paint rather than a bright decal. Roughness eased

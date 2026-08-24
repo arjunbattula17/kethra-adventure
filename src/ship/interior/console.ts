@@ -25,7 +25,7 @@ import {
   type PlateVariant,
 } from './consoleTextures';
 import type { InteriorCtx } from './ctx';
-import { ROOM_W } from './ctx';
+import { ROOM_W, protectSubtree } from './ctx';
 
 /**
  * Front face of the desk — matches the console collider's +Z edge in ShipInteriorScene. Scaled by
@@ -433,6 +433,7 @@ export function buildConsole(ctx: InteriorCtx): void {
       else UIManager.toast('Navigation offline — awaiting system reboot.');
     },
   });
+  protectSubtree(ctx, deskGroup);
 
   groups.push(buildJournalTerminal(ctx, kit));
   groups.push(...buildRepairStation(ctx, kit));
@@ -693,6 +694,7 @@ function buildDeckSurface(ctx: InteriorCtx, kit: Kit, parent: THREE.Group): void
     -0.13,
   );
   sweep.renderOrder = 4;
+  ctx.noMerge.add(sweep); // its own position.x is animated per frame, below
 
   // Bezel side trims with a cool strip either side of the chart.
   for (const sx of [-1, 1]) {
@@ -1314,6 +1316,7 @@ function buildJournalTerminal(ctx: InteriorCtx, kit: Kit): THREE.Group {
     enabled: () => gameState.hasFlag('logs_available'),
     onInteract: () => bus.emit('ui:open_journal'),
   });
+  protectSubtree(ctx, g);
 
   return g;
 }
@@ -1400,6 +1403,8 @@ function buildRepairStation(ctx: InteriorCtx, kit: Kit): THREE.Group[] {
     enabled: () => gameState.hasFlag('damage_assessed'),
     onInteract: () => bus.emit('ui:open_repair'),
   });
+  protectSubtree(ctx, g);
+  protectSubtree(ctx, box);
 
   return [g, box];
 }

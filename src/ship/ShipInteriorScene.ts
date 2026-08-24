@@ -17,6 +17,7 @@ import { buildConsole } from './interior/console';
 import { buildSuspendedDisplay } from './interior/suspendedDisplay';
 import { buildDetailProps } from './interior/props';
 import { buildLighting } from './interior/lighting';
+import { batchStaticGeometry } from './interior/batchStaticGeometry';
 
 export class ShipInteriorScene implements GameScene {
   scene = new THREE.Scene();
@@ -30,6 +31,7 @@ export class ShipInteriorScene implements GameScene {
   private emergencyLight: THREE.PointLight | null = null;
   private statusLights: StatusLight[] = [];
   private animated: ((elapsed: number, dt: number) => void)[] = [];
+  private noMerge = new Set<THREE.Object3D>();
   private unsubShake: (() => void) | null = null;
   private stopAmbient: (() => void) | null = null;
 
@@ -46,6 +48,7 @@ export class ShipInteriorScene implements GameScene {
       floorLedMats: this.floorLedMats,
       statusLights: this.statusLights,
       animated: this.animated,
+      noMerge: this.noMerge,
       setStarfield: (points) => {
         this.starfield = points;
       },
@@ -75,6 +78,7 @@ export class ShipInteriorScene implements GameScene {
     buildSuspendedDisplay(ctx);
     buildDetailProps(ctx);
     buildLighting(ctx);
+    batchStaticGeometry(ctx);
 
     this.scene.add(this.player.rig);
 
