@@ -12,26 +12,123 @@ import { KETHRA_LORE_ENTRIES } from './kethraLore';
 import { KethraMechanismPuzzle } from './KethraMechanismPuzzle';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { applyPbr } from '../../core/TextureLibrary';
+import { KitBatcher, kitInstanceBox, jitter } from './kit';
 
 const DIM_CANOPY_COLOR = new THREE.Color(0x274a3a);
 const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
 
-function makeTerrace(width: number, depth: number, x: number, y: number, z: number, color = 0x9a9385): THREE.Mesh {
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.02 });
-  applyPbr(mat, 'lichen_rock', [width / 3, depth / 3]);
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, 0.6, depth), mat);
-  mesh.position.set(x, y, z);
-  mesh.receiveShadow = true;
-  return mesh;
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function makeTrunk(x: number, z: number, height: number, radius = 1.1): THREE.Mesh {
-  const mat = new THREE.MeshStandardMaterial({ color: 0x9a8265, roughness: 0.95, metalness: 0 });
-  applyPbr(mat, 'bark_willow', [1.5, height / 3]);
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.7, radius, height, 10), mat);
-  mesh.position.set(x, height / 2, z);
-  mesh.castShadow = true;
-  return mesh;
+// Quaternius Stylized Nature MegaKit species pools (see public/models/CREDITS.md and kit.ts).
+// Sizes verified from real glTF accessor bounds: Common/Pine trees run ~7-10m tall at scale 1,
+// TwistedTree is a hero/landmark family at ~15-19m tall, DeadTree has no foliage material (bark
+// only) so it never participates in the canopy dim/bright toggle.
+const COMMON_TREES = ['CommonTree_1', 'CommonTree_2', 'CommonTree_3', 'CommonTree_4', 'CommonTree_5'];
+const PINES = ['Pine_1', 'Pine_2', 'Pine_3', 'Pine_4', 'Pine_5'];
+const TWISTED_TREES = ['TwistedTree_1', 'TwistedTree_2', 'TwistedTree_3', 'TwistedTree_4', 'TwistedTree_5'];
+const DEAD_TREES = ['DeadTree_1', 'DeadTree_2', 'DeadTree_3', 'DeadTree_4', 'DeadTree_5'];
+const ROCKS_BIG = ['Rock_Medium_1', 'Rock_Medium_2', 'Rock_Medium_3'];
+const ROCKS_SMALL = ['Pebble_Round_1', 'Pebble_Round_2', 'Pebble_Round_3', 'Pebble_Round_4', 'Pebble_Round_5', 'Pebble_Square_1', 'Pebble_Square_2', 'Pebble_Square_3'];
+const ROCK_PATHS = ['RockPath_Round_Small_1', 'RockPath_Round_Small_2', 'RockPath_Round_Thin', 'RockPath_Round_Wide', 'RockPath_Square_Small_1', 'RockPath_Square_Small_2', 'RockPath_Square_Thin', 'RockPath_Square_Wide'];
+const SHRUBS = ['Bush_Common', 'Bush_Common_Flowers', 'Fern_1'];
+const GRASSES = ['Grass_Common_Short', 'Grass_Common_Tall', 'Grass_Wispy_Short', 'Grass_Wispy_Tall', 'Clover_1', 'Clover_2'];
+const SMALL_FLORA = ['Mushroom_Common', 'Mushroom_Laetiporus', 'Flower_3_Single', 'Flower_3_Group', 'Flower_4_Single', 'Flower_4_Group', 'Plant_1', 'Plant_7'];
+
+interface TreePlacement {
+  position: [number, number, number];
+  species: string;
+  yaw: number;
+  scale: number;
+}
+
+// The six trunk anchors from the original hand-built canopy, kept at the same positions so the
+// gameplay collision/readability of the terraces doesn't shift — only the mesh at each spot
+// changes. Mixed families (Common/Pine/Twisted) so the canopy doesn't read as one repeated tree;
+// the two TwistedTree slots are scaled well below their native ~16-19m to stay in scale with the
+// rest of the grove while still reading as older, gnarled outliers.
+const NAMED_TREES: TreePlacement[] = [
+  { position: [-8, 0, 4], species: 'CommonTree_2', yaw: 0.4, scale: 1.05 },
+  { position: [8, 0, 4], species: 'Pine_2', yaw: 2.1, scale: 1.0 },
+  { position: [-16, 0.6, -6], species: 'TwistedTree_3', yaw: 1.0, scale: 0.62 },
+  { position: [16, 0.6, -6], species: 'CommonTree_4', yaw: 3.6, scale: 1.1 },
+  { position: [-4, 1.1, -18], species: 'Pine_4', yaw: 5.0, scale: 0.95 },
+  { position: [4, 1.1, -18], species: 'TwistedTree_5', yaw: 4.2, scale: 0.5 },
+];
+
+// Background canopy fill: belts of trees beyond the walkable terraces, purely decorative (no
+// colliders, not floor targets) so density can be pushed hard without touching gameplay. Kept
+// clear of the landing terrace approach (z 11-22 near x 0) so the spawn view isn't immediately
+// blocked.
+function generateFillerTrees(): TreePlacement[] {
+  // At least an 8-unit gap from the nearest terrace edge — comfortably past the widest canopy
+  // radius in play (Pine_5/CommonTree_2 at scale 1.3 run ~3m radius, a scaled-down TwistedTree
+  // tops out around 3.7m) so no filler canopy reaches over a walkable terrace or the spawn point.
+  const belts: [number, number, number, number][] = [
+    [-17, 17, 29, 42], // north, beyond the landing terrace (edge at z=21)
+    [-40, -29, -15, 10], // west, beyond the west terrace (edge at x=-21)
+    [29, 40, -15, 10], // east, beyond the east terrace (edge at x=21)
+    [-15, 15, -38, -27], // south, beyond the mechanism chamber (edge at z=-19)
+  ];
+  const trees: TreePlacement[] = [];
+  for (const [xMin, xMax, zMin, zMax] of belts) {
+    const count = 9;
+    for (let i = 0; i < count; i++) {
+      const roll = Math.random();
+      let species: string;
+      let scale: number;
+      if (roll < 0.35) {
+        species = pick(COMMON_TREES);
+        scale = jitter(0.8, 1.3);
+      } else if (roll < 0.65) {
+        species = pick(PINES);
+        scale = jitter(0.8, 1.3);
+      } else if (roll < 0.82) {
+        species = pick(TWISTED_TREES);
+        scale = jitter(0.32, 0.55);
+      } else {
+        species = pick(DEAD_TREES);
+        scale = jitter(0.7, 1.1);
+      }
+      trees.push({
+        position: [jitter(xMin, xMax), 0, jitter(zMin, zMax)],
+        species,
+        yaw: Math.random() * Math.PI * 2,
+        scale,
+      });
+    }
+  }
+  return trees;
+}
+
+function makeTerrace(width: number, depth: number, x: number, y: number, z: number, color = 0x9a9385): THREE.Group {
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.02 });
+  applyPbr(mat, 'lichen_rock', [width / 3, depth / 3]);
+  const group = new THREE.Group();
+
+  const base = new THREE.Mesh(new THREE.BoxGeometry(width, 0.5, depth), mat);
+  base.position.y = -0.05;
+  base.receiveShadow = true;
+  base.castShadow = true;
+  group.add(base);
+
+  // Inset raised cap: turns the slab into a stepped two-tier dais instead of a bare box, and
+  // reads as a worn stone platform under the same lichen_rock PBR set rather than a placeholder.
+  const capW = Math.max(width - 0.6, 0.6);
+  const capD = Math.max(depth - 0.6, 0.6);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(capW, 0.18, capD), mat);
+  cap.position.y = 0.29;
+  cap.receiveShadow = true;
+  cap.castShadow = true;
+  group.add(cap);
+
+  group.position.set(x, y, z);
+  return group;
+}
+
+function makeCollider(x: number, z: number, halfW: number, halfD: number, top: number): THREE.Box3 {
+  return new THREE.Box3(new THREE.Vector3(x - halfW, 0, z - halfD), new THREE.Vector3(x + halfW, top, z + halfD));
 }
 
 // Soft gradient plane texture used for distant ground-hugging haze layers: opaque near the
@@ -141,20 +238,20 @@ export class KethraScene implements GameScene {
 
     this.buildGround();
     this.buildTerraces();
-    this.buildCanopy();
     this.buildNPCs();
     this.buildFragments();
     this.buildShrineAndValve();
     this.buildCreatureArea();
     this.buildMechanismChamber();
     this.buildReturnPad();
-    this.buildClutter();
     this.buildAtmosphere();
     this.buildLighting();
 
+    await Promise.all([this.buildFoliage(), this.buildGroundCover(), this.buildClutter()]);
+
     this.scene.add(this.player.rig);
     this.player.setFloorTargets(this.floorMeshes);
-    this.player.setColliders(this.colliders());
+    this.player.setColliders(await this.colliders());
     this.player.teleport(new THREE.Vector3(0, 2, 18), 0);
     this.player.onFootstep = () => AudioSystem.playFootstep('organic');
     this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
@@ -200,32 +297,33 @@ export class KethraScene implements GameScene {
     this.floorMeshes.push(secretLedge);
   }
 
-  private buildCanopy(): void {
-    const trunkPositions: [number, number, number][] = [
-      [-8, 0, 4],
-      [8, 0, 4],
-      [-16, 0.6, -6],
-      [16, 0.6, -6],
-      [-4, 1.1, -18],
-      [4, 1.1, -18],
-    ];
-    for (const [x, base, z] of trunkPositions) {
-      const height = 9 + Math.random() * 3;
-      const trunk = makeTrunk(x, z, height);
-      trunk.position.y = base + height / 2;
-      this.scene.add(trunk);
+  private async buildFoliage(): Promise<void> {
+    const batcher = new KitBatcher();
+    const allTrees: TreePlacement[] = [...NAMED_TREES, ...generateFillerTrees()];
+    for (const t of allTrees) {
+      batcher.add(t.species, { position: new THREE.Vector3(...t.position), yaw: t.yaw, scale: t.scale });
+    }
 
-      const canopyMat = new THREE.MeshStandardMaterial({
-        color: DIM_CANOPY_COLOR.clone(),
-        emissive: DIM_CANOPY_COLOR.clone(),
-        emissiveIntensity: 0.8,
-        roughness: 0.6,
-      });
-      this.canopyMats.push(canopyMat);
-      const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(2.4 + Math.random(), 1), canopyMat);
-      canopy.position.set(x, base + height + 1.2, z);
-      canopy.scale.y = 0.6;
-      this.scene.add(canopy);
+    const built = await batcher.flush(this.scene);
+    for (const [species, meshes] of built) {
+      if (species.startsWith('DeadTree')) continue;
+      // Primitive 1 is always the canopy/leaf mesh for the Common/Pine/Twisted families (primitive
+      // 0 is the trunk) — see the per-species primitive inspection this rebuild was based on.
+      const leafMesh = meshes[1];
+      if (!leafMesh) continue;
+      const mat = leafMesh.material as THREE.MeshStandardMaterial;
+      // Leave the authored diffuse texture alone (it's what makes the foliage read as real leaf
+      // clusters instead of a flat blob) and drive the bioluminescent dim/bright toggle entirely
+      // through a flat emissive tint. Reusing the diffuse map as an emissive mask was tried first,
+      // but it multiplies the emissive color channel-by-channel against the leaf texture — on the
+      // kit's red-foliage species (TwistedTree) that leaves almost no green channel to multiply
+      // against, so the toggle barely showed. A flat tint responds the same way regardless of the
+      // species' authored leaf color, so the whole canopy visibly reacts together, which matters
+      // here since this is the player's puzzle-progress feedback.
+      mat.emissive = DIM_CANOPY_COLOR.clone();
+      mat.emissiveIntensity = 0.8;
+      mat.needsUpdate = true;
+      this.canopyMats.push(mat);
     }
   }
 
@@ -278,8 +376,16 @@ export class KethraScene implements GameScene {
     fragmentSpots.forEach(([x, y, z], idx) => {
       const pillarMat = new THREE.MeshStandardMaterial({ color: 0x2a2418, roughness: 0.8 });
       applyPbr(pillarMat, 'lichen_rock', [1, 1]);
-      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 1.4, 8), pillarMat);
-      pillar.position.set(x, y, z);
+
+      const pillar = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 0.22, 10), pillarMat);
+      base.position.y = y - 0.7 + 0.11;
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.32, 1.0, 8), pillarMat);
+      shaft.position.y = y - 0.7 + 0.22 + 0.5;
+      const capital = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.18, 10), pillarMat);
+      capital.position.y = y - 0.7 + 0.22 + 1.0 + 0.09;
+      pillar.add(base, shaft, capital);
+      pillar.position.set(x, 0.7, z);
       this.scene.add(pillar);
 
       const runeTex = buildRuneTexture(idx + 1);
@@ -320,12 +426,19 @@ export class KethraScene implements GameScene {
   private buildShrineAndValve(): void {
     const valveMat = new THREE.MeshStandardMaterial({ color: 0x6a5a3a, metalness: 0.7, roughness: 0.4 });
     applyPbr(valveMat, 'metal_plate', [1, 1]);
+    const valveGroup = new THREE.Group();
+    const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.3), valveMat);
+    bracket.position.set(2.5, 0.65, 8.25);
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.6, 10), valveMat);
+    pipe.rotation.z = Math.PI / 2;
+    pipe.position.set(2.5, 0.9, 8.35);
     const valve = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 8, 16), valveMat);
     valve.position.set(2.5, 0.9, 8);
     valve.rotation.x = Math.PI / 2;
-    this.scene.add(valve);
+    valveGroup.add(bracket, pipe, valve);
+    this.scene.add(valveGroup);
     this.interaction.register({
-      object: valve,
+      object: valveGroup,
       label: () => (gameState.hasFlag('kethra_helped_with_valve') ? 'Valve Already Repaired' : 'Realign the Lower Valve'),
       range: 2.2,
       onInteract: () => {
@@ -341,12 +454,19 @@ export class KethraScene implements GameScene {
 
     const shrineMat = new THREE.MeshStandardMaterial({ color: 0x4a3a5a, emissive: 0x8a6ad9, emissiveIntensity: 0.5, roughness: 0.6 });
     applyPbr(shrineMat, 'lichen_rock', [1, 1.5]);
-    const shrine = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.6, 6), shrineMat);
-    shrine.position.set(-1.5, 0.8, 5);
-    this.scene.add(shrine);
+    const shrineGroup = new THREE.Group();
+    const shrineBase = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.62, 0.2, 12), shrineMat);
+    shrineBase.position.set(-1.5, 0.1, 5);
+    const shrineShaft = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.2, 6), shrineMat);
+    shrineShaft.position.set(-1.5, 0.8, 5);
+    const shrineCapMat = new THREE.MeshStandardMaterial({ color: 0x8a6ad9, emissive: 0x8a6ad9, emissiveIntensity: 1.1, roughness: 0.25, metalness: 0.2 });
+    const shrineCap = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), shrineCapMat);
+    shrineCap.position.set(-1.5, 1.55, 5);
+    shrineGroup.add(shrineBase, shrineShaft, shrineCap);
+    this.scene.add(shrineGroup);
     const shrineEntry = KETHRA_LORE_ENTRIES.find((l) => l.id === 'kethra_ritual_record');
     this.interaction.register({
-      object: shrine,
+      object: shrineGroup,
       label: 'Examine the Grove Shrine',
       range: 2.2,
       onInteract: () => {
@@ -364,6 +484,11 @@ export class KethraScene implements GameScene {
     this.scene.add(this.creature);
     const creatureLight = new THREE.PointLight(0x3fd9a8, 0.9, 6);
     this.creature.add(creatureLight);
+    const creatureCore = new THREE.Mesh(
+      new THREE.SphereGeometry(0.32, 10, 10),
+      new THREE.MeshStandardMaterial({ color: 0xd9fff0, emissive: 0xaef5da, emissiveIntensity: 1.4, roughness: 0.15 }),
+    );
+    this.creature.add(creatureCore);
 
     const grovePlant = new THREE.Mesh(
       new THREE.SphereGeometry(1.1, 12, 12),
@@ -426,12 +551,24 @@ export class KethraScene implements GameScene {
 
     const consoleMat = new THREE.MeshStandardMaterial({ color: 0x2a2438, roughness: 0.5, metalness: 0.3 });
     applyPbr(consoleMat, 'metal_plate_02', [1, 1]);
-    const console_ = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 0.8), consoleMat);
-    console_.position.set(0, 1.9, -16);
-    this.scene.add(console_);
+    const panelMat = new THREE.MeshStandardMaterial({ color: 0x3a3448, roughness: 0.4, metalness: 0.4 });
+    applyPbr(panelMat, 'metal_plate', [0.6, 0.6]);
+
+    const consoleGroup = new THREE.Group();
+    const housing = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 0.8), consoleMat);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.55, 0.1), panelMat);
+    panel.position.set(0, 0.15, 0.44);
+    panel.rotation.x = -0.25;
+    const trimL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.02, 0.82), panelMat);
+    trimL.position.set(-0.78, 0, 0);
+    const trimR = trimL.clone();
+    trimR.position.set(0.78, 0, 0);
+    consoleGroup.add(housing, panel, trimL, trimR);
+    consoleGroup.position.set(0, 1.9, -16);
+    this.scene.add(consoleGroup);
 
     this.interaction.register({
-      object: console_,
+      object: consoleGroup,
       label: 'Access the Cistern Heart',
       range: 3,
       onInteract: () => {
@@ -445,13 +582,23 @@ export class KethraScene implements GameScene {
 
     const carvingMat = new THREE.MeshStandardMaterial({ color: 0x1c1810, roughness: 0.9 });
     applyPbr(carvingMat, 'lichen_rock', [1, 1.5]);
-    const carving = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, 0.3), carvingMat);
-    carving.position.set(-2.6, 2.3, -17.5);
-    carving.rotation.y = 0.3;
-    this.scene.add(carving);
+    const carvingGroup = new THREE.Group();
+    const plaque = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.6, 0.2), carvingMat);
+    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.14, 0.28), carvingMat);
+    frameTop.position.y = 0.92;
+    const frameBottom = frameTop.clone();
+    frameBottom.position.y = -0.92;
+    const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.9, 0.28), carvingMat);
+    frameLeft.position.x = -0.65;
+    const frameRight = frameLeft.clone();
+    frameRight.position.x = 0.65;
+    carvingGroup.add(plaque, frameTop, frameBottom, frameLeft, frameRight);
+    carvingGroup.position.set(-2.6, 2.3, -17.5);
+    carvingGroup.rotation.y = 0.3;
+    this.scene.add(carvingGroup);
     const kindlingEntry = KETHRA_LORE_ENTRIES.find((l) => l.id === 'kethra_kindling_record');
     this.interaction.register({
-      object: carving,
+      object: carvingGroup,
       label: 'Read the Last Kindling Carving',
       range: 2.8,
       onInteract: () => {
@@ -468,15 +615,118 @@ export class KethraScene implements GameScene {
   private buildReturnPad(): void {
     const padMat = new THREE.MeshStandardMaterial({ color: 0x555f6a, emissive: 0x2a7fd9, emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.4 });
     applyPbr(padMat, 'metal_plate', [2, 2]);
+    const padGroup = new THREE.Group();
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.15, 20), padMat);
-    pad.position.set(0, 0.1, 18);
-    this.scene.add(pad);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.06, 8, 24), padMat);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 0.08;
+    const centerMat = new THREE.MeshStandardMaterial({ color: 0x2a7fd9, emissive: 0x4fa9ff, emissiveIntensity: 1.0, roughness: 0.3 });
+    const center = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 20), centerMat);
+    center.position.y = 0.1;
+    padGroup.add(pad, rim, center);
+    padGroup.position.set(0, 0.1, 18);
+    this.scene.add(padGroup);
     this.interaction.register({
-      object: pad,
+      object: padGroup,
       label: 'Return to Ship',
       range: 2.6,
       onInteract: () => this.onDepart?.(),
     });
+  }
+
+  private async buildGroundCover(): Promise<void> {
+    const batcher = new KitBatcher();
+
+    const rockSpots: [number, number, number, number][] = [
+      [-21.5, 0.9, 3, 1.15],
+      [-11.5, 0.9, -6.2, 0.9],
+      [21.5, 0.9, 2.5, 1.0],
+      [11.4, 0.9, -6.4, 0.95],
+      [-4.3, 1.5, -9.4, 1.0],
+      [4.4, 1.5, -9.3, 0.9],
+      [-20.4, 2.7, -6.2, 0.85],
+      [-19.6, 2.7, -9.6, 0.8],
+      [1.8, 2.4, -12.6, 1.05],
+      [-2.8, 2.4, -11.7, 0.8],
+      [0, 0, 20.5, 1.1],
+      [-2.5, -0.05, 21.5, 0.75],
+    ];
+    for (const [x, y, z, s] of rockSpots) {
+      batcher.add(pick(ROCKS_BIG), {
+        position: new THREE.Vector3(x, y + 0.16 * s, z),
+        yaw: Math.random() * Math.PI * 2,
+        scale: s * jitter(0.9, 1.15),
+      });
+    }
+
+    const pathSpots: [number, number, number][] = [
+      [-4.6, 0.09, 6],
+      [-3.2, 0.09, 5.4],
+      [4.4, 0.09, 6],
+      [3.1, 0.09, 5.5],
+      [-6.5, -0.02, 11.5],
+      [6.4, -0.02, 11.4],
+      [-1.6, 1.16, -13],
+      [1.5, 1.16, -13.2],
+    ];
+    for (const [x, y, z] of pathSpots) {
+      batcher.add(pick(ROCK_PATHS), {
+        position: new THREE.Vector3(x, y, z),
+        yaw: Math.random() * Math.PI * 2,
+        scale: jitter(0.9, 1.2),
+      });
+    }
+
+    await batcher.flush(this.scene);
+  }
+
+  private async buildClutter(): Promise<void> {
+    const batcher = new KitBatcher();
+    const glowMatA = new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 0.8, roughness: 0.4 });
+    const glowMatB = new THREE.MeshStandardMaterial({ color: 0x4fd9c8, emissive: 0x4fd9c8, emissiveIntensity: 0.8, roughness: 0.4 });
+
+    // xMin, xMax, zMin, zMax, y (terrace top surface height), item count
+    const clutterZones: [number, number, number, number, number, number][] = [
+      [-6, 6, -5, 8, 0.38, 18],
+      [12, 20, -6, 2, 0.98, 16],
+      [-20, -12, -6, 2, 0.98, 16],
+      [-5, 5, 12, 20, 0.38, 14],
+      [-6, -3.6, -19, -9, 1.48, 8],
+      [3.6, 6, -19, -9, 1.48, 8],
+      [-21, -19, -9, -7, 2.78, 7],
+    ];
+
+    for (const [xMin, xMax, zMin, zMax, y, density] of clutterZones) {
+      for (let i = 0; i < density; i++) {
+        const x = jitter(xMin, xMax);
+        const z = jitter(zMin, zMax);
+        const roll = Math.random();
+        const yaw = Math.random() * Math.PI * 2;
+        if (roll < 0.28) {
+          const big = Math.random() < 0.35;
+          batcher.add(pick(big ? ROCKS_BIG : ROCKS_SMALL), {
+            position: new THREE.Vector3(x, y + (big ? 0.16 : 0.04), z),
+            yaw,
+            scale: jitter(0.85, 1.3) * (big ? 1 : 1.4),
+          });
+        } else if (roll < 0.5) {
+          batcher.add(pick(SHRUBS), { position: new THREE.Vector3(x, y + 0.04, z), yaw, scale: jitter(0.85, 1.3) });
+        } else if (roll < 0.75) {
+          batcher.add(pick(GRASSES), { position: new THREE.Vector3(x, y + 0.02, z), yaw, scale: jitter(0.85, 1.35) });
+        } else if (roll < 0.9) {
+          batcher.add(pick(SMALL_FLORA), { position: new THREE.Vector3(x, y + 0.03, z), yaw, scale: jitter(0.85, 1.25) });
+        } else {
+          const glow = new THREE.Mesh(
+            new THREE.IcosahedronGeometry(0.1 + Math.random() * 0.08, 0),
+            Math.random() > 0.5 ? glowMatA : glowMatB,
+          );
+          glow.position.set(x, y + 0.1, z);
+          this.scene.add(glow);
+        }
+      }
+    }
+
+    await batcher.flush(this.scene);
   }
 
   private buildAtmosphere(): void {
@@ -554,90 +804,25 @@ export class KethraScene implements GameScene {
     this.scene.add(fillB);
   }
 
-  private colliders(): THREE.Box3[] {
+  private async colliders(): Promise<THREE.Box3[]> {
     const boxes: THREE.Box3[] = [];
-    const trunkSpots: [number, number][] = [[-8, 4], [8, 4], [-16, -6], [16, -6], [-4, -18], [4, -18]];
-    for (const [x, z] of trunkSpots) {
-      boxes.push(new THREE.Box3(new THREE.Vector3(x - 0.9, 0, z - 0.9), new THREE.Vector3(x + 0.9, 6, z + 0.9)));
+    for (const t of NAMED_TREES) {
+      const box = await kitInstanceBox(t.species, new THREE.Vector3(...t.position), t.yaw, t.scale);
+      boxes.push(box);
     }
-    boxes.push(new THREE.Box3(new THREE.Vector3(-1, 0, -19), new THREE.Vector3(1, 3.5, -17)));
+    boxes.push(makeCollider(0, -18, 1, 1, 3.5));
     return boxes;
   }
 
   private setCanopyBright(bright: boolean): void {
     const target = bright ? BRIGHT_CANOPY_COLOR : DIM_CANOPY_COLOR;
     for (const mat of this.canopyMats) {
-      mat.color.copy(target);
       mat.emissive.copy(target);
       mat.emissiveIntensity = bright ? 1.8 : 0.8;
     }
     const waterMat = this.waterPool.material as THREE.MeshStandardMaterial;
     waterMat.opacity = bright ? 0.55 : 0.12;
     waterMat.emissiveIntensity = bright ? 0.9 : 0.3;
-  }
-
-  private buildClutter(): void {
-    const rockMatSmall = new THREE.MeshStandardMaterial({ color: 0x4a4438, roughness: 0.9, metalness: 0.05 });
-    const rockMatLarge = new THREE.MeshStandardMaterial({ color: 0x5a5448, roughness: 0.88, metalness: 0.04 });
-    const shrubMat = new THREE.MeshStandardMaterial({ color: 0x2f5a3f, roughness: 0.75, emissive: 0x1a3a28, emissiveIntensity: 0.25 });
-    const reedMat = new THREE.MeshStandardMaterial({ color: 0x3a6a4a, roughness: 0.7, emissive: 0x143020, emissiveIntensity: 0.2 });
-    // Bioluminescent ground-plants: small, strongly emissive, picked up by the global bloom pass.
-    const glowMatA = new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 0.8, roughness: 0.4 });
-    const glowMatB = new THREE.MeshStandardMaterial({ color: 0x4fd9c8, emissive: 0x4fd9c8, emissiveIntensity: 0.8, roughness: 0.4 });
-
-    // xMin, xMax, zMin, zMax, y (terrace top surface height), item count
-    const clutterZones: [number, number, number, number, number, number][] = [
-      [-6, 6, -5, 8, 0.3, 14],
-      [12, 20, -6, 2, 0.9, 12],
-      [-20, -12, -6, 2, 0.9, 12],
-      [-5, 5, 12, 20, 0.3, 10],
-      [-6, -3.6, -19, -9, 1.4, 6],
-      [3.6, 6, -19, -9, 1.4, 6],
-      [-21, -19, -9, -7, 2.7, 5],
-    ];
-
-    for (const [xMin, xMax, zMin, zMax, y, density] of clutterZones) {
-      for (let i = 0; i < density; i++) {
-        const x = xMin + Math.random() * (xMax - xMin);
-        const z = zMin + Math.random() * (zMax - zMin);
-        const roll = Math.random();
-        if (roll < 0.3) {
-          const big = Math.random() > 0.6;
-          const rock = new THREE.Mesh(
-            big
-              ? new THREE.DodecahedronGeometry(0.35 + Math.random() * 0.35, 0)
-              : new THREE.IcosahedronGeometry(0.18 + Math.random() * 0.22, 0),
-            big ? rockMatLarge : rockMatSmall,
-          );
-          rock.position.set(x, y + (big ? 0.3 : 0.15), z);
-          rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-          this.scene.add(rock);
-        } else if (roll < 0.55) {
-          const shrub = new THREE.Mesh(new THREE.ConeGeometry(0.22 + Math.random() * 0.15, 0.5 + Math.random() * 0.3, 6), shrubMat);
-          shrub.position.set(x, y + 0.3, z);
-          this.scene.add(shrub);
-        } else if (roll < 0.78) {
-          const cluster = new THREE.Group();
-          const bladeCount = 3 + Math.floor(Math.random() * 3);
-          for (let b = 0; b < bladeCount; b++) {
-            const bladeHeight = 0.4 + Math.random() * 0.4;
-            const blade = new THREE.Mesh(new THREE.ConeGeometry(0.04, bladeHeight, 4), reedMat);
-            blade.position.set((Math.random() - 0.5) * 0.3, bladeHeight / 2, (Math.random() - 0.5) * 0.3);
-            blade.rotation.z = (Math.random() - 0.5) * 0.3;
-            cluster.add(blade);
-          }
-          cluster.position.set(x, y, z);
-          this.scene.add(cluster);
-        } else {
-          const glow = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(0.1 + Math.random() * 0.08, 0),
-            Math.random() > 0.5 ? glowMatA : glowMatB,
-          );
-          glow.position.set(x, y + 0.1, z);
-          this.scene.add(glow);
-        }
-      }
-    }
   }
 
   update(dt: number, elapsed: number): void {
@@ -675,6 +860,11 @@ export class KethraScene implements GameScene {
     this.stopAmbient?.();
     this.interaction.clear();
     this.scene.traverse((obj) => {
+      // Kit-sourced InstancedMesh geometries are shared, cached templates (src/planets/kethra/kit.ts)
+      // reused across scene visits — disposing them here would leave the cache holding freed GPU
+      // buffers and break the scene on a return trip to Kethra. batchStaticGeometry.ts documents the
+      // same InstancedMesh-vs-shared-geometry hazard for the ship interior's kit.
+      if ((obj as THREE.InstancedMesh).isInstancedMesh) return;
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
     });
