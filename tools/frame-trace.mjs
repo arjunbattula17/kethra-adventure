@@ -60,7 +60,20 @@ const PRESETS = {
   'galaxy-reveal': async (page) => {
     await gotoReady(page);
     await page.evaluate(() => window.__DEBUG__.flow['transitionToGalaxyReveal']?.());
-    await page.waitForTimeout(2600);
+    // transitionToGalaxyReveal() is async and doesn't resolve until its own fade-to-black, scene
+    // init (real GLTF loading for the kitbashed ship hull), and fade-from-black are all done, so a
+    // fixed wait from here can land at very different points in the cinematic depending on how long
+    // that load took -- corrupting this preset's frame-time sample with whatever keyframe it happens
+    // to catch. Anchor to the ship actually existing, then take a short fixed settle from there.
+    await page.waitForFunction(
+      () => {
+        const s = window.__DEBUG__.engine.getCurrentScene();
+        return !!s?.ship;
+      },
+      undefined,
+      { timeout: 30000 },
+    );
+    await page.waitForTimeout(1500);
   },
 };
 

@@ -4,6 +4,8 @@ import { CinematicSequencer } from '../player/CameraController';
 import { UIManager } from '../ui/UIManager';
 import { getSharedEnvironment } from '../core/Environment';
 import { PLANETS } from './planetData';
+import { buildShipHull } from './shipHull';
+import { buildPlanetInstance, type PlanetInstance } from './planetShader';
 
 function buildGlowTexture(): THREE.Texture {
   const size = 256;
@@ -178,54 +180,26 @@ class EngineTrail {
   }
 }
 
-function buildShipModel(): THREE.Group {
-  const group = new THREE.Group();
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0x8a919e, metalness: 0.4, roughness: 0.5 });
-  const wingMat = new THREE.MeshStandardMaterial({ color: 0x4a4f5a, metalness: 0.45, roughness: 0.55 });
-  const accentMat = new THREE.MeshStandardMaterial({ color: 0xd9a441, emissive: 0xd9a441, emissiveIntensity: 0.6, metalness: 0.2, roughness: 0.4 });
-
-  const hull = new THREE.Mesh(new THREE.CapsuleGeometry(1.1, 3.4, 6, 10), hullMat);
-  hull.rotation.z = Math.PI / 2;
-  group.add(hull);
-
-  const wingGeo = new THREE.BoxGeometry(3.2, 0.15, 1.4);
-  const wingL = new THREE.Mesh(wingGeo, wingMat);
-  wingL.position.set(-0.3, 0, 1.6);
-  group.add(wingL);
-  const wingR = new THREE.Mesh(wingGeo, wingMat);
-  wingR.position.set(-0.3, 0, -1.6);
-  group.add(wingR);
-
-  const engineGlowGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 12);
-  for (const side of [-1, 1]) {
-    const glow = new THREE.Mesh(engineGlowGeo, accentMat);
-    glow.rotation.x = Math.PI / 2;
-    glow.position.set(-2.1, 0, side * 1.6);
-    group.add(glow);
-  }
-
-  const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), accentMat);
-  cockpit.position.set(1.7, 0.3, 0);
-  group.add(cockpit);
-
-  return group;
-}
-
 export class GalaxyRevealScene implements GameScene {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 4000);
   private sequencer: CinematicSequencer;
-  private ship: THREE.Group;
+  private ship!: THREE.Group;
   private sun!: THREE.Mesh;
-  private planetMeshes: THREE.Mesh[] = [];
+  private planetMeshes: THREE.Object3D[] = [];
+  private planetInstances: PlanetInstance[] = [];
   private coronaInner!: THREE.Sprite;
   private coronaOuter!: THREE.Sprite;
   private asteroidField!: THREE.Points;
   private engineTrail: EngineTrail;
-  private readonly engineLocalPositions = [new THREE.Vector3(-2.3, 0, 1.6), new THREE.Vector3(-2.3, 0, -1.6)];
+  private engineLocalPositions: THREE.Vector3[] = [];
   private pingSprite!: THREE.Sprite;
   private pingElapsed = -1;
   private elapsedTotal = 0;
+  // Cinematic beats (captions, sensor ping) fire off this dt-accumulated clock, not real
+  // setTimeout wall-clock time -- see revealTimers below for why.
+  private revealElapsed = 0;
+  private revealTimers: Array<{ at: number; fn: () => void; fired: boolean }> = [];
   private readyForContinue = false;
   onContinue: (() => void) | null = null;
   private continueHandler = (e: KeyboardEvent) => {
@@ -237,7 +211,6 @@ export class GalaxyRevealScene implements GameScene {
 
   constructor() {
     this.sequencer = new CinematicSequencer(this.camera);
-    this.ship = buildShipModel();
     this.engineTrail = new EngineTrail(160);
   }
 
@@ -249,6 +222,14 @@ export class GalaxyRevealScene implements GameScene {
 
     this.scene.add(buildStarfield(2400, 500, 1.1));
     this.scene.add(buildStarfield(1800, 900, 0.5));
+
+    // Kit pieces load async — everything below this line may assume this.ship exists, and nothing
+    // above it touches the ship, so awaiting here up front is enough to keep playReveal()'s camera
+    // lookAt (which reads this.ship.position) and update()'s per-frame reads safe. Engine.setScene
+    // also awaits this whole init() before the scene becomes current and update() starts running.
+    const hull = await buildShipHull();
+    this.ship = hull.group;
+    this.engineLocalPositions = hull.engineLocalPositions;
     this.scene.add(this.ship);
     this.scene.add(this.engineTrail.points);
 
@@ -320,28 +301,17 @@ export class GalaxyRevealScene implements GameScene {
     this.scene.add(this.pingSprite);
 
     for (const p of PLANETS) {
-      const geo = new THREE.SphereGeometry(p.radius, 24, 24);
-      const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.7, metalness: 0.15 });
-      const mesh = new THREE.Mesh(geo, mat);
       const angle = p.orbitAngle;
-      mesh.position.set(
+      const position = new THREE.Vector3(
         Math.cos(angle) * p.orbitRadius,
         Math.sin(angle * 0.4) * 8,
         this.sun.position.z + Math.sin(angle) * p.orbitRadius,
       );
-      mesh.userData.planetId = p.id;
-      this.scene.add(mesh);
-      this.planetMeshes.push(mesh);
-
-      if (p.hasRing) {
-        const ring = new THREE.Mesh(
-          new THREE.RingGeometry(p.radius * 1.5, p.radius * 2.1, 48),
-          new THREE.MeshBasicMaterial({ color: p.color, transparent: true, opacity: 0.35, side: THREE.DoubleSide }),
-        );
-        ring.rotation.x = Math.PI / 2.4;
-        ring.position.copy(mesh.position);
-        this.scene.add(ring);
-      }
+      const instance = buildPlanetInstance(p, position, this.sun.position, this.camera);
+      instance.group.userData.planetId = p.id;
+      this.scene.add(instance.group);
+      this.planetMeshes.push(instance.group);
+      this.planetInstances.push(instance);
     }
 
     this.camera.position.set(0, 0.6, 6);
@@ -367,9 +337,22 @@ export class GalaxyRevealScene implements GameScene {
         UIManager.showCaption('Click or press Enter to continue', 999999);
       },
     );
-    setTimeout(() => UIManager.showCaption('You are stranded, alone, in a galaxy no chart has ever mapped.', 4200), 1200);
-    setTimeout(() => UIManager.showCaption('Somewhere out there is the truth — and a way home.', 4200), 8200);
-    setTimeout(() => this.triggerSensorPing(), 8200);
+    // These used to be real setTimeout(fn, ms) calls, timed to roughly match the sequencer's own
+    // keyframe pacing above. But setTimeout runs on true wall-clock time while the sequencer (and
+    // everything else in update()) advances on a dt clamped to 100ms/frame (see Engine.start()) --
+    // so any slow frame (shader-compile stall on scene entry, GC pause, a throttled/loaded machine)
+    // makes real time race ahead of the cinematic's own visual progress. The sensor ping was firing
+    // and finishing its whole animation while the camera was still sitting at the very start of the
+    // first keyframe, reading as a huge ring dominating the close-up shot -- invisible on a fast
+    // machine where the two clocks stay roughly in sync, but reliable on anything slower. Scheduling
+    // off the same dt-accumulated clock the rest of the cinematic uses keeps every beat locked to
+    // what's actually on screen regardless of how long real time took to get there.
+    this.revealElapsed = 0;
+    this.revealTimers = [
+      { at: 1.2, fn: () => UIManager.showCaption('You are stranded, alone, in a galaxy no chart has ever mapped.', 4200), fired: false },
+      { at: 8.2, fn: () => UIManager.showCaption('Somewhere out there is the truth — and a way home.', 4200), fired: false },
+      { at: 8.2, fn: () => this.triggerSensorPing(), fired: false },
+    ];
   }
 
   private triggerSensorPing(): void {
@@ -388,9 +371,19 @@ export class GalaxyRevealScene implements GameScene {
 
   update(dt: number, elapsed: number): void {
     this.elapsedTotal = elapsed;
+    this.revealElapsed += dt;
+    for (const timer of this.revealTimers) {
+      if (!timer.fired && this.revealElapsed >= timer.at) {
+        timer.fired = true;
+        timer.fn();
+      }
+    }
     this.sequencer.update(dt);
     for (const mesh of this.planetMeshes) {
       mesh.rotation.y += dt * 0.05;
+    }
+    for (const instance of this.planetInstances) {
+      instance.update(elapsed, dt);
     }
     this.ship.rotation.y = Math.sin(this.elapsedTotal * 0.15) * 0.05;
     this.ship.updateMatrixWorld();
