@@ -7,5 +7,10 @@ import { defineConfig } from 'vite';
 const servesFromRoot = process.env.RENDER === 'true' || process.env.CF_PAGES === '1';
 
 export default defineConfig({
+  // Empty on purpose: this is a plain static site with no Workers backend, so we don't need
+  // @cloudflare/vite-plugin. But Cloudflare's dashboard setup flow codemods this file to inject
+  // that plugin and errors ("could not find a valid plugins array") if the array doesn't already
+  // exist — this satisfies that without pulling in Workers functionality we don't use.
+  plugins: [],
   base: servesFromRoot ? '/' : '/kethra-adventure/',
 });
