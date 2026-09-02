@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite';
 
 // GitHub Pages serves this repo from a /kethra-adventure/ subpath, so asset URLs need that prefix
-// baked in. Render and Cloudflare Pages both serve a static site from the root of their own
-// domain instead — each sets its own build-env flag (RENDER, CF_PAGES), so that's what selects
-// between the two rather than a separate build script/branch to keep in sync.
-const servesFromRoot = process.env.RENDER === 'true' || process.env.CF_PAGES === '1';
+// baked in. Render and Cloudflare both serve a static site from the root of their own domain
+// instead — each sets its own build-env flag, so that's what selects between the two rather than
+// a separate build script/branch to keep in sync. Cloudflare has two separate git-integration
+// products with two separate flags: classic Pages sets CF_PAGES=1, but a project connected
+// through the newer Workers Builds (workers.dev domain, wrangler-based static assets) sets
+// WORKERS_CI=1 instead — CF_PAGES is never set there, so both have to be checked.
+const servesFromRoot = process.env.RENDER === 'true' || process.env.CF_PAGES === '1' || process.env.WORKERS_CI === '1';
 
 export default defineConfig({
   // Empty on purpose: this is a plain static site with no Workers backend, so we don't need
