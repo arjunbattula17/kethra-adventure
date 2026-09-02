@@ -12,3 +12,8 @@ attribution legally required, credited here as good practice).
 - `ship_floor/` (metal_grate_rusty) — https://polyhaven.com/a/metal_grate_rusty
 - `ship_console/` (worn_shutter) — https://polyhaven.com/a/worn_shutter
 - `ship_trim/` (blue_metal_plate) — https://polyhaven.com/a/blue_metal_plate
+
+`space/starmap.jpg` is NASA Scientific Visualization Studio's "An Elsewhere Starfield" (public
+domain), downloaded at its low-res 1024x512 "print" resolution — a real 2:1 equirectangular
+projection, not a thumbnail crop — since the 4k+ EXR versions run 34MB-3.8GB, far past what a
+cutscene skybox needs. https://svs.gsfc.nasa.gov/4856

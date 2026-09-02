@@ -177,6 +177,17 @@ export class PostProcessing {
     this.bloomPass.enabled = tier !== 'low';
   }
 
+  // Independent toggles for the settings menu, so a player can drop just one heavy effect
+  // without forcing the coarser tier preset down. setQuality() above remains the default the
+  // tier selector applies before either of these overrides it.
+  setAOEnabled(enabled: boolean): void {
+    this.aoPass.enabled = enabled;
+  }
+
+  setBloomEnabled(enabled: boolean): void {
+    this.bloomPass.enabled = enabled;
+  }
+
   render(): void {
     this.composer.render();
   }

@@ -8,6 +8,7 @@ import { JournalSystem } from './journal/JournalSystem';
 import { RepairUI } from './ship/RepairUI';
 import { MapController } from './galaxy/MapController';
 import { CharacterPanel } from './rpg/CharacterPanel';
+import { SettingsPanel } from './ui/SettingsPanel';
 import { gameState } from './core/GameState';
 import { bus } from './core/EventBus';
 import { SaveSystem } from './core/SaveSystem';
@@ -30,12 +31,17 @@ PanelManager.mount();
 // a panel opens (PanelManager.open() calls exitPointerLock()). Pausing here freezes the last frame
 // in place -- visually identical under a static blur, since nothing was meant to keep animating
 // behind a panel the player's actually looking at -- and stops paying for it.
-PanelManager.onOpenChange = (open) => engine.setPaused(open);
+const uiOnOpenChange = PanelManager.onOpenChange;
+PanelManager.onOpenChange = (open) => {
+  uiOnOpenChange(open);
+  engine.setPaused(open);
+};
 AudioSystem.init();
 JournalSystem.init();
 RepairUI.init();
 MapController.init();
 CharacterPanel.init();
+SettingsPanel.init();
 
 const params = new URLSearchParams(location.search);
 if (params.get('newGame')) SaveSystem.clear();

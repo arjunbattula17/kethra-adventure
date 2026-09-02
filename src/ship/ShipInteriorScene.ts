@@ -70,14 +70,21 @@ export class ShipInteriorScene implements GameScene {
 
     const ctx = this.buildContext();
     buildFloor(ctx);
-    buildWalls(ctx);
     buildCeiling(ctx);
     buildStarfieldWindow(ctx);
-    buildAirlock(ctx);
     buildConsole(ctx);
     buildSuspendedDisplay(ctx);
-    buildDetailProps(ctx);
     buildLighting(ctx);
+    // buildWalls/buildAirlock/buildDetailProps each load real glTF kit pieces asynchronously and
+    // add their own independent geometry — nothing else here reads what they produce, so they run
+    // concurrently. batchStaticGeometry's merge pass below is documented (see its own header
+    // comment) to require every builder's geometry to already be in the scene; these three used to
+    // be fired without an await, so the merge ran against whatever had already loaded by then
+    // (next to nothing, since GLTFLoader fetches are async) and left the rest of the room's
+    // geometry — the whole airlock, both side walls, and every detail prop — streaming in afterward
+    // as unbatched, unmerged individual draw calls, with each piece's load/parse/GPU-upload landing
+    // as a hitch on whatever frame happened to be running when it resolved.
+    await Promise.all([buildWalls(ctx), buildAirlock(ctx), buildDetailProps(ctx)]);
     batchStaticGeometry(ctx);
 
     this.scene.add(this.player.rig);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { PlanetDefinition } from './planetData';
+import { buildPlanetSurface } from './planetModels';
 
 // Shader structure (altitude-banded terrain color, a domain-noise cloud shell, and a power-falloff
 // atmosphere rim) is adapted from two real, working references rather than invented from scratch:
@@ -84,50 +85,6 @@ void main() {
   vec4 worldPos = modelMatrix * vec4(position, 1.0);
   vPosW = worldPos.xyz;
   gl_Position = projectionMatrix * viewMatrix * worldPos;
-}
-`;
-
-const SURFACE_FRAGMENT = /* glsl */ `
-precision highp float;
-varying vec3 vNormalW;
-varying vec3 vPosW;
-
-uniform vec3 uSunDir;
-uniform vec3 uBaseColor;
-uniform float uSeed;
-
-${NOISE_GLSL}
-
-void main() {
-  vec3 n = normalize(vNormalW);
-  vec3 p = n * 2.4 + vec3(uSeed);
-  float terrain = fbm4(p);
-
-  vec3 deep = uBaseColor * 0.32;
-  vec3 mid = uBaseColor;
-  vec3 high = mix(uBaseColor, vec3(1.0), 0.5);
-
-  vec3 surface = mix(deep, mid, smoothstep(0.28, 0.5, terrain));
-  surface = mix(surface, high, smoothstep(0.64, 0.8, terrain));
-
-  float polar = smoothstep(0.6, 0.88, abs(n.y));
-  surface = mix(surface, vec3(0.9, 0.94, 1.0), polar * 0.55);
-
-  float ndl = dot(n, uSunDir);
-  float dayMix = smoothstep(-0.18, 0.16, ndl);
-  float diffuse = clamp(ndl, 0.0, 1.0);
-
-  // Faint city-light speckle, only where the terrain band is already lit-plausible and only on
-  // the night side — a cheap stand-in for GroundShader's nightMap term.
-  float lights = smoothstep(0.97, 0.995, fbm2(p * 5.0 + 19.0)) * (1.0 - dayMix);
-  vec3 night = surface * 0.045 + vec3(1.0, 0.82, 0.5) * lights * 1.4;
-  vec3 lit = surface * (0.12 + diffuse * 1.05);
-
-  vec3 color = mix(night, lit, dayMix);
-
-  gl_FragColor = vec4(color, 1.0);
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
 }
 `;
 
@@ -249,12 +206,12 @@ export interface PlanetInstance {
   update(elapsed: number, dt: number): void;
 }
 
-export function buildPlanetInstance(
+export async function buildPlanetInstance(
   def: PlanetDefinition,
   position: THREE.Vector3,
   sunPosition: THREE.Vector3,
   camera: THREE.Camera,
-): PlanetInstance {
+): Promise<PlanetInstance> {
   const group = new THREE.Group();
   group.position.copy(position);
 
@@ -265,17 +222,10 @@ export function buildPlanetInstance(
   // than re-derived every frame.
   const sunDir = sunPosition.clone().sub(position).normalize();
 
-  const surfaceUniforms = {
-    uSunDir: { value: sunDir },
-    uBaseColor: { value: baseColor },
-    uSeed: { value: seed },
-  };
-  const surfaceMat = new THREE.ShaderMaterial({
-    vertexShader: VERTEX,
-    fragmentShader: SURFACE_FRAGMENT,
-    uniforms: surfaceUniforms,
-  });
-  const surface = new THREE.Mesh(new THREE.SphereGeometry(def.radius, 32, 24), surfaceMat);
+  // Real NASA glTF geometry/texture (see planetModels.ts) standing in for the old procedural
+  // shader sphere — lit by the scene's own sun PointLight/ambient like every other PBR mesh in
+  // the cutscene (ship hull included) rather than the shader's own hand-rolled day/night terminator.
+  const surface = await buildPlanetSurface(def.id, def.radius, def.color);
   group.add(surface);
 
   const cloudUniforms = {

@@ -9,6 +9,10 @@ class PanelManagerImpl {
   private escapeInterceptor: (() => void) | null = null;
   isOpen = false;
   onOpenChange: (open: boolean) => void = () => {};
+  /** Identifies which panel is currently open (e.g. 'character', 'settings') so a global toggle
+   * keybinding can tell "close my own panel" apart from "switch from a different one" instead of
+   * only ever seeing the single shared isOpen flag. Null when no panel, or an id-less one, is open. */
+  activeId: string | null = null;
 
   constructor() {
     this.overlay = document.createElement('div');
@@ -32,11 +36,12 @@ class PanelManagerImpl {
    * than exit entirely. The interceptor is responsible for calling close() itself when the
    * back-navigation reaches the top level.
    */
-  open(panelHtml: HTMLElement, onClose?: PanelCloseHandler, onEscape?: () => void): void {
+  open(panelHtml: HTMLElement, onClose?: PanelCloseHandler, onEscape?: () => void, id?: string): void {
     this.content.innerHTML = '';
     this.content.appendChild(panelHtml);
     this.overlay.classList.add('visible');
     this.isOpen = true;
+    this.activeId = id ?? null;
     this.openCallback = onClose ?? null;
     this.escapeInterceptor = onEscape ?? null;
     InputManager.exitPointerLock();
@@ -53,6 +58,7 @@ class PanelManagerImpl {
     if (!this.isOpen) return;
     this.overlay.classList.remove('visible');
     this.isOpen = false;
+    this.activeId = null;
     this.escapeInterceptor = null;
     this.onOpenChange(false);
     this.openCallback?.();

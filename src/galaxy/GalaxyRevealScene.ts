@@ -220,6 +220,21 @@ export class GalaxyRevealScene implements GameScene {
     this.scene.environment = getSharedEnvironment();
     this.scene.environmentIntensity = 0.12;
 
+    // Real NASA randomized-star equirect (public domain, see public/models/CREDITS.md) behind the
+    // procedural point-star fields below — a flat color reads as empty space, this reads as a sky.
+    // Loaded at its low-res "print" resolution (1024x512, ~38KB): still a proper 2:1 equirect, and
+    // this cinematic's own camera keyframes never get close enough for the softness to show.
+    new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/space/starmap.jpg`, (texture) => {
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      this.scene.background = texture;
+      // The shared post-process grade (PostProcessing.ts) was tuned entirely against the ship
+      // interior's lit surfaces, and its shadow-toe lift/gamma compression flattens this mostly-
+      // near-black photo into a duller grey than the source image's own galactic band actually is.
+      // backgroundIntensity boosts just the background draw, independent of that shared pipeline.
+      this.scene.backgroundIntensity = 1.8;
+    });
+
     this.scene.add(buildStarfield(2400, 500, 1.1));
     this.scene.add(buildStarfield(1800, 900, 0.5));
 
@@ -300,19 +315,25 @@ export class GalaxyRevealScene implements GameScene {
     this.pingSprite.visible = false;
     this.scene.add(this.pingSprite);
 
-    for (const p of PLANETS) {
-      const angle = p.orbitAngle;
-      const position = new THREE.Vector3(
-        Math.cos(angle) * p.orbitRadius,
-        Math.sin(angle * 0.4) * 8,
-        this.sun.position.z + Math.sin(angle) * p.orbitRadius,
-      );
-      const instance = buildPlanetInstance(p, position, this.sun.position, this.camera);
-      instance.group.userData.planetId = p.id;
+    // Planets load their real glTF geometry in parallel — see planetModels.ts — rather than one
+    // at a time, so the cinematic doesn't stall for the sum of four separate loads.
+    const instances = await Promise.all(
+      PLANETS.map((p) => {
+        const angle = p.orbitAngle;
+        const position = new THREE.Vector3(
+          Math.cos(angle) * p.orbitRadius,
+          Math.sin(angle * 0.4) * 8,
+          this.sun.position.z + Math.sin(angle) * p.orbitRadius,
+        );
+        return buildPlanetInstance(p, position, this.sun.position, this.camera);
+      }),
+    );
+    instances.forEach((instance, i) => {
+      instance.group.userData.planetId = PLANETS[i].id;
       this.scene.add(instance.group);
       this.planetMeshes.push(instance.group);
       this.planetInstances.push(instance);
-    }
+    });
 
     this.camera.position.set(0, 0.6, 6);
     this.camera.lookAt(this.ship.position.clone().add(new THREE.Vector3(3, 0, 0)));

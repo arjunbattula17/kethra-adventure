@@ -45,6 +45,10 @@ export class Engine {
   // downgrade on its own.
   private recentFrameMs: number[] = [];
   private lastDowngradeAt = -Infinity;
+  // Set once a player explicitly picks a tier in the settings menu — from then on the automatic
+  // downgrade monitor stops overriding their choice. Players who never open the menu keep the
+  // fully automatic behavior above.
+  private manualOverride = false;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -83,6 +87,7 @@ export class Engine {
    * downgrade so the renderer has time to actually recover before being judged again.
    */
   private recordFrameForQuality(dtMs: number): void {
+    if (this.manualOverride) return; // player has chosen a tier themselves — stop overriding it
     if (this.tier === 'low') return; // nowhere further down to go
     this.recentFrameMs.push(dtMs);
     if (this.recentFrameMs.length < 60) return;
@@ -109,6 +114,14 @@ export class Engine {
     }
     const scene = await factory();
     await scene.init();
+    // WebGLRenderer compiles (and on some drivers, links) each material's shader program lazily
+    // on its first real draw call — not at material-creation time — so without this, the first
+    // frame(s) a given material is actually visible on screen pay a real, synchronous compile
+    // stall. compileAsync walks the scene up front and warms every program before the scene is
+    // exposed to the player, so that cost lands here (behind the caller's fade-to-black, where one
+    // is used) instead of surfacing as an unpredictable mid-gameplay hitch the first time the
+    // camera turns toward a material nothing has rendered yet.
+    await this.renderer.compileAsync(scene.scene, scene.camera);
     this.current = scene;
     this.postFx.setActive(scene.scene, scene.camera);
     this.handleResize();
@@ -136,6 +149,26 @@ export class Engine {
 
   getQualityTier(): QualityTier {
     return this.tier;
+  }
+
+  /** Manual override entry point for the settings menu: applies the tier's preset immediately
+   * and permanently disables the automatic downgrade monitor for the rest of the session. */
+  setManualQualityTier(tier: QualityTier): void {
+    this.manualOverride = true;
+    this.tier = tier;
+    this.applyTier(tier);
+  }
+
+  setShadowsEnabled(enabled: boolean): void {
+    this.renderer.shadowMap.enabled = enabled;
+  }
+
+  setAOEnabled(enabled: boolean): void {
+    this.postFx.setAOEnabled(enabled);
+  }
+
+  setBloomEnabled(enabled: boolean): void {
+    this.postFx.setBloomEnabled(enabled);
   }
 
   start(): void {

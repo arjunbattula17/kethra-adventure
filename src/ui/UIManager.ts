@@ -84,7 +84,7 @@ class UIManagerImpl {
   }
 
   refreshStatusBar(): void {
-    this.statusBar.innerHTML = `<span class="badge"><span class="hud-icon" style="color:var(--accent)">${ICON_LEVEL}</span>LV ${gameState.data.level}</span><span class="badge">TAB — Character</span>`;
+    this.statusBar.innerHTML = `<span class="badge"><span class="hud-icon" style="color:var(--accent)">${ICON_LEVEL}</span>LV ${gameState.data.level}</span><span class="badge">TAB — Character</span><span class="badge">O — Settings</span>`;
   }
 
   setObjective(text: string): void {

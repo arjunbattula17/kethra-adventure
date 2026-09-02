@@ -34,6 +34,16 @@ const PRESETS = {
     // Movement is the case static-frame views can't catch: held input every frame for the whole
     // sample window, not just a static camera looking at static geometry.
     await gotoReady(page);
+    // Same wait setShipView uses below: ShipInteriorScene.init() doesn't resolve (and doesn't
+    // become window.__DEBUG__'s current scene) until the room's async kit-piece loading is fully
+    // done, so without this poll a throttled run can start driving the player and sampling frames
+    // while __DEBUG__.engine.getCurrentScene() is still the *previous* scene, or while this scene
+    // is still mid-construction — capturing one-time load cost as if it were steady-state jank.
+    await page.waitForFunction(
+      () => window.__DEBUG__.engine.getCurrentScene?.()?.constructor.name === 'ShipInteriorScene',
+      undefined,
+      { timeout: 60000 },
+    );
     await page.evaluate(() => {
       const s = window.__DEBUG__.engine.getCurrentScene();
       s.player.enabled = true;
@@ -49,6 +59,15 @@ const PRESETS = {
   },
   'character-panel': async (page) => {
     await gotoReady(page);
+    // Same guard ship-hero/ship-console/ship-walk use: without it, a throttled run can still be
+    // mid-way through ShipInteriorScene's async construction (buildWalls/buildAirlock/
+    // buildDetailProps + batchStaticGeometry) and Engine.setScene's compileAsync warm-up when Tab
+    // is pressed, landing that one-time load cost as a multi-second single frame in the trace.
+    await page.waitForFunction(
+      () => window.__DEBUG__.engine.getCurrentScene?.()?.constructor.name === 'ShipInteriorScene',
+      undefined,
+      { timeout: 60000 },
+    );
     await page.keyboard.press('Tab');
     await page.waitForTimeout(400);
   },

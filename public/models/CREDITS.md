@@ -24,3 +24,17 @@ PBR textures included as shipped. Ruin/architecture pieces are hand-built proced
 than sourced from a kit — the only CC0 ruins pack found in research (Quaternius's Ultimate
 Modular Ruins Pack) ships FBX/OBJ/Blend only, no glTF, which would need a conversion pass this
 project's pipeline doesn't have.
+
+All models in `planets/` are NASA Visualization Technology Applications and Development (VTAD)
+3D models, public domain U.S. government works. Re-encoded from the originals by
+`tools/prep-planet-models.mjs`, which downscales/recompresses each embedded texture to a JPEG
+(the source PNGs are 4096x3072, far more resolution than these planets — small on screen for
+nearly this whole cinematic, see planetShader.ts — ever need) and splices it back into the glTF
+binary; geometry is untouched. Used as stand-ins for this game's own fictional planets (Kethra,
+Vessek Anchorage, Orrun's Reach, Isilthe — see src/galaxy/planetData.ts), tinted toward each
+planet's established color, not as literal Saturn/Venus/Jupiter/Earth.
+
+- `saturn.glb` — https://science.nasa.gov/resource/saturn-3d-model/
+- `venus.glb` — https://science.nasa.gov/resource/venus-3d-model/
+- `jupiter.glb` — https://science.nasa.gov/resource/jupiter-3d-model/
+- `earth.glb` — https://science.nasa.gov/resource/earth-3d-model/
