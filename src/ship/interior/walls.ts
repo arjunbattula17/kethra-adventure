@@ -141,15 +141,32 @@ function inwardYaw(nx: number, nz: number): number {
   return Math.atan2(nx, nz);
 }
 
-// WallAstra_Straight's local geometry (checked against the raw glTF POSITION accessor bounds, not
-// guessed) sits entirely off-centre in local X, spanning roughly [-2.77, -1.60] — the near bound
-// (-1.60) is the room-facing surface, the far bound (-2.77) is the hull-exterior surface. Combined
-// with the yaw=0/PI placement convention above, the room-facing face of a side bay lands at
-// `pos.x + s * 1.60` in world space (verified for both s=+-1 by working the rotation through by
-// hand), 1.58 with a small inward nudge so multiply/alpha decals draw in front of the panel
-// instead of z-fighting inside it.
+// Measured from the raw glTF POSITION accessors (tools/kit-bounds.mjs), not guessed. Every piece
+// in this family is authored in the -X/-Z quadrant of its tile rather than centred on it:
+//
+//   WallAstra_Straight             x [-2.774, -1.565]  z [-2, 2]      y [0, 3.02]
+//   TopAstra_Straight              x [-2.000, -1.914]  z [-2, 2]      y [3, 5]
+//   WallAstra_Corner_Square_Inner  x [-4.774,  0]      z [-4.774, 0]  y [0, 3.02]
+//   TopCables_Corner_Square_Inner  x [-4.169,  0]      z [-4.169, 0]  y [3, 5]
+//
+// So an unrotated straight is a -X wall (room-facing surface at local x = -1.565, hull side at
+// -2.774), and an unrotated corner is the -X/-Z corner: two arms running out along -X and -Z from
+// the origin, room-facing surfaces at local x = -3.565 and z = -3.565. The corner's arm face sits
+// exactly KIT_TILE/2 further from its own origin than the straight's does, which is what lets both
+// families share one wall line as long as the corner origin is placed 2 units inboard of where a
+// straight on that same line would sit.
+const STRAIGHT_FACE_OFFSET = 1.565;
+const CORNER_FACE_OFFSET = 3.565;
+
+// Wall line: side bays sit at x = +-(HALF_W - KIT_TILE/2), so the room-facing wall surface lands
+// 1.565 inboard of that. Both ends use the same inset so the shell is square.
+const WALL_FACE_X = HALF_W - KIT_TILE / 2 + STRAIGHT_FACE_OFFSET; // 4 + 1.565 -> faces at +-5.565
+const WALL_FACE_Z = HALF_D - KIT_TILE / 2 + STRAIGHT_FACE_OFFSET; // 6 + 1.565 -> faces at +-7.565
+
+/** Room-facing surface of a side bay, nudged 0.015 inboard so multiply/alpha decals draw in front
+ *  of the panel instead of z-fighting inside it. */
 function bayFaceX(x: number, s: -1 | 1): number {
-  return x + s * 1.58;
+  return x + s * (STRAIGHT_FACE_OFFSET - 0.015);
 }
 
 interface Placement {
@@ -221,21 +238,46 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     }
   }
 
-  // ----- console (-Z) end wall: one straight bay. The starfield viewport bay is dressed onto the
-  // front face of this wall by buildStarfieldWindow(). -----
+  // ----- console (-Z) end wall: one straight bay, covering the centre tile (x -2..2). The
+  // starfield viewport bay is dressed onto the front face of this wall by buildStarfieldWindow().
+  //
+  // A straight bay is authored as a -X wall (see the bounds table above), so pointing its face at
+  // +Z is a -PI/2 yaw about Y, not the 0 that `inwardYaw(0, 1)` returns — inwardYaw spins a piece's
+  // local +Z, which on this family is the 4-unit *length* axis, not the face normal. At yaw 0 the
+  // bay kept its thickness on world X and its length on world Z, so instead of closing the -Z end
+  // it stood inside the room as a 1.2-thick, 3-tall slab running x [-2.77, -1.56] from z -10 to -6,
+  // straight through the console bay and the starfield viewport, and the -Z end itself was left
+  // open. Its z also has to come in a full tile: at yaw -PI/2 the thickness runs along Z, so the
+  // position is the *tile* centre (-6) and the face lands at -6 - 1.565 = WALL_FACE_Z.
   {
-    const yaw = inwardYaw(0, 1);
-    jobs.push({ name: WALL_BODY, pos: [0, 0, -HALF_D], yaw });
-    jobs.push({ name: WALL_TOP, pos: [0, 0, -HALF_D], yaw });
+    const yaw = -Math.PI / 2;
+    const z = -(HALF_D - KIT_TILE / 2);
+    jobs.push({ name: WALL_BODY, pos: [0, 0, z], yaw });
+    jobs.push({ name: WALL_TOP, pos: [0, 0, z], yaw });
   }
 
-  // ----- four corners: each sits centred on the corner floor tile, 4/4 units in from the true
-  // room corner along both axes, oriented along the diagonal that bisects the two walls it joins.
+  // ----- four corners -----
+  //
+  // A square inner corner is authored as the -X/-Z corner: both arms run out from the piece origin
+  // along -X and -Z, so yaw only ever takes the four axis-aligned values that swing that quadrant
+  // onto the one being built. `inwardYaw(-sx, -sz)` returned the 45deg diagonal bisecting the two
+  // walls instead, which turned each corner into a 4.8m-wide diagonal slab: its AABB measured
+  // 6.75 x 6.75 in plan, reaching as far in as x = -0.62 (near the room centre line) at one end and
+  // as far out as z = 12.75 (4.75m outside the hull) at the other, while leaving the actual corner
+  // unwalled. The arm's room-facing surface sits CORNER_FACE_OFFSET from the origin rather than the
+  // straight's STRAIGHT_FACE_OFFSET, so the origin also moves a half-tile inboard on both axes to
+  // put both families' faces on the same wall line.
+  const CORNER_YAW: Record<string, number> = {
+    '-1,-1': 0,
+    '-1,1': Math.PI / 2,
+    '1,-1': -Math.PI / 2,
+    '1,1': Math.PI,
+  };
   for (const sx of [-1, 1] as const) {
     for (const sz of [-1, 1] as const) {
-      const x = sx * (HALF_W - KIT_TILE / 2);
-      const z = sz * (HALF_D - KIT_TILE / 2);
-      const yaw = inwardYaw(-sx, -sz);
+      const x = sx * (WALL_FACE_X - CORNER_FACE_OFFSET); // +-2
+      const z = sz * (WALL_FACE_Z - CORNER_FACE_OFFSET); // +-4
+      const yaw = CORNER_YAW[`${sx},${sz}`];
       jobs.push({ name: CORNER_BODY, pos: [x, 0, z], yaw });
       jobs.push({ name: CORNER_TOP, pos: [x, 0, z], yaw });
     }
@@ -298,32 +340,43 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
       // Stencilled bay number, upper wall — every bay in the reference carries its own placard
       // or stencil rather than a repeated motif.
       const id = String(41 + i * 3).padStart(2, '0');
-      addWallDecal(ctx, buildStencilTextTexture(id), 1.3, 0.42, new THREE.Vector3(fx, 2.5, bay.z), yaw, 0.8);
+      const stencilTex = buildStencilTextTexture(id);
       if (i === 0) {
         // One bay, and only one, gets a genuinely self-lit placard rather than a printed stencil
-        // — the round's critique named "no focal point" directly, and every other wall element
-        // here (stencils, chevrons, dirt) repeats identically across all four bays. A single
-        // backlit sign breaks that symmetry the way the reference's lit door number does, without
-        // adding the broad-area brightness a new floodlight would spend against the p95 budget:
-        // it's one small, tightly bounded emissive plane sitting behind the stencil's cut-outs.
-        const backlight = new THREE.MeshStandardMaterial({
+        // — every other wall element here (stencils, chevrons, dirt) repeats identically across
+        // all four bays, and a single lit sign breaks that symmetry the way the reference's lit
+        // door number does without spending the broad-area brightness a new floodlight would.
+        //
+        // The glow is driven by the stencil texture as an emissive map rather than by a separate
+        // plane behind it. A plain emissive plane can't work here: buildStencilTextTexture paints
+        // *opaque letters on a transparent field*, so light "coming through the cut-outs" would be
+        // light coming through everything except the text — and the plane was also sized larger
+        // than the stencil and offset 0.065 further into the room than it, so it covered the
+        // stencil completely and rendered as a flat cyan rectangle bolted to the wall. Keying the
+        // emission off the letters' own alpha makes only the text glow, which is what a backlit
+        // placard actually looks like.
+        const placardMat = new THREE.MeshStandardMaterial({
+          map: stencilTex,
+          emissiveMap: stencilTex,
           color: '#0a1114',
           roughness: 0.5,
           metalness: 0,
           emissive: '#4fd8f0',
           emissiveIntensity: 0.55,
+          transparent: true,
+          depthWrite: false,
         });
-        const backlightMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.5), backlight);
-        // A shade closer to the true wall surface than the decal's own nudge (bayFaceX uses
-        // 1.58) so the opaque backlight sits behind the transparent stencil in depth instead of
-        // fighting it for the same plane.
-        backlightMesh.position.set(bay.x + bay.s * 1.5, 2.5, bay.z);
-        backlightMesh.rotation.set(0, yaw, 0);
-        ctx.scene.add(backlightMesh);
+        const placard = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.42), placardMat);
+        placard.position.set(fx, 2.5, bay.z);
+        placard.rotation.set(0, yaw, 0);
+        placard.renderOrder = 1;
+        ctx.scene.add(placard);
         const pulsePhase = Math.random() * Math.PI * 2;
         ctx.animated.push((elapsed) => {
-          backlight.emissiveIntensity = 0.55 * (0.85 + 0.15 * Math.sin(elapsed * 1.1 + pulsePhase));
+          placardMat.emissiveIntensity = 0.55 * (0.85 + 0.15 * Math.sin(elapsed * 1.1 + pulsePhase));
         });
+      } else {
+        addWallDecal(ctx, stencilTex, 1.3, 0.42, new THREE.Vector3(fx, 2.5, bay.z), yaw, 0.8);
       }
     } else {
       // Hazard chevron strip, mid-wall — a caution mark near the bay's working edge.
