@@ -3,6 +3,7 @@ import { InputManager } from './InputManager';
 import { initSharedEnvironment } from './Environment';
 import { PostProcessing } from './PostProcessing';
 import type { QualityTier } from './PostProcessing';
+import { UIManager } from '../ui/UIManager';
 
 // Per-tier renderer settings. shadowMap.enabled and pixelRatio are both free to toggle at
 // runtime (no GL context loss, no re-construction) — only the WebGLRenderer's own creation-time
@@ -106,23 +107,32 @@ export class Engine {
   }
 
   async setScene(factory: () => Promise<GameScene> | GameScene): Promise<void> {
-    if (this.current) {
-      this.current.dispose();
-      this.current = null;
+    // Asset fetch + shader compile below can run several seconds on a cold cache (first load, or
+    // a judge's laptop on unfamiliar wifi) with nothing else on screen — the caller's fade-to-black
+    // covers scene transitions, but the very first scene at boot has no fade at all. A spinner here
+    // covers both cases, so a slow load reads as "loading" instead of "did this freeze?".
+    UIManager.showLoading();
+    try {
+      if (this.current) {
+        this.current.dispose();
+        this.current = null;
+      }
+      const scene = await factory();
+      await scene.init();
+      // WebGLRenderer compiles (and on some drivers, links) each material's shader program lazily
+      // on its first real draw call — not at material-creation time — so without this, the first
+      // frame(s) a given material is actually visible on screen pay a real, synchronous compile
+      // stall. compileAsync walks the scene up front and warms every program before the scene is
+      // exposed to the player, so that cost lands here (behind the caller's fade-to-black, where one
+      // is used) instead of surfacing as an unpredictable mid-gameplay hitch the first time the
+      // camera turns toward a material nothing has rendered yet.
+      await this.renderer.compileAsync(scene.scene, scene.camera);
+      this.current = scene;
+      this.postFx.setActive(scene.scene, scene.camera);
+      this.handleResize();
+    } finally {
+      UIManager.hideLoading();
     }
-    const scene = await factory();
-    await scene.init();
-    // WebGLRenderer compiles (and on some drivers, links) each material's shader program lazily
-    // on its first real draw call — not at material-creation time — so without this, the first
-    // frame(s) a given material is actually visible on screen pay a real, synchronous compile
-    // stall. compileAsync walks the scene up front and warms every program before the scene is
-    // exposed to the player, so that cost lands here (behind the caller's fade-to-black, where one
-    // is used) instead of surfacing as an unpredictable mid-gameplay hitch the first time the
-    // camera turns toward a material nothing has rendered yet.
-    await this.renderer.compileAsync(scene.scene, scene.camera);
-    this.current = scene;
-    this.postFx.setActive(scene.scene, scene.camera);
-    this.handleResize();
   }
 
   private handleResize(): void {

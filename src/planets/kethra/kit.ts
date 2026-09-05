@@ -12,10 +12,22 @@ const TEXTURES_BASE = `${import.meta.env.BASE_URL}models/quaternius-nature/Textu
 // the pack ships one shared Textures/ folder instead (same layout quirk as the ship's sci-fi kit
 // in src/ship/interior/kit.ts) — redirect any bare PNG request GLTFLoader makes for a file under
 // glTF/ over to the shared folder. The .bin buffer sits beside its .gltf as normal and is untouched.
+//
+// The pack's source PNGs are lossless exports of photographic bark/rock maps with no alpha in
+// use — 2-5MB apiece for no visual gain over a quality-85 JPEG. These ten were re-encoded to
+// .jpg (see public/models/CREDITS.md), so their bare-filename request also gets redirected to
+// the .jpg sibling instead of the (now deleted) .png.
+const JPG_REENCODED = new Set([
+  'Bark_DeadTree.png', 'Bark_DeadTree_Normal.png',
+  'Bark_NormalTree.png', 'Bark_NormalTree_Normal.png',
+  'Bark_TwistedTree.png', 'Bark_TwistedTree_Normal.png',
+  'Mushrooms.png', 'PathRocks_Diffuse.png', 'Rocks_Desert_Diffuse.png', 'Rocks_Diffuse.png',
+]);
 const manager = new THREE.LoadingManager();
 manager.setURLModifier((url) => {
   if (url.startsWith(KIT_BASE) && url.toLowerCase().endsWith('.png')) {
-    const filename = url.slice(url.lastIndexOf('/') + 1);
+    let filename = url.slice(url.lastIndexOf('/') + 1);
+    if (JPG_REENCODED.has(filename)) filename = filename.slice(0, -4) + '.jpg';
     return `${TEXTURES_BASE}/${filename}`;
   }
   return url;

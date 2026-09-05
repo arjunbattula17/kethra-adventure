@@ -25,6 +25,7 @@ class UIManagerImpl {
   letterboxBottom = el('div', 'letterbox-bar bottom');
   fadeEl = el('div', 'fade-black');
   lookPrompt = el('div', 'look-prompt');
+  loadingEl = el('div', 'loading-indicator');
 
   init(): void {
     this.root.id = 'ui-root';
@@ -36,6 +37,7 @@ class UIManagerImpl {
     this.captionEl.id = 'cinematic-caption';
     this.fadeEl.classList.add('fade-black');
     this.lookPrompt.innerHTML = `<div class="look-prompt-inner"><div class="look-prompt-icon">◎</div><div>Click to look around</div></div>`;
+    this.loadingEl.innerHTML = `<div class="loading-spinner"></div><div class="loading-text">Loading…</div>`;
 
     this.objectiveTracker.innerHTML = `<div class="label"><span class="hud-icon">${ICON_OBJECTIVE}</span>Objective</div><div id="objective-text"></div>`;
 
@@ -50,6 +52,7 @@ class UIManagerImpl {
     this.root.appendChild(this.letterboxBottom);
     this.root.appendChild(this.lookPrompt);
     document.body.appendChild(this.fadeEl);
+    document.body.appendChild(this.loadingEl);
 
     this.toastStack.classList.add('interactive');
     this.toastStack.style.pointerEvents = 'none';
@@ -130,6 +133,14 @@ class UIManagerImpl {
 
   clearCaption(): void {
     this.captionEl.classList.remove('visible');
+  }
+
+  showLoading(): void {
+    this.loadingEl.classList.add('visible');
+  }
+
+  hideLoading(): void {
+    this.loadingEl.classList.remove('visible');
   }
 
   async fadeToBlack(): Promise<void> {

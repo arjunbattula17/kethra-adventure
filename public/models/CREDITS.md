@@ -25,6 +25,11 @@ than sourced from a kit — the only CC0 ruins pack found in research (Quaterniu
 Modular Ruins Pack) ships FBX/OBJ/Blend only, no glTF, which would need a conversion pass this
 project's pipeline doesn't have.
 
+The ten bark/rock/mushroom diffuse and normal maps in `quaternius-nature/Textures/` shipped as
+lossless PNG with no alpha channel in use — several were 4-6MB apiece for no visual gain over a
+quality-85 JPEG. Re-encoded to `.jpg`; `src/planets/kethra/kit.ts`'s URL modifier redirects the
+glTFs' original bare `.png` filename requests to the `.jpg` siblings.
+
 All models in `planets/` are NASA Visualization Technology Applications and Development (VTAD)
 3D models, public domain U.S. government works. Re-encoded from the originals by
 `tools/prep-planet-models.mjs`, which downscales/recompresses each embedded texture to a JPEG
