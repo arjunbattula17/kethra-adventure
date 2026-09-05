@@ -19,6 +19,11 @@ import type { InteriorCtx } from './ctx';
  * itself in ctx.noMerge and is left untouched.
  */
 export function batchStaticGeometry(ctx: InteriorCtx): void {
+  // `?nobatch=1` leaves every source mesh as its own scene node, which is what tools/interior-audit
+  // .mjs needs: a merged batch's bounding box is the union of every mesh sharing that material, so
+  // per-object overlap/containment checks are meaningless against the batched scene.
+  if (new URLSearchParams(location.search).has('nobatch')) return;
+
   const allMeshes: THREE.Mesh[] = [];
   ctx.scene.traverse((o) => {
     // THREE.InstancedMesh.isMesh is also true (it extends Mesh), but its .geometry is only the

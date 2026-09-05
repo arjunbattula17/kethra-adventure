@@ -931,8 +931,10 @@ function drawSysIcon(ctx: CanvasRenderingContext2D, kind: string, cx: number, cy
   ctx.restore();
 }
 
-/** Corner reticle brackets — the "this is an instrument, not a poster" framing device the
- *  diagnostic readout uses in place of a plain rectangle. */
+/**
+ * Corner reticle brackets — the "this is an instrument, not a poster" framing device the
+ * diagnostic readout uses in place of a plain rectangle.
+ */
 function drawReticle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, rgb: string): void {
   const arm = Math.min(w, h) * 0.22;
   ctx.strokeStyle = `rgba(${rgb},0.55)`;

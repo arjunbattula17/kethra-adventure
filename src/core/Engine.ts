@@ -76,16 +76,14 @@ export class Engine {
     this.postFx.setQuality(tier);
   }
 
-  /**
-   * Runtime downgrade path: the startup guess is a crude core-count heuristic, and even a
-   * correctly-classified device can bog down in a scene the guess didn't account for (Kethra's
-   * foliage density vs. the ship interior's draw calls are very different costs). Sampled from
-   * the real per-frame dt the game loop already computes — this *is* the p95 metric
-   * tools/frame-trace.mjs measures offline, just computed continuously during actual play.
-   * One-directional and rate-limited: never upgrades back up mid-session (a mid-play quality
-   * jump reads as more jarring than staying conservative), and won't fire again for 5s after a
-   * downgrade so the renderer has time to actually recover before being judged again.
-   */
+  // Runtime downgrade path: the startup guess is a crude core-count heuristic, and even a
+  // correctly-classified device can bog down in a scene the guess didn't account for (Kethra's
+  // foliage density vs. the ship interior's draw calls are very different costs). Sampled from
+  // the real per-frame dt the game loop already computes — this *is* the p95 metric
+  // tools/frame-trace.mjs measures offline, just computed continuously during actual play.
+  // One-directional and rate-limited: never upgrades back up mid-session (a mid-play quality
+  // jump reads as more jarring than staying conservative), and won't fire again for 5s after a
+  // downgrade so the renderer has time to actually recover before being judged again.
   private recordFrameForQuality(dtMs: number): void {
     if (this.manualOverride) return; // player has chosen a tier themselves — stop overriding it
     if (this.tier === 'low') return; // nowhere further down to go
@@ -151,8 +149,8 @@ export class Engine {
     return this.tier;
   }
 
-  /** Manual override entry point for the settings menu: applies the tier's preset immediately
-   * and permanently disables the automatic downgrade monitor for the rest of the session. */
+  // Manual override entry point for the settings menu: applies the tier's preset immediately
+  // and permanently disables the automatic downgrade monitor for the rest of the session.
   setManualQualityTier(tier: QualityTier): void {
     this.manualOverride = true;
     this.tier = tier;

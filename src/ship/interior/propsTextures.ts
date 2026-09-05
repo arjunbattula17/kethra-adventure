@@ -769,14 +769,9 @@ export function buildContactShadowTexture(): THREE.CanvasTexture {
   // but multiplies the deck by 0.28, which is already a firm contact shadow. Reading these as
   // sRGB is how a soft AO blob turns into a black halo and buries the shadow end of the range.
   // The prop footprint lands near stop 0.54, so the tight core sits just inside it and the
-  // penumbra is fully recovered by 0.9. Core deepened a step for round 4: the recurring critique
-  // is that props don't read as grounded under the room's single flat key light, and this decal
-  // is the one directional-falloff cue every floor prop gets regardless of where the key light
-  // actually reaches — a stronger contact core reads as a real footprint, not a light AO smudge.
-  // Round-5 pass: the recurring critique is "not enough hero pooling and contact shadow under the
-  // set-dressed props" — this is the one directional-falloff cue every floor prop gets, so its
-  // core is deepened again and the stacked second pass in `groundShadow` below compounds it right
-  // at the footprint instead of leaving one even AO wash.
+  // penumbra is fully recovered by 0.9. This is the one directional-falloff cue every floor prop
+  // gets under the room's single flat key light, so the core is kept deep enough to read as a
+  // real footprint rather than a faint AO smudge.
   const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
   g.addColorStop(0, '#1f2226');
   g.addColorStop(0.45, '#2c3036');

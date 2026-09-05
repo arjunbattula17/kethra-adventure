@@ -71,6 +71,7 @@ class UIManagerImpl {
 
   private lookPromptEnabled = true;
   private letterboxActive = false;
+  private captionTimeoutId: number | undefined;
 
   setLookPromptEnabled(enabled: boolean): void {
     this.lookPromptEnabled = enabled;
@@ -123,8 +124,8 @@ class UIManagerImpl {
   showCaption(text: string, duration = 3200): void {
     this.captionEl.textContent = text;
     this.captionEl.classList.add('visible');
-    window.clearTimeout((this.captionEl as any)._t);
-    (this.captionEl as any)._t = window.setTimeout(() => this.captionEl.classList.remove('visible'), duration);
+    window.clearTimeout(this.captionTimeoutId);
+    this.captionTimeoutId = window.setTimeout(() => this.captionEl.classList.remove('visible'), duration);
   }
 
   clearCaption(): void {

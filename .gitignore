@@ -27,3 +27,6 @@ dist-ssr
 # Interior review harness artifacts
 renders/
 desktop.ini
+
+# Scene-audit dumps (regenerate with tools/interior-audit.mjs)
+reports/interior-*.json

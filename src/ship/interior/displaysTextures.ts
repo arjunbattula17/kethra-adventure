@@ -869,12 +869,12 @@ export function buildFrameLabelTexture(text: string): THREE.CanvasTexture {
 // =================================================================================================
 // Material maps.
 //
-// The round-1 critique was that every surface here read as one tinted plastic with a single
-// roughness. The fix is a real map set per material class: an albedo that already carries cavity
-// darkening and localised wear, a height-derived normal so seams and bolts catch a grazing
-// highlight, and a roughness map so paint, bare steel and grime respond to the same light
-// differently. Three classes are built -- painted enclosure, machined bare steel, rubber -- and
-// their roughness/metalness ranges are deliberately kept far apart.
+// Each surface here gets a real map set per material class instead of one tinted plastic with a
+// single roughness: an albedo that already carries cavity darkening and localised wear, a
+// height-derived normal so seams and bolts catch a grazing highlight, and a roughness map so
+// paint, bare steel and grime respond to the same light differently. Three classes are built --
+// painted enclosure, machined bare steel, rubber -- and their roughness/metalness ranges are
+// deliberately kept far apart.
 // =================================================================================================
 
 export interface SurfaceMaps {

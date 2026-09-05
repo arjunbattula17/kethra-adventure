@@ -54,8 +54,10 @@ function streaks(g: CanvasRenderingContext2D, w: number, h: number, rand: () => 
   }
 }
 
-/** A bolt head: dark seat ring, lit crown, shadow under. Real geometry is used on hero
- *  frames; this is the cheap version painted straight into a plate texture. */
+/**
+ * A bolt head: dark seat ring, lit crown, shadow under. Real geometry is used on hero
+ * frames; this is the cheap version painted straight into a plate texture.
+ */
 function bolt(g: CanvasRenderingContext2D, x: number, y: number, r: number, light: string, dark: string): void {
   g.fillStyle = 'rgba(0,0,0,0.45)';
   g.beginPath();
@@ -704,7 +706,7 @@ export function buildEdgeShadowTexture(): THREE.CanvasTexture {
 /**
  * Soft warm radial falloff for the door header's floor pool — an additive decal, not a dynamic
  * light, so its brightness is a value we set directly rather than something that can spike into
- * a bloom starburst off nearby metal. See the round-6 fix note on `doorFloorPool` in airlock.ts.
+ * a bloom starburst off nearby metal.
  */
 export function buildDoorGlowTexture(): THREE.CanvasTexture {
   const S = 128;

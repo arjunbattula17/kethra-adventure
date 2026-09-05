@@ -82,9 +82,6 @@ function buildRingTexture(): THREE.Texture {
   return texture;
 }
 
-/** A small pool of additive-blended embers that stream backward from the ship's engines,
- * faded out by lerping vertex color toward black (invisible under additive blending) rather
- * than a per-particle alpha, since PointsMaterial has no per-vertex opacity attribute. */
 // Soft circular sprite for engine-trail particles. THREE.PointsMaterial renders hard-edged
 // squares without a map, which reads as blocky/artificial once particles overlap the ship hull.
 function buildParticleSprite(): THREE.Texture {
@@ -102,6 +99,9 @@ function buildParticleSprite(): THREE.Texture {
   return new THREE.CanvasTexture(canvas);
 }
 
+/** A small pool of additive-blended embers that stream backward from the ship's engines,
+ * faded out by lerping vertex color toward black (invisible under additive blending) rather
+ * than a per-particle alpha, since PointsMaterial has no per-vertex opacity attribute. */
 class EngineTrail {
   points: THREE.Points;
   private readonly count: number;
@@ -358,16 +358,10 @@ export class GalaxyRevealScene implements GameScene {
         UIManager.showCaption('Click or press Enter to continue', 999999);
       },
     );
-    // These used to be real setTimeout(fn, ms) calls, timed to roughly match the sequencer's own
-    // keyframe pacing above. But setTimeout runs on true wall-clock time while the sequencer (and
-    // everything else in update()) advances on a dt clamped to 100ms/frame (see Engine.start()) --
-    // so any slow frame (shader-compile stall on scene entry, GC pause, a throttled/loaded machine)
-    // makes real time race ahead of the cinematic's own visual progress. The sensor ping was firing
-    // and finishing its whole animation while the camera was still sitting at the very start of the
-    // first keyframe, reading as a huge ring dominating the close-up shot -- invisible on a fast
-    // machine where the two clocks stay roughly in sync, but reliable on anything slower. Scheduling
-    // off the same dt-accumulated clock the rest of the cinematic uses keeps every beat locked to
-    // what's actually on screen regardless of how long real time took to get there.
+    // Scheduled off the same dt-accumulated clock the sequencer uses (dt is clamped to 100ms/frame,
+    // see Engine.start()), not real setTimeout wall-clock time -- a real setTimeout can race ahead
+    // of the cinematic on a slow frame (shader-compile stall, GC pause), firing a beat before the
+    // camera has actually reached the moment it's timed for.
     this.revealElapsed = 0;
     this.revealTimers = [
       { at: 1.2, fn: () => UIManager.showCaption('You are stranded, alone, in a galaxy no chart has ever mapped.', 4200), fired: false },
