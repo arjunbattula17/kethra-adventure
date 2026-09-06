@@ -21,10 +21,24 @@ if (scene === 'kethra') {
   await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene?.(), undefined, { timeout: 90000 });
   await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'kethra'));
 }
-await page.waitForFunction((cls) => {
-  const s = window.__DEBUG__.engine.getCurrentScene?.();
-  return !!(s && s.player && (s.kind ?? s.constructor.name) === cls);
-}, wantClass, { timeout: 90000 });
+try {
+  await page.waitForFunction((cls) => {
+    const s = window.__DEBUG__.engine.getCurrentScene?.();
+    return !!(s && s.player && (s.kind ?? s.constructor.name) === cls);
+  }, wantClass, { timeout: 90000 });
+} catch {
+  // Say what actually loaded rather than just timing out. This used to be a silent 90-second wait
+  // whenever the identity check failed — which it did for every production build, because
+  // constructor.name is mangled there and nothing said so.
+  const found = await page.evaluate(() => {
+    const s = window.__DEBUG__?.engine?.getCurrentScene?.();
+    return s ? { kind: s.kind ?? null, ctor: s.constructor.name, hasPlayer: !!s.player } : null;
+  });
+  console.error(`Timed out waiting for scene "${wantClass}". Current scene: ${JSON.stringify(found)}`);
+  console.error('If `kind` is null, the scene class is missing its `readonly kind` identity property.');
+  await browser.close();
+  process.exit(1);
+}
 await page.waitForTimeout(4000);
 
 const out = await page.evaluate((baseline) => {

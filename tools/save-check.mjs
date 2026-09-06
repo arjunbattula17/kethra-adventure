@@ -111,6 +111,22 @@ const legacy = JSON.stringify({
   await page.close();
 }
 
+{
+  const { page } = await boot(JSON.stringify({ level: 1 }));
+  // The failure path only reaches the player if something is listening for it; a write that
+  // localStorage refuses would otherwise land in the console alone, while the player kept playing
+  // believing their progress was being kept.
+  const shown = await page.evaluate(async () => {
+    window.__TOASTS__.length = 0;
+    window.__DEBUG__.bus.emit('save:failed');
+    await new Promise((r) => setTimeout(r, 200));
+    return window.__TOASTS__.slice();
+  });
+  console.log('failed save reaches the player:');
+  check('save:failed raises a toast', shown.some((t) => /Could not save/.test(t)), JSON.stringify(shown));
+  await page.close();
+}
+
 console.log(fails ? `${fails} save check(s) failed` : 'all save checks passed');
 await browser.close();
 if (fails) process.exitCode = 1;

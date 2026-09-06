@@ -67,6 +67,9 @@ class UIManagerImpl {
     bus.on('objective:changed', (text: string) => this.setObjective(text));
     bus.on('level:up', () => this.refreshStatusBar());
     bus.on('attribute:changed', () => this.refreshStatusBar());
+    // A write that localStorage refuses would otherwise only reach the console, and the player
+    // would keep playing believing their progress was being kept.
+    bus.on('save:failed', () => this.toast('Could not save your progress — browser storage is full.'));
     this.setObjective(gameState.data.objective);
     this.refreshStatusBar();
     this.refreshLookPrompt();

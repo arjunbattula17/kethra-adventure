@@ -14,10 +14,24 @@ await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { tim
 await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene?.(), undefined, { timeout: 90000 });
 if (scene === 'kethra') await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'kethra'));
 const cls = scene === 'kethra' ? 'KethraScene' : 'ShipInteriorScene';
-await page.waitForFunction((c) => {
-  const s = window.__DEBUG__.engine.getCurrentScene?.();
-  return !!(s && s.player && (s.kind ?? s.constructor.name) === c);
-}, cls, { timeout: 90000 });
+try {
+  await page.waitForFunction((c) => {
+    const s = window.__DEBUG__.engine.getCurrentScene?.();
+    return !!(s && s.player && (s.kind ?? s.constructor.name) === c);
+  }, cls, { timeout: 90000 });
+} catch {
+  // Say what actually loaded rather than just timing out. This used to be a silent wait whenever
+  // the identity check failed — which it did for every production build, because constructor.name
+  // is mangled there and nothing said so.
+  const found = await page.evaluate(() => {
+    const s = window.__DEBUG__?.engine?.getCurrentScene?.();
+    return s ? { kind: s.kind ?? null, ctor: s.constructor.name, hasPlayer: !!s.player } : null;
+  });
+  console.error(`Timed out waiting for scene "${cls}". Current scene: ${JSON.stringify(found)}`);
+  console.error('If `kind` is null, the scene class is missing its `readonly kind` identity property.');
+  await browser.close();
+  process.exit(1);
+}
 await page.waitForTimeout(3500);
 
 // yaw such that PlayerController's forward, (-sin(yaw), 0, -cos(yaw)), points at (dx, dz).
