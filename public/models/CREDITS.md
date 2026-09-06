@@ -10,6 +10,16 @@ attribution legally required, credited here as good practice).
 
 glTF format, PBR textures (base color / normal / ORM / emissive) included as shipped.
 
+Sixteen of the twenty-one shared maps in `quaternius/Textures/` shipped as lossless 2048x2048
+PNGs — 27MB in total, with the three ORM maps alone accounting for 9.9MB — and the ship interior
+is the first scene the game loads, so that weight was paid on every first load. Re-encoded to
+`.jpg` by `tools/recompress-textures.mjs`, which picks a quality per file against a measured
+mean-error budget and refuses any file JPEG would make larger (27MB -> 6.5MB). The five left as
+PNG are the decal sheet, the two detail masks and the two emissive maps: all small and
+high-contrast, and all bigger as JPEG than as PNG. `src/ship/interior/kit.ts`'s URL modifier
+redirects the glTFs' original bare `.png` filename requests to the `.jpg` siblings, the same way
+the nature kit's does.
+
 All models in `quaternius-nature/` are the **Stylized Nature MegaKit (Standard)** by
 [Quaternius](https://quaternius.com), licensed
 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain — no

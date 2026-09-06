@@ -99,6 +99,11 @@ export class ShipInteriorScene implements GameScene {
     // should be solid.
     this.player.setColliders([...this.roomColliders(), ...propColliders]);
     this.player.teleport(new THREE.Vector3(0, 1.7, 4), 0);
+    // The deck is one sealed plane at y=0 with no pits, so this is a backstop against a physics
+    // glitch rather than something reachable by walking.
+    this.player.setRespawn(new THREE.Vector3(0, 1.7, 4), 0);
+    this.player.fallResetY = -5;
+    this.player.onFellOut = () => UIManager.toast('Recovered to the deck.');
     this.player.onFootstep = () => AudioSystem.playFootstep('metal');
     this.stopAmbient = AudioSystem.startAmbient(64, 0.035);
 

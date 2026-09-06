@@ -44,10 +44,31 @@ const TEXTURES_BASE = `${import.meta.env.BASE_URL}models/quaternius/Textures`;
 // textures into every category directory, redirect any bare-filename PNG request GLTFLoader
 // makes (relative to glTF/<Category>/) over to the shared folder. The .bin geometry buffer sits
 // beside its .gltf as normal and is untouched by this rewrite.
+//
+// The pack's source PNGs are lossless 2048x2048 exports — 27MB for the 21 files, and the three ORM
+// maps alone are 9.9MB — which the ship interior, the first scene of the game, pulls in on every
+// first load. These were re-encoded to JPEG by tools/recompress-textures.mjs, which picks a quality
+// per file against a measured mean-error budget and refuses any file JPEG would make bigger:
+// 27MB -> 6.5MB across 16 files, checked by diffing rendered frames of the room before and after.
+// The five left out are small, high-contrast masks and decal sheets that compress worse as JPEG than
+// as PNG. Their bare-filename request is redirected to the .jpg sibling, the same way the nature
+// kit's set works in src/planets/kethra/kit.ts.
+const JPG_REENCODED = new Set([
+  'T_PaddedWall_BaseColor.png', 'T_PaddedWall_Normal.png',
+  'T_PaddedWall_ORM.png', 'T_Trim_01_BaseColor.png',
+  'T_Trim_01_BaseColor_Red.png', 'T_Trim_01_Normal.png',
+  'T_Trim_01_ORM.png', 'T_Trim_02_BaseColor.png',
+  'T_Trim_02_BaseColor_Blue.png', 'T_Trim_02_BaseColor_Red.png',
+  'T_Trim_02_Normal.png', 'T_Trim_02_ORM.png',
+  'T_Trim_03_BaseColor.png', 'T_Trim_03_Cables.png',
+  'T_Trim_03_Normal.png', 'T_Trim_03_ORM.png',
+]);
+
 const manager = new THREE.LoadingManager();
 manager.setURLModifier((url) => {
   if (url.startsWith(KIT_BASE) && url.toLowerCase().endsWith('.png')) {
-    const filename = url.slice(url.lastIndexOf('/') + 1);
+    let filename = url.slice(url.lastIndexOf('/') + 1);
+    if (JPG_REENCODED.has(filename)) filename = `${filename.slice(0, -4)}.jpg`;
     return `${TEXTURES_BASE}/${filename}`;
   }
   return url;

@@ -288,6 +288,8 @@ export class KethraScene implements GameScene {
   onDepart: (() => void) | null = null;
 
   private floorMeshes: THREE.Object3D[] = [];
+  /** Mid-points of the connecting ramps, kept clear of scattered boulders — see buildClutter. */
+  private rampAnchors: THREE.Vector3[] = [];
   private canopyMats: THREE.MeshStandardMaterial[] = [];
   private creature: THREE.Mesh;
   private creatureTime = 0;
@@ -336,6 +338,13 @@ export class KethraScene implements GameScene {
     this.player.setFloorTargets(this.floorMeshes);
     this.player.setColliders(await this.colliders());
     this.player.teleport(new THREE.Vector3(0, 2, 18), 0);
+    // The terraces are raised islands with unguarded edges, and the only thing below them is the
+    // catch plane 20 units down with no way back up — walking off any edge was an unrecoverable
+    // soft lock. -6 is well below the lowest terrace surface (-0.05) and well above the plane, so
+    // the player is caught during the fall rather than after landing on it.
+    this.player.setRespawn(new THREE.Vector3(0, 2, 18), 0);
+    this.player.fallResetY = -6;
+    this.player.onFellOut = () => UIManager.toast('You lose your footing and scramble back to the landing terrace.');
     this.player.onFootstep = () => AudioSystem.playFootstep('organic');
     this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
 
@@ -389,6 +398,16 @@ export class KethraScene implements GameScene {
     // Run out to z = -4 rather than stopping at the plaza edge, so 1.10 m is climbed over 5 units
     // (12.4deg) instead of 3 (20deg); the first two units simply lie on the plaza as a wedge.
     const chamberRamp = makeRamp('z', [-9.3, 1.48], [-4, 0.38], 6, 0);
+
+    // A boulder is up to 6.7 units across and a ramp is 2.2-6 wide, so one landing at a ramp's mouth
+    // can cover most of it. Measured before this was added: a 5.5 x 5.5 boulder sat across the
+    // chamber ramp's entrance from x -5.41 to 0.11, leaving only its right half open.
+    this.rampAnchors = [
+      new THREE.Vector3(-9.5, 0, -0.5),
+      new THREE.Vector3(9.5, 0, -0.5),
+      new THREE.Vector3(0, 0, -6.65),
+      new THREE.Vector3(-20.6, 0, -4.65),
+    ];
 
     for (const t of [landing, plaza, rampA, westTerrace, rampB, eastTerrace, chamberApproach, westRamp, eastRamp, chamberRamp]) {
       this.scene.add(t);
@@ -847,9 +866,10 @@ export class KethraScene implements GameScene {
 
   private async buildClutter(): Promise<void> {
     const batcher = new KitBatcher();
-    // Every interaction anchor, plus the spawn itself, which isn't one. buildClutter runs after
-    // every builder that registers a target, so this stays correct as targets are added.
-    const keepClear = [...this.interaction.anchorPositions(), new THREE.Vector3(0, 0, 18)];
+    // Every interaction anchor, the spawn (which isn't one), and the four connecting ramps.
+    // buildClutter runs after every builder that registers a target and after buildTerraces, so
+    // this stays correct as targets and ramps are added.
+    const keepClear = [...this.interaction.anchorPositions(), new THREE.Vector3(0, 0, 18), ...this.rampAnchors];
     const glowMatA = new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 0.8, roughness: 0.4 });
     const glowMatB = new THREE.MeshStandardMaterial({ color: 0x4fd9c8, emissive: 0x4fd9c8, emissiveIntensity: 0.8, roughness: 0.4 });
 

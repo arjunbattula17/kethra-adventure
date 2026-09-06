@@ -58,6 +58,14 @@ export class Engine {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // On by default, and it makes three.js call gl.getProgramInfoLog/getShaderInfoLog for every
+    // program it builds — synchronous calls that force a GPU flush purely to report errors. This
+    // scene compiles 91 distinct programs on boot and shader compilation is not cached across page
+    // loads, so that cost is paid on every single load; measured, turning it off roughly halves the
+    // main thread's blocking time during boot. Kept on in dev, where the custom shaders in
+    // planetShader.ts and PostProcessing.ts are actually being edited and a compile error should
+    // surface loudly rather than as a silently black screen.
+    this.renderer.debug.checkShaderErrors = !import.meta.env.PROD;
     container.appendChild(this.renderer.domElement);
 
     initSharedEnvironment(this.renderer);

@@ -32,6 +32,15 @@ export class PlayerController {
   pitch = 0;
   colliders: ColliderBox[] = [];
   floorTargets: THREE.Object3D[] = [];
+  /**
+   * Below this world Y the player has fallen out of the level and is put back at the respawn point.
+   * Kethra's terraces are islands with unguarded edges over a catch plane 20 units down, and there
+   * was nothing to climb back up — walking off any edge was an unrecoverable soft lock. Defaults to
+   * off; a scene sets it below its own lowest real floor.
+   */
+  fallResetY = -Infinity;
+  onFellOut: (() => void) | null = null;
+  private respawn: { pos: THREE.Vector3; yaw: number } | null = null;
   enabled = true;
   crouching = false;
   private raycaster = new THREE.Raycaster();
@@ -56,6 +65,11 @@ export class PlayerController {
     this.floorTargets = meshes;
   }
 
+  /** Where fallResetY returns the player to. Set once per scene, after the opening teleport. */
+  setRespawn(pos: THREE.Vector3, yaw = 0): void {
+    this.respawn = { pos: pos.clone(), yaw };
+  }
+
   teleport(pos: THREE.Vector3, yaw = 0): void {
     this.rig.position.copy(pos);
     this.yaw = yaw;
@@ -71,6 +85,19 @@ export class PlayerController {
    * never blocked at all. It also allocated a Vector3 per box per test, which the scene's
    * geometry-derived colliders make far too expensive.
    */
+  /**
+   * Whether the floor at (x, z) is too far above the player's feet to step onto. Without this the
+   * player can scale any wall that has a walkable surface on top: update() snaps a grounded player
+   * to whatever floor the downward ray finds, and since velocityY is zeroed on every grounded frame
+   * its own MAX_STEP_UP test could never fail. Measured, a grounded player was being lifted 6 m in
+   * one frame. Treating a too-tall step as a wall — refusing the horizontal move rather than
+   * refusing the snap — is what stops the player ending up standing inside the raised geometry.
+   */
+  private stepTooHigh(x: number, z: number, feetY: number): boolean {
+    const floorY = this.sampleFloorHeight(x, z);
+    return floorY !== null && floorY - feetY > MAX_STEP_UP;
+  }
+
   private blockedAt(x: number, z: number, feetY: number): boolean {
     const headY = feetY + PLAYER_HEIGHT;
     const stepY = feetY + STEP_OVER;
@@ -88,8 +115,8 @@ export class PlayerController {
     const from = this.rig.position;
     // Resolved one axis at a time so a blocked direction slides along the obstacle instead of
     // stopping dead.
-    if (this.blockedAt(result.x, from.z, from.y)) result.x = from.x;
-    if (this.blockedAt(result.x, result.z, from.y)) result.z = from.z;
+    if (this.blockedAt(result.x, from.z, from.y) || this.stepTooHigh(result.x, from.z, from.y)) result.x = from.x;
+    if (this.blockedAt(result.x, result.z, from.y) || this.stepTooHigh(result.x, result.z, from.y)) result.z = from.z;
     return result;
   }
 
@@ -175,6 +202,14 @@ export class PlayerController {
     }
 
     this.rig.position.copy(resolved);
+
+    if (this.rig.position.y < this.fallResetY && this.respawn) {
+      this.rig.position.copy(this.respawn.pos);
+      this.yaw = this.respawn.yaw;
+      this.velocityY = 0;
+      this.onGround = true;
+      this.onFellOut?.();
+    }
 
     if (moving && this.onGround) {
       this.headBobTime += dt * targetSpeed * 3.2;
