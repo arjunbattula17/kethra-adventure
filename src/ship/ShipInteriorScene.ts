@@ -18,6 +18,7 @@ import { buildSuspendedDisplay } from './interior/suspendedDisplay';
 import { buildDetailProps } from './interior/props';
 import { buildLighting } from './interior/lighting';
 import { batchStaticGeometry } from './interior/batchStaticGeometry';
+import { mulberry32 } from '../core/rng';
 import { buildInteriorColliders } from './interior/collision';
 
 export class ShipInteriorScene implements GameScene {
@@ -35,6 +36,9 @@ export class ShipInteriorScene implements GameScene {
   private noMerge = new Set<THREE.Object3D>();
   private unsubShake: (() => void) | null = null;
   private stopAmbient: (() => void) | null = null;
+  // Seeded: the emergency light's random spike was the last thing making two runs of the same build
+  // render differently, which is what a frame diff has to be able to rule out.
+  private flickerRng = mulberry32(0x3e07);
 
   constructor() {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 1.7, 4));
@@ -141,7 +145,7 @@ export class ShipInteriorScene implements GameScene {
       mat.emissiveIntensity = 0.9 + Math.sin(elapsed * 0.8) * 0.15;
     }
     if (this.emergencyLight) {
-      this.emergencyLight.intensity = 1.1 + Math.sin(elapsed * 3.1) * 0.2 + (Math.random() < 0.02 ? 0.4 : 0);
+      this.emergencyLight.intensity = 1.1 + Math.sin(elapsed * 3.1) * 0.2 + (this.flickerRng() < 0.02 ? 0.4 : 0);
     }
     for (const status of this.statusLights) {
       const on = Math.sin(elapsed * 5 + status.phase) > 0.4;

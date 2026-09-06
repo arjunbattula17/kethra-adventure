@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+import { mulberry32, hashStr } from '../../core/rng';
+
+
 /**
  * Procedural canvas textures for the set-dressing props. These are the "third layer" of detail —
  * label plates, louvre shading, stencils and wear that would be uneconomical as geometry at
@@ -47,19 +50,20 @@ function stencilText(ctx: CanvasRenderingContext2D, text: string, cx: number, cy
 
 /** Scratches concentrated near an edge — wear is motivated by contact, not sprayed uniformly. */
 function edgeScuffs(ctx: CanvasRenderingContext2D, w: number, h: number, count: number, seedOffset = 0): void {
+  const rng = mulberry32(0x6101 ^ hashStr(`${count}:${seedOffset}`));
   ctx.save();
   ctx.lineCap = 'round';
   for (let i = 0; i < count; i++) {
     const t = (i * 2.399 + seedOffset) % 1;
     const nearBottom = t > 0.45;
     const x = ((i * 137.5 + seedOffset * 61) % w);
-    const y = nearBottom ? h - Math.random() * h * 0.22 : Math.random() * h * 0.16;
-    const len = 4 + Math.random() * 26;
-    ctx.strokeStyle = `rgba(214,208,196,${0.06 + Math.random() * 0.16})`;
-    ctx.lineWidth = 0.6 + Math.random() * 1.4;
+    const y = nearBottom ? h - rng() * h * 0.22 : rng() * h * 0.16;
+    const len = 4 + rng() * 26;
+    ctx.strokeStyle = `rgba(214,208,196,${0.06 + rng() * 0.16})`;
+    ctx.lineWidth = 0.6 + rng() * 1.4;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + len * (Math.random() - 0.5) * 2, y + (Math.random() - 0.5) * 5);
+    ctx.lineTo(x + len * (rng() - 0.5) * 2, y + (rng() - 0.5) * 5);
     ctx.stroke();
   }
   ctx.restore();
@@ -182,6 +186,7 @@ export function buildCratePanelTexture(label: string, tone: 'steel' | 'bone' | '
  * an engraved ID plate and a recessed handle shadow.
  */
 export function buildLockerDoorTexture(label: string): THREE.CanvasTexture {
+  const rng = mulberry32(0x6102 ^ hashStr(label));
   const w = 256;
   const h = 512;
   const [canvas, ctx] = makeCanvas(w, h);
@@ -196,9 +201,9 @@ export function buildLockerDoorTexture(label: string): THREE.CanvasTexture {
 
   // Vertical brushed grain.
   for (let x = 0; x < w; x += 2) {
-    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.035})`;
+    ctx.fillStyle = `rgba(255,255,255,${rng() * 0.035})`;
     ctx.fillRect(x, 0, 1, h);
-    ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.045})`;
+    ctx.fillStyle = `rgba(0,0,0,${rng() * 0.045})`;
     ctx.fillRect(x + 1, 0, 1, h);
   }
 
@@ -213,13 +218,13 @@ export function buildLockerDoorTexture(label: string): THREE.CanvasTexture {
 
   // Drip streaks below the vents — condensation runs, localised and motivated.
   for (let i = 0; i < 9; i++) {
-    const x = 52 + Math.random() * (w - 104);
-    const len = 30 + Math.random() * 150;
+    const x = 52 + rng() * (w - 104);
+    const len = 30 + rng() * 150;
     const gg = ctx.createLinearGradient(0, 176, 0, 176 + len);
     gg.addColorStop(0, 'rgba(58,48,36,0.4)');
     gg.addColorStop(1, 'rgba(58,48,36,0)');
     ctx.fillStyle = gg;
-    ctx.fillRect(x, 176, 1 + Math.random() * 2.5, len);
+    ctx.fillRect(x, 176, 1 + rng() * 2.5, len);
   }
 
   // Engraved ID plate.
@@ -243,9 +248,9 @@ export function buildLockerDoorTexture(label: string): THREE.CanvasTexture {
   ctx.fillStyle = 'rgba(43,49,56,0.8)';
   ctx.fillRect(0, h - 46, w, 46);
   for (let i = 0; i < 26; i++) {
-    const x = Math.random() < 0.5 ? Math.random() * 40 : w - Math.random() * 40;
-    ctx.fillStyle = `rgba(150,116,72,${0.15 + Math.random() * 0.3})`;
-    ctx.fillRect(x, h - 60 + Math.random() * 58, 1 + Math.random() * 5, 1 + Math.random() * 4);
+    const x = rng() < 0.5 ? rng() * 40 : w - rng() * 40;
+    ctx.fillStyle = `rgba(150,116,72,${0.15 + rng() * 0.3})`;
+    ctx.fillRect(x, h - 60 + rng() * 58, 1 + rng() * 5, 1 + rng() * 4);
   }
 
   edgeScuffs(ctx, w, h, 60, 11);
@@ -546,6 +551,7 @@ const surfaceCache = new Map<string, SurfaceSet>();
  * strong directional roughness streaks, rubber is uniformly matte with heavy fine relief.
  */
 export function buildSurfaceSet(kind: SurfaceKind, repeat = 3): SurfaceSet {
+  const rng = mulberry32(0x6103 ^ hashStr(kind));
   const key = `${kind}|${repeat}`;
   const hit = surfaceCache.get(key);
   if (hit) return hit;
@@ -563,23 +569,23 @@ export function buildSurfaceSet(kind: SurfaceKind, repeat = 3): SurfaceSet {
       // hand or a shoulder repeatedly passes — those read shinier than the paint around them.
       ac.fillStyle = '#e8e6e2';
       ac.fillRect(0, 0, s, s);
-      for (let i = 0; i < 90; i++) blob(ac, s, s, Math.random() * s, Math.random() * s, 10 + Math.random() * 44, 200 + Math.random() * 46, 0.16);
+      for (let i = 0; i < 90; i++) blob(ac, s, s, rng() * s, rng() * s, 10 + rng() * 44, 200 + rng() * 46, 0.16);
       for (let i = 0; i < 260; i++) {
-        ac.fillStyle = `rgba(150,142,130,${0.05 + Math.random() * 0.16})`;
-        ac.fillRect(Math.random() * s, Math.random() * s, 1 + Math.random() * 3, 1 + Math.random() * 2);
+        ac.fillStyle = `rgba(150,142,130,${0.05 + rng() * 0.16})`;
+        ac.fillRect(rng() * s, rng() * s, 1 + rng() * 3, 1 + rng() * 2);
       }
 
       rc.fillStyle = '#f2f2f2';
       rc.fillRect(0, 0, s, s);
-      for (let i = 0; i < 40; i++) blob(rc, s, s, Math.random() * s, Math.random() * s, 18 + Math.random() * 52, 120 + Math.random() * 60, 0.5);
+      for (let i = 0; i < 40; i++) blob(rc, s, s, rng() * s, rng() * s, 18 + rng() * 52, 120 + rng() * 60, 0.5);
       for (let i = 0; i < 130; i++) {
-        rc.fillStyle = `rgba(255,255,255,${0.1 + Math.random() * 0.2})`;
-        rc.fillRect(Math.random() * s, Math.random() * s, 2 + Math.random() * 8, 1 + Math.random() * 2);
+        rc.fillStyle = `rgba(255,255,255,${0.1 + rng() * 0.2})`;
+        rc.fillRect(rng() * s, rng() * s, 2 + rng() * 8, 1 + rng() * 2);
       }
 
       hc.fillStyle = '#808080';
       hc.fillRect(0, 0, s, s);
-      for (let i = 0; i < 120; i++) blob(hc, s, s, Math.random() * s, Math.random() * s, 4 + Math.random() * 12, 100 + Math.random() * 110, 0.5);
+      for (let i = 0; i < 120; i++) blob(hc, s, s, rng() * s, rng() * s, 4 + rng() * 12, 100 + rng() * 110, 0.5);
       normalStrength = 4;
       normalScale = 0.35;
       break;
@@ -591,29 +597,29 @@ export function buildSurfaceSet(kind: SurfaceKind, repeat = 3): SurfaceSet {
       ac.fillStyle = '#efefef';
       ac.fillRect(0, 0, s, s);
       for (let y = 0; y < s; y++) {
-        const cr = (190 + Math.random() * 60) | 0;
-        ac.fillStyle = `rgba(${cr},${cr + 2},${cr + 6},${0.06 + Math.random() * 0.1})`;
+        const cr = (190 + rng() * 60) | 0;
+        ac.fillStyle = `rgba(${cr},${cr + 2},${cr + 6},${0.06 + rng() * 0.1})`;
         ac.fillRect(0, y, s, 1);
       }
-      for (let i = 0; i < 26; i++) blob(ac, s, s, Math.random() * s, Math.random() * s, 12 + Math.random() * 40, 176 + Math.random() * 50, 0.12);
+      for (let i = 0; i < 26; i++) blob(ac, s, s, rng() * s, rng() * s, 12 + rng() * 40, 176 + rng() * 50, 0.12);
 
       rc.fillStyle = '#e2e2e2';
       rc.fillRect(0, 0, s, s);
       for (let i = 0; i < 460; i++) {
-        const y = Math.random() * s;
-        rc.fillStyle = Math.random() < 0.5
-          ? `rgba(255,255,255,${0.08 + Math.random() * 0.28})`
-          : `rgba(110,110,110,${0.06 + Math.random() * 0.22})`;
-        rc.fillRect(Math.random() * s, y, 20 + Math.random() * 190, 1);
+        const y = rng() * s;
+        rc.fillStyle = rng() < 0.5
+          ? `rgba(255,255,255,${0.08 + rng() * 0.28})`
+          : `rgba(110,110,110,${0.06 + rng() * 0.22})`;
+        rc.fillRect(rng() * s, y, 20 + rng() * 190, 1);
       }
-      for (let i = 0; i < 22; i++) blob(rc, s, s, Math.random() * s, Math.random() * s, 16 + Math.random() * 46, 150 + Math.random() * 70, 0.4);
+      for (let i = 0; i < 22; i++) blob(rc, s, s, rng() * s, rng() * s, 16 + rng() * 46, 150 + rng() * 70, 0.4);
 
       hc.fillStyle = '#808080';
       hc.fillRect(0, 0, s, s);
       for (let i = 0; i < 420; i++) {
-        const y = Math.random() * s;
-        hc.fillStyle = Math.random() < 0.5 ? 'rgba(210,210,210,0.14)' : 'rgba(40,40,40,0.14)';
-        hc.fillRect(Math.random() * s, y, 24 + Math.random() * 200, 1);
+        const y = rng() * s;
+        hc.fillStyle = rng() < 0.5 ? 'rgba(210,210,210,0.14)' : 'rgba(40,40,40,0.14)';
+        hc.fillRect(rng() * s, y, 24 + rng() * 200, 1);
       }
       normalStrength = kind === 'brushed' ? 7 : 5;
       normalScale = kind === 'brushed' ? 0.5 : 0.38;
@@ -624,25 +630,25 @@ export function buildSurfaceSet(kind: SurfaceKind, repeat = 3): SurfaceSet {
       ac.fillStyle = '#dedede';
       ac.fillRect(0, 0, s, s);
       for (let i = 0; i < 2600; i++) {
-        const cr = (140 + Math.random() * 90) | 0;
+        const cr = (140 + rng() * 90) | 0;
         ac.fillStyle = `rgba(${cr},${cr},${cr + 2},0.3)`;
-        ac.fillRect(Math.random() * s, Math.random() * s, 1 + Math.random() * 2, 1 + Math.random() * 2);
+        ac.fillRect(rng() * s, rng() * s, 1 + rng() * 2, 1 + rng() * 2);
       }
 
       rc.fillStyle = '#fbfbfb';
       rc.fillRect(0, 0, s, s);
       for (let i = 0; i < 900; i++) {
-        rc.fillStyle = `rgba(228,228,228,${0.1 + Math.random() * 0.14})`;
-        rc.fillRect(Math.random() * s, Math.random() * s, 2 + Math.random() * 4, 2 + Math.random() * 4);
+        rc.fillStyle = `rgba(228,228,228,${0.1 + rng() * 0.14})`;
+        rc.fillRect(rng() * s, rng() * s, 2 + rng() * 4, 2 + rng() * 4);
       }
 
       hc.fillStyle = '#808080';
       hc.fillRect(0, 0, s, s);
       for (let i = 0; i < 2200; i++) {
-        const v = Math.random() < 0.5 ? 40 : 220;
+        const v = rng() < 0.5 ? 40 : 220;
         hc.fillStyle = `rgba(${v},${v},${v},0.4)`;
         hc.beginPath();
-        hc.arc(Math.random() * s, Math.random() * s, 1 + Math.random() * 2.4, 0, Math.PI * 2);
+        hc.arc(rng() * s, rng() * s, 1 + rng() * 2.4, 0, Math.PI * 2);
         hc.fill();
       }
       normalStrength = 9;
@@ -660,14 +666,14 @@ export function buildSurfaceSet(kind: SurfaceKind, repeat = 3): SurfaceSet {
       hc.fillRect(0, 0, s, s);
       const layers: [CanvasRenderingContext2D, number, number][] = [];
       for (let i = 0; i < 150; i++) {
-        const x = Math.random() * s;
-        const y = Math.random() * s;
-        const r = 5 + Math.random() * 20;
-        const rot = Math.random() * Math.PI;
+        const x = rng() * s;
+        const y = rng() * s;
+        const r = 5 + rng() * 20;
+        const rot = rng() * Math.PI;
         layers.length = 0;
-        layers.push([ac, 196 + Math.random() * 52, 0.35]);
-        layers.push([rc, 130 + Math.random() * 118, 0.6]);
-        layers.push([hc, 90 + Math.random() * 130, 0.45]);
+        layers.push([ac, 196 + rng() * 52, 0.35]);
+        layers.push([rc, 130 + rng() * 118, 0.6]);
+        layers.push([hc, 90 + rng() * 130, 0.45]);
         for (const [c, v, a] of layers) {
           for (const ox of [0, -s, s]) {
             for (const oy of [0, -s, s]) {
@@ -700,26 +706,26 @@ export function buildSurfaceSet(kind: SurfaceKind, repeat = 3): SurfaceSet {
       ac.fillRect(0, 0, s, s);
       for (let i = 0; i < 700; i++) {
         ac.save();
-        ac.translate(Math.random() * s, Math.random() * s);
-        ac.rotate(Math.random() * Math.PI);
-        const cr = (150 + Math.random() * 80) | 0;
-        ac.fillStyle = `rgba(${cr},${cr - 4},${cr - 12},${0.08 + Math.random() * 0.16})`;
-        ac.fillRect(-12, 0, 8 + Math.random() * 26, 1 + Math.random() * 1.5);
+        ac.translate(rng() * s, rng() * s);
+        ac.rotate(rng() * Math.PI);
+        const cr = (150 + rng() * 80) | 0;
+        ac.fillStyle = `rgba(${cr},${cr - 4},${cr - 12},${0.08 + rng() * 0.16})`;
+        ac.fillRect(-12, 0, 8 + rng() * 26, 1 + rng() * 1.5);
         ac.restore();
       }
       rc.fillStyle = '#f6f6f6';
       rc.fillRect(0, 0, s, s);
-      for (let i = 0; i < 60; i++) blob(rc, s, s, Math.random() * s, Math.random() * s, 14 + Math.random() * 40, 170 + Math.random() * 60, 0.4);
+      for (let i = 0; i < 60; i++) blob(rc, s, s, rng() * s, rng() * s, 14 + rng() * 40, 170 + rng() * 60, 0.4);
 
       hc.fillStyle = '#808080';
       hc.fillRect(0, 0, s, s);
       for (let i = 0; i < 900; i++) {
         hc.save();
-        hc.translate(Math.random() * s, Math.random() * s);
-        hc.rotate(Math.random() * Math.PI);
-        const v = Math.random() < 0.5 ? 50 : 210;
+        hc.translate(rng() * s, rng() * s);
+        hc.rotate(rng() * Math.PI);
+        const v = rng() < 0.5 ? 50 : 210;
         hc.fillStyle = `rgba(${v},${v},${v},0.22)`;
-        hc.fillRect(-10, 0, 8 + Math.random() * 24, 1.4);
+        hc.fillRect(-10, 0, 8 + rng() * 24, 1.4);
         hc.restore();
       }
       normalStrength = 8;
@@ -759,6 +765,7 @@ let contactShadowTex: THREE.CanvasTexture | null = null;
  * White at the quad edge, so multiply blending leaves the surrounding deck untouched.
  */
 export function buildContactShadowTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x6104);
   if (contactShadowTex) return contactShadowTex;
   const s = 128;
   const [canvas, ctx] = makeCanvas(s, s);
@@ -784,11 +791,11 @@ export function buildContactShadowTexture(): THREE.CanvasTexture {
 
   // A little grit tracked out from under the prop — a contact edge is never perfectly clean.
   for (let i = 0; i < 120; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const r = s * (0.3 + Math.random() * 0.2);
-    ctx.fillStyle = `rgba(150,154,160,${0.1 + Math.random() * 0.2})`;
+    const a = rng() * Math.PI * 2;
+    const r = s * (0.3 + rng() * 0.2);
+    ctx.fillStyle = `rgba(150,154,160,${0.1 + rng() * 0.2})`;
     ctx.beginPath();
-    ctx.arc(s / 2 + Math.cos(a) * r, s / 2 + Math.sin(a) * r, 1 + Math.random() * 3.5, 0, Math.PI * 2);
+    ctx.arc(s / 2 + Math.cos(a) * r, s / 2 + Math.sin(a) * r, 1 + rng() * 3.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -806,6 +813,7 @@ const streakCache = new Map<number, THREE.CanvasTexture>();
  * grey-black under a joint, 1 is rust-brown under a valve, 2 is pale scale under a vent.
  */
 export function buildStreakTexture(variant = 0): THREE.CanvasTexture {
+  const rng = mulberry32(0x6105 ^ hashStr(`v${variant}`));
   const hit = streakCache.get(variant);
   if (hit) return hit;
   const w = 128;
@@ -831,17 +839,17 @@ export function buildStreakTexture(variant = 0): THREE.CanvasTexture {
   ctx.fillRect(0, 0, w, 70);
 
   for (let i = 0; i < 22; i++) {
-    const x = 12 + Math.random() * (w - 24);
-    const len = h * (0.18 + Math.random() * 0.72);
-    const wide = 0.8 + Math.random() * 3.4;
+    const x = 12 + rng() * (w - 24);
+    const len = h * (0.18 + rng() * 0.72);
+    const wide = 0.8 + rng() * 3.4;
     const g = ctx.createLinearGradient(0, 4, 0, 4 + len);
-    g.addColorStop(0, `rgba(${tr},${tg},${tb},${0.18 + Math.random() * 0.26})`);
-    g.addColorStop(0.55, `rgba(${tr},${tg},${tb},${0.08 + Math.random() * 0.12})`);
+    g.addColorStop(0, `rgba(${tr},${tg},${tb},${0.18 + rng() * 0.26})`);
+    g.addColorStop(0.55, `rgba(${tr},${tg},${tb},${0.08 + rng() * 0.12})`);
     g.addColorStop(1, `rgba(${tr},${tg},${tb},0)`);
     ctx.fillStyle = g;
     ctx.fillRect(x, 4, wide, len);
     // Beaded tail where a drip stalled and dried.
-    ctx.fillStyle = `rgba(${tr},${tg},${tb},${0.1 + Math.random() * 0.14})`;
+    ctx.fillStyle = `rgba(${tr},${tg},${tb},${0.1 + rng() * 0.14})`;
     ctx.beginPath();
     ctx.ellipse(x + wide / 2, 4 + len * 0.92, wide * 1.6, wide * 3.2, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -874,6 +882,7 @@ const floorGrimeCache = new Map<number, THREE.CanvasTexture>();
  * sheen — mixing the three across a floor breaks up what would otherwise be one uniform tint.
  */
 export function buildFloorGrimeTexture(variant = 0): THREE.CanvasTexture {
+  const rng = mulberry32(0x6106 ^ hashStr(`v${variant}`));
   const hit = floorGrimeCache.get(variant);
   if (hit) return hit;
   const s = 256;
@@ -888,9 +897,9 @@ export function buildFloorGrimeTexture(variant = 0): THREE.CanvasTexture {
   ][variant % 3];
 
   for (let i = 0; i < 5; i++) {
-    const cx = s * (0.32 + Math.random() * 0.36);
-    const cy = s * (0.32 + Math.random() * 0.36);
-    const r = s * (0.16 + Math.random() * 0.2);
+    const cx = s * (0.32 + rng() * 0.36);
+    const cy = s * (0.32 + rng() * 0.36);
+    const r = s * (0.16 + rng() * 0.2);
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
     g.addColorStop(0, `rgba(${tr},${tg},${tb},${coreA})`);
     g.addColorStop(0.6, `rgba(${tr},${tg},${tb},${coreA * 0.5})`);
@@ -901,8 +910,8 @@ export function buildFloorGrimeTexture(variant = 0): THREE.CanvasTexture {
 
   // Fine speckle so the stain isn't a smooth airbrushed gradient up close.
   for (let i = 0; i < 500; i++) {
-    ctx.fillStyle = `rgba(${tr},${tg},${tb},${0.03 + Math.random() * 0.1})`;
-    ctx.fillRect(Math.random() * s, Math.random() * s, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    ctx.fillStyle = `rgba(${tr},${tg},${tb},${0.03 + rng() * 0.1})`;
+    ctx.fillRect(rng() * s, rng() * s, 1 + rng() * 2, 1 + rng() * 2);
   }
 
   // Feather the whole border back to white (a no-op under multiply blending) so the decal has no

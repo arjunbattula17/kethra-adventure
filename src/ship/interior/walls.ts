@@ -371,7 +371,9 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
         placard.rotation.set(0, yaw, 0);
         placard.renderOrder = 1;
         ctx.scene.add(placard);
-        const pulsePhase = Math.random() * Math.PI * 2;
+        // Derived from the bay rather than drawn at random: one placard has nothing to be out
+        // of phase with, and a random phase only made the room animate differently every load.
+        const pulsePhase = bay.z * 0.9;
         ctx.animated.push((elapsed) => {
           placardMat.emissiveIntensity = 0.55 * (0.85 + 0.15 * Math.sin(elapsed * 1.1 + pulsePhase));
         });
@@ -468,7 +470,9 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     ctx.scene.add(lamp);
 
     const baseIntensity = lamp.intensity;
-    const phase = Math.random() * Math.PI * 2;
+    // Both sconces sit at the same z, so the phase keys off x too — otherwise the pair would
+    // pulse in lockstep, which is the one thing the random phase was there to avoid.
+    const phase = c.pos[0] * 0.6 + c.pos[2] * 1.3;
     ctx.animated.push((elapsed) => {
       lamp.intensity = baseIntensity * (0.9 + 0.1 * Math.sin(elapsed * 1.7 + phase));
     });

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { InteriorCtx } from './ctx';
+import { mulberry32 } from '../../core/rng';
 import {
   buildAuxGlassMaps,
   buildAuxScreenTexture,
@@ -816,6 +817,10 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
 
   // --- animation --------------------------------------------------------------------------------------------
   let flickerT = 0;
+  // Seeded so the panel's dropout pattern is the same run to run. It still reads as random; it just
+  // is not a different sequence on every page load, which is what kept rendered frames from being
+  // comparable between builds.
+  const flickerRng = mulberry32(0x5d19);
   ctx.animated.push((elapsed, dt) => {
     sweep.rotation.z = -elapsed * 0.85;
     sweepMat.opacity = 0.4 + Math.sin(elapsed * 1.7) * 0.09;
@@ -825,8 +830,8 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
     flickerT -= dt;
     if (flickerT <= 0) {
       flickerPaneMat.emissiveIntensity =
-        Math.random() < 0.2 ? 0.28 + Math.random() * 0.3 : screenMat.emissiveIntensity;
-      flickerT = 0.05 + Math.random() * 0.5;
+        flickerRng() < 0.2 ? 0.28 + flickerRng() * 0.3 : screenMat.emissiveIntensity;
+      flickerT = 0.05 + flickerRng() * 0.5;
     }
   });
 }

@@ -36,6 +36,14 @@ const setupErr = await page.evaluate(() => {
   try {
   const s = window.__DEBUG__.engine.getCurrentScene();
   s.player.enabled = false;
+  // Pin the animation clock. Engine.start()'s loop drives every scene animation from
+  // clock.getDelta()/getElapsedTime(), so without this each screenshot lands at whatever elapsed
+  // time it happened to reach and pulsing lights, scrolling screens and the flicker pane all sit at
+  // a different point run to run — noise a frame diff cannot distinguish from a real regression.
+  // delta 0 also freezes anything integrated per frame rather than computed from elapsed.
+  const engine = window.__DEBUG__.engine;
+  engine.clock.getDelta = () => 0;
+  engine.clock.getElapsedTime = () => 12;
   window.__SETVIEW__ = (x, z, yaw, pitch) => {
     const sc = window.__DEBUG__.engine.getCurrentScene();
     sc.player.rig.position.set(x, 0, z);

@@ -29,31 +29,45 @@ async function walk(x, z, dx, dz, ms) {
     const V = sc.player.rig.position.constructor;
     sc.player.teleport(new V(x, 2, z), yaw);
   }, [x, z, yawTo(dx, dz)]);
-  await page.waitForTimeout(500);
-  await page.keyboard.down('KeyW');
-  await page.waitForTimeout(ms);
-  await page.keyboard.up('KeyW');
-  await page.waitForTimeout(250);
-  return page.evaluate(() => {
+  const read = () => page.evaluate(() => {
     const p = window.__DEBUG__.engine.getCurrentScene().player.rig.position;
     return [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)];
   });
+  await page.waitForTimeout(500);
+  await page.keyboard.down('KeyW');
+  // Hold until the player stops making progress rather than for a fixed wall-clock duration: the
+  // walk covers less ground on a loaded machine, which made these checks flaky in a way that had
+  // nothing to do with the movement code they are testing.
+  let prev = await read();
+  const deadline = Date.now() + ms;
+  let still = 0;
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(250);
+    const now = await read();
+    const moved = Math.hypot(now[0] - prev[0], now[1] - prev[1], now[2] - prev[2]);
+    prev = now;
+    still = moved < 0.05 ? still + 1 : 0;
+    if (still >= 2) break;
+  }
+  await page.keyboard.up('KeyW');
+  await page.waitForTimeout(250);
+  return read();
 }
 
 const checks = scene === 'kethra'
   ? [
-      ['chamber ramp is walkable (plaza -> chamber)', 0, -3.0, 0, -1, 3500, (p) => p[2] < -9.5 && p[1] > 1.4],
-      ['west ramp is walkable (plaza -> west terrace)', -7.0, -0.5, -1, 0, 3000, (p) => p[0] < -12 && p[1] > 0.9],
-      ['ledge stair is walkable (west -> secret ledge)', -20.6, -2.0, 0, -1, 3500, (p) => p[2] < -6.9 && p[1] > 2.7],
-      ['1.80m ledge face is NOT climbable off-stair', -19.2, -5.6, 0, -1, 3000, (p) => p[1] < 1.5],
+      ['chamber ramp is walkable (plaza -> chamber)', 0, -3.0, 0, -1, 9000, (p) => p[2] < -9.5 && p[1] > 1.4],
+      ['west ramp is walkable (plaza -> west terrace)', -7.0, -0.5, -1, 0, 9000, (p) => p[0] < -12 && p[1] > 0.9],
+      ['ledge stair is walkable (west -> secret ledge)', -20.6, -2.0, 0, -1, 9000, (p) => p[2] < -6.9 && p[1] > 2.7],
+      ['1.80m ledge face is NOT climbable off-stair', -19.2, -5.6, 0, -1, 6000, (p) => p[1] < 1.5],
       // z = -4.5 is clear of the east ramp (z -3..2) and of Pine_2's trunk collider
       // (x 5.68..9.67, z 2.14..5.72), so this is a real unguarded edge over a 3.6-unit void.
       // W stays held after the reset, so the player walks on from the respawn point facing -Z;
       // what matters is that they are back on the landing terrace and not left on the catch plane.
-      ['walking off the plaza edge returns the player', 7.0, -4.5, 1, 0, 5000, (p) => p[1] > -1 && Math.abs(p[0]) < 3 && p[2] > 10],
+      ['walking off the plaza edge returns the player', 7.0, -4.5, 1, 0, 12000, (p) => p[1] > -1 && Math.abs(p[0]) < 3 && p[2] > 10],
     ]
   : [
-      ['deck is walkable', 0, 5.5, 0, -1, 2500, (p) => p[2] < 4 && Math.abs(p[1]) < 0.2],
+      ['deck is walkable', 0, 5.5, 0, -1, 9000, (p) => p[2] < 4 && Math.abs(p[1]) < 0.2],
     ];
 
 let fails = 0;

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { applyPbr } from '../../core/TextureLibrary';
+import { mulberry32 } from '../../core/rng';
 import { buildHazardStripeTexture, buildStencilPlacardTexture } from '../ShipTextures';
 import type { InteriorCtx } from './ctx';
 import { addGrimeOverlay } from './ctx';
@@ -1121,10 +1122,11 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // inside the hull. The view a player reads is the parallax stack above.
   const starCount = 1200;
   const positions = new Float32Array(starCount * 3);
+  const starRng = mulberry32(0x57a4);
   for (let i = 0; i < starCount; i++) {
-    const r = 70 + Math.random() * 220;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 70 + starRng() * 220;
+    const theta = starRng() * Math.PI * 2;
+    const phi = Math.acos(2 * starRng() - 1);
     positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
     positions[i * 3 + 1] = r * Math.cos(phi);
     positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);

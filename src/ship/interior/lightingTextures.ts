@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+import { mulberry32 } from '../../core/rng';
+
+
 // Procedural canvas textures owned by the lighting piece. Every one of these is a *neutral*
 // (white/greyscale) alpha ramp so a single texture can be tinted warm / cool / alarm-red by the
 // material's `color` and shared across every fixture in the room — the glow atlas costs four
@@ -70,6 +73,7 @@ let wallCone: THREE.CanvasTexture | null = null;
  * lands at the TOP of the quad.
  */
 export function buildWallConeTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x4c01);
   if (wallCone) return wallCone;
   const w = 128;
   const h = 256;
@@ -96,10 +100,10 @@ export function buildWallConeTexture(): THREE.CanvasTexture {
   // Faint dust striations inside the cone so it doesn't read as a clean gradient sweep.
   c.globalCompositeOperation = 'destination-out';
   for (let i = 0; i < 7; i++) {
-    const x = w * (0.2 + Math.random() * 0.6);
+    const x = w * (0.2 + rng() * 0.6);
     const g = c.createLinearGradient(x - 5, 0, x + 5, 0);
     g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(0.5, `rgba(0,0,0,${(0.1 + Math.random() * 0.14).toFixed(3)})`);
+    g.addColorStop(0.5, `rgba(0,0,0,${(0.1 + rng() * 0.14).toFixed(3)})`);
     g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g;
     c.fillRect(x - 5, 0, 10, h);
@@ -113,6 +117,7 @@ export function buildWallConeTexture(): THREE.CanvasTexture {
 let floorPool: THREE.CanvasTexture | null = null;
 /** Irregular soft blob for the light pool a fixture drops on the deck. */
 export function buildFloorPoolTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x4c02);
   if (floorPool) return floorPool;
   const size = 256;
   const { canvas, c } = makeCanvas(size, size);
@@ -128,13 +133,13 @@ export function buildFloorPoolTexture(): THREE.CanvasTexture {
   // Bite chunks out of the rim so the pool edge is uneven — a perfect disc reads as a decal.
   c.globalCompositeOperation = 'destination-out';
   for (let i = 0; i < 14; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = size * (0.24 + Math.random() * 0.2);
+    const angle = rng() * Math.PI * 2;
+    const dist = size * (0.24 + rng() * 0.2);
     const x = size / 2 + Math.cos(angle) * dist;
     const y = size / 2 + Math.sin(angle) * dist;
-    const r = size * (0.06 + Math.random() * 0.13);
+    const r = size * (0.06 + rng() * 0.13);
     const bite = c.createRadialGradient(x, y, 0, x, y, r);
-    bite.addColorStop(0, `rgba(0,0,0,${(0.18 + Math.random() * 0.22).toFixed(3)})`);
+    bite.addColorStop(0, `rgba(0,0,0,${(0.18 + rng() * 0.22).toFixed(3)})`);
     bite.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = bite;
     c.fillRect(x - r, y - r, r * 2, r * 2);
@@ -152,6 +157,7 @@ let diffuser: THREE.CanvasTexture | null = null;
  * structure instead of reading as a solid white rectangle under bloom.
  */
 export function buildDiffuserTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x4c03);
   if (diffuser) return diffuser;
   const w = 128;
   const h = 64;
@@ -172,11 +178,11 @@ export function buildDiffuserTexture(): THREE.CanvasTexture {
 
   // Grime settled in the lens — the reference has no perfectly clean fixture.
   for (let i = 0; i < 6; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    const r = 4 + Math.random() * 12;
+    const x = rng() * w;
+    const y = rng() * h;
+    const r = 4 + rng() * 12;
     const smudge = c.createRadialGradient(x, y, 0, x, y, r);
-    smudge.addColorStop(0, `rgba(96,84,66,${(0.14 + Math.random() * 0.2).toFixed(3)})`);
+    smudge.addColorStop(0, `rgba(96,84,66,${(0.14 + rng() * 0.2).toFixed(3)})`);
     smudge.addColorStop(1, 'rgba(96,84,66,0)');
     c.fillStyle = smudge;
     c.fillRect(x - r, y - r, r * 2, r * 2);

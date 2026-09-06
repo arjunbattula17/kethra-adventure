@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+import { mulberry32, hashStr } from '../../core/rng';
+
+
 /**
  * Procedural canvas textures owned by the wall piece. The shared PBR photo set (`ship_wall`) is a
  * uniformly rust-orange scan — stretched across 100+ square metres of hull it is the single
@@ -160,6 +163,7 @@ export interface PlateMaps {
  * That correlation is what separates a material from a tinted plastic.
  */
 export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): PlateMaps {
+  const rng = mulberry32(0x7101 ^ hashStr(`${variant}:${cols}x${rows}`));
   const size = 512;
   const [el, ctx] = canvas2d(size, size);
   const [hEl, h] = canvas2d(size, size);
@@ -183,9 +187,9 @@ export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): Pl
   // that was replaced later is both cleaner and slightly proud of its neighbours.
   for (let row = 0; row < rows; row++) {
     for (let c = 0; c < cols; c++) {
-      const fresh = Math.random() < 0.5;
+      const fresh = rng() < 0.5;
       ctx.fillStyle = fresh ? pal.hi : pal.lo;
-      ctx.globalAlpha = 0.1 + Math.random() * 0.16;
+      ctx.globalAlpha = 0.1 + rng() * 0.16;
       ctx.fillRect(c * cw, row * ch, cw, ch);
       ctx.globalAlpha = 1;
       h.fillStyle = g(0.5 + (fresh ? 0.03 : -0.03));
@@ -197,15 +201,15 @@ export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): Pl
 
   // Brushed-metal grain: dense faint horizontal strokes, anisotropic in roughness too.
   for (let i = 0; i < 900; i++) {
-    const y = Math.random() * size;
-    const x = Math.random() * size;
-    const len = 20 + Math.random() * 130;
-    const up = Math.random() < 0.5;
+    const y = rng() * size;
+    const x = rng() * size;
+    const len = 20 + rng() * 130;
+    const up = rng() < 0.5;
     ctx.strokeStyle = up ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.045)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + len, y + (Math.random() - 0.5) * 1.5);
+    ctx.lineTo(x + len, y + (rng() - 0.5) * 1.5);
     ctx.stroke();
     r.strokeStyle = up ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
     r.lineWidth = 1;
@@ -299,12 +303,12 @@ export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): Pl
   // Weld beads and gouges. A gouge cuts through the finish, so it reads as bright bare metal:
   // low roughness, full metalness, and a real dent in the height field.
   for (let i = 0; i < 18; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const dx = (Math.random() - 0.5) * 90;
-    const dy = (Math.random() - 0.5) * 40;
-    const bead = Math.random() < 0.45;
-    const lw = 0.8 + Math.random() * 1.4;
+    const x = rng() * size;
+    const y = rng() * size;
+    const dx = (rng() - 0.5) * 90;
+    const dy = (rng() - 0.5) * 40;
+    const bead = rng() < 0.45;
+    const lw = 0.8 + rng() * 1.4;
     const stroke = (c: CanvasRenderingContext2D, style: string, width: number) => {
       c.strokeStyle = style;
       c.lineWidth = width;
@@ -313,7 +317,7 @@ export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): Pl
       c.lineTo(x + dx, y + dy);
       c.stroke();
     };
-    stroke(ctx, bead ? `rgba(25,29,34,${0.12 + Math.random() * 0.16})` : `${pal.bare}`, lw);
+    stroke(ctx, bead ? `rgba(25,29,34,${0.12 + rng() * 0.16})` : `${pal.bare}`, lw);
     stroke(h, g(bead ? 0.66 : 0.34), lw * 1.4);
     stroke(r, g(bead ? Math.min(1, pal.rough * 1.2) : 0.31), lw * 1.8);
     stroke(m, g(bead ? pal.metal : 0.95), lw * 1.8);
@@ -325,15 +329,15 @@ export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): Pl
     const chips = Math.round(26 * pal.chip);
     for (let i = 0; i < chips; i++) {
       // Bias toward seams and corners rather than scattering uniformly over the plate face.
-      const cx = Math.round(Math.random() * cols) * cw + (Math.random() - 0.5) * cw * 0.34;
-      const cy = Math.round(Math.random() * rows) * ch + (Math.random() - 0.5) * ch * 0.34;
-      const rad = 2 + Math.random() * 7;
+      const cx = Math.round(rng() * cols) * cw + (rng() - 0.5) * cw * 0.34;
+      const cy = Math.round(rng() * rows) * ch + (rng() - 0.5) * ch * 0.34;
+      const rad = 2 + rng() * 7;
       const blob = (c: CanvasRenderingContext2D, style: string) => {
         c.fillStyle = style;
         c.beginPath();
         for (let k = 0; k <= 7; k++) {
           const a = (k / 7) * Math.PI * 2;
-          const rr = rad * (0.55 + Math.random() * 0.7);
+          const rr = rad * (0.55 + rng() * 0.7);
           const px = cx + Math.cos(a) * rr;
           const py = cy + Math.sin(a) * rr;
           if (k === 0) c.moveTo(px, py);
@@ -352,9 +356,9 @@ export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): Pl
   // Large soft grime blotches: the low-frequency break-up that stops the tiling reading as tiling,
   // and the reason no two square metres of this wall share a roughness.
   for (let i = 0; i < 7; i++) {
-    const cx = Math.random() * size;
-    const cy = Math.random() * size;
-    const rad = size * (0.12 + Math.random() * 0.3);
+    const cx = rng() * size;
+    const cy = rng() * size;
+    const rad = size * (0.12 + rng() * 0.3);
     const soft = (c: CanvasRenderingContext2D, inner: string, outer: string) => {
       const grad = c.createRadialGradient(cx, cy, 0, cx, cy, rad);
       grad.addColorStop(0, inner);
@@ -380,17 +384,18 @@ export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): Pl
  * a surface, so each material declares its dirtiest state and the map wears it back.
  */
 export function buildGrungeRoughTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x7102);
   const size = 256;
   const [el, ctx] = canvas2d(size, size);
   ctx.fillStyle = '#f2f2f2';
   ctx.fillRect(0, 0, size, size);
   // Broad handled/rubbed areas polished smooth.
   for (let i = 0; i < 26; i++) {
-    const cx = Math.random() * size;
-    const cy = Math.random() * size;
-    const rad = size * (0.05 + Math.random() * 0.22);
+    const cx = rng() * size;
+    const cy = rng() * size;
+    const rad = size * (0.05 + rng() * 0.22);
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-    const v = 130 + Math.random() * 80;
+    const v = 130 + rng() * 80;
     grad.addColorStop(0, `rgba(${v},${v},${v},0.75)`);
     grad.addColorStop(1, `rgba(${v},${v},${v},0)`);
     ctx.fillStyle = grad;
@@ -398,12 +403,12 @@ export function buildGrungeRoughTexture(): THREE.CanvasTexture {
   }
   // Fine wipe marks and micro-scratches.
   for (let i = 0; i < 260; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const len = 4 + Math.random() * 48;
-    const a = Math.random() * Math.PI * 2;
-    ctx.strokeStyle = `rgba(${Math.random() < 0.6 ? '150,150,150' : '255,255,255'},${0.08 + Math.random() * 0.3})`;
-    ctx.lineWidth = 0.6 + Math.random() * 1.8;
+    const x = rng() * size;
+    const y = rng() * size;
+    const len = 4 + rng() * 48;
+    const a = rng() * Math.PI * 2;
+    ctx.strokeStyle = `rgba(${rng() < 0.6 ? '150,150,150' : '255,255,255'},${0.08 + rng() * 0.3})`;
+    ctx.lineWidth = 0.6 + rng() * 1.8;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
@@ -417,16 +422,17 @@ export function buildGrungeRoughTexture(): THREE.CanvasTexture {
  * glass on a working ship is a tell — the film breaks its reflection into patches.
  */
 export function buildDustFilmTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x7103);
   const size = 256;
   const [el, ctx] = canvas2d(size, size);
   ctx.fillStyle = '#1c1c1c';
   ctx.fillRect(0, 0, size, size);
   for (let i = 0; i < 34; i++) {
-    const cx = Math.random() * size;
-    const cy = Math.random() * size;
-    const rad = size * (0.04 + Math.random() * 0.2);
+    const cx = rng() * size;
+    const cy = rng() * size;
+    const rad = size * (0.04 + rng() * 0.2);
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-    const v = 130 + Math.random() * 110;
+    const v = 130 + rng() * 110;
     grad.addColorStop(0, `rgba(${v},${v},${v},0.5)`);
     grad.addColorStop(1, `rgba(${v},${v},${v},0)`);
     ctx.fillStyle = grad;
@@ -434,10 +440,10 @@ export function buildDustFilmTexture(): THREE.CanvasTexture {
   }
   // Wiper arcs — someone cleaned this pane once, badly.
   for (let i = 0; i < 7; i++) {
-    ctx.strokeStyle = `rgba(210,210,210,${0.12 + Math.random() * 0.2})`;
-    ctx.lineWidth = 5 + Math.random() * 16;
+    ctx.strokeStyle = `rgba(210,210,210,${0.12 + rng() * 0.2})`;
+    ctx.lineWidth = 5 + rng() * 16;
     ctx.beginPath();
-    ctx.arc(size * (0.2 + Math.random() * 0.6), size * 1.1, size * (0.35 + Math.random() * 0.5), Math.PI * 1.15, Math.PI * 1.85);
+    ctx.arc(size * (0.2 + rng() * 0.6), size * 1.1, size * (0.35 + rng() * 0.5), Math.PI * 1.15, Math.PI * 1.85);
     ctx.stroke();
   }
   return finish(el, true, false);
@@ -452,6 +458,7 @@ export function buildDustFilmTexture(): THREE.CanvasTexture {
  * darkening) so the seam still carries material under it rather than crushing to a void.
  */
 export function buildUpperAOTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x7104);
   const w = 512;
   const hgt = 200;
   const [el, ctx] = canvas2d(w, hgt);
@@ -466,9 +473,9 @@ export function buildUpperAOTexture(): THREE.CanvasTexture {
   // Uneven soot/condensation streaks dropping from the seam, so the band reads as accumulated
   // grime rather than a rendered gradient.
   for (let i = 0; i < 46; i++) {
-    const x = Math.random() * w;
-    const len = hgt * (0.15 + Math.random() * 0.55);
-    const wdt = 3 + Math.random() * 14;
+    const x = rng() * w;
+    const len = hgt * (0.15 + rng() * 0.55);
+    const wdt = 3 + rng() * 14;
     const g = ctx.createLinearGradient(0, 0, 0, len);
     g.addColorStop(0, 'rgba(70,70,72,0.55)');
     g.addColorStop(1, 'rgba(70,70,72,0)');
@@ -483,6 +490,7 @@ export function buildUpperAOTexture(): THREE.CanvasTexture {
  * height. Multiply-blended, so it darkens the plate underneath rather than painting a tint over it.
  */
 export function buildLowerDirtTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x7105);
   const w = 512;
   const hgt = 256;
   const [el, ctx] = canvas2d(w, hgt);
@@ -501,24 +509,24 @@ export function buildLowerDirtTexture(): THREE.CanvasTexture {
 
   // Splash flecks thrown up off the deck, thinning with height.
   for (let i = 0; i < 520; i++) {
-    const t = Math.pow(Math.random(), 0.45);
+    const t = Math.pow(rng(), 0.45);
     const y = hgt - t * hgt * 0.85;
-    const x = Math.random() * w;
-    const rad = 0.8 + Math.random() * 3.4;
-    ctx.fillStyle = `rgba(${70 + Math.random() * 40 | 0},${68 + Math.random() * 38 | 0},${64 + Math.random() * 34 | 0},${0.2 + Math.random() * 0.45})`;
+    const x = rng() * w;
+    const rad = 0.8 + rng() * 3.4;
+    ctx.fillStyle = `rgba(${70 + rng() * 40 | 0},${68 + rng() * 38 | 0},${64 + rng() * 34 | 0},${0.2 + rng() * 0.45})`;
     ctx.beginPath();
     ctx.arc(x, y, rad, 0, Math.PI * 2);
     ctx.fill();
   }
   // Mop-line and heel scuffs along the walking lane.
   for (let i = 0; i < 90; i++) {
-    const y = hgt * (0.55 + Math.random() * 0.45);
-    const x = Math.random() * w;
-    ctx.strokeStyle = `rgba(88,84,78,${0.12 + Math.random() * 0.28})`;
-    ctx.lineWidth = 1 + Math.random() * 5;
+    const y = hgt * (0.55 + rng() * 0.45);
+    const x = rng() * w;
+    ctx.strokeStyle = `rgba(88,84,78,${0.12 + rng() * 0.28})`;
+    ctx.lineWidth = 1 + rng() * 5;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + 10 + Math.random() * 90, y + (Math.random() - 0.5) * 5);
+    ctx.lineTo(x + 10 + rng() * 90, y + (rng() - 0.5) * 5);
     ctx.stroke();
   }
   return finish(el);
@@ -526,15 +534,16 @@ export function buildLowerDirtTexture(): THREE.CanvasTexture {
 
 /** Pebbled seal rubber — matte, non-metallic, and the darkest thing on the wall that still reads. */
 export function buildRubberTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x7106);
   const size = 128;
   const [el, ctx] = canvas2d(size, size);
   ctx.fillStyle = '#2c2f33';
   ctx.fillRect(0, 0, size, size);
   for (let i = 0; i < 900; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const rad = 0.6 + Math.random() * 2.2;
-    ctx.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.16)';
+    const x = rng() * size;
+    const y = rng() * size;
+    const rad = 0.6 + rng() * 2.2;
+    ctx.fillStyle = rng() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.16)';
     ctx.beginPath();
     ctx.arc(x, y, rad, 0, Math.PI * 2);
     ctx.fill();
@@ -544,6 +553,7 @@ export function buildRubberTexture(): THREE.CanvasTexture {
 
 /** Horizontal louvre slats for extract vents and cabinet grilles. Tiles vertically. */
 export function buildLouverTexture(slats = 10): THREE.CanvasTexture {
+  const rng = mulberry32(0x7107 ^ hashStr(`s${slats}`));
   const w = 128;
   const h = 128;
   const [el, ctx] = canvas2d(w, h);
@@ -566,10 +576,10 @@ export function buildLouverTexture(slats = 10): THREE.CanvasTexture {
   }
   // Dust caught on the upper lip of every slat.
   for (let i = 0; i < 140; i++) {
-    const x = Math.random() * w;
-    const s = Math.floor(Math.random() * slats);
-    ctx.fillStyle = `rgba(126,120,108,${0.1 + Math.random() * 0.25})`;
-    ctx.fillRect(x, s * pitch + pitch * 0.66, 1 + Math.random() * 7, 1.4);
+    const x = rng() * w;
+    const s = Math.floor(rng() * slats);
+    ctx.fillStyle = `rgba(126,120,108,${0.1 + rng() * 0.25})`;
+    ctx.fillRect(x, s * pitch + pitch * 0.66, 1 + rng() * 7, 1.4);
   }
   // Frame rails down each side so the grille reads as a fitted insert, not a painted stripe.
   ctx.fillStyle = '#5a626b';
@@ -675,6 +685,7 @@ export function buildWindowInteriorTexture(seed = 0): THREE.CanvasTexture {
 
 /** Diagonal hazard chevrons on a transparent ground, for painting onto plate. */
 export function buildChevronTexture(color = '#d8a63a', bars = 5): THREE.CanvasTexture {
+  const rng = mulberry32(0x7108 ^ hashStr(`${color}:${bars}`));
   const w = 256;
   const h = 128;
   const [el, ctx] = canvas2d(w, h);
@@ -694,7 +705,7 @@ export function buildChevronTexture(color = '#d8a63a', bars = 5): THREE.CanvasTe
   const img = ctx.getImageData(0, 0, w, h);
   for (let i = 0; i < img.data.length; i += 4) {
     if (img.data[i + 3] === 0) continue;
-    if (Math.random() < 0.22) img.data[i + 3] = Math.max(0, img.data[i + 3] - Math.random() * 210);
+    if (rng() < 0.22) img.data[i + 3] = Math.max(0, img.data[i + 3] - rng() * 210);
   }
   ctx.putImageData(img, 0, 0);
   return finish(el, false);
@@ -702,6 +713,7 @@ export function buildChevronTexture(color = '#d8a63a', bars = 5): THREE.CanvasTe
 
 /** Bone-white letter-spaced stencil lettering on a transparent ground. */
 export function buildStencilTextTexture(text: string, px = 74): THREE.CanvasTexture {
+  const rng = mulberry32(0x7109 ^ hashStr(text));
   const w = 1024;
   const h = 192;
   const [el, ctx] = canvas2d(w, h);
@@ -714,7 +726,7 @@ export function buildStencilTextTexture(text: string, px = 74): THREE.CanvasText
   const img = ctx.getImageData(0, 0, w, h);
   for (let i = 0; i < img.data.length; i += 4) {
     if (img.data[i + 3] === 0) continue;
-    if (Math.random() < 0.16) img.data[i + 3] = Math.max(0, img.data[i + 3] - Math.random() * 190);
+    if (rng() < 0.16) img.data[i + 3] = Math.max(0, img.data[i + 3] - rng() * 190);
   }
   ctx.putImageData(img, 0, 0);
   return finish(el, false);
@@ -725,6 +737,7 @@ export function buildStencilTextTexture(text: string, px = 74): THREE.CanvasText
  * small decal plane at the actual drip source, not a full-wall tint.
  */
 export function buildDripTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x710a);
   const size = 256;
   const [el, ctx] = canvas2d(size, size);
   ctx.clearRect(0, 0, size, size);
@@ -737,12 +750,12 @@ export function buildDripTexture(): THREE.CanvasTexture {
   ctx.fillRect(0, 0, size, size * 0.4);
 
   for (let i = 0; i < 26; i++) {
-    const x = Math.random() * size;
-    const len = size * (0.2 + Math.random() * 0.75);
-    const wdt = 1.5 + Math.random() * 7;
-    const rust = Math.random() < 0.55;
+    const x = rng() * size;
+    const len = size * (0.2 + rng() * 0.75);
+    const wdt = 1.5 + rng() * 7;
+    const rust = rng() < 0.55;
     const g = ctx.createLinearGradient(0, 0, 0, len);
-    const a = 0.16 + Math.random() * 0.3;
+    const a = 0.16 + rng() * 0.3;
     g.addColorStop(0, rust ? `rgba(150,90,46,${a})` : `rgba(16,19,24,${a})`);
     g.addColorStop(0.55, rust ? `rgba(120,72,38,${a * 0.6})` : `rgba(16,19,24,${a * 0.6})`);
     g.addColorStop(1, 'rgba(0,0,0,0)');
@@ -753,10 +766,10 @@ export function buildDripTexture(): THREE.CanvasTexture {
     ctx.restore();
   }
   for (let i = 0; i < 40; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size * 0.6;
-    const r = 1 + Math.random() * 5;
-    ctx.fillStyle = `rgba(${Math.random() < 0.5 ? '158,96,50' : '20,23,28'},${0.1 + Math.random() * 0.25})`;
+    const x = rng() * size;
+    const y = rng() * size * 0.6;
+    const r = 1 + rng() * 5;
+    ctx.fillStyle = `rgba(${rng() < 0.5 ? '158,96,50' : '20,23,28'},${0.1 + rng() * 0.25})`;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
@@ -766,26 +779,27 @@ export function buildDripTexture(): THREE.CanvasTexture {
 
 /** Scuff band for walking lanes and corners — dark abraded paint, transparent elsewhere. */
 export function buildScuffTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x710b);
   const w = 256;
   const h = 128;
   const [el, ctx] = canvas2d(w, h);
   ctx.clearRect(0, 0, w, h);
   for (let i = 0; i < 70; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    const len = 6 + Math.random() * 70;
-    ctx.strokeStyle = `rgba(18,21,26,${0.08 + Math.random() * 0.24})`;
-    ctx.lineWidth = 0.7 + Math.random() * 3;
+    const x = rng() * w;
+    const y = rng() * h;
+    const len = 6 + rng() * 70;
+    ctx.strokeStyle = `rgba(18,21,26,${0.08 + rng() * 0.24})`;
+    ctx.lineWidth = 0.7 + rng() * 3;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + len, y + (Math.random() - 0.5) * 6);
+    ctx.lineTo(x + len, y + (rng() - 0.5) * 6);
     ctx.stroke();
   }
   for (let i = 0; i < 22; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    ctx.fillStyle = `rgba(196,203,212,${0.05 + Math.random() * 0.14})`;
-    ctx.fillRect(x, y, 3 + Math.random() * 26, 0.8 + Math.random() * 2);
+    const x = rng() * w;
+    const y = rng() * h;
+    ctx.fillStyle = `rgba(196,203,212,${0.05 + rng() * 0.14})`;
+    ctx.fillRect(x, y, 3 + rng() * 26, 0.8 + rng() * 2);
   }
   return finish(el, false);
 }

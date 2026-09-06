@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+import { mulberry32, hashStr } from '../core/rng';
+
+
 export function buildHazardStripeTexture(): THREE.CanvasTexture {
   const size = 128;
   const canvas = document.createElement('canvas');
@@ -270,6 +273,7 @@ export function buildRadarPanelTexture(): THREE.CanvasTexture {
 }
 
 export function buildStencilPlacardTexture(id: string, sublabel?: string): THREE.CanvasTexture {
+  const rng = mulberry32(0x5701 ^ hashStr(id + (sublabel ?? '')));
   const w = 256;
   const h = 128;
   const canvas = document.createElement('canvas');
@@ -304,9 +308,9 @@ export function buildStencilPlacardTexture(id: string, sublabel?: string): THREE
   const imgData = ctx.getImageData(0, 0, w, h);
   for (let i = 0; i < imgData.data.length; i += 4) {
     if (imgData.data[i + 3] === 0) continue;
-    if (Math.random() < 0.06) {
+    if (rng() < 0.06) {
       const a = imgData.data[i + 3];
-      imgData.data[i + 3] = Math.max(0, a - Math.random() * 140);
+      imgData.data[i + 3] = Math.max(0, a - rng() * 140);
     }
   }
   ctx.putImageData(imgData, 0, 0);
@@ -384,6 +388,7 @@ export function buildWarningStripeTexture(color: 'amber' | 'red'): THREE.CanvasT
 // directly onto a transparent background (no plate backing) so it reads as stencilled straight
 // onto the wall panel, echoing the oversized "06"-style numerals seen on real station corridors.
 export function buildLargeDeckNumberTexture(text: string, sublabel?: string): THREE.CanvasTexture {
+  const rng = mulberry32(0x5702 ^ hashStr(text + (sublabel ?? '')));
   const w = 400;
   const h = 560;
   const canvas = document.createElement('canvas');
@@ -419,9 +424,9 @@ export function buildLargeDeckNumberTexture(text: string, sublabel?: string): TH
   const imgData = ctx.getImageData(0, 0, w, h);
   for (let i = 0; i < imgData.data.length; i += 4) {
     if (imgData.data[i + 3] === 0) continue;
-    if (Math.random() < 0.1) {
+    if (rng() < 0.1) {
       const a = imgData.data[i + 3];
-      imgData.data[i + 3] = Math.max(0, a - Math.random() * 150);
+      imgData.data[i + 3] = Math.max(0, a - rng() * 150);
     }
   }
   ctx.putImageData(imgData, 0, 0);
@@ -435,6 +440,7 @@ export function buildLargeDeckNumberTexture(text: string, sublabel?: string): TH
 // background so the underlying diamond-plate texture still shows through around the glyph),
 // as opposed to buildStencilPlacardTexture's opaque wall-mounted plate.
 export function buildFloorStencilTexture(label: string): THREE.CanvasTexture {
+  const rng = mulberry32(0x5703 ^ hashStr(label));
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -458,9 +464,9 @@ export function buildFloorStencilTexture(label: string): THREE.CanvasTexture {
   const imgData = ctx.getImageData(0, 0, size, size);
   for (let i = 0; i < imgData.data.length; i += 4) {
     if (imgData.data[i + 3] === 0) continue;
-    if (Math.random() < 0.15) {
+    if (rng() < 0.15) {
       const a = imgData.data[i + 3];
-      imgData.data[i + 3] = Math.max(0, a - Math.random() * 170);
+      imgData.data[i + 3] = Math.max(0, a - rng() * 170);
     }
   }
   ctx.putImageData(imgData, 0, 0);
@@ -473,6 +479,7 @@ export function buildFloorStencilTexture(label: string): THREE.CanvasTexture {
 // Small irregular oil/scorch stain meant to be laid flat on the floor with multiply blending —
 // a soaked-in blotch of use/wear, distinct from buildFloorStencilTexture's painted lettering.
 export function buildFloorStainTexture(variant: 'oil' | 'scorch'): THREE.CanvasTexture {
+  const rng = mulberry32(0x5704 ^ hashStr(variant));
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -485,11 +492,11 @@ export function buildFloorStainTexture(variant: 'oil' | 'scorch'): THREE.CanvasT
   const cy = size / 2;
   const blobCount = 5;
   for (let i = 0; i < blobCount; i++) {
-    const ox = cx + (Math.random() - 0.5) * size * 0.4;
-    const oy = cy + (Math.random() - 0.5) * size * 0.4;
-    const r = size * (0.14 + Math.random() * 0.16);
+    const ox = cx + (rng() - 0.5) * size * 0.4;
+    const oy = cy + (rng() - 0.5) * size * 0.4;
+    const r = size * (0.14 + rng() * 0.16);
     const grad = ctx.createRadialGradient(ox, oy, 0, ox, oy, r);
-    const alpha = 0.32 + Math.random() * 0.28;
+    const alpha = 0.32 + rng() * 0.28;
     grad.addColorStop(0, `rgba(${base[0]},${base[1]},${base[2]},${alpha})`);
     grad.addColorStop(0.65, `rgba(${base[0]},${base[1]},${base[2]},${alpha * 0.4})`);
     grad.addColorStop(1, `rgba(${base[0]},${base[1]},${base[2]},0)`);
@@ -504,9 +511,9 @@ export function buildFloorStainTexture(variant: 'oil' | 'scorch'): THREE.CanvasT
   const imgData = ctx.getImageData(0, 0, size, size);
   for (let i = 0; i < imgData.data.length; i += 4) {
     if (imgData.data[i + 3] === 0) continue;
-    if (Math.random() < 0.12) {
+    if (rng() < 0.12) {
       const a = imgData.data[i + 3];
-      imgData.data[i + 3] = Math.max(0, a - Math.random() * 130);
+      imgData.data[i + 3] = Math.max(0, a - rng() * 130);
     }
   }
   ctx.putImageData(imgData, 0, 0);
@@ -520,6 +527,7 @@ export function buildFloorStainTexture(variant: 'oil' | 'scorch'): THREE.CanvasT
 // surface (UV 0..1) and multiply-blended over a tiled PBR material — RepeatWrapping would
 // make the streaks themselves repeat and reintroduce the tiling artifact this is meant to hide.
 export function buildPanelGrimeTexture(): THREE.CanvasTexture {
+  const rng = mulberry32(0x5705);
   const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -529,11 +537,11 @@ export function buildPanelGrimeTexture(): THREE.CanvasTexture {
 
   const blotchCount = 14;
   for (let i = 0; i < blotchCount; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const r = 30 + Math.random() * 90;
+    const x = rng() * size;
+    const y = rng() * size;
+    const r = 30 + rng() * 90;
     const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-    const alpha = 0.1 + Math.random() * 0.15;
+    const alpha = 0.1 + rng() * 0.15;
     grad.addColorStop(0, `rgba(20,16,12,${alpha})`);
     grad.addColorStop(1, 'rgba(20,16,12,0)');
     ctx.fillStyle = grad;
@@ -544,12 +552,12 @@ export function buildPanelGrimeTexture(): THREE.CanvasTexture {
 
   const streakCount = 10;
   for (let i = 0; i < streakCount; i++) {
-    const x = Math.random() * size;
-    const topY = Math.random() * size * 0.4;
-    const len = 80 + Math.random() * 220;
-    const w = 3 + Math.random() * 7;
+    const x = rng() * size;
+    const topY = rng() * size * 0.4;
+    const len = 80 + rng() * 220;
+    const w = 3 + rng() * 7;
     const grad = ctx.createLinearGradient(x, topY, x, topY + len);
-    const alpha = 0.12 + Math.random() * 0.13;
+    const alpha = 0.12 + rng() * 0.13;
     grad.addColorStop(0, `rgba(15,12,9,${alpha})`);
     grad.addColorStop(1, 'rgba(15,12,9,0)');
     ctx.fillStyle = grad;

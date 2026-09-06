@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+import { mulberry32, hashStr } from '../../core/rng';
+
+
 /**
  * Procedural canvas textures for the deck. The reference deck is bone-white painted plate — not
  * the rust diamond-plate PBR set the floor used to borrow — so these are authored here rather
@@ -67,9 +70,10 @@ function blob(c: CanvasRenderingContext2D, x: number, y: number, r: number, rgb:
 }
 
 function speckle(c: CanvasRenderingContext2D, size: number, count: number, dark: string, light: string): void {
+  const rng = mulberry32(0x8101 ^ hashStr(`${count}:${dark}:${light}`));
   for (let i = 0; i < count; i++) {
-    c.fillStyle = Math.random() < 0.5 ? dark : light;
-    c.fillRect(Math.random() * size, Math.random() * size, 1, 1);
+    c.fillStyle = rng() < 0.5 ? dark : light;
+    c.fillRect(rng() * size, rng() * size, 1, 1);
   }
 }
 
@@ -108,6 +112,7 @@ function normalFromHeight(height: HTMLCanvasElement, strength: number): HTMLCanv
  * previous #d9d2c2 base clipped the whole mid-ground to white and erased the plating.
  */
 export function buildPaintedDeckTexture(repeatX: number, repeatY: number): THREE.CanvasTexture {
+  const rng = mulberry32(0x8102 ^ hashStr(`${repeatX}x${repeatY}`));
   const canvas = makeCanvas('paintedDeck', 512, (c, s) => {
     c.fillStyle = '#a8a191';
     c.fillRect(0, 0, s, s);
@@ -115,37 +120,37 @@ export function buildPaintedDeckTexture(repeatX: number, repeatY: number): THREE
     // Broad paint-batch drift: whole patches of deck a half-stop apart, so the surface has a
     // value *range* instead of one flat tone that the highlight rolls straight off.
     for (let i = 0; i < 26; i++) {
-      const x = Math.random() * s;
-      const y = Math.random() * s;
-      const r = 110 + Math.random() * 190;
-      const light = Math.random() < 0.45;
+      const x = rng() * s;
+      const y = rng() * s;
+      const r = 110 + rng() * 190;
+      const light = rng() < 0.45;
       wrapped(c, s, () => blob(c, x, y, r, light ? '198,192,178' : '118,113,101', light ? 0.3 : 0.34));
     }
     // Finer mottling on top of the drift.
     for (let i = 0; i < 70; i++) {
-      const x = Math.random() * s;
-      const y = Math.random() * s;
-      const r = 26 + Math.random() * 90;
-      const light = Math.random() < 0.5;
+      const x = rng() * s;
+      const y = rng() * s;
+      const r = 26 + rng() * 90;
+      const light = rng() < 0.5;
       wrapped(c, s, () => blob(c, x, y, r, light ? '210,204,190' : '106,101,90', light ? 0.14 : 0.18));
     }
     // Bare primer showing through where paint has worn off — small, high-contrast, motivated.
     for (let i = 0; i < 22; i++) {
-      const x = Math.random() * s;
-      const y = Math.random() * s;
-      const r = 10 + Math.random() * 26;
+      const x = rng() * s;
+      const y = rng() * s;
+      const r = 10 + rng() * 26;
       wrapped(c, s, () => blob(c, x, y, r, '96,93,88', 0.42));
     }
 
     // Hairline scratches from dragged crates — short, directional, mostly along the deck axes.
     for (let i = 0; i < 260; i++) {
-      const x = Math.random() * s;
-      const y = Math.random() * s;
-      const axis = Math.random() < 0.7;
-      const len = 8 + Math.random() * 90;
-      const jitter = (Math.random() - 0.5) * 10;
-      c.strokeStyle = Math.random() < 0.4 ? 'rgba(192,187,175,0.18)' : 'rgba(80,76,67,0.2)';
-      c.lineWidth = Math.random() < 0.85 ? 1 : 2;
+      const x = rng() * s;
+      const y = rng() * s;
+      const axis = rng() < 0.7;
+      const len = 8 + rng() * 90;
+      const jitter = (rng() - 0.5) * 10;
+      c.strokeStyle = rng() < 0.4 ? 'rgba(192,187,175,0.18)' : 'rgba(80,76,67,0.2)';
+      c.lineWidth = rng() < 0.85 ? 1 : 2;
       c.beginPath();
       c.moveTo(x, y);
       c.lineTo(axis ? x + len : x + jitter, axis ? y + jitter : y + len);
@@ -162,43 +167,44 @@ export function buildPaintedDeckTexture(repeatX: number, repeatY: number): THREE
  * catches a broken grazing highlight instead of a mirror-flat sheet of one value.
  */
 export function buildDeckNormalTexture(repeatX: number, repeatY: number): THREE.CanvasTexture {
+  const rng = mulberry32(0x8103 ^ hashStr(`${repeatX}x${repeatY}`));
   const canvas = makeCanvas('deckNormal', 512, (c, s) => {
     const height = scratchCanvas(s, (h) => {
       h.fillStyle = '#808080';
       h.fillRect(0, 0, s, s);
       // Cast grit.
       for (let i = 0; i < 9000; i++) {
-        const r = 0.7 + Math.random() * 1.9;
-        h.fillStyle = Math.random() < 0.5 ? 'rgba(46,46,46,0.5)' : 'rgba(214,214,214,0.5)';
+        const r = 0.7 + rng() * 1.9;
+        h.fillStyle = rng() < 0.5 ? 'rgba(46,46,46,0.5)' : 'rgba(214,214,214,0.5)';
         h.beginPath();
-        h.arc(Math.random() * s, Math.random() * s, r, 0, Math.PI * 2);
+        h.arc(rng() * s, rng() * s, r, 0, Math.PI * 2);
         h.fill();
       }
       // Shallow orange-peel undulation.
       for (let i = 0; i < 40; i++) {
-        const x = Math.random() * s;
-        const y = Math.random() * s;
-        const r = 20 + Math.random() * 60;
-        wrapped(h, s, () => blob(h, x, y, r, Math.random() < 0.5 ? '40,40,40' : '210,210,210', 0.16));
+        const x = rng() * s;
+        const y = rng() * s;
+        const r = 20 + rng() * 60;
+        wrapped(h, s, () => blob(h, x, y, r, rng() < 0.5 ? '40,40,40' : '210,210,210', 0.16));
       }
       // Scratch grooves.
       for (let i = 0; i < 180; i++) {
-        const x = Math.random() * s;
-        const y = Math.random() * s;
-        const axis = Math.random() < 0.72;
-        const len = 10 + Math.random() * 100;
+        const x = rng() * s;
+        const y = rng() * s;
+        const axis = rng() < 0.72;
+        const len = 10 + rng() * 100;
         h.strokeStyle = 'rgba(30,30,30,0.55)';
-        h.lineWidth = Math.random() < 0.8 ? 1 : 2;
+        h.lineWidth = rng() < 0.8 ? 1 : 2;
         h.beginPath();
         h.moveTo(x, y);
-        h.lineTo(axis ? x + len : x + (Math.random() - 0.5) * 8, axis ? y + (Math.random() - 0.5) * 8 : y + len);
+        h.lineTo(axis ? x + len : x + (rng() - 0.5) * 8, axis ? y + (rng() - 0.5) * 8 : y + len);
         h.stroke();
       }
       // A handful of impact dings.
       for (let i = 0; i < 14; i++) {
-        const x = Math.random() * s;
-        const y = Math.random() * s;
-        wrapped(h, s, () => blob(h, x, y, 4 + Math.random() * 9, '24,24,24', 0.7));
+        const x = rng() * s;
+        const y = rng() * s;
+        wrapped(h, s, () => blob(h, x, y, 4 + rng() * 9, '24,24,24', 0.7));
       }
     });
     c.drawImage(normalFromHeight(height, 5.0), 0, 0);
@@ -212,31 +218,32 @@ export function buildDeckNormalTexture(repeatX: number, repeatY: number): THREE.
  * bare steel inserts under the same light.
  */
 export function buildDeckRoughnessTexture(repeatX: number, repeatY: number): THREE.CanvasTexture {
+  const rng = mulberry32(0x8104 ^ hashStr(`${repeatX}x${repeatY}`));
   const canvas = makeCanvas('deckRough', 256, (c, s) => {
     c.fillStyle = '#f2f2f2';
     c.fillRect(0, 0, s, s);
     // Burnished traffic patches.
     for (let i = 0; i < 22; i++) {
-      const x = Math.random() * s;
-      const y = Math.random() * s;
-      const r = 22 + Math.random() * 62;
+      const x = rng() * s;
+      const y = rng() * s;
+      const r = 22 + rng() * 62;
       wrapped(c, s, () => blob(c, x, y, r, '48,48,48', 0.72));
     }
     // Polish streaks along the walking axis (V runs down +Z on the deck).
     for (let i = 0; i < 40; i++) {
-      const x = Math.random() * s;
+      const x = rng() * s;
       const grad = c.createLinearGradient(x - 9, 0, x + 9, 0);
       grad.addColorStop(0, 'rgba(70,70,70,0)');
-      grad.addColorStop(0.5, `rgba(70,70,70,${0.25 + Math.random() * 0.3})`);
+      grad.addColorStop(0.5, `rgba(70,70,70,${0.25 + rng() * 0.3})`);
       grad.addColorStop(1, 'rgba(70,70,70,0)');
       c.fillStyle = grad;
       c.fillRect(x - 9, 0, 18, s);
     }
     // Dull, dusty patches pushing the other way.
     for (let i = 0; i < 14; i++) {
-      const x = Math.random() * s;
-      const y = Math.random() * s;
-      wrapped(c, s, () => blob(c, x, y, 18 + Math.random() * 44, '255,255,255', 0.5));
+      const x = rng() * s;
+      const y = rng() * s;
+      wrapped(c, s, () => blob(c, x, y, 18 + rng() * 44, '255,255,255', 0.5));
     }
     speckle(c, s, 6000, 'rgba(255,255,255,0.3)', 'rgba(110,110,110,0.3)');
   });
@@ -249,13 +256,14 @@ export function buildDeckRoughnessTexture(repeatX: number, repeatY: number): THR
  * plate is a dark *material*, not a hole, and still carries seams and grip pattern in shadow.
  */
 export function buildTreadPlateTexture(repeatX: number, repeatY: number): THREE.CanvasTexture {
+  const rng = mulberry32(0x8105 ^ hashStr(`${repeatX}x${repeatY}`));
   const canvas = makeCanvas('treadPlate', 256, (c, s) => {
     c.fillStyle = '#63665f';
     c.fillRect(0, 0, s, s);
     for (let i = 0; i < 22; i++) {
-      const x = Math.random() * s;
-      const y = Math.random() * s;
-      wrapped(c, s, () => blob(c, x, y, 26 + Math.random() * 56, Math.random() < 0.6 ? '58,60,55' : '124,126,116', 0.3));
+      const x = rng() * s;
+      const y = rng() * s;
+      wrapped(c, s, () => blob(c, x, y, 26 + rng() * 56, rng() < 0.6 ? '58,60,55' : '124,126,116', 0.3));
     }
 
     const step = 16;
@@ -279,9 +287,9 @@ export function buildTreadPlateTexture(repeatX: number, repeatY: number): THREE.
     }
     // Grime worked into the pattern where boots do not reach.
     for (let i = 0; i < 10; i++) {
-      const x = Math.random() * s;
-      const y = Math.random() * s;
-      wrapped(c, s, () => blob(c, x, y, 20 + Math.random() * 40, '40,38,33', 0.34));
+      const x = rng() * s;
+      const y = rng() * s;
+      wrapped(c, s, () => blob(c, x, y, 20 + rng() * 40, '40,38,33', 0.34));
     }
     speckle(c, s, 4000, 'rgba(34,34,32,0.3)', 'rgba(198,198,186,0.18)');
   });
@@ -290,6 +298,7 @@ export function buildTreadPlateTexture(repeatX: number, repeatY: number): THREE.
 
 /** Relief for the tread dashes, so the insert lights like machined plate rather than a printed decal. */
 export function buildTreadNormalTexture(repeatX: number, repeatY: number): THREE.CanvasTexture {
+  const rng = mulberry32(0x8106 ^ hashStr(`${repeatX}x${repeatY}`));
   const canvas = makeCanvas('treadNormal', 256, (c, s) => {
     const height = scratchCanvas(s, (h) => {
       h.fillStyle = '#4a4a4a';
@@ -311,8 +320,8 @@ export function buildTreadNormalTexture(repeatX: number, repeatY: number): THREE
         }
       }
       for (let i = 0; i < 2600; i++) {
-        h.fillStyle = Math.random() < 0.5 ? 'rgba(40,40,40,0.4)' : 'rgba(200,200,200,0.4)';
-        h.fillRect(Math.random() * s, Math.random() * s, 1, 1);
+        h.fillStyle = rng() < 0.5 ? 'rgba(40,40,40,0.4)' : 'rgba(200,200,200,0.4)';
+        h.fillRect(rng() * s, rng() * s, 1, 1);
       }
     });
     c.drawImage(normalFromHeight(height, 7.5), 0, 0);
@@ -330,6 +339,7 @@ export function buildTreadNormalTexture(repeatX: number, repeatY: number): THREE
  * in doesn't shift the plate's average brightness, only its variance.
  */
 export function buildTreadRoughnessTexture(repeatX: number, repeatY: number): THREE.CanvasTexture {
+  const rng = mulberry32(0x8107 ^ hashStr(`${repeatX}x${repeatY}`));
   const canvas = makeCanvas('treadRough', 256, (c, s) => {
     c.fillStyle = '#9e9e9e';
     c.fillRect(0, 0, s, s);
@@ -351,9 +361,9 @@ export function buildTreadRoughnessTexture(repeatX: number, repeatY: number): TH
     }
     // Dust and grime pooled in the low corners of the pattern dulls the specular further.
     for (let i = 0; i < 14; i++) {
-      const x = Math.random() * s;
-      const y = Math.random() * s;
-      wrapped(c, s, () => blob(c, x, y, 20 + Math.random() * 46, '224,224,224', 0.5));
+      const x = rng() * s;
+      const y = rng() * s;
+      wrapped(c, s, () => blob(c, x, y, 20 + rng() * 46, '224,224,224', 0.5));
     }
     speckle(c, s, 5000, 'rgba(58,58,58,0.22)', 'rgba(224,224,224,0.2)');
   });
@@ -366,6 +376,7 @@ export function buildTreadRoughnessTexture(repeatX: number, repeatY: number): TH
  * transparent (rgb 0) pixel would stamp the deck black. White = "leave the deck alone".
  */
 export function buildDeckWearTexture(variant: 'scuff' | 'drip' | 'grime' | 'oil'): THREE.CanvasTexture {
+  const rng = mulberry32(0x8108 ^ hashStr(variant));
   const canvas = makeCanvas(`wear_${variant}`, 256, (c, s) => {
     c.fillStyle = '#ffffff';
     c.fillRect(0, 0, s, s);
@@ -374,55 +385,55 @@ export function buildDeckWearTexture(variant: 'scuff' | 'drip' | 'grime' | 'oil'
     if (variant === 'scuff') {
       // Arcs of a boot pivoting in one spot, plus dragged streaks along the walking direction.
       for (let i = 0; i < 46; i++) {
-        const r = s * (0.1 + Math.random() * 0.34);
-        const a0 = Math.random() * Math.PI * 2;
-        c.strokeStyle = `rgba(104,100,90,${0.06 + Math.random() * 0.13})`;
-        c.lineWidth = 1 + Math.random() * 6;
+        const r = s * (0.1 + rng() * 0.34);
+        const a0 = rng() * Math.PI * 2;
+        c.strokeStyle = `rgba(104,100,90,${0.06 + rng() * 0.13})`;
+        c.lineWidth = 1 + rng() * 6;
         c.beginPath();
-        c.arc(mid + (Math.random() - 0.5) * 40, mid + (Math.random() - 0.5) * 40, r, a0, a0 + 0.5 + Math.random() * 1.6);
+        c.arc(mid + (rng() - 0.5) * 40, mid + (rng() - 0.5) * 40, r, a0, a0 + 0.5 + rng() * 1.6);
         c.stroke();
       }
       for (let i = 0; i < 24; i++) {
-        c.strokeStyle = `rgba(116,110,98,${0.05 + Math.random() * 0.09})`;
-        c.lineWidth = 2 + Math.random() * 7;
-        const y = Math.random() * s;
+        c.strokeStyle = `rgba(116,110,98,${0.05 + rng() * 0.09})`;
+        c.lineWidth = 2 + rng() * 7;
+        const y = rng() * s;
         c.beginPath();
-        c.moveTo(Math.random() * s * 0.4, y);
-        c.lineTo(s * 0.6 + Math.random() * s * 0.4, y + (Math.random() - 0.5) * 20);
+        c.moveTo(rng() * s * 0.4, y);
+        c.lineTo(s * 0.6 + rng() * s * 0.4, y + (rng() - 0.5) * 20);
         c.stroke();
       }
       blob(c, mid, mid, s * 0.42, '96,92,84', 0.14);
     } else if (variant === 'drip') {
       // Corrosion running down from a leaking joint: a dark head with tapering runs below it.
       for (let i = 0; i < 14; i++) {
-        const x = mid + (Math.random() - 0.5) * s * 0.5;
-        const top = s * 0.1 + Math.random() * s * 0.15;
-        const len = s * (0.3 + Math.random() * 0.5);
-        const w = 2 + Math.random() * 9;
+        const x = mid + (rng() - 0.5) * s * 0.5;
+        const top = s * 0.1 + rng() * s * 0.15;
+        const len = s * (0.3 + rng() * 0.5);
+        const w = 2 + rng() * 9;
         const grad = c.createLinearGradient(x, top, x, top + len);
-        grad.addColorStop(0, `rgba(84,64,42,${0.26 + Math.random() * 0.22})`);
+        grad.addColorStop(0, `rgba(84,64,42,${0.26 + rng() * 0.22})`);
         grad.addColorStop(0.5, 'rgba(104,82,56,0.17)');
         grad.addColorStop(1, 'rgba(255,255,255,0)');
         c.fillStyle = grad;
         c.fillRect(x - w / 2, top, w, len);
       }
       for (let i = 0; i < 5; i++) {
-        blob(c, mid + (Math.random() - 0.5) * s * 0.4, s * 0.22, s * 0.16, '72,54,36', 0.32);
+        blob(c, mid + (rng() - 0.5) * s * 0.4, s * 0.22, s * 0.16, '72,54,36', 0.32);
       }
     } else if (variant === 'oil') {
       for (let i = 0; i < 7; i++) {
-        blob(c, mid + (Math.random() - 0.5) * s * 0.38, mid + (Math.random() - 0.5) * s * 0.38, s * (0.12 + Math.random() * 0.2), '42,40,40', 0.4);
+        blob(c, mid + (rng() - 0.5) * s * 0.38, mid + (rng() - 0.5) * s * 0.38, s * (0.12 + rng() * 0.2), '42,40,40', 0.4);
       }
       for (let i = 0; i < 30; i++) {
-        const r = 1 + Math.random() * 4;
+        const r = 1 + rng() * 4;
         c.fillStyle = 'rgba(44,42,42,0.35)';
         c.beginPath();
-        c.arc(mid + (Math.random() - 0.5) * s * 0.8, mid + (Math.random() - 0.5) * s * 0.8, r, 0, Math.PI * 2);
+        c.arc(mid + (rng() - 0.5) * s * 0.8, mid + (rng() - 0.5) * s * 0.8, r, 0, Math.PI * 2);
         c.fill();
       }
     } else {
       for (let i = 0; i < 12; i++) {
-        blob(c, Math.random() * s, Math.random() * s, s * (0.12 + Math.random() * 0.24), '86,82,70', 0.2);
+        blob(c, rng() * s, rng() * s, s * (0.12 + rng() * 0.24), '86,82,70', 0.2);
       }
       speckle(c, s, 2500, 'rgba(74,70,60,0.18)', 'rgba(255,255,255,0)');
     }
@@ -495,6 +506,7 @@ export function buildContactShadowTexture(variant: 'pad' | 'strip'): THREE.Canva
  * the reference scatters through its mid-ground. Alpha-cut edges so it isn't a floating rectangle.
  */
 export function buildTarpTexture(seed: number): THREE.CanvasTexture {
+  const rng = mulberry32(0x8109 ^ seed);
   const canvas = makeCanvas(`tarp_${seed}`, 256, (c, s) => {
     c.clearRect(0, 0, s, s);
 
@@ -517,26 +529,26 @@ export function buildTarpTexture(seed: number): THREE.CanvasTexture {
 
     // Fold creases and a soft shadow along one side.
     for (let i = 0; i < 9; i++) {
-      c.strokeStyle = `rgba(118,112,100,${0.2 + Math.random() * 0.24})`;
-      c.lineWidth = 1 + Math.random() * 2;
+      c.strokeStyle = `rgba(118,112,100,${0.2 + rng() * 0.24})`;
+      c.lineWidth = 1 + rng() * 2;
       c.beginPath();
-      const x0 = Math.random() * s;
+      const x0 = rng() * s;
       c.moveTo(x0, 0);
-      c.bezierCurveTo(x0 + 30, s * 0.3, x0 - 40, s * 0.7, x0 + (Math.random() - 0.5) * 60, s);
+      c.bezierCurveTo(x0 + 30, s * 0.3, x0 - 40, s * 0.7, x0 + (rng() - 0.5) * 60, s);
       c.stroke();
     }
     for (let i = 0; i < 5; i++) {
-      blob(c, Math.random() * s, Math.random() * s, 20 + Math.random() * 40, '80,76,66', 0.18);
+      blob(c, rng() * s, rng() * s, 20 + rng() * 40, '80,76,66', 0.18);
     }
 
     // A few small parts laid out on the mat: cool-toned plates and dark fasteners.
     for (let i = 0; i < 5; i++) {
       c.save();
-      c.translate(mid + (Math.random() - 0.5) * s * 0.6, mid + (Math.random() - 0.5) * s * 0.45);
-      c.rotate(Math.random() * Math.PI);
-      c.fillStyle = Math.random() < 0.45 ? '#3a6183' : '#2f333a';
-      const w = 8 + Math.random() * 22;
-      const h = 6 + Math.random() * 12;
+      c.translate(mid + (rng() - 0.5) * s * 0.6, mid + (rng() - 0.5) * s * 0.45);
+      c.rotate(rng() * Math.PI);
+      c.fillStyle = rng() < 0.45 ? '#3a6183' : '#2f333a';
+      const w = 8 + rng() * 22;
+      const h = 6 + rng() * 12;
       c.fillRect(-w / 2, -h / 2, w, h);
       c.fillStyle = 'rgba(158,172,188,0.5)';
       c.fillRect(-w / 2, -h / 2, w, 2);
