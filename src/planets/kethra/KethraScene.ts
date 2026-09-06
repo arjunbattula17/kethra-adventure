@@ -21,11 +21,15 @@ const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
 // Clear radius kept around every interaction anchor and the spawn when scattering boulders, applied
 // per-axis rather than by centre distance: a collider is an axis-aligned box, so a rock 3.4 units
 // away on the diagonal can still have a face 0.24 from the anchor, which is how a boulder was still
-// landing on the spawn after the first attempt at this guard. Rock_Medium_3 reaches 2.59 units from
-// its own origin and clutter scales it up to 1.3, so 4.0 clears the worst case by ~0.6 after the
-// player's 0.35 radius. The hand-placed boulders in buildGroundCover are deliberate and verified
-// against tools/collision-check.mjs instead of being silently dropped by this guard.
-const CLUTTER_KEEP_CLEAR = 4.0;
+// landing on the spawn after the first attempt at this guard.
+//
+// The figure that matters is the boulder's worst CORNER radius, not its worst axis extent, because
+// the yaw is random and an AABB reaches its corner radius along one axis at 45 degrees.
+// Rock_Medium_3's corner radius in XZ is hypot(1.824, 2.586) = 3.165, times the 1.3 max clutter
+// scale is 4.114, plus the player's 0.35 radius is 4.46. The hand-placed boulders in
+// buildGroundCover are deliberate and verified against tools/collision-check.mjs rather than being
+// silently dropped by this guard.
+const CLUTTER_KEEP_CLEAR = 4.6;
 
 // A clutter zone only gets boulders if it is wider than one. Rock_Medium_3 reaches 2.59 units from
 // its own origin and clutter scales it up to 1.3, so a boulder spans up to ~6.7 units — dropping one
@@ -121,6 +125,14 @@ function generateFillerTrees(): TreePlacement[] {
   return trees;
 }
 
+/**
+ * How far the raised cap — the actual walking surface — is inset from the slab's own edge on each
+ * side. The 0.3 ring outside it is the base tier, 0.18 lower, so a terrace's walkable extent is
+ * always 0.6 narrower than the size passed to makeTerrace. Ramps have to be sized against this or
+ * their surface stops short of the terrace's.
+ */
+const TERRACE_CAP_INSET = 0.3;
+
 function makeTerrace(width: number, depth: number, x: number, y: number, z: number, color = 0x9a9385): THREE.Group {
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.02 });
   applyPbr(mat, 'lichen_rock', [width / 3, depth / 3]);
@@ -134,8 +146,8 @@ function makeTerrace(width: number, depth: number, x: number, y: number, z: numb
 
   // Inset raised cap: turns the slab into a stepped two-tier dais instead of a bare box, and
   // reads as a worn stone platform under the same lichen_rock PBR set rather than a placeholder.
-  const capW = Math.max(width - 0.6, 0.6);
-  const capD = Math.max(depth - 0.6, 0.6);
+  const capW = Math.max(width - 2 * TERRACE_CAP_INSET, 0.6);
+  const capD = Math.max(depth - 2 * TERRACE_CAP_INSET, 0.6);
   const cap = new THREE.Mesh(new THREE.BoxGeometry(capW, 0.18, capD), mat);
   cap.position.y = 0.29;
   cap.receiveShadow = true;
@@ -155,12 +167,16 @@ const TERRACE_TOP = 0.38;
 
 /**
  * A sloped slab bridging two terraces at different heights. Each end is given as the world
- * (coordinate along `axis`, walking-surface height) of the terrace it meets, so the ramp lands on
- * both surfaces by construction rather than by eye. `from` is the end at the lower coordinate;
- * either end may be the higher one. The slab is extended RAMP_OVERHANG past both ends along its own
- * slope so it tucks into each terrace instead of leaving a hairline seam.
+ * (coordinate along `axis`, walking-surface height) of the terrace it meets — the edge of that
+ * terrace's *cap*, not of its slab — so the two walking surfaces meet by construction rather than by
+ * eye. `from` is the end at the lower coordinate; either end may be the higher one.
+ *
+ * The slab is grown by the cap inset on both sides on top of the overlap, because the ramp's own
+ * walking surface is inset too: sizing it to hypot + 2 * overlap left the cap 0.2 short of each
+ * terrace's cap, and the only floor across that strip was the ramp's base tier 0.18 lower — a real
+ * trench the player dropped into and climbed out of at every junction.
  */
-const RAMP_OVERHANG = 0.4;
+const RAMP_OVERLAP = 0.25;
 
 function makeRamp(
   axis: 'x' | 'z',
@@ -173,7 +189,7 @@ function makeRamp(
   const run = to[0] - from[0];
   const rise = to[1] - from[1];
   const angle = Math.atan2(rise, run);
-  const length = Math.hypot(run, rise) + 2 * RAMP_OVERHANG;
+  const length = Math.hypot(run, rise) + 2 * (RAMP_OVERLAP + TERRACE_CAP_INSET);
   const midAxis = (from[0] + to[0]) / 2;
   const midTop = (from[1] + to[1]) / 2;
 
@@ -366,11 +382,13 @@ export class KethraScene implements GameScene {
     // Each ramp is placed off the named trees' trunk colliders, which are wider than they look:
     // CommonTree_2 spans x[-9.77,-6.06] z[2.53,6.10] straight across the west gap and Pine_2 spans
     // x[5.68,9.67] z[2.14,5.72] across the east one, so both side ramps sit south of z = 2.
-    const westRamp = makeRamp('x', [-11, 0.98], [-8, 0.38], 5, -0.5);
-    const eastRamp = makeRamp('x', [8, 0.38], [11, 0.98], 5, -0.5);
+    // Endpoints are cap edges: the plaza's slab reaches x = +-8 but its walking surface stops at
+    // +-7.7, and the side terraces' slabs start at +-11 but their surfaces at +-11.3.
+    const westRamp = makeRamp('x', [-11.3, 0.98], [-7.7, 0.38], 5, -0.5);
+    const eastRamp = makeRamp('x', [7.7, 0.38], [11.3, 0.98], 5, -0.5);
     // Run out to z = -4 rather than stopping at the plaza edge, so 1.10 m is climbed over 5 units
     // (12.4deg) instead of 3 (20deg); the first two units simply lie on the plaza as a wedge.
-    const chamberRamp = makeRamp('z', [-9, 1.48], [-4, 0.38], 6, 0);
+    const chamberRamp = makeRamp('z', [-9.3, 1.48], [-4, 0.38], 6, 0);
 
     for (const t of [landing, plaza, rampA, westTerrace, rampB, eastTerrace, chamberApproach, westRamp, eastRamp, chamberRamp]) {
       this.scene.add(t);
@@ -381,20 +399,28 @@ export class KethraScene implements GameScene {
     this.scene.add(secretLedge);
     this.floorMeshes.push(secretLedge);
 
-    // The ledge carries "Read Inscription 3", so it is content with an interaction prompt on it, not
-    // scenery — but its 1.80 m rise is also above the jump apex, so it was unreachable too. This
-    // stair keeps it feeling tucked-away: it is 2.2 units wide against the terraces' 5-6, hugs the
-    // far x edge, and is only visible once you are already at the back of the west terrace. It sits
-    // at x = -20.6 to stay clear of TwistedTree_3's trunk collider, which reaches x = -19.77.
+    // The ledge abuts the west terrace rather than standing across a gap, so unlike the other three
+    // it was technically already attainable — but only through a PlayerController quirk: a grounded
+    // player is snapped to whatever floor is under them with no step-up limit at all (velocityY is
+    // zeroed every grounded frame, which defeats the MAX_STEP_UP test), so walking into the ledge
+    // teleported the player 1.80 m straight up. This stair replaces that pop with a real climb. It
+    // stays tucked-away: 2.6 units wide against the terraces' 5-6, hugging the far x edge, and only
+    // visible from the back of the west terrace. x = -20.6 keeps it clear of TwistedTree_3's trunk
+    // collider, which reaches x = -19.77.
     // Tops out at z = -6.5, the ledge's own north edge, not at its centre: a stair that only reaches
     // full height mid-platform leaves the player a 0.68 m step up at the edge, well over
     // PlayerController's 0.45 m MAX_STEP_UP, so it would have looked connected and still not been.
-    const ledgeStair = makeRamp('z', [-6.5, 2.78], [-2.5, 0.98], 2.2, -20.6, 0x3a4a5a);
+    const ledgeStair = makeRamp('z', [-6.8, 2.78], [-2.5, 0.98], 2.6, -20.6, 0x3a4a5a);
     this.scene.add(ledgeStair);
     this.floorMeshes.push(ledgeStair);
   }
 
   private async buildFoliage(): Promise<void> {
+    // Tree collision stays on the explicit NAMED_TREES boxes built in colliders(); these batches are
+    // deliberately not opted in via userData.collides. Marking them would collide the trunk of every
+    // tree in the batcher — including all 36 belt trees, which the header comment above promises are
+    // decorative — and would give each named tree a second, byte-identical box, since colliders()
+    // already derives one from the same prims[0] geometry and the same transform.
     const batcher = new KitBatcher();
     const allTrees: TreePlacement[] = [...NAMED_TREES, ...generateFillerTrees()];
     for (const t of allTrees) {
@@ -403,9 +429,6 @@ export class KethraScene implements GameScene {
 
     const built = await batcher.flush(this.scene);
     for (const [species, meshes] of built) {
-      // Primitive 0 is the trunk for every family here, so the player collides with trunks and
-      // walks under canopies. collision.ts reads this flag; nothing else in the kit opts in.
-      if (meshes[0]) meshes[0].userData.collides = true;
       if (species.startsWith('DeadTree')) continue;
       // Primitive 1 is always the canopy/leaf mesh for the Common/Pine/Twisted families (primitive
       // 0 is the trunk) — see the per-species primitive inspection this rebuild was based on.
@@ -477,15 +500,20 @@ export class KethraScene implements GameScene {
       const pillarMat = new THREE.MeshStandardMaterial({ color: 0x2a2418, roughness: 0.8 });
       applyPbr(pillarMat, 'lichen_rock', [1, 1]);
 
+      // The group's origin is the pillar's own base, so getWorldPosition() lands on the pillar. It
+      // used to be pinned at y = 0.7 with each child offset by `y - 0.7`, which for the ledge pillar
+      // left the origin 2.5 m below the geometry — and InteractionSystem's proximity fallback
+      // measures to that origin, so a prompt would fire from a point in mid-air under the pillar
+      // rather than from the pillar. World positions are unchanged.
       const pillar = new THREE.Group();
       const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 0.22, 10), pillarMat);
-      base.position.y = y - 0.7 + 0.11;
+      base.position.y = 0.11;
       const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.32, 1.0, 8), pillarMat);
-      shaft.position.y = y - 0.7 + 0.22 + 0.5;
+      shaft.position.y = 0.22 + 0.5;
       const capital = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.18, 10), pillarMat);
-      capital.position.y = y - 0.7 + 0.22 + 1.0 + 0.09;
+      capital.position.y = 0.22 + 1.0 + 0.09;
       pillar.add(base, shaft, capital);
-      pillar.position.set(x, 0.7, z);
+      pillar.position.set(x, y, z);
       this.scene.add(pillar);
 
       const runeTex = buildRuneTexture(idx + 1);
@@ -526,14 +554,23 @@ export class KethraScene implements GameScene {
   private buildShrineAndValve(): void {
     const valveMat = new THREE.MeshStandardMaterial({ color: 0x6a5a3a, metalness: 0.7, roughness: 0.4 });
     applyPbr(valveMat, 'metal_plate', [1, 1]);
+    // The group carries the world position and its children are placed relative to it. They used to
+    // be the other way round — a group left at the origin with every child holding absolute world
+    // coordinates — which put valveGroup.getWorldPosition() at (0, 0, 0). InteractionSystem's
+    // proximity fallback measures camera-to-object-origin (InteractionSystem.ts), so that spawned a
+    // live interaction zone at the plaza centre: standing at (0, ·, 0) raised the "Realign the Lower
+    // Valve" prompt and E completed the objective from 8.65 m away with the valve behind the player.
+    // The same origin is what the boulder keep-clear guard reads, so it was also guarding empty
+    // ground instead of the valve. World transforms are unchanged.
     const valveGroup = new THREE.Group();
+    valveGroup.position.set(2.5, 0, 8);
     const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.3), valveMat);
-    bracket.position.set(2.5, 0.65, 8.25);
+    bracket.position.set(0, 0.65, 0.25);
     const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.6, 10), valveMat);
     pipe.rotation.z = Math.PI / 2;
-    pipe.position.set(2.5, 0.9, 8.35);
+    pipe.position.set(0, 0.9, 0.35);
     const valve = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 8, 16), valveMat);
-    valve.position.set(2.5, 0.9, 8);
+    valve.position.set(0, 0.9, 0);
     valve.rotation.x = Math.PI / 2;
     valveGroup.add(bracket, pipe, valve);
     this.scene.add(valveGroup);
@@ -554,14 +591,16 @@ export class KethraScene implements GameScene {
 
     const shrineMat = new THREE.MeshStandardMaterial({ color: 0x4a3a5a, emissive: 0x8a6ad9, emissiveIntensity: 0.5, roughness: 0.6 });
     applyPbr(shrineMat, 'lichen_rock', [1, 1.5]);
+    // Same fix as valveGroup above: the group holds the world position, children are relative.
     const shrineGroup = new THREE.Group();
+    shrineGroup.position.set(-1.5, 0, 5);
     const shrineBase = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.62, 0.2, 12), shrineMat);
-    shrineBase.position.set(-1.5, 0.1, 5);
+    shrineBase.position.set(0, 0.1, 0);
     const shrineShaft = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.2, 6), shrineMat);
-    shrineShaft.position.set(-1.5, 0.8, 5);
+    shrineShaft.position.set(0, 0.8, 0);
     const shrineCapMat = new THREE.MeshStandardMaterial({ color: 0x8a6ad9, emissive: 0x8a6ad9, emissiveIntensity: 1.1, roughness: 0.25, metalness: 0.2 });
     const shrineCap = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), shrineCapMat);
-    shrineCap.position.set(-1.5, 1.55, 5);
+    shrineCap.position.set(0, 1.55, 0);
     shrineGroup.add(shrineBase, shrineShaft, shrineCap);
     this.scene.add(shrineGroup);
     const shrineEntry = KETHRA_LORE_ENTRIES.find((l) => l.id === 'kethra_ritual_record');
@@ -724,7 +763,12 @@ export class KethraScene implements GameScene {
     const center = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 20), centerMat);
     center.position.y = 0.1;
     padGroup.add(pad, rim, center);
-    padGroup.position.set(0, 0.1, 18);
+    // The landing terrace's walking surface is at 0.38 and the pad's tallest part reached only 0.24,
+    // so the whole thing sat inside the terrace: the player arrived on an invisible pad and got a
+    // "Return to Ship" prompt with nothing under their feet. Sitting it on the surface leaves the
+    // main disc 0.075 proud and the rim 0.14 — both under the 0.25 step-over threshold, so it stays
+    // walkable rather than becoming an obstacle.
+    padGroup.position.set(0, 0.38, 18);
     this.scene.add(padGroup);
     this.interaction.register({
       object: padGroup,

@@ -33,7 +33,17 @@ export class GameFlow {
     // only from behind a fade-to-black, so their code (and the nature kit's loaders and the reveal's
     // shaders with it) has no reason to sit in the chunk that has to arrive before the ship interior
     // can render. The await lands inside the fade, where a first-visit fetch is invisible.
-    const { KethraScene } = await import('../planets/kethra/KethraScene');
+    let KethraScene;
+    try {
+      ({ KethraScene } = await import('../planets/kethra/KethraScene'));
+    } catch {
+      // A chunk that fails to arrive (stale deploy, dropped connection) would otherwise reject with
+      // no handler, and the fade above has already blacked the screen — the player would be left
+      // staring at nothing with no way out. Come back up and stay on the ship.
+      await UIManager.fadeFromBlack();
+      UIManager.toast('Navigation data unavailable. Check your connection and try again.');
+      return;
+    }
     const kethra = new KethraScene();
     kethra.onDepart = () => this.returnFromPlanet();
     await this.engine.setScene(() => kethra);
@@ -87,7 +97,16 @@ export class GameFlow {
 
   private async transitionToGalaxyReveal(): Promise<void> {
     await UIManager.fadeToBlack();
-    const { GalaxyRevealScene } = await import('../galaxy/GalaxyRevealScene');
+    let GalaxyRevealScene;
+    try {
+      ({ GalaxyRevealScene } = await import('../galaxy/GalaxyRevealScene'));
+    } catch {
+      // Same guard as travelToPlanet. The reveal is the only route out of the opening, so skip
+      // straight to the state it would have left behind rather than stranding the player.
+      await UIManager.fadeFromBlack();
+      this.finishReveal();
+      return;
+    }
     const reveal = new GalaxyRevealScene();
     reveal.onContinue = () => this.finishReveal();
     await this.engine.setScene(() => reveal);

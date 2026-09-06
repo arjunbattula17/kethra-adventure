@@ -83,7 +83,7 @@ const out = await page.evaluate((baseline) => {
   const seen = new Uint8Array(NX * NZ);
   const queue = [];
   if (!spawnBlocked) { seen[idx(si, sj)] = 1; queue.push([si, sj]); }
-  let head = 0, reach = queue.length;
+  let head = 0, reach = queue.length, bigSteps = 0;
   while (head < queue.length) {
     const [i, j] = queue[head++];
     const y0 = floorY[idx(i, j)];
@@ -92,14 +92,31 @@ const out = await page.evaluate((baseline) => {
       if (ni < 0 || nj < 0 || ni >= NX || nj >= NZ) continue;
       const k = idx(ni, nj);
       if (seen[k] || !open[k]) continue;
-      if (floorY[k] - y0 > MAX_STEP_UP) continue; // too tall a step up; falling down is allowed
+      // No step-up limit, because PlayerController has none for a grounded player: it zeroes
+      // velocityY every grounded frame, which makes its `|stepDiff| <= MAX_STEP_UP + 1 ||
+      // velocityY <= 0` test always true, and `rig.y <= floorY + 0.05` always true for a rise — so
+      // it snaps the player up an arbitrarily tall ledge as long as there is floor to snap to.
+      // Gating at MAX_STEP_UP here would model a stricter player than the game and could report a
+      // route sealed that is actually open. Steps over MAX_STEP_UP are counted instead, since they
+      // are climbs the level was probably not designed to allow.
+      if (floorY[k] - y0 > MAX_STEP_UP) bigSteps++;
       seen[k] = 1; reach++; queue.push([ni, nj]);
     }
   }
 
+  // Both distances InteractionSystem actually uses, because it tries one then the other:
+  //   aim  - the crosshair raycast path. It compares the ray's hit distance on the object's real
+  //          geometry against range, so eye-to-nearest-point-of-bounds is an optimistic proxy for
+  //          it (optimistic because it ignores occlusion and assumes the player aims perfectly).
+  //   prox - the fallback. It compares the camera to the object's WORLD ORIGIN, not to its
+  //          geometry, so for an object whose group origin sits away from its meshes the two
+  //          numbers diverge wildly. Reporting only one of these is how an earlier version of this
+  //          tool certified the Kethra valve as reachable while the real proximity zone sat 8.6 m
+  //          away at the plaza origin.
   const targets = sc.interaction.interactables.map((it) => {
     const b = new B3().setFromObject(it.object);
-    let best = Infinity, at = null;
+    const origin = it.object.getWorldPosition(new (sc.player.rig.position.constructor)());
+    let aim = Infinity, prox = Infinity, at = null;
     for (let j = 0; j < NZ; j++) {
       for (let i = 0; i < NX; i++) {
         if (!seen[idx(i, j)]) continue;
@@ -107,13 +124,26 @@ const out = await page.evaluate((baseline) => {
         const dx = x - clamp(x, b.min.x, b.max.x);
         const dy = eye - clamp(eye, b.min.y, b.max.y);
         const dz = z - clamp(z, b.min.z, b.max.z);
-        const d = Math.hypot(dx, dy, dz);
-        if (d < best) { best = d; at = [+x.toFixed(2), +z.toFixed(2)]; }
+        const a = Math.hypot(dx, dy, dz);
+        if (a < aim) { aim = a; at = [+x.toFixed(2), +z.toFixed(2)]; }
+        prox = Math.min(prox, Math.hypot(x - origin.x, eye - origin.y, z - origin.z));
       }
     }
+    // The origin drifting far outside the object's own bounds means the proximity fallback fires
+    // somewhere the object is not — a phantom prompt.
+    const originOutside = Math.hypot(
+      origin.x - clamp(origin.x, b.min.x, b.max.x),
+      origin.y - clamp(origin.y, b.min.y, b.max.y),
+      origin.z - clamp(origin.z, b.min.z, b.max.z),
+    );
     return {
       label: typeof it.label === 'function' ? it.label() : it.label,
-      range: it.range, nearest: +best.toFixed(2), standAt: at, ok: best <= it.range,
+      range: it.range,
+      aim: +aim.toFixed(2),
+      prox: +prox.toFixed(2),
+      standAt: at,
+      originOutside: +originOutside.toFixed(2),
+      ok: aim <= it.range || prox <= it.range,
     };
   });
 
@@ -127,14 +157,17 @@ const out = await page.evaluate((baseline) => {
     map.push(row);
   }
 
-  return { scene: sc.constructor.name, colliders: boxes.length, gridCells: NX * NZ, openCount, reach, spawnBlocked, targets, map };
+  return { scene: sc.constructor.name, colliders: boxes.length, gridCells: NX * NZ, openCount, reach, bigSteps, spawnBlocked, targets, map };
 }, baseline);
 
 console.log(`${out.scene}: colliders=${out.colliders}  grid=${out.gridCells}  onFloor+clear=${out.openCount}  reachable-from-spawn=${out.reach}`);
 console.log(`spawn blocked: ${out.spawnBlocked ? 'YES  <-- FAIL' : 'no'}`);
 if (out.openCount !== out.reach) console.log(`NOTE: ${out.openCount - out.reach} clear cells are not reachable from spawn (separate terrace / too tall a step)`);
+if (out.bigSteps) console.log(`NOTE: ${out.bigSteps} cell transitions need a step over MAX_STEP_UP; the player can make them but the level probably did not intend it`);
 for (const t of out.targets) {
-  console.log(`  ${t.ok ? 'OK  ' : 'FAIL'} "${t.label}"  nearest standing spot ${t.nearest}m (range ${t.range}) at ${JSON.stringify(t.standAt)}`);
+  const via = t.aim <= t.range ? 'aim' : t.prox <= t.range ? 'proximity only' : '-';
+  console.log(`  ${t.ok ? 'OK  ' : 'FAIL'} "${t.label}"  aim ${t.aim}m / prox ${t.prox}m (range ${t.range}, via ${via}) from ${JSON.stringify(t.standAt)}`);
+  if (t.originOutside > 0.5) console.log(`       WARNING: object origin sits ${t.originOutside}m outside its own bounds — the proximity fallback fires where the object is not`);
 }
 if (process.argv.includes('--map')) {
   console.log('');
