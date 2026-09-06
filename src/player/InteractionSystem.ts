@@ -36,6 +36,14 @@ export class InteractionSystem {
     };
   }
 
+  /**
+   * World-space origin of every registered target. Scenes that scatter decor procedurally use this
+   * to keep a random rock from landing on something the player has to walk up to.
+   */
+  anchorPositions(): THREE.Vector3[] {
+    return this.interactables.map((it) => it.object.getWorldPosition(new THREE.Vector3()));
+  }
+
   clear(): void {
     this.interactables = [];
     this.currentTarget = null;

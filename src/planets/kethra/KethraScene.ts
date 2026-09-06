@@ -13,9 +13,19 @@ import { KethraMechanismPuzzle } from './KethraMechanismPuzzle';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { applyPbr } from '../../core/TextureLibrary';
 import { KitBatcher, kitInstanceBox, jitter } from './kit';
+import { buildKethraColliders } from './collision';
 
 const DIM_CANOPY_COLOR = new THREE.Color(0x274a3a);
 const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
+
+// Clear radius kept around every interaction anchor and the spawn when scattering boulders, applied
+// per-axis rather than by centre distance: a collider is an axis-aligned box, so a rock 3.4 units
+// away on the diagonal can still have a face 0.24 from the anchor, which is how a boulder was still
+// landing on the spawn after the first attempt at this guard. Rock_Medium_3 reaches 2.59 units from
+// its own origin and clutter scales it up to 1.3, so 4.0 clears the worst case by ~0.6 after the
+// player's 0.35 radius. The hand-placed boulders in buildGroundCover are deliberate and verified
+// against tools/collision-check.mjs instead of being silently dropped by this guard.
+const CLUTTER_KEEP_CLEAR = 4.0;
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -306,6 +316,9 @@ export class KethraScene implements GameScene {
 
     const built = await batcher.flush(this.scene);
     for (const [species, meshes] of built) {
+      // Primitive 0 is the trunk for every family here, so the player collides with trunks and
+      // walks under canopies. collision.ts reads this flag; nothing else in the kit opts in.
+      if (meshes[0]) meshes[0].userData.collides = true;
       if (species.startsWith('DeadTree')) continue;
       // Primitive 1 is always the canopy/leaf mesh for the Common/Pine/Twisted families (primitive
       // 0 is the trunk) — see the per-species primitive inspection this rebuild was based on.
@@ -648,7 +661,12 @@ export class KethraScene implements GameScene {
       [-19.6, 2.7, -9.6, 0.8],
       [1.8, 2.4, -12.6, 1.05],
       [-2.8, 2.4, -11.7, 0.8],
-      [0, 0, 20.5, 1.1],
+      // Off the spawn line, not on it. At (0, 20.5) this boulder sat 2.5m dead ahead of the arrival
+      // point, and Rock_Medium runs up to ~5 units across at these scales — measured, it reached
+      // z = 18.15 against a spawn at z = 18, so on a fair share of loads the player materialised
+      // inside it. Harmless-looking while rocks were walk-through; a hard spawn block once they
+      // weren't.
+      [-3.6, 0, 20.4, 1.0],
       [-2.5, -0.05, 21.5, 0.75],
     ];
     for (const [x, y, z, s] of rockSpots) {
@@ -677,11 +695,19 @@ export class KethraScene implements GameScene {
       });
     }
 
-    await batcher.flush(this.scene);
+    // The twelve hand-placed boulders are landmarks the player walks around; the flat path stones
+    // laid between them are trodden on.
+    const built = await batcher.flush(this.scene);
+    for (const [species, meshes] of built) {
+      if (ROCKS_BIG.includes(species) && meshes[0]) meshes[0].userData.collides = true;
+    }
   }
 
   private async buildClutter(): Promise<void> {
     const batcher = new KitBatcher();
+    // Every interaction anchor, plus the spawn itself, which isn't one. buildClutter runs after
+    // every builder that registers a target, so this stays correct as targets are added.
+    const keepClear = [...this.interaction.anchorPositions(), new THREE.Vector3(0, 0, 18)];
     const glowMatA = new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 0.8, roughness: 0.4 });
     const glowMatB = new THREE.MeshStandardMaterial({ color: 0x4fd9c8, emissive: 0x4fd9c8, emissiveIntensity: 0.8, roughness: 0.4 });
 
@@ -704,6 +730,13 @@ export class KethraScene implements GameScene {
         const yaw = Math.random() * Math.PI * 2;
         if (roll < 0.28) {
           const big = Math.random() < 0.35;
+          // Boulders are the only thing this pass places that the player can't walk through, and
+          // the zone table above sits directly on top of the play space — zone 4 covers the arrival
+          // pad the player spawns on, and three of the zones cover an inscription pillar. Unseeded
+          // scatter would therefore block the spawn or an objective on some fraction of loads;
+          // the first collision-check run caught exactly that. Everything else here is walked
+          // through, so it can land wherever it falls.
+          if (big && keepClear.some((p) => Math.max(Math.abs(x - p.x), Math.abs(z - p.z)) < CLUTTER_KEEP_CLEAR)) continue;
           batcher.add(pick(big ? ROCKS_BIG : ROCKS_SMALL), {
             position: new THREE.Vector3(x, y + (big ? 0.16 : 0.04), z),
             yaw,
@@ -726,7 +759,10 @@ export class KethraScene implements GameScene {
       }
     }
 
-    await batcher.flush(this.scene);
+    const built = await batcher.flush(this.scene);
+    for (const [species, meshes] of built) {
+      if (ROCKS_BIG.includes(species) && meshes[0]) meshes[0].userData.collides = true;
+    }
   }
 
   private buildAtmosphere(): void {
@@ -805,12 +841,20 @@ export class KethraScene implements GameScene {
   }
 
   private async colliders(): Promise<THREE.Box3[]> {
+    // The six named trees and the mechanism core keep their hand-authored boxes: they are the
+    // collision the terraces were laid out around, so they stay pinned rather than being left to
+    // whatever the generic pass infers. Everything else in the grove — boulders, pillars, the
+    // shrine and valve, the mechanism console and carving, the return pad and the two Aiveth — now
+    // comes from the scene's own geometry.
     const boxes: THREE.Box3[] = [];
     for (const t of NAMED_TREES) {
       const box = await kitInstanceBox(t.species, new THREE.Vector3(...t.position), t.yaw, t.scale);
       boxes.push(box);
     }
     boxes.push(makeCollider(0, -18, 1, 1, 3.5));
+    // The creature drifts on its own path every frame (see update()), so a box baked from where it
+    // happens to be at load would block empty air a second later.
+    boxes.push(...buildKethraColliders(this.scene, { floorMeshes: this.floorMeshes, animated: [this.creature] }));
     return boxes;
   }
 
