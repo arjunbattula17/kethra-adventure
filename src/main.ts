@@ -47,8 +47,11 @@ SettingsPanel.init();
 const params = new URLSearchParams(location.search);
 if (params.get('newGame')) SaveSystem.clear();
 else if (SaveSystem.hasSave()) {
-  SaveSystem.load();
-  UIManager.toast('Continuing your saved journey.');
+  // load() returns false on unreadable JSON. It used to be called for its side effect and the
+  // success toast shown regardless, so a corrupt save told the player their journey had been
+  // restored and then dropped them into a fresh game.
+  if (SaveSystem.load()) UIManager.toast('Continuing your saved journey.');
+  else UIManager.toast('Your saved journey could not be read. Starting a new one.');
 }
 if (params.get('skipIntro')) gameState.setFlag('tutorial_battle_complete');
 if (params.get('unlockKethra')) {

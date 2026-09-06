@@ -16,4 +16,20 @@ export default defineConfig({
   // exist — this satisfies that without pulling in Workers functionality we don't use.
   plugins: [],
   base: servesFromRoot ? '/' : '/kethra-adventure/',
+  build: {
+    rollupOptions: {
+      output: {
+        // three.js is ~700kB of the bundle and changes only when the dependency does, while the app
+        // code around it changes constantly. Emitting it as its own chunk drops the app chunk from
+        // 1,015kB to 318kB (276kB to 100kB gzipped), so a code change stops invalidating three.js in
+        // every returning player's cache. Total bytes are unchanged, and the >500kB build warning
+        // still fires for the three chunk itself — that is not something this project can split
+        // further, since the first scene needs the whole renderer.
+        manualChunks(id: string) {
+          if (id.includes('node_modules/three')) return 'three';
+          return undefined;
+        },
+      },
+    },
+  },
 });

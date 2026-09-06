@@ -18,6 +18,39 @@ import type { InteriorCtx } from './ctx';
  * animate their own position/rotation per frame rather than just a material property — registers
  * itself in ctx.noMerge and is left untouched.
  */
+/**
+ * Makes a group of geometries mergeable. mergeGeometries requires every input to agree on two
+ * things, and refuses the whole group otherwise — which it did 13 times on this scene, silently
+ * leaving those groups as individual draw calls and partly defeating the point of batching.
+ *
+ * The first is the index attribute: it has to be present on all of them or none. Meshes sharing a
+ * material here come from a mix of sources — chamferBox and the various Extrude/Lathe helpers
+ * produce non-indexed geometry, while BoxGeometry and friends are indexed — so a group holding both
+ * was rejected. Dropping the index off the indexed ones is the cheap direction: the reverse would
+ * mean deduplicating vertices, and the merged result is drawn as one non-indexed buffer either way.
+ *
+ * The second is the attribute set. A geometry carrying a `uv` its neighbours lack fails the same
+ * way, so anything not present on every member is dropped — a merged batch could not have used it
+ * consistently regardless.
+ */
+function normalizeForMerge(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry[] {
+  let out = geometries;
+
+  const indexed = geometries.filter((g) => g.index !== null).length;
+  if (indexed > 0 && indexed < geometries.length) {
+    out = out.map((g) => (g.index !== null ? g.toNonIndexed() : g));
+  }
+
+  let common: string[] = Object.keys(out[0].attributes);
+  for (const g of out) common = common.filter((name) => name in g.attributes);
+  for (const g of out) {
+    for (const name of Object.keys(g.attributes)) {
+      if (!common.includes(name)) g.deleteAttribute(name);
+    }
+  }
+  return out;
+}
+
 export function batchStaticGeometry(ctx: InteriorCtx): void {
   // `?nobatch=1` leaves every source mesh as its own scene node, which is what tools/interior-audit
   // .mjs needs: a merged batch's bounding box is the union of every mesh sharing that material, so
@@ -67,9 +100,11 @@ export function batchStaticGeometry(ctx: InteriorCtx): void {
       baked.push(g);
     }
 
-    const result = mergeGeometries(baked, false);
+    const normalized = normalizeForMerge(baked);
+    const result = mergeGeometries(normalized, false);
     for (const g of baked) g.dispose(); // the temporary baked clones, not the originals
-    if (!result) continue; // incompatible attribute sets across the group — leave these meshes as-is
+    for (const g of normalized) if (!baked.includes(g)) g.dispose(); // toNonIndexed() copies
+    if (!result) continue; // still incompatible — leave these meshes as-is
 
     const first = group[0];
     const combined = new THREE.Mesh(result, first.material);

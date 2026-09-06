@@ -91,8 +91,8 @@ function defaultAttributes(): Record<AttributeKey, number> {
   return { insight: 1, archaeology: 1, engineering: 1, traversal: 1, persuasion: 1, perception: 1 };
 }
 
-export class GameState {
-  data: GameStateData = {
+function defaultState(): GameStateData {
+  return {
     scene: 'ship_interior',
     flags: [],
     attributes: defaultAttributes(),
@@ -108,6 +108,69 @@ export class GameState {
     planetsUnlocked: [],
     playerPosition: null,
   };
+}
+
+/**
+ * Backfills a parsed save against the current shape.
+ *
+ * loadFrom used to assign the parsed JSON straight onto `data`, so a save written before a field
+ * existed left that field `undefined` and the first read of it threw — and the save shape has kept
+ * changing. Starting from the defaults and copying across only what is present and the right type
+ * means an old save loads with new fields at their defaults rather than crashing, and a corrupt one
+ * degrades to a playable state instead of a TypeError.
+ *
+ * The two keyed records are merged per key, not wholesale, so an attribute or ship system added
+ * after a save was written gets its default entry instead of being missing. Ship systems keep their
+ * progress from the save but take `label` from the current code, since that is content rather than
+ * player state.
+ */
+function migrateSave(raw: unknown): GameStateData {
+  const base = defaultState();
+  if (!raw || typeof raw !== 'object') return base;
+  const saved = raw as Record<string, unknown>;
+
+  const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const str = (v: unknown, d: string): string => (typeof v === 'string' ? v : d);
+  const arr = <T,>(v: unknown, d: T[]): T[] => (Array.isArray(v) ? (v as T[]) : d);
+
+  base.scene = str(saved.scene, base.scene) as GameStateData['scene'];
+  base.objective = str(saved.objective, base.objective);
+  base.xp = Math.max(0, num(saved.xp, base.xp));
+  // Clamped to at least 1: gainXp's threshold is level * 100, so a level of 0 from a corrupt save
+  // would make its loop never terminate.
+  base.level = Math.max(1, Math.floor(num(saved.level, base.level)));
+  base.unspentPoints = Math.max(0, Math.floor(num(saved.unspentPoints, base.unspentPoints)));
+  base.flags = arr<string>(saved.flags, base.flags);
+  base.inventory = arr<string>(saved.inventory, base.inventory);
+  base.journalLogs = arr<JournalLogEntry>(saved.journalLogs, base.journalLogs);
+  base.clues = arr<Clue>(saved.clues, base.clues);
+  base.clueConnections = arr<ClueConnection>(saved.clueConnections, base.clueConnections);
+  base.planetsUnlocked = arr<string>(saved.planetsUnlocked, base.planetsUnlocked);
+
+  const pos = saved.playerPosition as GameStateData['playerPosition'];
+  base.playerPosition =
+    pos && typeof pos === 'object' && typeof pos.x === 'number' && typeof pos.y === 'number' && typeof pos.z === 'number'
+      ? { x: pos.x, y: pos.y, z: pos.z }
+      : null;
+
+  const savedAttributes = (saved.attributes ?? {}) as Record<string, unknown>;
+  for (const key of Object.keys(base.attributes) as AttributeKey[]) {
+    base.attributes[key] = num(savedAttributes[key], base.attributes[key]);
+  }
+
+  const savedSystems = (saved.shipSystems ?? {}) as Record<string, unknown>;
+  for (const key of Object.keys(base.shipSystems) as ShipSystemKey[]) {
+    const entry = savedSystems[key];
+    if (entry && typeof entry === 'object') {
+      base.shipSystems[key] = { ...base.shipSystems[key], ...(entry as Partial<ShipSystemState>), label: base.shipSystems[key].label };
+    }
+  }
+
+  return base;
+}
+
+export class GameState {
+  data: GameStateData = defaultState();
 
   hasFlag(flag: string): boolean {
     return this.data.flags.includes(flag);
@@ -133,8 +196,11 @@ export class GameState {
 
   gainXp(amount: number): void {
     this.data.xp += amount;
-    const nextLevelAt = this.data.level * 100;
-    if (this.data.xp >= nextLevelAt) {
+    // A loop, not a single check: a grant large enough to cross two thresholds at once used to
+    // award one level and carry the rest as xp, quietly under-levelling the player. Terminates
+    // because the threshold grows with each level and xp only falls; migrateSave clamps level to
+    // at least 1 so the threshold can never be zero.
+    for (let nextLevelAt = this.data.level * 100; this.data.xp >= nextLevelAt; nextLevelAt = this.data.level * 100) {
       this.data.xp -= nextLevelAt;
       this.data.level += 1;
       this.data.unspentPoints += 1;
@@ -193,8 +259,7 @@ export class GameState {
   }
 
   loadFrom(json: string): void {
-    const parsed = JSON.parse(json) as GameStateData;
-    this.data = parsed;
+    this.data = migrateSave(JSON.parse(json));
     bus.emit('state:loaded', this.data);
   }
 }
