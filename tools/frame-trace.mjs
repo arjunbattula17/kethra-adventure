@@ -40,7 +40,7 @@ const PRESETS = {
     // while __DEBUG__.engine.getCurrentScene() is still the *previous* scene, or while this scene
     // is still mid-construction — capturing one-time load cost as if it were steady-state jank.
     await page.waitForFunction(
-      () => window.__DEBUG__.engine.getCurrentScene?.()?.constructor.name === 'ShipInteriorScene',
+      () => (window.__DEBUG__.engine.getCurrentScene?.()?.kind ?? window.__DEBUG__.engine.getCurrentScene?.()?.constructor.name) === 'ShipInteriorScene',
       undefined,
       { timeout: 60000 },
     );
@@ -64,7 +64,7 @@ const PRESETS = {
     // buildDetailProps + batchStaticGeometry) and Engine.setScene's compileAsync warm-up when Tab
     // is pressed, landing that one-time load cost as a multi-second single frame in the trace.
     await page.waitForFunction(
-      () => window.__DEBUG__.engine.getCurrentScene?.()?.constructor.name === 'ShipInteriorScene',
+      () => (window.__DEBUG__.engine.getCurrentScene?.()?.kind ?? window.__DEBUG__.engine.getCurrentScene?.()?.constructor.name) === 'ShipInteriorScene',
       undefined,
       { timeout: 60000 },
     );
@@ -107,7 +107,7 @@ async function setShipView(page, pos, yaw, pitch, fov) {
   // (walls, floor, columns) run visibly slower — this is scene *construction*, not yet the traced
   // steady-state frame loop below, so a long one-time wait here doesn't affect the trace itself.
   await page.waitForFunction(
-    () => window.__DEBUG__.engine.getCurrentScene?.()?.constructor.name === 'ShipInteriorScene',
+    () => (window.__DEBUG__.engine.getCurrentScene?.()?.kind ?? window.__DEBUG__.engine.getCurrentScene?.()?.constructor.name) === 'ShipInteriorScene',
     undefined,
     { timeout: 60000 },
   );

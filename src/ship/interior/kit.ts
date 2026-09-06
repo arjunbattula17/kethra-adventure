@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { cacheTexturesFor } from '../../core/textureCache';
 
 // Quaternius "Modular Sci-Fi MegaKit" (CC0) — see public/models/CREDITS.md. Every piece sits on a
 // 4-unit horizontal grid; a full wall bay is WallBottom(0..3) + WallTop(3..5) stacked, giving a
@@ -73,6 +74,10 @@ manager.setURLModifier((url) => {
   }
   return url;
 });
+
+// Dedupe the texture files these pieces share; see textureCache.ts for why the global
+// THREE.Cache cannot be used for this.
+cacheTexturesFor(manager);
 
 const loader = new GLTFLoader(manager);
 const cache = new Map<string, Promise<THREE.Object3D>>();

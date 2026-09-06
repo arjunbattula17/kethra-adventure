@@ -285,6 +285,14 @@ export class KethraScene implements GameScene {
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 800);
   player: PlayerController;
   interaction = new InteractionSystem();
+  /**
+   * Stable scene identity for the Playwright harnesses in tools/. They used to match on
+   * `constructor.name`, which a production build mangles to a two-letter symbol — so every
+   * tool waited out its timeout with no useful error against `vite preview`, and every
+   * "all targets reachable" claim had only ever been checked against a dev build.
+   */
+  readonly kind = 'KethraScene';
+
   onDepart: (() => void) | null = null;
 
   private floorMeshes: THREE.Object3D[] = [];

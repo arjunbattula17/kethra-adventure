@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { cacheTexturesFor } from '../../core/textureCache';
 
 // Quaternius "Stylized Nature MegaKit" (CC0) — see public/models/CREDITS.md. Unlike the ship's
 // sci-fi kit, these pieces are organic and don't sit on any grid; every placement below is sized
@@ -32,6 +33,10 @@ manager.setURLModifier((url) => {
   }
   return url;
 });
+
+// Dedupe the texture files these pieces share; see textureCache.ts for why the global
+// THREE.Cache cannot be used for this.
+cacheTexturesFor(manager);
 
 const loader = new GLTFLoader(manager);
 

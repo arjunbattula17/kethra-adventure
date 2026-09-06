@@ -16,7 +16,7 @@ if (scene === 'kethra') await page.evaluate(() => window.__DEBUG__.bus.emit('gal
 const cls = scene === 'kethra' ? 'KethraScene' : 'ShipInteriorScene';
 await page.waitForFunction((c) => {
   const s = window.__DEBUG__.engine.getCurrentScene?.();
-  return !!(s && s.player && s.constructor.name === c);
+  return !!(s && s.player && (s.kind ?? s.constructor.name) === c);
 }, cls, { timeout: 90000 });
 await page.waitForTimeout(3500);
 

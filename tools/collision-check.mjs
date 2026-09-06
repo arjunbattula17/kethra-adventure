@@ -23,7 +23,7 @@ if (scene === 'kethra') {
 }
 await page.waitForFunction((cls) => {
   const s = window.__DEBUG__.engine.getCurrentScene?.();
-  return !!(s && s.player && s.constructor.name === cls);
+  return !!(s && s.player && (s.kind ?? s.constructor.name) === cls);
 }, wantClass, { timeout: 90000 });
 await page.waitForTimeout(4000);
 
@@ -157,7 +157,7 @@ const out = await page.evaluate((baseline) => {
     map.push(row);
   }
 
-  return { scene: sc.constructor.name, colliders: boxes.length, gridCells: NX * NZ, openCount, reach, bigSteps, spawnBlocked, targets, map };
+  return { scene: sc.kind ?? sc.constructor.name, colliders: boxes.length, gridCells: NX * NZ, openCount, reach, bigSteps, spawnBlocked, targets, map };
 }, baseline);
 
 console.log(`${out.scene}: colliders=${out.colliders}  grid=${out.gridCells}  onFloor+clear=${out.openCount}  reachable-from-spawn=${out.reach}`);

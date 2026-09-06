@@ -1,5 +1,4 @@
 import './style.css';
-import * as THREE from 'three';
 import { loadFonts } from './core/loadFonts';
 import { Engine } from './core/Engine';
 import { UIManager } from './ui/UIManager';
@@ -16,12 +15,6 @@ import { SaveSystem } from './core/SaveSystem';
 import { AudioSystem } from './audio/AudioSystem';
 import { setActiveEngine } from './core/EngineRegistry';
 
-// three.js caches loaded files by URL only when this is on, and it defaults to off. The sci-fi kit
-// shares one Textures/ folder across every piece, and kit.ts's own cache dedupes by *piece* name,
-// not by texture file — so a single boot was fetching T_Trim_01_ORM.png six times, T_Trim_03_ORM.png
-// five, and so on: 84.8 MB over 137 requests, of which 40 were duplicates, for 28 MB of distinct
-// assets. Set before anything can load. Must be before the Engine import runs any loader.
-THREE.Cache.enabled = true;
 
 loadFonts();
 

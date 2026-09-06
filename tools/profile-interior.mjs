@@ -12,7 +12,7 @@ await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { tim
 await page.waitForFunction(
   () => {
     const s = window.__DEBUG__.engine.getCurrentScene?.();
-    return !!(s && s.player && s.constructor.name === 'ShipInteriorScene');
+    return !!(s && s.player && (s.kind ?? s.constructor.name) === 'ShipInteriorScene');
   },
   undefined,
   { timeout: 45000 },

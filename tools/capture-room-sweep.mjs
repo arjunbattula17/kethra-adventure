@@ -28,7 +28,7 @@ await page.goto(baseUrl + '?skipIntro=1&newGame=1', { waitUntil: 'domcontentload
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 90000 });
 await page.waitForFunction(() => {
   const s = window.__DEBUG__.engine.getCurrentScene?.();
-  return !!(s && s.player && s.constructor.name === 'ShipInteriorScene');
+  return !!(s && s.player && (s.kind ?? s.constructor.name) === 'ShipInteriorScene');
 }, undefined, { timeout: 90000 });
 await page.waitForTimeout(3500);
 await page.addStyleTag({ content: `body > *:not(#app){display:none!important}#app > *:not(canvas){display:none!important}` });
