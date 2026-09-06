@@ -14,6 +14,10 @@ const WALK_SPEED = 3.2;
 const SPRINT_SPEED = 5.6;
 const CROUCH_SPEED = 1.6;
 const PLAYER_RADIUS = 0.35;
+/** Standing height of the collision capsule — the eye sits just under the top of it. */
+const PLAYER_HEIGHT = 1.8;
+/** Obstacles shorter than this are walked over rather than into. */
+const STEP_OVER = 0.25;
 const GRAVITY = -18;
 const JUMP_SPEED = 6;
 const MOUSE_SENSITIVITY = 0.0022;
@@ -59,30 +63,33 @@ export class PlayerController {
     this.velocityY = 0;
   }
 
+  /**
+   * Whether the player capsule standing with its feet at `feetY` would overlap a collider at
+   * (x, z). The vertical test decides whether an obstacle is stepped over, walked under, or
+   * blocking: the old version compared the *feet* against the box instead of the whole capsule, so
+   * anything whose base sat above ankle height — a wall shelf, a bench top, a mounted panel —
+   * never blocked at all. It also allocated a Vector3 per box per test, which the scene's
+   * geometry-derived colliders make far too expensive.
+   */
+  private blockedAt(x: number, z: number, feetY: number): boolean {
+    const headY = feetY + PLAYER_HEIGHT;
+    const stepY = feetY + STEP_OVER;
+    for (const { box } of this.colliders) {
+      if (box.max.y <= stepY || box.min.y >= headY) continue;
+      const dx = x - THREE.MathUtils.clamp(x, box.min.x, box.max.x);
+      const dz = z - THREE.MathUtils.clamp(z, box.min.z, box.max.z);
+      if (dx * dx + dz * dz < PLAYER_RADIUS * PLAYER_RADIUS) return true;
+    }
+    return false;
+  }
+
   private resolveCollisionXZ(desired: THREE.Vector3): THREE.Vector3 {
     const result = desired.clone();
-    const testPoint = (p: THREE.Vector3) => {
-      for (const { box } of this.colliders) {
-        const closest = new THREE.Vector3(
-          THREE.MathUtils.clamp(p.x, box.min.x, box.max.x),
-          THREE.MathUtils.clamp(p.y, box.min.y, box.max.y),
-          THREE.MathUtils.clamp(p.z, box.min.z, box.max.z),
-        );
-        if (closest.distanceTo(p) < PLAYER_RADIUS && p.y > box.min.y - 0.1 && p.y < box.max.y + 2) {
-          return true;
-        }
-      }
-      return false;
-    };
-
-    const testX = this.rig.position.clone();
-    testX.x = result.x;
-    if (testPoint(testX)) result.x = this.rig.position.x;
-
-    const testZ = this.rig.position.clone();
-    testZ.z = result.z;
-    if (testPoint(testZ)) result.z = this.rig.position.z;
-
+    const from = this.rig.position;
+    // Resolved one axis at a time so a blocked direction slides along the obstacle instead of
+    // stopping dead.
+    if (this.blockedAt(result.x, from.z, from.y)) result.x = from.x;
+    if (this.blockedAt(result.x, result.z, from.y)) result.z = from.z;
     return result;
   }
 

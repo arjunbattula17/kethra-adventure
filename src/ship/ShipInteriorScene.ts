@@ -18,6 +18,7 @@ import { buildSuspendedDisplay } from './interior/suspendedDisplay';
 import { buildDetailProps } from './interior/props';
 import { buildLighting } from './interior/lighting';
 import { batchStaticGeometry } from './interior/batchStaticGeometry';
+import { buildInteriorColliders } from './interior/collision';
 
 export class ShipInteriorScene implements GameScene {
   scene = new THREE.Scene();
@@ -85,12 +86,18 @@ export class ShipInteriorScene implements GameScene {
     // as unbatched, unmerged individual draw calls, with each piece's load/parse/GPU-upload landing
     // as a hitch on whatever frame happened to be running when it resolved.
     await Promise.all([buildWalls(ctx), buildAirlock(ctx), buildDetailProps(ctx)]);
+    // Read colliders off the props *before* batching: the merge pass collapses every mesh sharing a
+    // material into one geometry, so afterwards a per-mesh bounding box would span the whole room.
+    const propColliders = buildInteriorColliders(ctx);
     batchStaticGeometry(ctx);
 
     this.scene.add(this.player.rig);
 
     this.player.setFloorTargets(this.floorMeshes);
-    this.player.setColliders(this.roomColliders());
+    // roomColliders() stays as the hand-authored backstop for the hull and the two pieces of
+    // hardware with gameplay colliders; propColliders is everything the room's own geometry says
+    // should be solid.
+    this.player.setColliders([...this.roomColliders(), ...propColliders]);
     this.player.teleport(new THREE.Vector3(0, 1.7, 4), 0);
     this.player.onFootstep = () => AudioSystem.playFootstep('metal');
     this.stopAmbient = AudioSystem.startAmbient(64, 0.035);
