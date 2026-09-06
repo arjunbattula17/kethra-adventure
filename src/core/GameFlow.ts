@@ -1,12 +1,10 @@
 import type { Engine } from './Engine';
 import { ShipInteriorScene } from '../ship/ShipInteriorScene';
-import { GalaxyRevealScene } from '../galaxy/GalaxyRevealScene';
 import { BattlePuzzle } from '../ship/BattlePuzzle';
 import { UIManager } from '../ui/UIManager';
 import { gameState } from './GameState';
 import { InputManager } from './InputManager';
 import { bus } from './EventBus';
-import { KethraScene } from '../planets/kethra/KethraScene';
 import { SaveSystem } from './SaveSystem';
 
 function wait(ms: number): Promise<void> {
@@ -31,6 +29,11 @@ export class GameFlow {
       return;
     }
     await UIManager.fadeToBlack();
+    // Loaded on demand. Kethra and the galaxy reveal are each entered at most once per session and
+    // only from behind a fade-to-black, so their code (and the nature kit's loaders and the reveal's
+    // shaders with it) has no reason to sit in the chunk that has to arrive before the ship interior
+    // can render. The await lands inside the fade, where a first-visit fetch is invisible.
+    const { KethraScene } = await import('../planets/kethra/KethraScene');
     const kethra = new KethraScene();
     kethra.onDepart = () => this.returnFromPlanet();
     await this.engine.setScene(() => kethra);
@@ -84,6 +87,7 @@ export class GameFlow {
 
   private async transitionToGalaxyReveal(): Promise<void> {
     await UIManager.fadeToBlack();
+    const { GalaxyRevealScene } = await import('../galaxy/GalaxyRevealScene');
     const reveal = new GalaxyRevealScene();
     reveal.onContinue = () => this.finishReveal();
     await this.engine.setScene(() => reveal);

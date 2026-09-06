@@ -157,6 +157,26 @@ export class KitBatcher {
   }
 }
 
+// Deterministic RNG for the grove's procedural placement. This used Math.random(), so every visit
+// produced a different layout — which meant a solid boulder could land on a ramp, on the arrival
+// pad or across the secret-ledge stair on some fraction of loads, and there was no way to verify
+// the scene was traversable, only to sample it. mulberry32, the same generator the ship's scatter
+// uses in src/ship/interior/props.ts. resetGroveRandom() is called at the top of KethraScene.init()
+// so re-entering the planet rebuilds the same grove rather than a new one.
+const DEFAULT_SEED = 0x6b7f2c1d;
+let groveSeed = DEFAULT_SEED;
+
+export function resetGroveRandom(seed = DEFAULT_SEED): void {
+  groveSeed = seed;
+}
+
+export function groveRandom(): number {
+  groveSeed = (groveSeed + 0x6d2b79f5) | 0;
+  let t = Math.imul(groveSeed ^ (groveSeed >>> 15), 1 | groveSeed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
 export function jitter(min: number, max: number): number {
-  return min + Math.random() * (max - min);
+  return min + groveRandom() * (max - min);
 }

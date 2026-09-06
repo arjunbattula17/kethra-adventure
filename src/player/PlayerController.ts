@@ -93,7 +93,15 @@ export class PlayerController {
     return result;
   }
 
-  private sampleFloorHeight(x: number, z: number): number | null {
+  /**
+   * Height of the walking surface under (x, z), or null if there is none within reach. Public
+   * rather than private because tools/collision-check.mjs drives it directly to sample the floor
+   * across a whole scene: it has to use the player's own raycast, against the same floor targets,
+   * or its reachability model would diverge from what the player actually walks on. The ray starts
+   * 2 units above the rig and reaches 10, so a caller sampling somewhere other than the player's
+   * own position must park the rig at a height that covers the range it cares about.
+   */
+  sampleFloorHeight(x: number, z: number): number | null {
     this.raycaster.set(new THREE.Vector3(x, this.rig.position.y + 2, z), new THREE.Vector3(0, -1, 0));
     this.raycaster.far = 10;
     const hits = this.raycaster.intersectObjects(this.floorTargets, true);

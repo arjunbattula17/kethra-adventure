@@ -12,7 +12,7 @@ import { KETHRA_LORE_ENTRIES } from './kethraLore';
 import { KethraMechanismPuzzle } from './KethraMechanismPuzzle';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { applyPbr } from '../../core/TextureLibrary';
-import { KitBatcher, kitInstanceBox, jitter } from './kit';
+import { KitBatcher, kitInstanceBox, jitter, groveRandom, resetGroveRandom } from './kit';
 import { buildKethraColliders } from './collision';
 
 const DIM_CANOPY_COLOR = new THREE.Color(0x274a3a);
@@ -27,8 +27,17 @@ const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
 // against tools/collision-check.mjs instead of being silently dropped by this guard.
 const CLUTTER_KEEP_CLEAR = 4.0;
 
+// A clutter zone only gets boulders if it is wider than one. Rock_Medium_3 reaches 2.59 units from
+// its own origin and clutter scales it up to 1.3, so a boulder spans up to ~6.7 units — dropping one
+// into a 2.4-wide zone puts most of its bulk outside the zone entirely. That is what sealed the
+// chamber approach: zones 5 and 6 line its two long edges, and four boulders thrown inward from
+// them met in the middle of the 8-unit-wide corridor and walled the mechanism puzzle off. The
+// secret ledge's 2-wide zone has the same problem. Narrow zones get ground cover only; the four
+// wide zones (plaza, both side terraces, landing) are unaffected.
+const MIN_BOULDER_ZONE = 7;
+
 function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return arr[Math.floor(groveRandom() * arr.length)];
 }
 
 // Quaternius Stylized Nature MegaKit species pools (see public/models/CREDITS.md and kit.ts).
@@ -85,7 +94,7 @@ function generateFillerTrees(): TreePlacement[] {
   for (const [xMin, xMax, zMin, zMax] of belts) {
     const count = 9;
     for (let i = 0; i < count; i++) {
-      const roll = Math.random();
+      const roll = groveRandom();
       let species: string;
       let scale: number;
       if (roll < 0.35) {
@@ -104,7 +113,7 @@ function generateFillerTrees(): TreePlacement[] {
       trees.push({
         position: [jitter(xMin, xMax), 0, jitter(zMin, zMax)],
         species,
-        yaw: Math.random() * Math.PI * 2,
+        yaw: groveRandom() * Math.PI * 2,
         scale,
       });
     }
@@ -135,6 +144,52 @@ function makeTerrace(width: number, depth: number, x: number, y: number, z: numb
 
   group.position.set(x, y, z);
   return group;
+}
+
+/**
+ * Height of a terrace's walking surface above its group origin — the 0.18-tall inset cap centred
+ * at 0.29 in makeTerrace. Ramps are positioned against this so their ends land exactly on the
+ * surfaces they bridge.
+ */
+const TERRACE_TOP = 0.38;
+
+/**
+ * A sloped slab bridging two terraces at different heights. Each end is given as the world
+ * (coordinate along `axis`, walking-surface height) of the terrace it meets, so the ramp lands on
+ * both surfaces by construction rather than by eye. `from` is the end at the lower coordinate;
+ * either end may be the higher one. The slab is extended RAMP_OVERHANG past both ends along its own
+ * slope so it tucks into each terrace instead of leaving a hairline seam.
+ */
+const RAMP_OVERHANG = 0.4;
+
+function makeRamp(
+  axis: 'x' | 'z',
+  from: [number, number],
+  to: [number, number],
+  width: number,
+  cross: number,
+  color = 0x9a9385,
+): THREE.Group {
+  const run = to[0] - from[0];
+  const rise = to[1] - from[1];
+  const angle = Math.atan2(rise, run);
+  const length = Math.hypot(run, rise) + 2 * RAMP_OVERHANG;
+  const midAxis = (from[0] + to[0]) / 2;
+  const midTop = (from[1] + to[1]) / 2;
+
+  if (axis === 'z') {
+    // Rotating about X by -angle leaves the surface climbing at rise/run along +Z; the group origin
+    // then has to be offset by the cap height through that rotation so the mid-surface lands on
+    // (midAxis, midTop).
+    const phi = -angle;
+    const ramp = makeTerrace(width, length, cross, midTop - TERRACE_TOP * Math.cos(phi), midAxis - TERRACE_TOP * Math.sin(phi), color);
+    ramp.rotation.x = phi;
+    return ramp;
+  }
+  const psi = angle;
+  const ramp = makeTerrace(length, width, midAxis + TERRACE_TOP * Math.sin(psi), midTop - TERRACE_TOP * Math.cos(psi), cross, color);
+  ramp.rotation.z = psi;
+  return ramp;
 }
 
 function makeCollider(x: number, z: number, halfW: number, halfD: number, top: number): THREE.Box3 {
@@ -236,6 +291,8 @@ export class KethraScene implements GameScene {
   }
 
   async init(): Promise<void> {
+    // Same grove every visit: see resetGroveRandom in kit.ts for why the scatter is seeded.
+    resetGroveRandom();
     UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x0b1220);
     this.scene.fog = new THREE.FogExp2(0x0b1220, 0.015);
@@ -297,7 +354,25 @@ export class KethraScene implements GameScene {
     const eastTerrace = makeTerrace(10, 9, 16, 0.6, -2);
     const chamberApproach = makeTerrace(8, 10, 0, 1.1, -14, 0x453a4a);
 
-    for (const t of [landing, plaza, rampA, westTerrace, rampB, eastTerrace, chamberApproach]) {
+    // Connecting ramps. Without these, plaza / westTerrace / eastTerrace / chamberApproach are four
+    // separate islands with nothing between them: the side terraces sit 3 units away across empty
+    // space and 0.60 m up, and the chamber 3 units away and 1.10 m up. Nothing bridges them and no
+    // jump can, either — PlayerController's apex is JUMP_SPEED^2 / (2 * GRAVITY) = 6^2 / 36 = exactly
+    // 1.00 m, so the chamber's 1.10 m rise is above the apex outright, and the 0.60 m rise leaves a
+    // 0.42 s window above ledge height, worth 2.36 m at SPRINT_SPEED against a 3 m gap. Six of the
+    // scene's eleven registered interactions were unreachable, including "Access the Cistern Heart",
+    // which opens the mechanism puzzle the scene's own objective points at.
+    //
+    // Each ramp is placed off the named trees' trunk colliders, which are wider than they look:
+    // CommonTree_2 spans x[-9.77,-6.06] z[2.53,6.10] straight across the west gap and Pine_2 spans
+    // x[5.68,9.67] z[2.14,5.72] across the east one, so both side ramps sit south of z = 2.
+    const westRamp = makeRamp('x', [-11, 0.98], [-8, 0.38], 5, -0.5);
+    const eastRamp = makeRamp('x', [8, 0.38], [11, 0.98], 5, -0.5);
+    // Run out to z = -4 rather than stopping at the plaza edge, so 1.10 m is climbed over 5 units
+    // (12.4deg) instead of 3 (20deg); the first two units simply lie on the plaza as a wedge.
+    const chamberRamp = makeRamp('z', [-9, 1.48], [-4, 0.38], 6, 0);
+
+    for (const t of [landing, plaza, rampA, westTerrace, rampB, eastTerrace, chamberApproach, westRamp, eastRamp, chamberRamp]) {
       this.scene.add(t);
       this.floorMeshes.push(t);
     }
@@ -305,6 +380,18 @@ export class KethraScene implements GameScene {
     const secretLedge = makeTerrace(3, 3, -20, 2.4, -8, 0x3a4a5a);
     this.scene.add(secretLedge);
     this.floorMeshes.push(secretLedge);
+
+    // The ledge carries "Read Inscription 3", so it is content with an interaction prompt on it, not
+    // scenery — but its 1.80 m rise is also above the jump apex, so it was unreachable too. This
+    // stair keeps it feeling tucked-away: it is 2.2 units wide against the terraces' 5-6, hugs the
+    // far x edge, and is only visible once you are already at the back of the west terrace. It sits
+    // at x = -20.6 to stay clear of TwistedTree_3's trunk collider, which reaches x = -19.77.
+    // Tops out at z = -6.5, the ledge's own north edge, not at its centre: a stair that only reaches
+    // full height mid-platform leaves the player a 0.68 m step up at the edge, well over
+    // PlayerController's 0.45 m MAX_STEP_UP, so it would have looked connected and still not been.
+    const ledgeStair = makeRamp('z', [-6.5, 2.78], [-2.5, 0.98], 2.2, -20.6, 0x3a4a5a);
+    this.scene.add(ledgeStair);
+    this.floorMeshes.push(ledgeStair);
   }
 
   private async buildFoliage(): Promise<void> {
@@ -655,12 +742,23 @@ export class KethraScene implements GameScene {
       [-11.5, 0.9, -6.2, 0.9],
       [21.5, 0.9, 2.5, 1.0],
       [11.4, 0.9, -6.4, 0.95],
-      [-4.3, 1.5, -9.4, 1.0],
-      [4.4, 1.5, -9.3, 0.9],
-      [-20.4, 2.7, -6.2, 0.85],
+      // The four boulders dressing the chamber approach are pulled to its edges and cut to about a
+      // third the footprint. The approach slab is only 8 units wide and Rock_Medium runs 3-5 units
+      // across at the old scales, so as solids these four met in the middle and sealed the corridor
+      // — measured, the only gap left was a single 0.25-wide cell, and "Access the Cistern Heart"
+      // (which opens the mechanism puzzle) was unreachable. They now leave a ~3.6-unit clear lane
+      // down the centre. The last two also drop from y = 2.4 to 1.5: the slab's surface is 1.48, so
+      // they had been floating 0.9 above it.
+      [-3.2, 1.5, -9.4, 0.45],
+      [3.3, 1.5, -9.3, 0.45],
+      // Was (-20.4, 2.7, -6.2): that is the one approach corridor to the secret ledge, and
+      // Rock_Medium reaches 2.59 units from its own origin before scaling, so as a solid boulder it
+      // sealed the ledge off no matter how the stair was routed. Moved onto the open west terrace;
+      // it stays clear of Inscription 1's pillar at (-16, -3) and of the stair's x -21.7..-19.5.
+      [-18.4, 0.9, 0.5, 0.85],
       [-19.6, 2.7, -9.6, 0.8],
-      [1.8, 2.4, -12.6, 1.05],
-      [-2.8, 2.4, -11.7, 0.8],
+      [3.2, 1.5, -12.9, 0.45],
+      [-3.1, 1.5, -12.2, 0.45],
       // Off the spawn line, not on it. At (0, 20.5) this boulder sat 2.5m dead ahead of the arrival
       // point, and Rock_Medium runs up to ~5 units across at these scales — measured, it reached
       // z = 18.15 against a spawn at z = 18, so on a fair share of loads the player materialised
@@ -672,7 +770,7 @@ export class KethraScene implements GameScene {
     for (const [x, y, z, s] of rockSpots) {
       batcher.add(pick(ROCKS_BIG), {
         position: new THREE.Vector3(x, y + 0.16 * s, z),
-        yaw: Math.random() * Math.PI * 2,
+        yaw: groveRandom() * Math.PI * 2,
         scale: s * jitter(0.9, 1.15),
       });
     }
@@ -690,7 +788,7 @@ export class KethraScene implements GameScene {
     for (const [x, y, z] of pathSpots) {
       batcher.add(pick(ROCK_PATHS), {
         position: new THREE.Vector3(x, y, z),
-        yaw: Math.random() * Math.PI * 2,
+        yaw: groveRandom() * Math.PI * 2,
         scale: jitter(0.9, 1.2),
       });
     }
@@ -723,13 +821,14 @@ export class KethraScene implements GameScene {
     ];
 
     for (const [xMin, xMax, zMin, zMax, y, density] of clutterZones) {
+      const roomForBoulders = Math.min(xMax - xMin, zMax - zMin) >= MIN_BOULDER_ZONE;
       for (let i = 0; i < density; i++) {
         const x = jitter(xMin, xMax);
         const z = jitter(zMin, zMax);
-        const roll = Math.random();
-        const yaw = Math.random() * Math.PI * 2;
+        const roll = groveRandom();
+        const yaw = groveRandom() * Math.PI * 2;
         if (roll < 0.28) {
-          const big = Math.random() < 0.35;
+          const big = roomForBoulders && groveRandom() < 0.35;
           // Boulders are the only thing this pass places that the player can't walk through, and
           // the zone table above sits directly on top of the play space — zone 4 covers the arrival
           // pad the player spawns on, and three of the zones cover an inscription pillar. Unseeded
@@ -750,8 +849,8 @@ export class KethraScene implements GameScene {
           batcher.add(pick(SMALL_FLORA), { position: new THREE.Vector3(x, y + 0.03, z), yaw, scale: jitter(0.85, 1.25) });
         } else {
           const glow = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(0.1 + Math.random() * 0.08, 0),
-            Math.random() > 0.5 ? glowMatA : glowMatB,
+            new THREE.IcosahedronGeometry(0.1 + groveRandom() * 0.08, 0),
+            groveRandom() > 0.5 ? glowMatA : glowMatB,
           );
           glow.position.set(x, y + 0.1, z);
           this.scene.add(glow);
@@ -769,9 +868,9 @@ export class KethraScene implements GameScene {
     const count = 700;
     const positions = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 60;
-      positions[i * 3 + 1] = Math.random() * 12;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 60 - 5;
+      positions[i * 3] = (groveRandom() - 0.5) * 60;
+      positions[i * 3 + 1] = groveRandom() * 12;
+      positions[i * 3 + 2] = (groveRandom() - 0.5) * 60 - 5;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
