@@ -62,22 +62,39 @@ const data = await page.evaluate(() => {
       opacity: m.opacity,
       side: m.side,
     });
-    const size = [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z];
-    meshes.push({
-      id: obj.id,
-      name: obj.name || '',
-      rootName: r?.name || '',
-      rootIdx: rootIndex.has(r) ? rootIndex.get(r) : -1,
-      rootType: r?.type || '',
-      geom: g.type,
-      tris: g.index ? g.index.count / 3 : (g.attributes.position?.count ?? 0) / 3,
-      min: [bb.min.x, bb.min.y, bb.min.z],
-      max: [bb.max.x, bb.max.y, bb.max.z],
-      size,
-      visible: obj.visible,
-      renderOrder: obj.renderOrder,
-      mats: mats.filter(Boolean).map(texState),
-    });
+    const push = (box, extra) => {
+      const size = [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z];
+      meshes.push({
+        id: obj.id,
+        ...extra,
+        name: obj.name || '',
+        rootName: r?.name || '',
+        rootIdx: rootIndex.has(r) ? rootIndex.get(r) : -1,
+        rootType: r?.type || '',
+        geom: g.type,
+        tris: g.index ? g.index.count / 3 : (g.attributes.position?.count ?? 0) / 3,
+        min: [box.min.x, box.min.y, box.min.z],
+        max: [box.max.x, box.max.y, box.max.z],
+        size,
+        visible: obj.visible,
+        renderOrder: obj.renderOrder,
+        mats: mats.filter(Boolean).map(texState),
+      });
+    };
+
+    // An InstancedMesh's geometry sits at the origin; every real placement lives in instanceMatrix,
+    // so its raw geometry AABB says nothing about where the prop actually is. Emit one entry per
+    // instance so overlap and containment checks see the copies that are really in the room.
+    if (obj.isInstancedMesh && obj.count > 0) {
+      const m4 = new obj.matrixWorld.constructor();
+      for (let i = 0; i < obj.count; i++) {
+        obj.getMatrixAt(i, m4);
+        m4.premultiply(obj.matrixWorld);
+        push(g.boundingBox.clone().applyMatrix4(m4), { instanced: true, instanceIndex: i, instanceCount: obj.count });
+      }
+    } else {
+      push(bb, { instanced: false });
+    }
   });
 
   scene.children.forEach((c, i) => roots.push({ i, name: c.name || '', type: c.type, pos: [c.position.x, c.position.y, c.position.z] }));

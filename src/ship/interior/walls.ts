@@ -386,7 +386,10 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
 
   // Small flanged junction boxes — real raised geometry (per the brief: "a 2-4cm raised rib reads
   // better than a texture at this scale"), one per side wall, at different heights so the pair
-  // reads as two independent fixtures rather than a mirrored copy.
+  // reads as two independent fixtures rather than a mirrored copy. The flange/cover/LED stack runs
+  // *out* of the wall, which is `fx - bay.s * d`: the room is on the -s side of a bay's face, so
+  // adding s * d drove each layer further into the wall instead (measured: the LED ended up at
+  // |x| = 5.61 against a wall surface of 5.565, i.e. buried).
   const boxRoughMap = buildGrungeRoughTexture();
   const junctionBays = [sideBays[0], sideBays[3]];
   junctionBays.forEach((bay, i) => {
@@ -396,7 +399,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
 
     const flangeMat = new THREE.MeshStandardMaterial({ color: '#454c54', roughness: 0.6, metalness: 0.5, roughnessMap: boxRoughMap, emissive: SHADOW_FLOOR, emissiveIntensity: 0.1 });
     const flange = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.07), flangeMat);
-    flange.position.set(fx + bay.s * 0.02, y, bay.z);
+    flange.position.set(fx - bay.s * 0.02, y, bay.z);
     flange.rotation.set(0, yaw, 0);
     flange.castShadow = true;
     flange.receiveShadow = true;
@@ -404,7 +407,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
 
     const coverMat = new THREE.MeshStandardMaterial({ color: '#22262b', roughness: 0.75, metalness: 0.15, roughnessMap: boxRoughMap, emissive: SHADOW_FLOOR, emissiveIntensity: 0.1 });
     const cover = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.02), coverMat);
-    cover.position.set(fx + bay.s * 0.045, y, bay.z);
+    cover.position.set(fx - bay.s * 0.045, y, bay.z);
     cover.rotation.set(0, yaw, 0);
     cover.castShadow = true;
     cover.receiveShadow = true;
@@ -418,7 +421,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     // A sphere rather than a cylinder: it reads the same from any angle, so it doesn't need a
     // rotation combining the wall's yaw with a separate tilt to lie flush against the cover.
     const led = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 8), ledMat);
-    led.position.set(fx + bay.s * 0.06, y + 0.05, bay.z);
+    led.position.set(fx - bay.s * 0.06, y + 0.05, bay.z);
     ctx.scene.add(led);
     ctx.statusLights.push({ mesh: led, material: ledMat, phase: y * 1.7, onIntensity: 1.7 });
   });

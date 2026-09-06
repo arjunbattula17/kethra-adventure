@@ -27,13 +27,20 @@ import {
 import type { InteriorCtx } from './ctx';
 import { ROOM_W, protectSubtree } from './ctx';
 
-/**
- * Front face of the desk — matches the console collider's +Z edge in ShipInteriorScene. Scaled by
- * the same 4/3 that took the room from 9x12 to 12x16, so the console sits the same proportional
- * distance off the console-end wall as it did in the old room.
- */
-const DESK_FRONT_Z = (-3.25 * 4) / 3;
 const DESK_Z = (-3.6 * 4) / 3;
+/** Room-facing surface of the side walls — measured, see docs/interior-room-contract.md. */
+const WALL_FACE_X = 5.565;
+/**
+ * Room-facing face of the desk fascia. The fascia is `chamferBox(2.9, 0.44, 0.74)` centred on
+ * DESK_Z, so its front face is at DESK_Z + 0.37 — it is a property of the desk body, not of the
+ * room. This used to be `(-3.25 * 4) / 3`: the old 9x12 room's -3.25 scaled by the same 4/3 that
+ * moved DESK_Z, while the fascia's own 0.74 depth did not scale, which left every fascia detail
+ * 0.097 m off the surface it is bolted to. Measured in reports/interior-nobatch.json: the sub-plate
+ * at mesh 589 sits at z -4.332..-4.310 against a fascia face at -4.43, and the grab rail (mesh 630,
+ * z -4.338..-4.228) hangs in a 0.042 m air gap in front of the coaming end cap (mesh 627, front
+ * face -4.380).
+ */
+const DESK_FRONT_Z = DESK_Z + 0.37;
 
 // ---------------------------------------------------------------------------------------------
 // Geometry helpers
@@ -1263,7 +1270,16 @@ function buildConsoleLights(ctx: InteriorCtx): void {
 /** Wall-mounted travel-log terminal: hooded screen, keyboard shelf, service cabinet below. */
 function buildJournalTerminal(ctx: InteriorCtx, kit: Kit): THREE.Group {
   const g = new THREE.Group();
-  g.position.set(-ROOM_W / 2 + 0.06, 0, (1.5 * 4) / 3);
+  // The terminal is this room's first objective ("Review the travel logs"), and it was invisible.
+  // `-ROOM_W / 2 + 0.06` assumed the wall face was at x = -6; the kit shell's is at -5.565
+  // (docs/interior-room-contract.md), so the whole assembly — backplate, screen, keyboard shelf and
+  // cabinet, 42 meshes measuring x [-5.98, -5.66] — sat entirely inside solid wall. Its old
+  // z = 2 also put it directly behind the Column_Astra at z [1.84, 2.16], which stands 0.48 proud
+  // of the wall and covered the screen. -6.03 is the centre of the widest clear stretch of left
+  // wall in this height band (measured gap z [-6.54, -5.51] against every other prop in
+  // reports/interior-nobatch.json), and it reads better anyway: the log archive now sits beside the
+  // nav console it belongs to rather than out in the middle of the room.
+  g.position.set(-WALL_FACE_X, 0, -6.03);
   g.rotation.y = Math.PI / 2;
   ctx.scene.add(g);
 

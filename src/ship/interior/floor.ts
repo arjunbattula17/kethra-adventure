@@ -17,6 +17,20 @@ const HALF_W = ROOM_W / 2;
 const HALF_D = ROOM_D / 2;
 
 /**
+ * The room-facing wall surfaces, measured (docs/interior-room-contract.md). These are *not*
+ * HALF_W / HALF_D: the kit wall shell stands 0.435 m inboard of the 12x16 deck slab on every side,
+ * so deck hardware placed relative to HALF_W / HALF_D ends up buried inside the wall.
+ */
+const WALL_X = 5.565;
+const WALL_Z = 7.565;
+/** Kick-strip depth, and the room-facing face it leaves for everything else on the deck. */
+const KICK_D = 0.16;
+const KICK_X = WALL_X - KICK_D;
+const KICK_Z = WALL_Z - KICK_D;
+/** Ribbed threshold band spans wall to wall, stopping at the kick strip. */
+const BAND_W = KICK_X * 2;
+
+/**
  * Recessed bare-plate walkway insert running down the middle of the foreground deck, as in the
  * reference crop — the room's one big material swap from painted composite to dark tread plate.
  * Sits between the room centre and the +Z (spawn/airlock) side, so it reads in the foreground
@@ -136,7 +150,29 @@ export function buildFloor(ctx: InteriorCtx): void {
     metalness: 0.3,
     envMapIntensity: 0.55,
   });
-  const wornEdgeMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.34, metalness: 0.68, envMapIntensity: 1.0 });
+  // The threshold band's top is 10.81 x 0.9 m carrying only 8 cm ribs on a 19 cm pitch, so a bit
+  // over half of it renders bare — the largest unmapped colour field left on the deck, and it sits
+  // straight across the spawn-to-console lane. Same bare-plate maps as the walkway insert, at the
+  // same physical pitch (treadMat runs 2.2 repeats over its 1.03 m plates, i.e. ~2 per metre), so
+  // the step reads as the same machined plate rather than a flat grey bar.
+  const stepMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: buildTreadPlateTexture(BAND_W * 2, 1.8),
+    normalMap: buildTreadNormalTexture(BAND_W * 2, 1.8),
+    normalScale: new THREE.Vector2(1.1, 1.1),
+    roughnessMap: buildTreadRoughnessTexture(BAND_W * 2, 1.8),
+    roughness: 1.0,
+    metalness: 0.35,
+    envMapIntensity: 0.55,
+  });
+  // Plate-edge trim: boot-polished, but polished is not chromed. At roughness 0.34 / metalness 0.68
+  // / envMapIntensity 1.0 these strips were a near-mirror, and since they run the full length of the
+  // walkway insert they returned one unbroken specular streak per overhead fixture — which the bloom
+  // pass then blew to pure white straight down the middle of the deck, erasing the tread plate's
+  // texture across the whole midground (renders/sweep-a/mid_y180.png, and the same blowout in the
+  // player's own screenshots). Widening the specular lobe keeps the edge reading brighter than the
+  // roughness-1.0 plate beside it without flaring.
+  const wornEdgeMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.62, metalness: 0.55, envMapIntensity: 0.55 });
   const paintWhiteMat = new THREE.MeshStandardMaterial({ color: 0xbdb8ab, roughness: 0.82, metalness: 0.0, envMapIntensity: 0.3 });
   const grateMat = new THREE.MeshStandardMaterial({ color: 0x8d7238, roughness: 0.52, metalness: 0.5, envMapIntensity: 0.6 });
 
@@ -180,7 +216,11 @@ export function buildFloor(ctx: InteriorCtx): void {
     m.position.set(x, y, z);
     m.rotation.set(-Math.PI / 2, 0, rot);
     m.scale.set(w, d, 1);
-    m.renderOrder = 2;
+    // Deck decal stack, y offset and renderOrder kept in the same order so neither can contradict
+    // the other: polish 0.003/1, painted stencils 0.007/2, wear 0.009/3, contact occlusion
+    // 0.0115/4. Wear used to draw *under* the stencils (renderOrder 2 vs 3) despite sitting 2 mm
+    // higher, so a stencil erased the scuffing over it.
+    m.renderOrder = 3;
     add(m);
   };
 
@@ -244,8 +284,10 @@ export function buildFloor(ctx: InteriorCtx): void {
   // ===== 2. panel seam ribs + bolts =====
   // Raised 3 cm ribs on a ~1.5 m grid. Real geometry rather than a seam texture: at deck grazing
   // angles the rib top catches light and drops a hard shadow line, which a map cannot fake.
-  const ribGeoX = new THREE.BoxGeometry(ROOM_W - 0.3, 0.016, 0.05);
-  const ribGeoZ = new THREE.BoxGeometry(0.05, 0.016, ROOM_D - 0.3);
+  // Ribs run wall to wall and die into the kick strip's room-facing face, not to ROOM_W/ROOM_D-0.3
+  // (measured x = ±5.85, z = ±7.85) which pushed 0.285 m of every rib under the wall shell.
+  const ribGeoX = new THREE.BoxGeometry(KICK_X * 2, 0.016, 0.05);
+  const ribGeoZ = new THREE.BoxGeometry(0.05, 0.016, KICK_Z * 2);
   const ribZs = gridLines(HALF_D, 0.9, 1.5);
   const ribXs = gridLines(HALF_W, 0.9, 1.5);
   // The key light runs from (+X, +Y, +Z) toward (-X, -Y, -Z), so each rib pools grime and drops
@@ -256,7 +298,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     rib.castShadow = true;
     rib.receiveShadow = true;
     add(rib);
-    addContact('strip', 0, z - 0.115, ROOM_W - 0.3, 0.23, Math.PI, 0.0105);
+    addContact('strip', 0, z - 0.115, KICK_X * 2, 0.23, Math.PI, 0.0105);
     for (const x of gridLines(HALF_W, 0.7, 0.87)) bolts.push({ p: [x, 0.017, z] });
   }
   for (const x of ribXs) {
@@ -265,39 +307,62 @@ export function buildFloor(ctx: InteriorCtx): void {
     rib.castShadow = true;
     rib.receiveShadow = true;
     add(rib);
-    addContact('strip', x - 0.115, 0, ROOM_D - 0.3, 0.23, -Math.PI / 2, 0.0105);
+    addContact('strip', x - 0.115, 0, KICK_Z * 2, 0.23, -Math.PI / 2, 0.0105);
     for (const z of gridLines(HALF_D, 0.7, 0.9)) bolts.push({ p: [x, 0.017, z] });
   }
 
   // ===== 3. wall-base kick strip =====
-  // Coving the deck into the walls, so the floor never just intersects a vertical plane.
-  const kickSideGeo = new THREE.BoxGeometry(0.16, 0.17, ROOM_D - 0.38);
-  const kickSideLipGeo = new THREE.BoxGeometry(0.22, 0.03, ROOM_D - 0.38);
-  const kickEndGeo = new THREE.BoxGeometry(ROOM_W - 0.38, 0.17, 0.16);
-  const kickEndLipGeo = new THREE.BoxGeometry(ROOM_W - 0.38, 0.03, 0.22);
-  for (const sx of [-1, 1]) {
-    const kick = new THREE.Mesh(kickSideGeo, darkSteelMat);
-    kick.position.set(sx * (HALF_W - 0.16), 0.085, 0);
-    kick.receiveShadow = true;
-    add(kick);
-    const lip = new THREE.Mesh(kickSideLipGeo, plateMat);
-    lip.position.set(sx * (HALF_W - 0.17), 0.185, 0);
-    lip.castShadow = true;
-    add(lip);
-    addContact('strip', sx * (HALF_W - 0.52), 0, ROOM_D - 0.38, 0.44, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 0.0115);
-    for (const z of gridLines(HALF_D, 0.7, 0.9)) bolts.push({ p: [sx * (HALF_W - 0.23), 0.2, z] });
+  // Coving the deck into the walls, so the floor never just intersects a vertical plane. Sits on
+  // the measured room-facing wall surfaces (WALL_X / WALL_Z), not on HALF_W / HALF_D: the old
+  // HALF_W-0.16 / HALF_D-0.16 placement put the whole strip at a measured x ∈ [5.76, 5.92] and
+  // z ∈ [7.76, 7.92], i.e. entirely behind the 5.565 / 7.565 wall face, so none of it ever
+  // rendered and every wall/deck junction in the room met as a bare seam.
+  // It is broken wherever it would drive through something: the Column_Astra bases (measured world
+  // AABB x ∈ [5.117, 6.29], z ∈ [1.836, 2.164]) and the airlock opening, where the +Z wall shells
+  // stop at |x| = 2 and a 17 cm bar across the doorway would be a trip hazard.
+  const COLUMN_HALF_Z = 0.164 + 0.06;
+  const sideKickRuns: [number, number][] = [
+    [-KICK_Z, -2 - COLUMN_HALF_Z],
+    [-2 + COLUMN_HALF_Z, 2 - COLUMN_HALF_Z],
+    [2 + COLUMN_HALF_Z, KICK_Z],
+  ];
+  const endKickRuns: [number, [number, number][]][] = [
+    [-1, [[-WALL_X, WALL_X]]],
+    [1, [[-WALL_X, -2], [2, WALL_X]]],
+  ];
+  for (const [z0, z1] of sideKickRuns) {
+    const len = z1 - z0;
+    const cz = (z0 + z1) / 2;
+    const kickGeo = new THREE.BoxGeometry(KICK_D, 0.17, len);
+    const lipGeo = new THREE.BoxGeometry(0.22, 0.03, len);
+    for (const sx of [-1, 1]) {
+      const kick = new THREE.Mesh(kickGeo, darkSteelMat);
+      kick.position.set(sx * (WALL_X - KICK_D / 2), 0.085, cz);
+      kick.receiveShadow = true;
+      add(kick);
+      const lip = new THREE.Mesh(lipGeo, plateMat);
+      lip.position.set(sx * (WALL_X - 0.11), 0.185, cz);
+      lip.castShadow = true;
+      add(lip);
+      addContact('strip', sx * (WALL_X - 0.52), cz, len, 0.44, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 0.0115);
+      for (const dz of gridLines(len / 2, 0.25, 0.9)) bolts.push({ p: [sx * (WALL_X - 0.17), 0.2, cz + dz] });
+    }
   }
-  for (const sz of [-1, 1]) {
-    const kick = new THREE.Mesh(kickEndGeo, darkSteelMat);
-    kick.position.set(0, 0.085, sz * (HALF_D - 0.16));
-    kick.receiveShadow = true;
-    add(kick);
-    const lip = new THREE.Mesh(kickEndLipGeo, plateMat);
-    lip.position.set(0, 0.185, sz * (HALF_D - 0.17));
-    lip.castShadow = true;
-    add(lip);
-    addContact('strip', 0, sz * (HALF_D - 0.52), ROOM_W - 0.38, 0.44, sz > 0 ? Math.PI : 0, 0.0115);
-    for (const x of gridLines(HALF_W, 0.7, 0.87)) bolts.push({ p: [x, 0.2, sz * (HALF_D - 0.23)] });
+  for (const [sz, runs] of endKickRuns) {
+    for (const [x0, x1] of runs) {
+      const len = x1 - x0;
+      const cx = (x0 + x1) / 2;
+      const kick = new THREE.Mesh(new THREE.BoxGeometry(len, 0.17, KICK_D), darkSteelMat);
+      kick.position.set(cx, 0.085, sz * (WALL_Z - KICK_D / 2));
+      kick.receiveShadow = true;
+      add(kick);
+      const lip = new THREE.Mesh(new THREE.BoxGeometry(len, 0.03, 0.22), plateMat);
+      lip.position.set(cx, 0.185, sz * (WALL_Z - 0.11));
+      lip.castShadow = true;
+      add(lip);
+      addContact('strip', cx, sz * (WALL_Z - 0.52), len, 0.44, sz > 0 ? Math.PI : 0, 0.0115);
+      for (const dx of gridLines(len / 2, 0.25, 0.87)) bolts.push({ p: [cx + dx, 0.2, sz * (WALL_Z - 0.17)] });
+    }
   }
 
   // ===== 4. recessed tread insert (walkway grate) =====
@@ -410,8 +475,10 @@ export function buildFloor(ctx: InteriorCtx): void {
   // ===== 5. ribbed threshold band =====
   // The horizontal ribbed step that splits the reference's foreground from the console bay.
   // Left out of ctx.floorMeshes so the ground raycast keeps returning the flat deck.
-  const bandW = ROOM_W - 0.5;
-  const bandBase = new THREE.Mesh(new THREE.BoxGeometry(bandW, 0.06, 0.9), plateMat);
+  // ROOM_W - 0.5 reached x = ±5.75, 0.185 m past the 5.565 wall face; the band now dies into the
+  // kick strip's room-facing face at ±5.405 instead.
+  const bandW = BAND_W;
+  const bandBase = new THREE.Mesh(new THREE.BoxGeometry(bandW, 0.06, 0.9), stepMat);
   bandBase.position.set(0, 0.03, THRESHOLD_Z);
   bandBase.castShadow = true;
   bandBase.receiveShadow = true;
@@ -449,11 +516,16 @@ export function buildFloor(ctx: InteriorCtx): void {
   }
 
   // ===== 7. stencils =====
+  // Every one of these used to run under solid deck hardware, which cut the lettering into pieces:
+  // NAV reached z = -2.65 against the band's outer lip face at -2.45; REPAIR (x ∈ [3.65, 4.55],
+  // z ∈ [1.65, 2.55]) overlapped the access plate at z ∈ [1.24, 1.96]; CAUTION overlapped the hatch
+  // frame (x ∈ [-3.57, -2.43], z ∈ [-2.37, -1.23]) and, once the band grew to the wall, the band
+  // too; E-LOCK was placed off HALF_D so it landed on the airlock cross LED channel.
   const stencils: [string, number, number, number, number][] = [
-    ['NAV', 0, THRESHOLD_Z + 0.85, 1.0, 0],
-    ['REPAIR', 4.1, 2.1, 0.9, -Math.PI / 2],
-    ['CAUTION', -3.6, -2.3, 0.85, Math.PI / 2],
-    ['E-LOCK', 0, HALF_D - 1.1, 0.95, Math.PI],
+    ['NAV', 0, THRESHOLD_Z + 1.1, 1.0, 0],
+    ['REPAIR', 4.1, 2.75, 0.9, -Math.PI / 2],
+    ['CAUTION', -4.75, -2.0, 0.85, Math.PI / 2],
+    ['E-LOCK', 0, WALL_Z - 1.115, 0.95, Math.PI],
   ];
   for (const [label, x, z, size, rot] of stencils) {
     const decal = new THREE.Mesh(
@@ -462,7 +534,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     );
     decal.position.set(x, 0.007, z);
     decal.rotation.set(-Math.PI / 2, 0, rot);
-    decal.renderOrder = 3;
+    decal.renderOrder = 2;
     add(decal);
   }
 
@@ -472,7 +544,10 @@ export function buildFloor(ctx: InteriorCtx): void {
   const hatchWell = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.02, 1.02), voidMat);
   hatchWell.position.set(hatchX, 0.01, hatchZ);
   add(hatchWell);
-  const hatchCover = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.045, 0.92), darkSteelMat);
+  // 0.92 x 0.92 m — the second-largest unmapped field on the deck, and only ~40% of it is covered
+  // by the ribs. Shares the walkway insert's bare-plate material outright (no new texture, no new
+  // material): both are removable plate over the sub-deck, so they should read as the same stock.
+  const hatchCover = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.045, 0.92), treadMat);
   hatchCover.position.set(hatchX, 0.023, hatchZ);
   hatchCover.castShadow = true;
   hatchCover.receiveShadow = true;
@@ -513,9 +588,11 @@ export function buildFloor(ctx: InteriorCtx): void {
     new THREE.PlaneGeometry(0.6, 0.6),
     new THREE.MeshStandardMaterial({ map: buildFloorStencilTexture('SUB-DECK'), transparent: true, roughness: 0.85, metalness: 0.1, depthWrite: false }),
   );
-  hatchLabel.position.set(hatchX, 0.047, hatchZ);
+  // Above the hatch ribs (0.05 centre, 0.016 tall, so tops at 0.058), which the label used to sit
+  // *inside* at 0.047 — the five ribs cut the lettering into strips.
+  hatchLabel.position.set(hatchX, 0.0595, hatchZ);
   hatchLabel.rotation.x = -Math.PI / 2;
-  hatchLabel.renderOrder = 3;
+  hatchLabel.renderOrder = 2;
   add(hatchLabel);
 
   // ===== 9. floor vents =====
@@ -607,14 +684,17 @@ export function buildFloor(ctx: InteriorCtx): void {
     strip.position.set(lx, 0.036, INSET_CZ);
     add(strip);
   }
-  // Short cross run just inboard of the airlock threshold.
+  // Short cross run just inboard of the airlock threshold. HALF_D - 0.5 put it at z = 7.5, i.e.
+  // straight through the kick strip's z ∈ [7.405, 7.565] footprint; 0.105 clears the kick's
+  // room-facing face by 5 cm with the channel's own 0.055 half-depth.
+  const crossZ = KICK_Z - 0.105;
   const crossChannel = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.035, 0.11), darkSteelMat);
-  crossChannel.position.set(0, 0.017, HALF_D - 0.5);
+  crossChannel.position.set(0, 0.017, crossZ);
   crossChannel.castShadow = true;
   crossChannel.receiveShadow = true;
   add(crossChannel);
   const crossStrip = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.012, 0.045), ledMat);
-  crossStrip.position.set(0, 0.036, HALF_D - 0.5);
+  crossStrip.position.set(0, 0.036, crossZ);
   add(crossStrip);
 
   // ===== 13. loose grate panels =====
@@ -643,8 +723,12 @@ export function buildFloor(ctx: InteriorCtx): void {
   grateA.position.set(-2.5, 0.0, HALF_D - 1.6);
   grateA.rotation.y = 0.34;
   add(grounded(grateA));
+  // The tilted panel measured z ∈ [6.308, 7.696] at HALF_D - 1.0, so its far corner drove 0.13 m
+  // through the 7.565 wall face; 6.62 puts its span at [5.93, 7.32], clear of the kick strip's
+  // 7.405 face. Its low corner also measured y = -0.002, 2 mm under the deck — the panel's own
+  // tilt drops 0.057 below its origin, so the origin has to sit at 0.06, not 0.055.
   const grateB = grateA.clone();
-  grateB.position.set(-3.05, 0.055, HALF_D - 1.0);
+  grateB.position.set(-3.05, 0.06, 6.62);
   grateB.rotation.set(0.05, 0.62, 0.03);
   add(grateB);
   const grateC = grateA.clone();
@@ -652,7 +736,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   grateC.rotation.y = 1.32;
   add(grateC);
   addContact('pad', -2.5, HALF_D - 1.6, 2.1, 1.15, -0.34, 0.0115);
-  addContact('pad', -3.05, HALF_D - 1.0, 2.1, 1.15, -0.62, 0.0115);
+  addContact('pad', -3.05, 6.62, 2.1, 1.15, -0.62, 0.0115);
   addContact('pad', -3.4, HALF_D - 2.9, 2.1, 1.15, -1.32, 0.0115);
 
   // ===== 14. localised wear =====
@@ -665,11 +749,13 @@ export function buildFloor(ctx: InteriorCtx): void {
   addWear('oil', TROUGH_X + 0.2, INSET_CZ + 0.4, 1.3, 1.3, 0.35);
   addWear('oil', -3.0, -1.8, 1.4, 1.4, 1.1);
   addWear('oil', 2.7, -2.4, 1.1, 1.1, -0.6);
-  addWear('grime', -HALF_W + 1.0, -3.6, 1.7, 3.4);
-  addWear('grime', HALF_W - 1.0, 1.4, 1.7, 3.6);
-  addWear('grime', -2.2, HALF_D - 1.0, 3.2, 1.5);
-  addWear('grime', 2.6, HALF_D - 1.0, 3.2, 1.5);
-  addWear('grime', 0, -HALF_D + 0.9, 4.2, 1.5);
+  // Wall-joint grime keys off the wall faces, not HALF_W / HALF_D — measured, these four ran to
+  // x = ±5.85 / z = ±7.85 and lost their darkest half behind the wall shell.
+  addWear('grime', -WALL_X + 1.0, -3.6, 1.7, 3.4);
+  addWear('grime', WALL_X - 1.0, 1.4, 1.7, 3.6);
+  addWear('grime', -2.2, WALL_Z - 1.0, 3.2, 1.5);
+  addWear('grime', 2.6, WALL_Z - 1.0, 3.2, 1.5);
+  addWear('grime', 0, -WALL_Z + 0.9, 4.2, 1.5);
   addWear('drip', hatchX + 0.55, hatchZ - 0.6, 1.0, 1.4, 0.3);
 
   // ===== 15. floor cable runs + coiled hose =====
@@ -681,10 +767,17 @@ export function buildFloor(ctx: InteriorCtx): void {
   // its own low-metal, high-roughness response distinct from every steel/paint material above.
   const cableMat = new THREE.MeshStandardMaterial({ color: 0x201d1a, roughness: 0.78, metalness: 0.06, envMapIntensity: 0.25 });
   const coilMat = new THREE.MeshStandardMaterial({ color: 0xa8703a, roughness: 0.42, metalness: 0.55, envMapIntensity: 0.7 });
-  const clipGeo = new THREE.BoxGeometry(0.1, 0.02, 0.06);
+  // Saddle clamp: 0.075 tall so it stands on the deck and arches over the 6 cm cable. The old
+  // 0.1 x 0.02 x 0.06 clip sat at y = 0.031, spanning the cable's own centreline (0.021, radius
+  // 0.03), so all that showed of it was a 2 cm tab either side of the tube.
+  const clipGeo = new THREE.BoxGeometry(0.11, 0.075, 0.026);
   const glandGeo = new THREE.BoxGeometry(0.16, 0.09, 0.12);
+  /** Cable centreline: radius 0.03 + 2 mm, so the tube rests on the deck instead of measuring y = -0.009. */
+  const CABLE_Y = 0.032;
+  /** Wall penetration face: the gland bolts to the kick strip, whose room-facing face is at KICK_X. */
+  const GLAND_X = KICK_X - 0.08;
 
-  function buildCableRun(pts: [number, number][], y = 0.021, radius = 0.03): THREE.CatmullRomCurve3 {
+  function buildCableRun(pts: [number, number][], y = CABLE_Y, radius = 0.03): THREE.CatmullRomCurve3 {
     const curve = new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, y, z)));
     const geo = new THREE.TubeGeometry(curve, pts.length * 8, radius, 8, false);
     const mesh = new THREE.Mesh(geo, cableMat);
@@ -693,41 +786,49 @@ export function buildFloor(ctx: InteriorCtx): void {
     add(mesh);
     return curve;
   }
-  function addCableClips(curve: THREE.CatmullRomCurve3, count: number, yTop: number) {
+  function addCableClips(curve: THREE.CatmullRomCurve3, count: number) {
     for (let i = 0; i < count; i++) {
       const t = (i + 0.5) / count;
       const p = curve.getPointAt(t);
       const tangent = curve.getTangentAt(t);
       const rot = Math.atan2(tangent.x, tangent.z);
-      bolts.push({ p: [p.x, yTop + 0.014, p.z] });
       const clip = new THREE.Mesh(clipGeo, plateMat);
-      clip.position.set(p.x, yTop, p.z);
+      clip.position.set(p.x, 0.0375, p.z);
       clip.rotation.y = rot;
       clip.castShadow = true;
       clip.receiveShadow = true;
       add(clip);
+      // Anchor bolts flank the saddle, clear of its 0.055 half-width plus their own 0.026 radius,
+      // driven into the deck. They used to be stacked on the cable's centreline at y = 0.045,
+      // inside the tube (top 0.051), where only a millimetre of each head poked out.
+      for (const s of [-1, 1]) {
+        bolts.push({ p: [p.x + s * 0.085 * Math.cos(rot), 0.008, p.z - s * 0.085 * Math.sin(rot)] });
+      }
       addContact('pad', p.x, p.z, 0.24, 0.16, rot, 0.0112);
     }
   }
 
-  const runA = buildCableRun([[-HALF_W + 0.26, 0.3], [-4.4, -0.6], [-3.15, -1.35], [-2.05, -1.95]]);
-  addCableClips(runA, 3, 0.031);
+  // Both glands measured x = ∓[5.7, 5.86] — the whole wall penetration, and the first 0.19 m of
+  // each cable run, were behind the 5.565 wall face. They now bolt to the kick strip's room-facing
+  // face at ±5.405, with the run starting at the gland's inboard face.
+  const runA = buildCableRun([[-(GLAND_X - 0.08), 0.3], [-4.4, -0.6], [-3.15, -1.35], [-2.05, -1.95]]);
+  addCableClips(runA, 3);
   const glandA = new THREE.Mesh(glandGeo, darkSteelMat);
-  glandA.position.set(-HALF_W + 0.22, 0.05, 0.3);
+  glandA.position.set(-GLAND_X, 0.045, 0.3);
   glandA.castShadow = true;
   glandA.receiveShadow = true;
   add(glandA);
-  addContact('pad', -HALF_W + 0.3, 0.3, 0.4, 0.32, 0, 0.0113);
+  addContact('pad', -(GLAND_X - 0.04), 0.3, 0.4, 0.32, 0, 0.0113);
   addWear('grime', -3.6, -1.1, 1.6, 1.1, 0.6);
 
-  const runB = buildCableRun([[HALF_W - 0.26, 0.45], [4.1, -0.2], [3.35, -1.3], [2.85, -2.05]]);
-  addCableClips(runB, 3, 0.031);
+  const runB = buildCableRun([[GLAND_X - 0.08, 0.45], [4.1, -0.2], [3.35, -1.3], [2.85, -2.05]]);
+  addCableClips(runB, 3);
   const glandB = new THREE.Mesh(glandGeo, darkSteelMat);
-  glandB.position.set(HALF_W - 0.22, 0.05, 0.45);
+  glandB.position.set(GLAND_X, 0.045, 0.45);
   glandB.castShadow = true;
   glandB.receiveShadow = true;
   add(glandB);
-  addContact('pad', HALF_W - 0.3, 0.45, 0.4, 0.32, 0, 0.0113);
+  addContact('pad', GLAND_X - 0.04, 0.45, 0.4, 0.32, 0, 0.0113);
   addWear('grime', 3.7, -0.7, 1.5, 1.1, -0.5);
 
   // Coiled hose reel resting on open deck — small saturated copper accent per the palette table,
@@ -737,7 +838,10 @@ export function buildFloor(ctx: InteriorCtx): void {
   [0.32, 0.25, 0.18, 0.11].forEach((r, i) => {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.024, 6, 20), coilMat);
     ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.012 + i * 0.001;
+    // 6 radial segments, so the tube's lowest vertex sits 0.024·cos(30°) = 0.0208 under the ring
+    // centre: at y = 0.012 the coil measured a min of -0.0088, sunk almost a centimetre into the
+    // deck. 0.023 lands the bottom ring 2 mm proud of it.
+    ring.position.y = 0.023 + i * 0.001;
     ring.castShadow = true;
     ring.receiveShadow = true;
     coilGroup.add(ring);

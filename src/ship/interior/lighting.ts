@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import type { InteriorCtx } from './ctx';
-import { ROOM_W, ROOM_H } from './ctx';
 import {
   buildRadialGlowTexture,
   buildBarGlowTexture,
@@ -33,6 +32,15 @@ const ALARM = 0xff4a2c;
 const STEEL = 0x4b535e;
 const STEEL_DARK = 0x2b3138;
 const STEEL_TRIM = 0x89929d;
+
+// The two surfaces every fixture in this module hangs off. Both are measured, not derived from
+// ROOM_W/ROOM_H — which is what went wrong before: every wall fixture was mounted at
+// `ROOM_W / 2 - 0.1` = 5.9 and every ceiling decal at `ROOM_H - 0.1` = 4.9, both of which are
+// *inside* the shell. The audit dump has all 90 wall-fixture meshes sitting in x 5.58..5.91, i.e.
+// entirely behind the room-facing wall plane, and the pendant/console ceiling halos at y 4.90,
+// i.e. inside the slab.
+const WALL_X = 5.565; // side-wall room-facing surface (docs/interior-room-contract.md)
+const CEIL_FACE = 4.88; // ceiling slab underside (interior-nobatch.json: slab AABB y[4.880,5.000])
 
 /** All non-prop scene lighting: the room rig plus the practical fixtures that motivate it. */
 export function buildLighting(ctx: InteriorCtx): void {
@@ -137,7 +145,7 @@ export function buildLighting(ctx: InteriorCtx): void {
   /** Glow decal pressed against a side wall. side=+1 is the +X wall. */
   const wallGlow = (side: 1 | -1, z: number, y: number, w: number, h: number, mat: THREE.Material) => {
     const m = glow(w, h, mat);
-    m.position.set(side * (ROOM_W / 2 - 0.115), y, z);
+    m.position.set(side * (WALL_X - 0.02), y, z);
     m.rotation.y = -side * (Math.PI / 2);
     return m;
   };
@@ -146,7 +154,9 @@ export function buildLighting(ctx: InteriorCtx): void {
   const boltQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2);
   const boltScale = new THREE.Vector3(0.036, 0.028, 0.036);
   const addWallBolts = (side: 1 | -1, z: number, y: number, spreadZ: number, spreadY: number) => {
-    const x = side * (ROOM_W / 2 - 0.13);
+    // boltScale is 0.028 along the bolt's own axis, so this seats the head flush in the wall plane
+    // with its full length proud of it.
+    const x = side * (WALL_X - 0.014);
     for (const dz of [-spreadZ, spreadZ]) {
       for (const dy of [-spreadY, spreadY]) {
         boltMatrices.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y + dy, z + dz), boltQuat, boltScale));
@@ -237,8 +247,9 @@ export function buildLighting(ctx: InteriorCtx): void {
 
   const pendantLights: THREE.PointLight[] = [];
   // The old room's ceiling duct spine this stem mounted into is gone (ceiling.ts is now a flat
-  // slab); PEND_DY lifts the whole fixture by the ROOM_H - 4 = 1 unit the ceiling itself rose by,
-  // so the stem still reaches it while every proportion below the mount stays untouched.
+  // slab); PEND_DY lifts the lamp body by the ROOM_H - 4 = 1 unit the ceiling itself rose by, so
+  // every proportion below the mount stays untouched. The canopy and stem above it are placed
+  // against CEIL_FACE directly — lifting them by 1 left them 0.51 short of the real slab.
   const PEND_DY = 1;
 
   // Round-6 fix: the ceiling view's p95/median both read far under the reference (-0.06 to -0.22)
@@ -261,15 +272,19 @@ export function buildLighting(ctx: InteriorCtx): void {
   const glowPendantHalo = glowWarmPoolSoft.clone();
   glowPendantHalo.opacity = 0.13;
   const addPendant = (z: number) => {
-    // Mount into the underside of the ceiling slab.
-    box(0.36, 0.05, 0.36, matHousingDark, 0, 3.345 + PEND_DY, z);
+    // Mount into the underside of the ceiling slab. PEND_DY put the canopy at y 4.32..4.37 while
+    // the slab's underside is at 4.88 (audit AABB), so the fixture hung 0.51 clear of the ceiling
+    // with its stem ending in mid-air — the "floating pendant" in renders/sweep-a/mid_up_y0.png.
+    // The canopy and stem now reach the real slab; everything from the crossbar down is unchanged.
+    box(0.36, 0.05, 0.36, matHousingDark, 0, CEIL_FACE - 0.025, z);
     const collar = new THREE.Mesh(gRing, matTrim);
     collar.scale.set(0.12, 0.12, 0.12);
     collar.rotation.x = Math.PI / 2;
-    collar.position.set(0, 3.3 + PEND_DY, z);
+    collar.position.set(0, CEIL_FACE - 0.07, z);
     ctx.scene.add(collar);
 
-    tube(0.032, 0.34, 'y', matTrim, 0, 3.15 + PEND_DY, z);
+    // Canopy underside 4.855 down to crossbar top 4.015.
+    tube(0.032, 0.84, 'y', matTrim, 0, 4.435, z);
     const crossbar = box(1.22, 0.05, 0.07, matHousing, 0, 2.99 + PEND_DY, z);
     crossbar.castShadow = true;
 
@@ -319,7 +334,9 @@ export function buildLighting(ctx: InteriorCtx): void {
     // the only bright pixel in frame; this gives the highlight some area to occupy.
     const ceilingHalo = glow(2.6, 2.2, glowPendantHalo);
     ceilingHalo.rotation.x = Math.PI / 2;
-    ceilingHalo.position.set(0, ROOM_H - 0.1, z);
+    // ROOM_H - 0.1 = 4.90 was *inside* the slab (4.88..5.00), so the slab's own underside occluded
+    // the halo and the ceiling around the pendant stayed dead flat.
+    ceilingHalo.position.set(0, CEIL_FACE - 0.01, z);
   };
   addPendant((-0.2 * 4) / 3);
   addPendant((2.9 * 4) / 3);
@@ -329,9 +346,13 @@ export function buildLighting(ctx: InteriorCtx): void {
   //    recognisable lighting cue in the reference crop.
   // ===============================================================================================
 
-  const SCONCE_Y = 2.72 * (5 / 4);
+  // 2.72 * 5/4 = 3.4 put the whole fixture (y 3.17..3.63) in the band above the wall body, where it
+  // was pierced by the pair of surface conduits the walls run at y[3.47,3.53], x[+-5.44,+-5.58] for
+  // the full z[-7.60,7.60], and poked through the corner pieces' y=3.33 shelf. 3.05 hangs it on the
+  // solid wall body (y 0.20..3.02) with its back plate at y 2.82..3.28, clear of both.
+  const SCONCE_Y = 3.05;
   const addSconce = (side: 1 | -1, z: number, withLight: boolean) => {
-    const wallX = side * (ROOM_W / 2 - 0.1);
+    const wallX = side * WALL_X;
     const inward = -side;
 
     box(0.05, 0.46, 0.58, matHousingDark, wallX - side * 0.02, SCONCE_Y, z);
@@ -349,7 +370,9 @@ export function buildLighting(ctx: InteriorCtx): void {
 
     const cone = wallGlow(side, z, SCONCE_Y - 0.86, 0.72, 1.15, glowWarmCone);
     cone.renderOrder = 2;
-    floorPool(side * 3.7, z, 1.7, 2.2, glowWarmPoolSoft);
+    // 3.7 was 0.7 in from the old 9-wide room's wall line; keep that offset against the real one so
+    // the pool still lands under the lens instead of 1.9 m out in the middle of the deck.
+    floorPool(side * (WALL_X - 0.7), z, 1.7, 2.2, glowWarmPoolSoft);
 
     const sprite = new THREE.Sprite(spriteWarm);
     sprite.scale.set(0.6, 0.34, 1);
@@ -370,8 +393,11 @@ export function buildLighting(ctx: InteriorCtx): void {
   // Staggered rather than mirrored: two walls of evenly-opposed fixtures reads as a corridor
   // decal strip, and the reference's practicals are never symmetrical across the room.
   // Positions scaled by the room's 4/3 (x/z) rebuild factor; -6, -0.8 are the lit fixture in each run.
-  for (const z of [-6, -2.267, 1.467, 5.2]) addSconce(-1, z, z === -6);
-  for (const z of [-4.533, -0.8, 2.933, 6.667]) addSconce(1, z, z === -0.8);
+  // Three of them then had to move off dressing the wall modules already occupy: -2.267 sat over the
+  // Column_Astra at z[-2.16,-1.84] (which stands 0.48 proud of the wall), 1.467 clipped the wall
+  // panel at z[1.72,2.28], and -4.533 was speared by the pipe elbow at x[5.42,5.80] z[-5.13,-4.85].
+  for (const z of [-6, -2.75, 1.3, 5.2]) addSconce(-1, z, z === -6);
+  for (const z of [-5.9, -0.8, 2.933, 6.667]) addSconce(1, z, z === -0.8);
 
   // ===============================================================================================
   // 4. Bare strip tubes clamped high on the side walls, plus the graze they throw down the plating.
@@ -379,7 +405,7 @@ export function buildLighting(ctx: InteriorCtx): void {
 
   const flickerTargets: { mat: THREE.MeshStandardMaterial; graze: THREE.MeshBasicMaterial; baseE: number; baseO: number }[] = [];
   const addWallStrip = (side: 1 | -1, z: number, len: number, flicker: boolean) => {
-    const wallX = side * (ROOM_W / 2 - 0.1);
+    const wallX = side * WALL_X;
     const inward = -side;
     const lensMat = flicker ? matWarmTube.clone() : matWarmTube;
     const grazeMat = flicker ? glowWarmBar.clone() : glowWarmBar;
@@ -405,7 +431,9 @@ export function buildLighting(ctx: InteriorCtx): void {
 
     if (flicker) flickerTargets.push({ mat: lensMat, graze: grazeMat, baseE: lensMat.emissiveIntensity, baseO: grazeMat.opacity });
   };
-  addWallStrip(-1, (-0.4 * 4) / 3, 2.1, false);
+  // -0.4*4/3 = -0.533 ran the 2.1-long strip through z[-1.58,0.52], straight into the ceiling rib at
+  // x[-5.40,5.40] y[4.10,4.40] z[-0.16,0.16]. -1.35 ends the strip at z=-0.30, clear of it.
+  addWallStrip(-1, -1.35, 2.1, false);
   addWallStrip(-1, (4.2 * 4) / 3, 1.8, false);
   addWallStrip(1, (-3.0 * 4) / 3, 2.2, false);
   addWallStrip(1, (2.6 * 4) / 3, 1.9, true);
@@ -414,28 +442,34 @@ export function buildLighting(ctx: InteriorCtx): void {
   // 5. Recessed egg-crate troffers set between the ceiling beams.
   // ===============================================================================================
 
-  // Ceiling slab underside sits at ROOM_H - 0.075; the troffers recess into it between beams.
-  const CEIL_FACE = ROOM_H - 0.075;
+  // The troffers recess into the slab, whose underside is CEIL_FACE. ROOM_H - 0.075 = 4.925 was
+  // 45 mm too high, which left the pan straddling the slab face and — the real defect — put the
+  // 1.0x0.9 warm lens at y 4.865 *inside* the 4.86..4.93 pan, so the fixture's whole light-emitting
+  // face never rendered and the troffer read as a dark grid in renders/sweep-a/mid_up_y0.png.
   const addTroffer = (x: number, z: number) => {
-    box(1.26, 0.07, 1.16, matHousingDark, x, CEIL_FACE - 0.03, z);
-    box(1.12, 0.05, 1.02, matTrim, x, CEIL_FACE - 0.025, z);
+    // Recess pan, top flush with the slab face, bottom face at 4.81.
+    box(1.26, 0.07, 1.16, matHousingDark, x, CEIL_FACE - 0.035, z);
+    // Bezel around the aperture. The old 1.12x0.05x1.02 trim plate was wholly contained by the
+    // 1.26x0.07x1.16 pan, so it was invisible too; four bars leave the aperture open.
+    for (const dz of [-0.53, 0.53]) box(1.26, 0.04, 0.1, matTrim, x, CEIL_FACE - 0.09, z + dz);
+    for (const dx of [-0.58, 0.58]) box(0.1, 0.04, 0.96, matTrim, x + dx, CEIL_FACE - 0.09, z);
 
     const lens = new THREE.Mesh(gQuad, matWarmLens);
     lens.scale.set(1.0, 0.9, 1);
     lens.rotation.x = Math.PI / 2;
-    lens.position.set(x, CEIL_FACE - 0.06, z);
+    lens.position.set(x, CEIL_FACE - 0.075, z);
     ctx.scene.add(lens);
 
     const louver = new THREE.Mesh(gQuad, matLouver);
     louver.scale.set(1.0, 0.9, 1);
     louver.rotation.x = Math.PI / 2;
-    louver.position.set(x, CEIL_FACE - 0.07, z);
+    louver.position.set(x, CEIL_FACE - 0.085, z);
     louver.renderOrder = 2;
     ctx.scene.add(louver);
 
     const halo = glow(1.7, 1.6, glowWarmPoolSoft);
     halo.rotation.x = Math.PI / 2;
-    halo.position.set(x, CEIL_FACE - 0.105, z);
+    halo.position.set(x, CEIL_FACE - 0.12, z);
 
     floorPool(x, z, 2.8, 2.8, glowWarmPoolSoft);
 
@@ -472,7 +506,8 @@ export function buildLighting(ctx: InteriorCtx): void {
   // brightest thing in the room" even when the panel itself is off-frame.
   const coolCeiling = glow(3.2, 2.4, glowCoolPool);
   coolCeiling.rotation.x = Math.PI / 2;
-  coolCeiling.position.set(0, CEIL_FACE - 0.03, (-4.0 * 4) / 3);
+  // Was CEIL_FACE - 0.03 against the old 4.925 face, i.e. y 4.895 — inside the slab, occluded.
+  coolCeiling.position.set(0, CEIL_FACE - 0.01, (-4.0 * 4) / 3);
 
   // Cool marker lenses flanking the console bay at deck level — small, cool, and low, so the eye
   // is led toward the focal point along the floor.
@@ -487,9 +522,11 @@ export function buildLighting(ctx: InteriorCtx): void {
 
   const beaconSweeps: THREE.Object3D[] = [];
   const addBeacon = (side: 1 | -1, z: number, primary: boolean) => {
-    const wallX = side * (ROOM_W / 2 - 0.1);
+    const wallX = side * WALL_X;
     const inward = -side;
-    const y = 3.05 * (5 / 4);
+    // 3.05 * 5/4 = 3.8125 spanned y 3.61..4.01, overlapping the corner pieces' y[3.46,3.69] band
+    // that the +Z beacon at z=5.467 sits in front of. 3.9 clears it and still sits below the strips.
+    const y = 3.9;
 
     box(0.06, 0.34, 0.34, matHousingDark, wallX - side * 0.02, y, z);
     box(0.05, 0.4, 0.06, matHousing, wallX + inward * 0.04, y, z);
@@ -509,7 +546,7 @@ export function buildLighting(ctx: InteriorCtx): void {
     // Sweeping searchlight streak. The group carries the wall facing; the quad spins about its own
     // normal inside it, which is what a rotating beacon actually paints on a flat wall.
     const sweepGroup = new THREE.Object3D();
-    sweepGroup.position.set(side * (ROOM_W / 2 - 0.12), y, z);
+    sweepGroup.position.set(side * (WALL_X - 0.025), y, z);
     sweepGroup.rotation.y = -side * (Math.PI / 2);
     const sweep = new THREE.Mesh(gQuad, glowAlarmBar);
     sweep.scale.set(2.4, 0.5, 1);

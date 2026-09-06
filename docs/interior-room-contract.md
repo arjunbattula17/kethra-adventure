@@ -12,16 +12,24 @@ y=0, the ceiling structure starts around y=4.4.
 
 The **room-facing wall surfaces** — the planes props must sit in front of, never behind:
 
-| Wall | Surface | Hull side |
-| --- | --- | --- |
-| left (-X) | `x = -5.565` | out to `x = -6.77` |
-| right (+X) | `x = +5.565` | out to `x = +6.77` |
-| console (-Z) | `z = -7.565` | out to `z = -8.77` |
-| airlock (+Z) | `z = +7.565` | out to `z = +8.77` |
+**The wall is stepped at y = 3.** The lower bay (`WallAstra_Straight`, y 0–3.02) and the upper cap
+(`TopAstra_Straight` / `TopCables_Corner_Square_Inner`, y 3–5) are different pieces with different
+face offsets, so there is a 0.35 m recess above waist height. Mount against the surface for the
+height you are actually at:
 
-Anything at `|x| > 5.565` or `|z| > 7.565` is **inside the wall** and will either be invisible or
-poke out through the hull. Anything a wall-mounted prop needs is `wall surface ± its own depth`,
-mounted on the room side.
+| Wall | Lower surface (y 0–3.02) | Upper surface (y 3–5) | Hull side |
+| --- | --- | --- | --- |
+| left (-X) | `x = -5.565` | `x = -5.914` | out to `x = -6.77` |
+| right (+X) | `x = +5.565` | `x = +5.914` | out to `x = +6.77` |
+| console (-Z) | `z = -7.565` | `z = -7.914` | out to `z = -8.77` |
+| airlock (+Z) | `z = +7.565` | `z = +7.914` | out to `z = +8.77` |
+
+Anything at `|x| > 5.565` or `|z| > 7.565` **below y = 3** is inside the solid wall bay and will not
+be visible at all. Above y = 3 the same coordinate is in the recess and is fine down to 5.914.
+This is the trap that catches fixtures placed against `HALF_W = 6` / `HALF_D = 8`: mounting at
+`|x| = 5.88` puts a fixture 0.03 proud of the upper wall but 0.32 *buried inside* the lower one, so
+it reads as a fixture that vanishes below chest height. A wall-mounted prop of depth `d` sits
+centred at `surface - d/2` on the room side of whichever surface its height selects.
 
 Columns (`Column_Astra`) stand proud of the side walls at `x = ±5.45`, occupying
 `x ∈ [-6.29, -5.08]` / `[5.08, 6.29]` at `z = ±2`. They are the only structure that legitimately

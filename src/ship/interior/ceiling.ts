@@ -76,6 +76,14 @@ interface SeamSeg { x: number; z: number; length: number; alongX: boolean }
  * a clockwork-repeating truss.
  */
 export function buildCeiling(ctx: InteriorCtx): void {
+  // Room-facing wall surfaces from docs/interior-room-contract.md: x = +-5.565, z = +-7.565.
+  // Every beam, joist and seam run below terminates 5 mm inside those planes. They were all
+  // previously sized off ROOM_W/ROOM_D (the 12x16 shell footprint, i.e. +-6 / +-8), which buried
+  // 0.285 m of each end in the hull. The slab itself is the one piece that legitimately keeps
+  // running out to the shell — a deck plate has to cover the wall cavity it sits on.
+  const WALL_X = 5.56;
+  const WALL_Z = 7.56;
+
   const plateMap = buildCeilingPlateTexture();
   const plateRough = buildCeilingPlateRoughness();
   const plateNormal = buildCeilingPlateNormal();
@@ -123,7 +131,8 @@ export function buildCeiling(ctx: InteriorCtx): void {
     roughness: 1,
     metalness: 0.35,
   });
-  const beamGeo = new THREE.BoxGeometry(ROOM_W - 0.3, 0.2, 0.28);
+  // Was ROOM_W - 0.3 = 11.7, i.e. x +-5.85 — 0.285 m of each end inside the x = +-5.565 wall.
+  const beamGeo = new THREE.BoxGeometry(WALL_X * 2, 0.2, 0.28);
   const beamZs = [-6, -2, 2, 6];
   for (const z of beamZs) {
     const beam = new THREE.Mesh(beamGeo, beamMat);
@@ -143,8 +152,8 @@ export function buildCeiling(ctx: InteriorCtx): void {
   // no two seams or rivet rows land the same distance apart.
   // ===============================================================================================
   const gridRnd = mulberry32(0xce17);
-  const colXs = irregularGrid(ROOM_W, 1.15, 0.32, gridRnd);
-  const rowZs = irregularGrid(ROOM_D, 1.2, 0.3, gridRnd);
+  const colXs = irregularGrid(WALL_X * 2, 1.15, 0.32, gridRnd);
+  const rowZs = irregularGrid(WALL_Z * 2, 1.2, 0.3, gridRnd);
   const SLAB_BOTTOM = ROOM_H - 0.12;
   const RIB_H = 0.03;
   const RIB_W = 0.05;
@@ -153,8 +162,8 @@ export function buildCeiling(ctx: InteriorCtx): void {
   const seamMat = new THREE.MeshStandardMaterial({ color: 0x6b7581, roughness: 0.44, metalness: 0.36 });
   const seamGeo = new THREE.BoxGeometry(1, 1, 1);
   const seamSegs: SeamSeg[] = [];
-  for (const x of colXs.slice(1, -1)) seamSegs.push({ x, z: 0, length: ROOM_D - 0.1, alongX: false });
-  for (const z of rowZs.slice(1, -1)) seamSegs.push({ x: 0, z, length: ROOM_W - 0.1, alongX: true });
+  for (const x of colXs.slice(1, -1)) seamSegs.push({ x, z: 0, length: WALL_Z * 2, alongX: false });
+  for (const z of rowZs.slice(1, -1)) seamSegs.push({ x: 0, z, length: WALL_X * 2, alongX: true });
   const seamMesh = new THREE.InstancedMesh(seamGeo, seamMat, seamSegs.length);
   {
     const m = new THREE.Matrix4();
@@ -181,11 +190,11 @@ export function buildCeiling(ctx: InteriorCtx): void {
   }
   for (const x of colXs.slice(1, -1)) {
     const extra = 1 + Math.floor(gridRnd() * 3);
-    for (let i = 0; i < extra; i++) rivetPos.push([x + (gridRnd() - 0.5) * 0.03, -ROOM_D / 2 + gridRnd() * ROOM_D]);
+    for (let i = 0; i < extra; i++) rivetPos.push([x + (gridRnd() - 0.5) * 0.03, -WALL_Z + gridRnd() * WALL_Z * 2]);
   }
   for (const z of rowZs.slice(1, -1)) {
     const extra = 1 + Math.floor(gridRnd() * 3);
-    for (let i = 0; i < extra; i++) rivetPos.push([-ROOM_W / 2 + gridRnd() * ROOM_W, z + (gridRnd() - 0.5) * 0.03]);
+    for (let i = 0; i < extra; i++) rivetPos.push([-WALL_X + gridRnd() * WALL_X * 2, z + (gridRnd() - 0.5) * 0.03]);
   }
   const rivetMat = new THREE.MeshStandardMaterial({ color: 0x9aa4b1, roughness: 0.3, metalness: 0.6 });
   const rivetGeo = new THREE.CylinderGeometry(0.028, 0.034, 0.022, 8);
@@ -239,9 +248,10 @@ export function buildCeiling(ctx: InteriorCtx): void {
   // bays (where the hatch, corrugated patch and pipe run already concentrate detail) keep the
   // dense four-joist lattice, while the airlock-side bays read as a genuinely sparser structure
   // rather than the same truss repeating unbroken across the whole ceiling.
-  const JOINT_FULL_LEN = ROOM_D - 0.3;
+  // Was ROOM_D - 0.3 = 15.7 / start -7.85, i.e. both ends 0.285 m past the z = +-7.565 walls.
+  const JOINT_FULL_LEN = WALL_Z * 2;
   const jointFullGeo = new THREE.BoxGeometry(0.22, 0.16, JOINT_FULL_LEN);
-  const JOINT_PARTIAL_START = -ROOM_D / 2 + 0.15;
+  const JOINT_PARTIAL_START = -WALL_Z;
   const JOINT_PARTIAL_END = 2.3;
   const JOINT_PARTIAL_LEN = JOINT_PARTIAL_END - JOINT_PARTIAL_START;
   const JOINT_PARTIAL_Z = (JOINT_PARTIAL_START + JOINT_PARTIAL_END) / 2;
@@ -298,8 +308,17 @@ export function buildCeiling(ctx: InteriorCtx): void {
   ctx.scene.add(gussetBolts);
 
   // ===============================================================================================
-  // Corrugated deck accent — one patch of ribbed panelling breaking up the bolted-plate slab, set
-  // in the console-end corner clear of every lighting.ts fixture footprint.
+  // Corrugated deck accent — one patch of ribbed panelling breaking up the bolted-plate slab.
+  //
+  // Was a 3.4 x 2.6 quad at (2.7, 4.865, -6.5), which was wrong three ways: it ran to z = -7.8,
+  // 0.235 m past the z = -7.565 wall; it crossed the z = -6 transverse beam (beam occupies
+  // y 4.68..4.88, so a quad at y 4.865 sliced straight through it); and its +X edge at x = 4.4
+  // overlapped the x = 4.8 vent housing (x 4.37..5.23, y 4.83..4.88).
+  //
+  // Moved into the mid-room +X bay, which the audit shows is completely empty between y 4.80 and
+  // 4.95: x 2.2..5.2 (wall at 5.565, right-wall LED planes at x = 5.550) and z -1.7..1.7 (the
+  // z = +-2 beams occupy z +-1.86..2.14). The joists it passes over sit at y 4.52..4.68, well
+  // below the quad, so they read as hanging under the decking rather than through it.
   // ===============================================================================================
   const corrMap = buildCorrugatedDeckTexture();
   const corrNormal = buildCorrugatedDeckNormal();
@@ -314,9 +333,9 @@ export function buildCeiling(ctx: InteriorCtx): void {
     roughness: 1,
     metalness: 0.22,
   });
-  const corrPanel = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.6), corrMat);
+  const corrPanel = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 3.4), corrMat);
   corrPanel.rotation.x = Math.PI / 2;
-  corrPanel.position.set(2.7, ROOM_H - 0.135, -6.5);
+  corrPanel.position.set(3.7, ROOM_H - 0.135, 0);
   corrPanel.receiveShadow = true;
   ctx.scene.add(corrPanel);
 
@@ -368,8 +387,11 @@ export function buildCeiling(ctx: InteriorCtx): void {
   pipe.receiveShadow = true;
   ctx.scene.add(pipe);
 
-  // Clamp brackets tying the run back up to the slab.
-  const bracketZs = [-6, -3.6, -1.2, 1.2, 3.6, 6];
+  // Clamp brackets tying the run back up to the slab. The end pair was at z = +-6, exactly on the
+  // z = +-6 transverse beams: each hanger rod runs y 4.55..4.94 and so passed straight through the
+  // beam's y 4.68..4.88 body. Moved out to z = +-6.9, which is 0.76 clear of the beams' z +-6.14
+  // face and still 0.4 inside the pipe's own z = +-7.3 ends.
+  const bracketZs = [-6.9, -3.6, -1.2, 1.2, 3.6, 6.9];
   for (const z of bracketZs) {
     box(0.22, 0.16, 0.1, PIPE_X, PIPE_Y + 0.02, z, trimMat);
     box(0.05, ROOM_H - 0.06 - PIPE_Y, 0.05, PIPE_X, (ROOM_H - 0.06 + PIPE_Y) / 2, z, trimMat);
@@ -462,7 +484,10 @@ export function buildCeiling(ctx: InteriorCtx): void {
     ctx.scene.add(louver);
   };
   addVent(4.8, -3);
-  addVent(-5.3, 2.6);
+  // Was x = -5.3: the 0.86-wide housing spanned x -5.73..-4.87, so 0.165 m of it was inside the
+  // x = -5.565 wall. At -5.09 it spans -5.52..-4.66 — 0.045 clear of the wall surface and 0.03
+  // clear of the left-wall LED strip planes at x = -5.550.
+  addVent(-5.09, 2.6);
 
   // ===============================================================================================
   // Round 5: a recessed maintenance hatch with a real hinge-and-wheel-lock mechanism. A flat panel
@@ -471,7 +496,29 @@ export function buildCeiling(ctx: InteriorCtx): void {
   // x=0, z=-3: clear of every joist (nearest at x=+-1.3), both beam lines it sits between (z=-2
   // and the z=-4 troffers, which are also off on x=+-3.667), and the pendant column at z=-0.27/3.87.
   // ===============================================================================================
-  const hatchMat = new THREE.MeshStandardMaterial({ color: 0x59616c, roughness: 0.5, metalness: 0.5 });
+  // The 1.0 x 1.0 m leaf was the one surface this module left as a large flat untextured colour
+  // field (audit id 299: BoxGeometry 1 x 0.025 x 1, MeshStandardMaterial, hasMap false) — a blank
+  // panel a metre across, dead centre of the overhead, which is exactly the case the brief calls
+  // out. Same bolted-plate maps as the slab, cloned so the hatch's own repeat leaves the slab's
+  // 9x12 alone; 0.8 repeat over a 1 m leaf puts the plate grain slightly finer than the 1.33 m/
+  // tile of the slab behind it, so the leaf reads as its own thicker plate rather than a cut-out.
+  const hatchLeafMap = plateMap.clone();
+  hatchLeafMap.needsUpdate = true;
+  hatchLeafMap.repeat.set(0.8, 0.8);
+  const hatchLeafRough = plateRough.clone();
+  hatchLeafRough.needsUpdate = true;
+  hatchLeafRough.repeat.set(0.8, 0.8);
+  const hatchLeafNormal = plateNormal.clone();
+  hatchLeafNormal.needsUpdate = true;
+  hatchLeafNormal.repeat.set(0.8, 0.8);
+  const hatchMat = new THREE.MeshStandardMaterial({
+    map: hatchLeafMap,
+    roughnessMap: hatchLeafRough,
+    normalMap: hatchLeafNormal,
+    roughness: 1,
+    metalness: 0.5,
+  });
+  hatchMat.normalScale.set(0.7, 0.7);
   const hatchDarkMat = new THREE.MeshStandardMaterial({ color: 0x2c3138, roughness: 0.65, metalness: 0.3 });
   const HATCH_X = 0;
   const HATCH_Z = -3;
@@ -547,7 +594,12 @@ export function buildCeiling(ctx: InteriorCtx): void {
     mesh.renderOrder = 1;
     ctx.scene.add(mesh);
   };
-  const SLAB_FACE = ROOM_H - 0.06 - 0.055;
+  // The slab's down-facing plane is SLAB_BOTTOM = ROOM_H - 0.12 = 4.88; ROOM_H - 0.06 is its
+  // *centre*. The old `ROOM_H - 0.06 - 0.055` put every decal at y = 4.885 — 5 mm up inside the
+  // slab, where the slab's own bottom face won the depth test and none of them ever rendered
+  // (audit ids 311-315 all sit at y = 4.885). 4 mm below the face instead, which leaves the seam
+  // ribs (y 4.85..4.88) and rivets standing proud through the decal exactly as they should.
+  const SLAB_FACE = SLAB_BOTTOM - 0.004;
   addDecal(buildCeilingDripTexture(), 1.1, 1.1, new THREE.Vector3(PIPE_X, SLAB_FACE, -3.6), 0.5);
   addDecal(buildCeilingStreakTexture(), 0.9, 1.6, new THREE.Vector3(PIPE_X, SLAB_FACE, 1.2), 0.55);
   addDecal(buildCeilingSootTexture(), 1.0, 1.0, new THREE.Vector3(2.2, SLAB_FACE, -6.3), 0.45);

@@ -30,43 +30,44 @@ const out = await page.evaluate(({ px, pz, pyaw, ppitch, pixels, W, H }) => {
   sc.camera.updateProjectionMatrix();
   sc.scene.updateMatrixWorld(true);
 
-  const V = sc.player.rig.position.constructor;
-  const ray = new (Object.getPrototypeOf(sc.interaction).constructor === Object ? null : Object)();
-  // Build a raycaster from the three instance already on the scene's objects.
-  const three = sc.camera.constructor;
-  const Raycaster = window.__RC__ || null;
+  // Borrow the live THREE.Raycaster the interaction system already owns rather than reconstructing
+  // one: it does real triangle intersection and, unlike an AABB test against geometry.boundingBox,
+  // it resolves InstancedMesh hits to the specific instance instead of the base shape at the origin.
+  const rc = sc.interaction.raycaster;
   const results = [];
   for (const [x, y] of pixels) {
-    const ndc = { x: (x / W) * 2 - 1, y: -(y / H) * 2 + 1 };
-    // Manual ray: unproject two points along the frustum.
-    const near = new V(ndc.x, ndc.y, -1).unproject(sc.camera);
-    const far = new V(ndc.x, ndc.y, 1).unproject(sc.camera);
-    const dir = far.clone().sub(near).normalize();
-    const origin = near;
-    // Brute-force triangle-free test: use per-mesh bounding-box ray intersection, nearest first.
-    let best = null;
-    sc.scene.traverse((o) => {
-      if (!o.isMesh || !o.visible || !o.geometry) return;
-      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
-      const bb = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
-      // slab test
-      let t0 = -Infinity, t1 = Infinity;
-      for (const ax of ['x', 'y', 'z']) {
-        const inv = 1 / (dir[ax] || 1e-12);
-        let ta = (bb.min[ax] - origin[ax]) * inv, tb = (bb.max[ax] - origin[ax]) * inv;
-        if (ta > tb) { const tmp = ta; ta = tb; tb = tmp; }
-        t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+    rc.setFromCamera({ x: (x / W) * 2 - 1, y: -(y / H) * 2 + 1 }, sc.camera);
+    rc.far = 200;
+    const hits = rc.intersectObjects(sc.scene.children, true).filter((h) => {
+      const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material;
+      return h.object.visible && !(m && m.transparent && m.opacity < 0.2);
+    });
+    const h = hits[0];
+    if (!h) { results.push({ pixel: [x, y], hit: null }); continue; }
+    const o = h.object;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    const box = o.geometry.boundingBox ? o.geometry.boundingBox.clone() : null;
+    let world = null;
+    if (box) {
+      const mat = o.matrixWorld.clone();
+      if (o.isInstancedMesh && h.instanceId !== undefined) {
+        const im = new o.matrixWorld.constructor();
+        o.getMatrixAt(h.instanceId, im);
+        mat.multiply(im);
       }
-      if (t1 < Math.max(t0, 0)) return;
-      const t = t0 > 0 ? t0 : t1;
-      if (best && best.t <= t) return;
-      const m = Array.isArray(o.material) ? o.material[0] : o.material;
-      best = {
-        t,
+      box.applyMatrix4(mat);
+      world = { min: [box.min.x, box.min.y, box.min.z].map((v) => +v.toFixed(3)), max: [box.max.x, box.max.y, box.max.z].map((v) => +v.toFixed(3)) };
+    }
+    results.push({
+      pixel: [x, y],
+      hit: {
+        dist: +h.distance.toFixed(3),
+        point: [h.point.x, h.point.y, h.point.z].map((v) => +v.toFixed(3)),
         geom: o.geometry.type,
         name: o.name,
-        min: [bb.min.x, bb.min.y, bb.min.z].map((v) => +v.toFixed(3)),
-        max: [bb.max.x, bb.max.y, bb.max.z].map((v) => +v.toFixed(3)),
+        instanced: !!o.isInstancedMesh,
+        instanceId: h.instanceId ?? null,
+        world,
         mat: {
           type: m.type, name: m.name || '',
           color: m.color ? '#' + m.color.getHexString() : null,
@@ -74,9 +75,8 @@ const out = await page.evaluate(({ px, pz, pyaw, ppitch, pixels, W, H }) => {
           emissiveIntensity: m.emissiveIntensity ?? null,
           hasMap: !!m.map, transparent: !!m.transparent, opacity: m.opacity,
         },
-      };
+      },
     });
-    results.push({ pixel: [x, y], hit: best });
   }
   return results;
 }, { px, pz, pyaw, ppitch, pixels, W, H });

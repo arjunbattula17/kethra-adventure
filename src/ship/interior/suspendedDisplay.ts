@@ -674,21 +674,32 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   gantry.position.set(0, 0, ANCHOR_Z);
   ctx.scene.add(gantry);
 
-  // Header beam. It used to tuck under the old room's ceiling greeble; that structure is gone
-  // (ceiling.ts is now a flat slab), so the header simply climbs the ROOM_H - 4 = 1 unit the
-  // ceiling itself rose by, keeping the same margin under it. The array cantilevers forward off
-  // it on bracket arms.
+  // Header beam. Lifting the whole gantry by the ROOM_H 4 -> 5 delta (`headerY = 1`) put the
+  // header at y 4.600..4.730, which is straight through ceiling.ts's two Z-running joists: those
+  // hang under the slab at x -1.41..-1.19 / 1.19..1.41, y 4.52..4.68 for the full depth of the
+  // room (audit meshes 255/256; ceiling.ts JOINT_Y = ROOM_H - 0.22 - 0.1 - 0.08 = 4.60, 0.16
+  // tall, 0.22 wide). The header now hangs clear under that 4.52 soffit, and the risers -- which
+  // stand inboard of the joists -- carry it the rest of the way up to the slab.
+  const JOIST_SOFFIT = 4.52;
+  const SLAB_SOFFIT = 4.88;
+  /** Top of the header body (local 3.665 + 0.13 / 2) -- the highest member passing under a joist. */
+  const HEADER_TOP = 3.73;
   const headerZ = -0.48;
-  const headerY = 1;
+  const headerY = JOIST_SOFFIT - 0.01 - HEADER_TOP;
   box(gantry, bodyMat, 2.94, 0.13, 0.22, 0, 3.665 + headerY, headerZ);
   box(gantry, brightSteelMat, 3.02, 0.026, 0.27, 0, 3.715 + headerY, headerZ);
   box(gantry, recessMat, 2.88, 0.04, 0.24, 0, 3.6 + headerY, headerZ);
+  // Riser run: 15 mm into the header's top flange at the foot, flush with the slab soffit at the
+  // head. It used to be a fixed 0.17 that overshot the slab by 5 mm (audit mesh 248: y 4.880).
+  const riserBase = 3.715 + headerY;
+  const riserH = SLAB_SOFFIT - riserBase;
   for (const sx of [-1, 1] as const) {
     box(gantry, recessMat, 0.09, 0.22, 0.3, sx * 1.49, 3.665 + headerY, headerZ);
     box(gantry, brightSteelMat, 0.05, 0.26, 0.05, sx * 1.53, 3.665 + headerY, headerZ + 0.1);
-    // Risers tying the beam up into the deck between the runners.
+    // Risers tying the beam up into the deck. At |x| <= 1.115 they stand inboard of the joists'
+    // 1.19 inner edge, so they run the full height without crossing one.
     for (const rx of [0.35, 1.05]) {
-      box(gantry, bodyMat, 0.13, 0.17, 0.13, sx * rx, 3.8 + headerY, headerZ);
+      box(gantry, bodyMat, 0.13, riserH, 0.13, sx * rx, riserBase + riserH / 2, headerZ);
       box(gantry, brightSteelMat, 0.2, 0.022, 0.2, sx * rx, 3.732 + headerY, headerZ);
     }
   }
@@ -734,7 +745,9 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   // hanging structure reading as a stack of parallel boxes.
   const up = new THREE.Vector3(0, 1, 0);
   for (const sx of [-1, 1] as const) {
-    const a = new THREE.Vector3(sx * 1.26, 3.59 + headerY, headerZ + 0.06);
+    // 0.03 up inside the header's 0.13 web (local y 3.60..3.73). At 3.59 the brace stopped 10 mm
+    // short of the header's underside, so the array's only tie to the gantry ended in mid-air.
+    const a = new THREE.Vector3(sx * 1.26, 3.63 + headerY, headerZ + 0.06);
     const b = new THREE.Vector3(sx * 1.26, 3.02, headerZ + 0.36);
     const dir = new THREE.Vector3().subVectors(b, a);
     const brace = new THREE.Mesh(new THREE.BoxGeometry(0.045, dir.length(), 0.045), recessMat);

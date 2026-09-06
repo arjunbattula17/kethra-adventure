@@ -17,7 +17,7 @@ import {
   applySurface,
 } from './propsTextures';
 import type { InteriorCtx } from './ctx';
-import { ROOM_W, ROOM_D, ROOM_H } from './ctx';
+import { ROOM_D, ROOM_H } from './ctx';
 
 /**
  * Set dressing. Everything here is a bolted-on object: cargo, storage, maintenance hardware,
@@ -30,10 +30,20 @@ import { ROOM_W, ROOM_D, ROOM_H } from './ctx';
  *    through InstancedMesh batches, so density costs vertices rather than draw calls.
  */
 
-/** Inner face of the side walls (the wall shell is 0.2 thick, centred on ±ROOM_W/2). */
-const WALL_X = ROOM_W / 2 - 0.1;
-const BACK_Z = -ROOM_D / 2 + 0.1;
-const FRONT_Z = ROOM_D / 2 - 0.1;
+// Room-facing wall surfaces, measured off the real kit shell (docs/interior-room-contract.md), not
+// derived from the room bounds. These used to be `ROOM_W / 2 - 0.1` = 5.9 and `ROOM_D / 2 - 0.1` =
+// 7.9, on the assumption of a 0.2-thick shell centred on the room bounds — true of the old
+// hand-built room, not of the Quaternius bays that replaced it. The real lower bay's face is at
+// 5.565, so every wall prop was mounted 0.335 *inside* solid wall: the workbench, wall shelf,
+// canister rack, readout panels and valve stations were all wholly or mostly invisible.
+//
+// The shell is stepped at y = 3: the lower bay's face is WALL_X, the upper cap's is 0.35 further
+// out. Anything mounted in the high band uses WALL_X_UPPER so it hangs off the surface that is
+// actually there.
+const WALL_X = 5.565;
+const WALL_X_UPPER = 5.914;
+const BACK_Z = -7.565;
+const FRONT_Z = 7.565;
 
 // ===========================================================================================
 // geometry / material kit
@@ -1030,13 +1040,15 @@ function buildConduitRun(k: Kit, wallX: number, sign: 1 | -1): void {
     place(k, cyl(0.042, 0.042, 0.48, 8), k.m.steel, px, 2.86, z);
     place(k, chamferBox(0.2, 0.2, 0.22, 0.014), k.m.steelDark, px, 2.56, z);
     boltRect(k, sign > 0 ? 'nx' : 'px', px + inward * 0.11, 2.56, z, 0.16, 0.16);
-    // Condensate off the elbow drop, running down the wall behind it.
-    wallStreak(k, wallX, sign, 2.5, z, 0.4, 1.5, 2);
+    // Condensate off the elbow drop, running down the wall behind it. The streak lands on the
+    // lower bay (y 1.0-2.5), whose face is WALL_X — hanging it off the run's own WALL_X_UPPER
+    // would bury it 0.35 inside the wall.
+    wallStreak(k, sign * WALL_X, sign, 2.5, z, 0.4, 1.5, 2);
   }
 
   // Two of the nine couplings on the middle run have let go and stained the wall under them.
   for (const z of [-3.9, 1.15]) {
-    wallStreak(k, wallX, sign, 3.02, z, 0.34, 1.35, 0);
+    wallStreak(k, sign * WALL_X, sign, 3.02, z, 0.34, 1.35, 0);
   }
 }
 
@@ -1274,8 +1286,8 @@ function buildCeilingCableSpan(k: Kit, ctx: InteriorCtx, z: number, sag: number,
 function scatterFloorGrime(k: Kit, count: number): void {
   const rnd = mulberry32(0x9e17f2);
   for (let i = 0; i < count; i++) {
-    const x = (rnd() - 0.5) * (ROOM_W - 0.6);
-    const z = (rnd() - 0.5) * (ROOM_D - 0.6);
+    const x = (rnd() - 0.5) * (WALL_X * 2 - 0.6);
+    const z = (rnd() - 0.5) * (FRONT_Z * 2 - 0.6);
     const inLane = Math.abs(x) < 2.3;
     if (inLane && rnd() < 0.6) continue;
     const variant = Math.floor(rnd() * 3);
@@ -1342,8 +1354,9 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
 
   // ----- wall services -----
   for (const sign of [1, -1] as const) {
-    buildConduitRun(k, sign * WALL_X, sign);
-    buildCableTray(k, ctx, sign * WALL_X, sign);
+    // Both runs live in the y 3.0-3.5 band, above the shell's step, so they hang off WALL_X_UPPER.
+    buildConduitRun(k, sign * WALL_X_UPPER, sign);
+    buildCableTray(k, ctx, sign * WALL_X_UPPER, sign);
   }
 
   // ----- ceiling volume: this round's primary target. A cross duct and two sagging cable spans

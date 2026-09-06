@@ -10,7 +10,7 @@ const baseUrl = process.env.BASE_URL || 'http://localhost:5180/kethra-adventure/
 const SPOTS = [
   ['spawn', 0, 5.5],
   ['mid', 0, 0],
-  ['console', 0, -5.0],
+  ['console', 0, -3.0],
   ['left', -4.0, 0],
   ['right', 4.0, 0],
   ['door', 0, 6.6],

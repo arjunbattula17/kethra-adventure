@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { applyPbr } from '../../core/TextureLibrary';
 import { buildHazardStripeTexture, buildStencilPlacardTexture } from '../ShipTextures';
 import type { InteriorCtx } from './ctx';
-import { ROOM_D, ROOM_W, addGrimeOverlay } from './ctx';
+import { addGrimeOverlay } from './ctx';
 import {
   buildAoTexture,
   buildBreakerPanelTexture,
@@ -63,7 +63,17 @@ import {
 // Every constant below is the old 9x12x4 room's value scaled by the same 4/3 (x) / 5/4 (y) that
 // took the room to 12x16x5, so the whole bay grows proportionally with the wall it's mounted on
 // instead of being redesigned from scratch.
-const WALL_Z = -ROOM_D / 2 + 0.1;   // inner face of the console bulkhead, -7.9
+//
+// The two wall surfaces the bay is dressed against, both measured (docs/interior-room-contract.md):
+// the console (-Z) bulkhead's room-facing plane is z = -7.565 (piece body out to -8.77), and the
+// side walls' is |x| = 5.565. WALL_Z used to be written `-ROOM_D / 2 + 0.1` = -7.9, i.e. 0.335
+// *behind* the bulkhead surface, which buried the entire exterior view stack inside the wall:
+// the backdrop and all three parallax layers measured at z -7.885 / -7.85 / -7.80 / -7.73
+// (reports/interior-nobatch.json ids 316-319), along with the aperture reveal and the back two
+// steps of the whole surround. All the player could see through the aperture was the bulkhead
+// panel itself with the glass sheen and its tint plane hung in front of it.
+const WALL_Z = -7.565;
+const SIDE_WALL_X = 5.565;
 const FRONT_Z = WALL_Z + 0.4 * (4 / 3); // the surround's frontmost structural plane
 const APER_HW = 3.35 * (4 / 3);     // aperture half-width
 const APER_B = 1.3 * (5 / 4);       // aperture bottom
@@ -79,6 +89,12 @@ const TRANSOM_Y = 2.26 * (5 / 4);                // two panes high
 const JAMB_W = FRAME_HW - APER_HW;
 const JAMB_CX = (FRAME_HW + APER_HW) / 2;
 const ACT_X = 4.06 * (4 / 3);                    // shutter actuator centreline
+// Copper drop, its clips and their bolt column. These were authored at x = 3.36..3.56 against the
+// old room's APER_HW of 3.35 and never picked up the 4/3 the aperture did, so they ended up running
+// down the middle of the outer pane instead of hugging its edge (measured at x 3.342..3.578,
+// z -7.31 — in front of the glass at -7.457 — as ids 420 / 444). Re-derived off the real aperture
+// edge and set inboard of the jamb nose, which spans x 4.587..5.48, so they sit on steel.
+const FLEX_X = APER_HW + 0.18;
 
 const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
 
@@ -384,8 +400,8 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // ===== aperture reveal ===============================================================
   // The recess walls. From the off-axis review vantage these returns are most of what sells
   // the window as a metre-thick armoured opening rather than a picture hung on the bulkhead.
-  const revealD = FRONT_Z - WALL_Z;                 // 0.4
-  const revealZ = (FRONT_Z + WALL_Z) / 2;           // -5.7
+  const revealD = FRONT_Z - WALL_Z;                 // 0.533
+  const revealZ = (FRONT_Z + WALL_Z) / 2;           // -7.298
   slab(ctx, recessMat, APER_W + 0.16, 0.08, revealD, 0, APER_T + 0.04, revealZ);
   slab(ctx, recessMat, APER_W + 0.16, 0.08, revealD, 0, APER_B - 0.04, revealZ);
   for (const s of [-1, 1] as const) {
@@ -499,7 +515,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
       bolt(s * (JAMB_CX + 0.295), y, FRONT_Z + 0.012);
       ao('top', 0.4, JAMB_W - 0.15, 0.22, jx, y - 0.11, FRONT_Z + 0.002);
     }
-    boltRow(s * 3.41, 1.25, FRONT_Z - 0.008, 0, 0.36, 7);
+    boltRow(s * FLEX_X, 1.25 * (5 / 4), FRONT_Z - 0.008, 0, 0.36 * (5 / 4), 7);
     // The jamb's proud nose against the aperture wall — a vertical crease down each side.
     ao('bottom', 0.55, 0.42, LINTEL_T - SILL_B, s * (APER_HW + 0.21), (LINTEL_T + SILL_B) / 2,
       FRONT_Z + 0.004, s * Math.PI / 2);
@@ -509,9 +525,12 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // The big secondary form above the lintel: housing, ribbed body, end caps, an actuator
   // cylinder down each jamb and a hydraulic line feeding it. This is the layer that breaks
   // the top of the silhouette instead of ending the assembly on a flat beam.
-  // Ceiling sits at y = 4, so the whole shutter assembly is packed into the 0.36 band above
-  // the lintel rather than being allowed to grow up through it.
-  const shutterY = 3.8 * (5 / 4);
+  // The whole shutter assembly is packed into the band between the lintel top (LINTEL_T = 4.55)
+  // and the ceiling slab's underside (y = 4.88, contract / audit id 248). Its tallest element is
+  // the end cap at shutterY +- 0.2, so shutterY <= 4.68; at the old 3.8 * (5/4) = 4.75 the housing
+  // top (4.92) and its dark cap (4.87..4.93) sat inside the ceiling slab while the housing bottom
+  // (4.58) floated 0.03 clear of the lintel it is supposed to be seated on.
+  const shutterY = 4.67;
   slab(ctx, steelMat, FRAME_HW * 2 - 0.5, 0.34, 0.46, 0, shutterY, WALL_Z + 0.25);
   slab(ctx, steelDarkMat, FRAME_HW * 2 - 0.36, 0.06, 0.5, 0, shutterY + 0.15, WALL_Z + 0.26);
   slab(ctx, steelNoseMat, FRAME_HW * 2 - 0.6, 0.1, 0.14, 0, shutterY - 0.15, FRONT_Z + 0.02);
@@ -608,25 +627,28 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     }
     const flex = new THREE.Mesh(
       new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
-        new THREE.Vector3(s * 3.56, 3.44, FRONT_Z + 0.06),
-        new THREE.Vector3(s * 3.4, 2.9, FRONT_Z + 0.02),
-        new THREE.Vector3(s * 3.42, 2.0, FRONT_Z + 0.03),
-        new THREE.Vector3(s * 3.36, 1.22, FRONT_Z + 0.1),
+        new THREE.Vector3(s * (FLEX_X + 0.15), 3.44 * (5 / 4), FRONT_Z + 0.06),
+        new THREE.Vector3(s * (FLEX_X - 0.01), 2.9 * (5 / 4), FRONT_Z + 0.02),
+        new THREE.Vector3(s * (FLEX_X + 0.01), 2.0 * (5 / 4), FRONT_Z + 0.03),
+        new THREE.Vector3(s * (FLEX_X - 0.05), 1.22 * (5 / 4), FRONT_Z + 0.1),
       ]), 24, 0.019, 7, false),
       brassMat,
     );
     flex.castShadow = true;
     ctx.scene.add(flex);
     for (const y of [3.05 * (5 / 4), 2.35 * (5 / 4), 1.62 * (5 / 4)]) {
-      slab(ctx, steelNoseMat, 0.08, 0.05, 0.09, s * 3.41, y, FRONT_Z + 0.03);
+      slab(ctx, steelNoseMat, 0.08, 0.05, 0.09, s * FLEX_X, y, FRONT_Z + 0.03);
     }
 
-    // Vent louvre low on the jamb, and an ID placard above it.
-    slab(ctx, recessMat, 0.44, 0.3, 0.06, jx, 1.22, FRONT_Z - 0.04);
+    // Vent louvre low on the jamb, and an ID placard above it. The jamb's own bottom edge is
+    // SILL_B = 1.2; at the unscaled 1.22 this 0.3-tall vent hung down to 1.07, a third of it
+    // floating in the air in front of the apron, which sits 0.35 further back in z.
+    const ventY = SILL_B + 0.22;
+    slab(ctx, recessMat, 0.44, 0.3, 0.06, jx, ventY, FRONT_Z - 0.04);
     for (let k = 0; k < 5; k++) {
-      slat(0.4, 0.03, 0.05, jx, 1.1 + k * 0.06, FRONT_Z - 0.055);
+      slat(0.4, 0.03, 0.05, jx, ventY - 0.12 + k * 0.06, FRONT_Z - 0.055);
     }
-    ao('radial', 0.55, 0.6, 0.44, jx, 1.22, FRONT_Z + 0.002);
+    ao('radial', 0.55, 0.6, 0.44, jx, ventY, FRONT_Z + 0.002);
     const placard = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.21), placardMat);
     placard.position.set(jx, 1.68, FRONT_Z + 0.001);
     ctx.scene.add(placard);
@@ -811,8 +833,8 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   }
 
   // ===== starboard corner service run ==================================================
-  // The bay's own material pass stops dead at the jamb (x = FRAME_HW = 5.6); the last ~0.4 m
-  // to the side wall at x = ROOM_W/2, and the ceiling above it, belong to a different module and
+  // The bay's own material pass stops dead at the jamb (x = FRAME_HW = 5.6); the side wall it runs
+  // into, and the ceiling above it, belong to a different module and
   // measured as one flat, evenly-lit panel sitting right next to this assembly's worn frame —
   // the single gap the last review called out. Rather than touch that module's file, this
   // dresses the seam from the bay's own side: a ribbed duct carrying service off the shutter
@@ -820,15 +842,21 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   // same material vocabulary as the rest of the bay, and grime laid straight onto that wall and
   // ceiling with `addGrimeOverlay` — the tool every module has for dressing a seam it doesn't
   // own. Everything here stays behind z = -5.15, same as the rest of the bay's walkway margin.
-  const CORNER_X = ROOM_W / 2 - 0.14;    // 5.86, just inboard of the side wall
-  const CORNER_Z0 = WALL_Z + 0.35;       // -7.55, hugging the back wall
+  // This run was laid out against an assumed side-wall surface at x = ROOM_W/2 = 6, so at
+  // CORNER_X = 5.86 the duct elbows reached x 6.03, the rack 5.76..5.96 and the drop conduits
+  // 6.01 (ids 496-546) — all of it 0.2-0.45 m past the real surface at x = 5.565 and therefore
+  // sealed inside the side wall. Re-derived off that surface: the widest element on this
+  // centreline is the 0.34 duct elbow, so CORNER_X + 0.17 has to clear 5.565.
+  const CORNER_X = SIDE_WALL_X - 0.185;  // 5.38
+  const CORNER_Z0 = WALL_Z + 0.35;       // -7.215, hugging the back wall
   const CORNER_Z1 = -5.4;                // stops well behind the -5.15 walkway limit
   const CORNER_MIDZ = (CORNER_Z0 + CORNER_Z1) / 2;
 
   // Ceiling duct: a short leg off the shutter housing turning to run toward the player, ribbed
   // with real cross-section rings — relief a grazing light can actually catch — rather than a
   // texture standing in for geometry.
-  slab(ctx, steelDarkMat, 0.5, 0.3, 0.3, 5.65, 4.58, CORNER_Z0);
+  // The leg spans the gap between the shutter housing's end cap (x 5.24..5.40) and the elbow.
+  slab(ctx, steelDarkMat, 0.5, 0.3, 0.3, CORNER_X - 0.21, 4.58, CORNER_Z0);
   slab(ctx, steelNoseMat, 0.34, 0.34, 0.34, CORNER_X, 4.58, CORNER_Z0);
   slab(ctx, steelDarkMat, 0.3, 0.3, CORNER_Z1 - CORNER_Z0 - 0.3, CORNER_X, 4.58, CORNER_MIDZ + 0.15);
   slab(ctx, steelNoseMat, 0.34, 0.34, 0.16, CORNER_X, 4.58, CORNER_Z1);
@@ -838,7 +866,9 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     bolt(CORNER_X + 0.16, 4.58, zz);
   }
   for (const zz of [CORNER_Z0 + 0.4, CORNER_Z0 + 1.3, CORNER_Z1 - 0.35]) {
-    slat(0.04, 0.42, 0.04, CORNER_X, 4.82, zz);   // hangers up to the ceiling
+    // Hangers reaching the ceiling slab's underside at y = 4.88 (audit id 248) from the duct's
+    // top at 4.75; at 0.42 tall centred on 4.82 they ran clean through the 0.12 slab.
+    slat(0.04, 0.32, 0.04, CORNER_X, 4.73, zz);
   }
   ao('bottom', 0.55, 0.5, 1.9, CORNER_X, 4.42, CORNER_MIDZ);
   // Warm practical clipped to the duct: the fixture-type split the brief calls for — every
@@ -1030,21 +1060,24 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     ctx.scene.add(cornerConduit);
   }
   const cornerDrip = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 1.4), dripMat);
-  cornerDrip.position.set(CORNER_X - 0.001, 1.5, -6.29);
+  cornerDrip.position.set(SIDE_WALL_X - 0.02, 1.5, -6.29);
   cornerDrip.rotation.y = -Math.PI / 2;
   cornerDrip.renderOrder = 2;
   ctx.scene.add(cornerDrip);
 
-  // Grime laid straight onto the neighbour's own wall and ceiling planes.
+  // Grime laid straight onto the neighbour's own wall and ceiling planes. The wall run is kept
+  // under the wall body's top edge (y = 3.021) because the shell steps back above it; the ceiling
+  // run sits 0.02 below the slab's underside (y = 4.88) — at 4.9 it was inside the 0.12 slab and
+  // never drew — and moves inboard so its 2.2 width stays on the slab, which ends at x = 6.
   addGrimeOverlay(
-    ctx, 3.0, 4.0,
-    new THREE.Vector3(ROOM_W / 2 - 0.03, 2.3, -6.4),
+    ctx, 3.0, 2.6,
+    new THREE.Vector3(SIDE_WALL_X - 0.02, 1.6, -6.4),
     new THREE.Euler(0, -Math.PI / 2, 0),
     0.4,
   );
   addGrimeOverlay(
     ctx, 2.2, 3.2,
-    new THREE.Vector3(5.3, 4.9, -6.3),
+    new THREE.Vector3(4.85, 4.86, -6.3),
     new THREE.Euler(Math.PI / 2, 0, 0),
     0.32,
   );
