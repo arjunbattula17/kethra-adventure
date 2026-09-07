@@ -79,7 +79,14 @@ check('tutorial card is the first thing shown', (await cardTitle()) === 'Take th
 check('first game does not auto-start on load', !(await page.$('#power-puzzle-panel')));
 await shot('01_step_look');
 
-// 2. Look step.
+// 2. Look step. First, press Tab well before the tutorial asks for it: the HUD advertises
+//    "TAB — Character" from the very first frame, so a player trying it early is ordinary, and it
+//    must not pre-satisfy the step whose whole job is to teach the character sheet.
+await page.keyboard.press('Tab');
+await until(async () => !!(await page.$('.panel-overlay.visible')), 15000);
+await page.keyboard.press('Tab');
+await until(async () => !(await page.$('.panel-overlay.visible')), 15000);
+
 for (let i = 0; i < 8; i++) {
   await page.evaluate(() => {
     window.__DEBUG__.engine.getCurrentScene().player.yaw += 0.35;
@@ -112,6 +119,8 @@ for (const key of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'Space']) {
   await page.waitForTimeout(120);
 }
 check('move step clears on W/A/S/D', await waitForCard('Know Your Skills'));
+const sheetStepLabel = await page.$eval('.tut-card.visible .tut-step', (el) => el.textContent).catch(() => null);
+check('character-sheet step is not pre-completed by the earlier Tab', sheetStepLabel === 'Step 3 / 5', sheetStepLabel ?? 'no step label');
 await shot('04_step_sheet');
 
 // 5. Character sheet step, on the real panel.
@@ -125,6 +134,27 @@ await shot('06_step_approach');
 
 // 6. Walk to the desk for real. Spawn faces the console, so holding W is the whole journey.
 check('waypoint marker is guiding the player', !!(await page.$('.tut-waypoint.visible')));
+
+// Turned directly away from the marker, the off-screen arrow clamps to the bottom of the viewport
+// — which is where the instruction card lives. It must not end up sitting on the card's own text.
+await page.evaluate(() => {
+  window.__DEBUG__.engine.getCurrentScene().player.yaw = Math.PI;
+});
+await page.waitForTimeout(800);
+const markerOverlapsCard = await page.evaluate(() => {
+  const card = document.querySelector('.tut-card.visible')?.getBoundingClientRect();
+  const marker = document.querySelector('.tut-waypoint.visible')?.getBoundingClientRect();
+  if (!card || !marker) return 'missing element';
+  const clear = marker.right < card.left || marker.left > card.right || marker.bottom < card.top || marker.top > card.bottom;
+  return clear ? false : `card ${JSON.stringify(card)} marker ${JSON.stringify(marker)}`;
+});
+check('waypoint marker never covers the instruction card', markerOverlapsCard === false, String(markerOverlapsCard));
+await shot('06b_marker_behind_player');
+await page.evaluate(() => {
+  window.__DEBUG__.engine.getCurrentScene().player.yaw = 0;
+});
+await page.waitForTimeout(400);
+
 await page.keyboard.down('KeyW');
 const arrived = await waitForCard('Bring It Online', 30000);
 await page.keyboard.up('KeyW');

@@ -66,20 +66,41 @@ const out = await page.evaluate(async () => {
       got = sc.interaction.currentLabel;
       if (got === label) { from = [+px.toFixed(2), +pz.toFixed(2)]; break; }
     }
-    res.push({ label, got, from });
+
+    // Same spot, turned 180 degrees away. A prompt must not survive that: it offers a key that acts
+    // on something the player cannot see, and it contradicts what the opening tutorial teaches
+    // about putting a target in the centre of your view. The proximity fallback used to measure
+    // distance only, so standing at the console facing the opposite wall still raised
+    // "Access Navigation Console".
+    let facingAway = null;
+    if (from) {
+      sc.player.yaw = Math.atan2(-(c.x - from[0]), -(c.z - from[1])) + Math.PI;
+      for (let i = 0; i < 6; i++) { await new Promise((r) => requestAnimationFrame(r)); }
+      sc.interaction.update(sc.camera);
+      facingAway = sc.interaction.currentLabel;
+    }
+    res.push({ label, got, from, facingAway });
   }
   return res;
 });
 
 let fails = 0;
+let facingFails = 0;
 let skipped = 0;
 for (const r of out) {
   if (r.skipped) { skipped++; console.log(`  SKIP ${JSON.stringify(r.label)}  disabled in this game state`); continue; }
   const ok = r.got === r.label;
   if (!ok) fails++;
   console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${JSON.stringify(r.label)}${ok ? `  obtained from ${JSON.stringify(r.from)}` : `  got ${JSON.stringify(r.got)} from every approach`}`);
+  if (ok) {
+    // facingAway is the prompt raised from the same spot turned 180 degrees; null means none.
+    const quiet = r.facingAway !== r.label;
+    if (!quiet) facingFails++;
+    console.log(`       ${quiet ? 'OK  ' : 'FAIL'} silent when the player turns away${quiet ? '' : ` — still prompting ${JSON.stringify(r.facingAway)}`}`);
+  }
 }
 const tested = out.length - skipped;
 console.log(fails ? `${fails} of ${tested} enabled targets NOT obtainable` : `all ${tested} enabled targets obtainable in-game${skipped ? ` (${skipped} skipped as disabled)` : ''}`);
+if (facingFails) console.log(`${facingFails} of ${tested} still prompt with the player turned away from them`);
 await browser.close();
-if (fails) process.exitCode = 1;
+if (fails || facingFails) process.exitCode = 1;

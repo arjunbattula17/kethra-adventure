@@ -59,6 +59,8 @@ const EDGE_X = 0.86;
 const EDGE_Y = 0.8;
 /** Seconds the cleared card is held on screen before the next step replaces it. */
 const STEP_HOLD = 0.8;
+/** Pixels of clearance kept between the waypoint marker's centre and the top of the card. */
+const MARKER_CLEARANCE = 40;
 
 const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
 
@@ -143,6 +145,14 @@ export class TutorialSequence {
         objective: 'Review your character sheet.',
         hint: 'Press Tab to open the sheet. Tab again — or Escape — closes it.',
         hintAfter: 12,
+        // Cleared on entry for the same reason step 1 clears lookAmount: the latch is set by a
+        // window listener that has been live since the cold open, and the HUD has been advertising
+        // "TAB — Character" since the first frame. A player who tried it earlier would otherwise
+        // arrive at this step to find it already complete, and never get to read the one card that
+        // explains what skills are for.
+        enter: () => {
+          this.openedCharacterSheet = false;
+        },
         done: () => this.openedCharacterSheet && !PanelManager.isOpen,
       },
       {
@@ -343,7 +353,14 @@ export class TutorialSequence {
     }
 
     const px = (x * 0.5 + 0.5) * window.innerWidth;
-    const py = (-y * 0.5 + 0.5) * window.innerHeight;
+    // The bottom of the NDC clamp band falls inside the instruction card at every viewport size, so
+    // a target directly behind the player used to park the arrow and its distance readout on top of
+    // the card's own sentence. Hold the marker clear of the card instead. The arrow's heading comes
+    // from the direction, not from where it ends up, so it still points the right way.
+    const py = Math.min(
+      (-y * 0.5 + 0.5) * window.innerHeight,
+      this.hud.cardTopEdge() - MARKER_CLEARANCE,
+    );
     // CSS rotation runs clockwise with y growing downward, so the screen heading flips y.
     const angle = offscreen ? Math.atan2(-y, x) : 0;
     const metres = camera.getWorldPosition(this.tmpC).distanceTo(this.waypointTarget);

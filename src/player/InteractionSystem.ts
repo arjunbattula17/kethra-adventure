@@ -22,6 +22,17 @@ function resolveLabel(it: Interactable): string {
   return typeof it.label === 'function' ? it.label() : it.label;
 }
 
+/**
+ * cos(70°) — how far off straight ahead a target may sit and still be offered by the proximity
+ * fallback below. Wider than the horizontal field of view, so nothing the player can actually see
+ * is refused; narrow enough that nothing behind or beside them is offered.
+ */
+const MIN_FACING_DOT = 0.34;
+/** Scratch vectors for the per-frame proximity pass, which runs over every registered target. */
+const _forward = new THREE.Vector3();
+const _objPos = new THREE.Vector3();
+const _toTarget = new THREE.Vector3();
+
 export class InteractionSystem {
   private interactables: Interactable[] = [];
   private raycaster = new THREE.Raycaster();
@@ -69,13 +80,32 @@ export class InteractionSystem {
     }
 
     if (!best) {
-      // fall back to proximity so low/off-center objects (consoles, floor items) are still reachable
+      // Fall back to proximity so low/off-centre objects (consoles, floor items) are still
+      // reachable when the crosshair ray misses them.
+      //
+      // Distance alone was not enough: it measures camera-to-origin and asks nothing about which
+      // way the player is turned, so standing at the console facing the opposite wall still raised
+      // "Access Navigation Console" — a prompt for something behind you, offering a key that acts
+      // on something you cannot see. It also contradicted what the opening tutorial teaches, which
+      // is to put a target in the centre of your view and then press E.
+      //
+      // The facing test is deliberately flattened to the horizontal plane. This fallback exists
+      // *because* the player is looking over or under the thing, which is a pitch problem — letting
+      // pitch veto it would break the case it is here for. Which way they are turned is a separate
+      // question, and that is the one worth asking.
+      camera.getWorldDirection(_forward);
+      _forward.y = 0;
+      _forward.normalize();
       let bestDist = Infinity;
       for (const it of active) {
-        const objPos = new THREE.Vector3();
-        it.object.getWorldPosition(objPos);
-        const dist = camPos.distanceTo(objPos);
+        it.object.getWorldPosition(_objPos);
+        const dist = camPos.distanceTo(_objPos);
         if (dist > it.range) continue;
+        _toTarget.copy(_objPos).sub(camPos);
+        _toTarget.y = 0;
+        const flatDist = _toTarget.length();
+        // Standing all but on top of it: there is no meaningful direction left to test.
+        if (flatDist > 0.05 && _forward.dot(_toTarget) / flatDist < MIN_FACING_DOT) continue;
         if (dist < bestDist) {
           bestDist = dist;
           best = it;

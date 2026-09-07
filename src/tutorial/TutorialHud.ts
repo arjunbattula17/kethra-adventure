@@ -51,6 +51,8 @@ export class TutorialHud {
   private waypointDist = el('div', 'tut-waypoint-dist');
   private chips = new Map<string, HTMLElement>();
   private flashTimeoutId: number | undefined;
+  private cardTop = Infinity;
+  private onResize = (): void => this.measureCard();
 
   mount(): void {
     const head = el('div', 'tut-head');
@@ -83,6 +85,22 @@ export class TutorialHud {
     // badge already sit in. They move up while it is mounted rather than overlapping it — see the
     // `body.tutorial-active` rules in style.css.
     document.body.classList.add('tutorial-active');
+    window.addEventListener('resize', this.onResize);
+  }
+
+  private measureCard(): void {
+    this.cardTop = this.card.classList.contains('visible') ? this.card.getBoundingClientRect().top : Infinity;
+  }
+
+  /**
+   * Top edge of the instruction card in CSS pixels, or Infinity while no card is up — the waypoint
+   * marker uses it to stay off the card's text.
+   *
+   * Cached and refreshed only when the card's content or the viewport changes, rather than measured
+   * on demand: the waypoint asks every frame, and getBoundingClientRect forces a layout flush.
+   */
+  cardTopEdge(): number {
+    return this.cardTop;
   }
 
   setCard(card: TutorialCard): void {
@@ -111,6 +129,7 @@ export class TutorialHud {
     }
 
     this.card.classList.add('visible');
+    this.measureCard();
   }
 
   markKey(code: string): void {
@@ -123,11 +142,13 @@ export class TutorialHud {
     this.stepEl.textContent = 'Complete';
     this.setHint(null);
     for (const chip of this.chips.values()) chip.classList.add('done');
+    this.measureCard();
   }
 
   setHint(text: string | null): void {
     this.hintEl.textContent = text ?? '';
     this.hintEl.classList.toggle('visible', text !== null);
+    this.measureCard();
   }
 
   /** Attention pulse — used when the player tries something the tutorial has not unlocked yet. */
@@ -143,6 +164,7 @@ export class TutorialHud {
 
   hideCard(): void {
     this.card.classList.remove('visible');
+    this.measureCard();
   }
 
   showSkipHint(show: boolean): void {
@@ -171,6 +193,7 @@ export class TutorialHud {
 
   destroy(): void {
     window.clearTimeout(this.flashTimeoutId);
+    window.removeEventListener('resize', this.onResize);
     document.body.classList.remove('tutorial-active');
     this.root.remove();
   }
