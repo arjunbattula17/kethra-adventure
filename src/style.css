@@ -638,16 +638,23 @@ body.tutorial-active .look-prompt { padding-bottom: 250px; }
   /* Denser than --panel-bg: this one has to stay readable over the brightest part of the deck, and
      it is teaching rather than decorating. */
   background: rgba(9, 11, 13, 0.95);
-  border: 1px solid var(--panel-border);
-  border-left: 3px solid var(--accent);
+  /* A full accent border rather than an accent stripe down one edge: the card is a peer of the
+     objective tracker and the interact prompt, and it should read as the same kind of object. The
+     cleared state recolours the whole frame and warms the fill, which is legible from the corner of
+     the eye without the card changing shape. */
+  border: 1px solid rgba(217, 164, 65, 0.5);
   border-radius: 5px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
   opacity: 0;
   transform: translateX(-50%) translateY(14px);
-  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-left-color 0.3s ease;
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.3s ease, background-color 0.3s ease;
 }
 .tut-card.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
-.tut-card.done { border-left-color: var(--success); }
+.tut-card.done {
+  border-color: rgba(124, 191, 124, 0.55);
+  background: rgba(10, 15, 11, 0.95);
+}
 
 .tut-head { display: flex; align-items: baseline; gap: 11px; margin-bottom: 5px; }
 .tut-step {
