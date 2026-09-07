@@ -42,6 +42,27 @@ const WALL_FACE_X = 5.565;
  */
 const DESK_FRONT_Z = DESK_Z + 0.37;
 
+/**
+ * Where the opening tutorial stands the player to work the console. Clear of the chair (which sits
+ * at DESK_Z + 0.74 and has a collider of its own), and derived from DESK_Z rather than restated, so
+ * the marker cannot drift away from the hardware it points at.
+ */
+export const CONSOLE_APPROACH = { x: 0, z: DESK_Z + 1.8 };
+/** Centre of the monitor bank's screen grid — the thing the tutorial hands the first game over on. */
+export const MONITOR_ANCHOR = { x: 0, y: 1.6, z: DESK_Z - 0.52 };
+
+/**
+ * Session gate on booting the console, owned by the opening tutorial (TutorialSequence sets both
+ * fields; nothing else writes them).
+ *
+ * Deliberately module state rather than a gameState flag: this is not saved progress. The battle
+ * that follows the boot awards XP, which can emit `level:up`, which writes a save — so a flag set
+ * here could come back on a reload whose tutorial restarts from step one, with the console already
+ * unlocked. `consumed` retires the prompt the instant it is used, so the interact hint is not left
+ * hanging over the cinematic the boot triggers.
+ */
+export const consoleBootGate = { unlocked: false, consumed: false };
+
 // ---------------------------------------------------------------------------------------------
 // Geometry helpers
 // ---------------------------------------------------------------------------------------------
@@ -435,12 +456,38 @@ export function buildConsole(ctx: InteriorCtx): void {
     object: deskGroup,
     label: () => (gameState.hasFlag('galaxy_revealed') ? 'Open Galaxy Map' : 'Access Navigation Console'),
     range: 2.6,
+    // Off until the opening tutorial's console boot has been played. Before that the monitor bank
+    // below is the only thing at this desk the player can act on, so the two cannot compete for the
+    // crosshair (both groups share an origin at DESK_Z, which is what the proximity fallback in
+    // InteractionSystem measures from) and there is one unambiguous prompt at the console.
+    enabled: () => gameState.hasFlag('tutorial_battle_complete'),
     onInteract: () => {
       if (gameState.hasFlag('galaxy_revealed')) bus.emit('ui:open_galaxy_map');
       else UIManager.toast('Navigation offline — awaiting system reboot.');
     },
   });
   protectSubtree(ctx, deskGroup);
+
+  // The monitor bank is what the tutorial actually points the player at, so it needs to be its own
+  // aim target rather than part of the desk. A box the size of the screen grid stands in for the
+  // bank's ~45 meshes: the raycaster ignores both object and material visibility, so an invisible
+  // proxy is hit-testable while costing no draw call, and it lets the bank itself stay in the
+  // static batch. buildInteriorColliders skips MeshBasicMaterial, so it contributes no collider.
+  const monitorTarget = new THREE.Mesh(
+    new THREE.BoxGeometry(3.1, 1.25, 0.4),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  monitorTarget.name = 'console-monitor-target';
+  monitorTarget.position.set(MONITOR_ANCHOR.x, MONITOR_ANCHOR.y, MONITOR_ANCHOR.z);
+  ctx.scene.add(monitorTarget);
+  ctx.noMerge.add(monitorTarget);
+  ctx.interaction.register({
+    object: monitorTarget,
+    label: () => (consoleBootGate.unlocked ? 'Boot Navigation Console' : 'Navigation Console — offline'),
+    range: 3.0,
+    enabled: () => !gameState.hasFlag('tutorial_battle_complete') && !consoleBootGate.consumed,
+    onInteract: () => bus.emit('console:boot_requested'),
+  });
 
   groups.push(buildJournalTerminal(ctx, kit));
   groups.push(...buildRepairStation(ctx, kit));

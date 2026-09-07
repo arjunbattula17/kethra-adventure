@@ -2,7 +2,12 @@ import { chromium } from 'playwright';
 
 const url = process.argv[2] || 'http://localhost:5180';
 const outDir = process.argv[3] || '.';
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  // Software GL, and Chromium throttles timers and rAF in a headless page nothing interacts with, which
+  // stretches the puzzle's own setTimeout-driven pacing out to minutes. These keep the page
+  // running at a real rate so the waits below mean what they say.
+  args: ['--use-gl=angle', '--enable-unsafe-swiftshader', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
+});
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
@@ -10,7 +15,9 @@ page.on('console', (msg) => {
   if (msg.type() === 'error') errors.push('CONSOLE ' + msg.text());
   if (msg.text().startsWith('[battle]')) console.log(msg.text());
 });
-await page.goto(url, { waitUntil: 'load' });
+// ?skipTutorial: this harness tests the threat-response puzzle, not the opening that now leads
+// into it. tools/test-tutorial-flow.mjs covers the tutorial -> desk -> console -> puzzle route.
+await page.goto(url + '/?skipTutorial=1&newGame=1', { waitUntil: 'load' });
 
 const HINT_TO_LABEL = {
   'Brace against a direct hit.': 'Shields',
@@ -31,8 +38,10 @@ async function clickNodeByLabel(label) {
   return clicked;
 }
 
-// Wait for battle panel to appear (opening captions run first, ~9s total).
-await page.waitForSelector('#power-puzzle-panel', { timeout: 20000 });
+// Wait for the battle panel. With ?skipTutorial it is the first thing on screen.
+// Generous: software rasterisation makes this scene take ~20s to boot where real hardware takes
+// ~2s, and none of that has anything to do with what this tool is checking.
+await page.waitForSelector('#power-puzzle-panel', { timeout: 90000 });
 console.log('Battle puzzle appeared.');
 
 let rounds = 0;

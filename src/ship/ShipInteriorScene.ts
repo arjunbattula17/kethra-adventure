@@ -33,6 +33,13 @@ export class ShipInteriorScene implements GameScene {
    * "all targets reachable" claim had only ever been checked against a dev build.
    */
   readonly kind = 'ShipInteriorScene';
+  /**
+   * Per-frame hook for a director that lives outside the scene — currently the opening tutorial,
+   * which has to poll movement and the player's position but is owned by GameFlow, not by the room.
+   * Driven from update(), so it stops with the engine while a panel is open rather than advancing
+   * behind one.
+   */
+  onTick: ((dt: number, elapsed: number) => void) | null = null;
 
   private floorMeshes: THREE.Object3D[] = [];
   private consoleGlow: THREE.PointLight[] = [];
@@ -160,6 +167,7 @@ export class ShipInteriorScene implements GameScene {
       status.material.emissiveIntensity = on ? status.onIntensity : 0.15;
     }
     for (const tick of this.animated) tick(elapsed, dt);
+    this.onTick?.(dt, elapsed);
   }
 
   onResize(width: number, height: number): void {

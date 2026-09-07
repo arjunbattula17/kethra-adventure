@@ -6,6 +6,8 @@ import { gameState } from './GameState';
 import { InputManager } from './InputManager';
 import { bus } from './EventBus';
 import { SaveSystem } from './SaveSystem';
+import { TutorialSequence } from '../tutorial/TutorialSequence';
+import { showBattleBriefing } from '../tutorial/BattleBriefing';
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -14,6 +16,9 @@ function wait(ms: number): Promise<void> {
 export class GameFlow {
   private engine: Engine;
   private shipScene: ShipInteriorScene | null = null;
+  /** Live only during the opening. Public so the harnesses in tools/ can drive it through __DEBUG__. */
+  tutorial: TutorialSequence | null = null;
+  private firstGameStarted = false;
 
   constructor(engine: Engine) {
     this.engine = engine;
@@ -68,19 +73,49 @@ export class GameFlow {
       this.finishReturnToShip();
       return;
     }
-    this.runOpening();
+    // ?skipTutorial drops straight into the puzzle, for the harnesses in tools/ that are testing
+    // what comes *after* the opening and would otherwise have to drive five gated steps and a
+    // briefing to reach it. tools/test-tutorial-flow.mjs covers the real route. There is no
+    // player-facing path here: the only way in without this parameter is the console.
+    if (new URLSearchParams(location.search).has('skipTutorial')) {
+      this.firstGameStarted = true;
+      this.startBattle();
+      return;
+    }
+    this.tutorial = new TutorialSequence(this.shipScene);
+    this.tutorial.onComplete = () => this.beginFirstGame();
+    this.tutorial.start();
   }
 
-  private async runOpening(): Promise<void> {
-    await wait(1400);
+  /**
+   * The handover between the tutorial and the first game. Reached only from the console the
+   * tutorial walked the player to: booting navigation is what puts the contact on the scan, which
+   * is what the threat-response puzzle is a response to.
+   */
+  private async beginFirstGame(): Promise<void> {
+    if (this.firstGameStarted) return;
+    this.firstGameStarted = true;
+    this.tutorial = null;
+    if (!this.shipScene) return;
+
+    this.shipScene.player.enabled = false;
+    InputManager.exitPointerLock();
+    UIManager.setLookPromptEnabled(false);
+    UIManager.setCrosshairVisible(false);
+    UIManager.setPrompt(null);
+    gameState.setObjective('Answer the contact.');
+
     UIManager.showLetterbox(true);
-    UIManager.showCaption('Life support online. Navigation and hyperdrive: dark.', 2400);
-    await wait(2400);
-    UIManager.showCaption('Unidentified contact detected on long-range scan.', 2200);
-    await wait(1900);
-    UIManager.showLetterbox(false);
+    UIManager.showCaption('Navigation online. Reserve power routed to long-range scan.', 2600);
+    await wait(2500);
+    UIManager.showCaption('Contact — unidentified vessel, closing fast.', 2400);
+    await wait(2100);
     UIManager.clearCaption();
-    this.startBattle();
+    UIManager.showLetterbox(false);
+    // The caption fades over 0.6s and the bars retract over 0.9s. Letting both finish keeps the
+    // briefing from arriving on top of the line it is a response to.
+    await wait(950);
+    showBattleBriefing(() => this.startBattle());
   }
 
   private startBattle(): void {
@@ -90,6 +125,7 @@ export class GameFlow {
     const battle = new BattlePuzzle();
     battle.onWin = () => {
       if (this.shipScene) this.shipScene.player.enabled = true;
+      UIManager.setCrosshairVisible(true);
       this.transitionToGalaxyReveal();
     };
     battle.start();

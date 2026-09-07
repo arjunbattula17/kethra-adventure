@@ -47,6 +47,10 @@ const out = await page.evaluate(async () => {
   const res = [];
   for (const it of sc.interaction.interactables) {
     const label = typeof it.label === 'function' ? it.label() : it.label;
+    // A target its own `enabled` predicate has switched off is not reachable and is not meant to be
+    // — the opening tutorial's console boot is off once the tutorial is done, and the desk it shares
+    // a position with is off until then. Reporting those as failures would make this tool cry wolf.
+    if (it.enabled && !it.enabled()) { res.push({ label, skipped: true }); continue; }
     const c = new B3().setFromObject(it.object).getCenter(new V());
     let got = null, from = null;
     // Try a ring of approach spots — a target may be against a wall or hard up against a prop.
@@ -68,11 +72,14 @@ const out = await page.evaluate(async () => {
 });
 
 let fails = 0;
+let skipped = 0;
 for (const r of out) {
+  if (r.skipped) { skipped++; console.log(`  SKIP ${JSON.stringify(r.label)}  disabled in this game state`); continue; }
   const ok = r.got === r.label;
   if (!ok) fails++;
   console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${JSON.stringify(r.label)}${ok ? `  obtained from ${JSON.stringify(r.from)}` : `  got ${JSON.stringify(r.got)} from every approach`}`);
 }
-console.log(fails ? `${fails} of ${out.length} targets NOT obtainable` : `all ${out.length} targets obtainable in-game`);
+const tested = out.length - skipped;
+console.log(fails ? `${fails} of ${tested} enabled targets NOT obtainable` : `all ${tested} enabled targets obtainable in-game${skipped ? ` (${skipped} skipped as disabled)` : ''}`);
 await browser.close();
 if (fails) process.exitCode = 1;

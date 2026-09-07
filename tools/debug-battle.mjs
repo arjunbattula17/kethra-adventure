@@ -1,13 +1,21 @@
 import { chromium } from 'playwright';
 
 const url = process.argv[2] || 'http://localhost:5180';
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  // Software GL, and Chromium throttles timers and rAF in a headless page nothing interacts with, which
+  // stretches the puzzle's own setTimeout-driven pacing out to minutes. These keep the page
+  // running at a real rate so the waits below mean what they say.
+  args: ['--use-gl=angle', '--enable-unsafe-swiftshader', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
+});
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('console', (msg) => console.log('[console]', msg.text()));
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-await page.goto(url, { waitUntil: 'load' });
+// ?skipTutorial: straight into the puzzle this tool inspects, bypassing the opening tutorial.
+await page.goto(url + '/?skipTutorial=1&newGame=1', { waitUntil: 'load' });
 
-await page.waitForSelector('#power-puzzle-panel', { timeout: 20000 });
+// Generous: software rasterisation makes this scene take ~20s to boot where real hardware takes
+// ~2s, and none of that has anything to do with what this tool is checking.
+await page.waitForSelector('#power-puzzle-panel', { timeout: 90000 });
 await page.waitForTimeout(1500);
 const hint = await page.$eval('#power-puzzle-panel .subtitle', (el) => el.textContent).catch(() => null);
 console.log('HINT:', hint);

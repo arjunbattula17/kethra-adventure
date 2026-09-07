@@ -2,7 +2,11 @@ import { chromium } from 'playwright';
 
 const baseUrl = process.argv[2] || 'http://localhost:5180';
 const outDir = process.argv[3] || '.';
-const browser = await chromium.launch();
+// Software GL and no background throttling: the opening is frame-driven now, so a throttled
+// render loop would make the first check time out for reasons that have nothing to do with it.
+const browser = await chromium.launch({
+  args: ['--use-gl=angle', '--enable-unsafe-swiftshader', '--disable-background-timer-throttling', '--disable-renderer-backgrounding'],
+});
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
@@ -10,11 +14,14 @@ page.on('console', (msg) => { if (msg.type() === 'error') errors.push('CONSOLE '
 
 console.log('=== Fresh boot, real timing, no dev params ===');
 await page.goto(baseUrl + '?newGame=1', { waitUntil: 'load' });
-await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 10000 });
-await page.waitForTimeout(11000); // full intro + into battle
-const battlePresent = await page.$('#power-puzzle-panel');
-console.log('Battle puzzle appeared naturally:', !!battlePresent);
-await page.screenshot({ path: `${outDir}/qa_natural_battle.png` });
+await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 30000 });
+// The opening is the tutorial now: cold-open captions, then the first instruction card. The puzzle
+// must not be on screen at all until the player boots the console themselves.
+await page.waitForSelector('.tut-card.visible', { timeout: 120000 }).catch(() => null);
+const openingCard = await page.$eval('.tut-card.visible .tut-title', (el) => el.textContent).catch(() => null);
+console.log('Opening step shown:', openingCard ?? 'NONE — tutorial did not start');
+console.log('First game did NOT auto-start:', !(await page.$('#power-puzzle-panel')));
+await page.screenshot({ path: `${outDir}/qa_natural_opening.png` });
 
 console.log('=== Edge case: rapid Escape spam with nothing open ===');
 for (let i = 0; i < 10; i++) await page.keyboard.press('Escape');
