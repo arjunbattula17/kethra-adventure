@@ -15,12 +15,12 @@ page.on('console', (msg) => { if (msg.type() === 'error') errors.push('CONSOLE '
 console.log('=== Fresh boot, real timing, no dev params ===');
 await page.goto(baseUrl + '?newGame=1', { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 30000 });
-// The opening is the tutorial now: cold-open captions, then the first instruction card. The puzzle
-// must not be on screen at all until the player boots the console themselves.
+// The opening is the tutorial now: cold-open captions, then the first instruction card. The galaxy
+// reveal must not start at all until the player boots the console themselves.
 await page.waitForSelector('.tut-card.visible', { timeout: 120000 }).catch(() => null);
 const openingCard = await page.$eval('.tut-card.visible .tut-title', (el) => el.textContent).catch(() => null);
 console.log('Opening step shown:', openingCard ?? 'NONE — tutorial did not start');
-console.log('First game did NOT auto-start:', !(await page.$('#power-puzzle-panel')));
+console.log('First game did NOT auto-start:', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
 await page.screenshot({ path: `${outDir}/qa_natural_opening.png` });
 
 console.log('=== Edge case: rapid Escape spam with nothing open ===');

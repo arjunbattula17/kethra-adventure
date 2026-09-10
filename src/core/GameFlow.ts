@@ -1,13 +1,11 @@
 import type { Engine } from './Engine';
 import { ShipInteriorScene } from '../ship/ShipInteriorScene';
-import { BattlePuzzle } from '../ship/BattlePuzzle';
 import { UIManager } from '../ui/UIManager';
 import { gameState } from './GameState';
 import { InputManager } from './InputManager';
 import { bus } from './EventBus';
 import { SaveSystem } from './SaveSystem';
 import { TutorialSequence } from '../tutorial/TutorialSequence';
-import { showBattleBriefing } from '../tutorial/BattleBriefing';
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -73,13 +71,13 @@ export class GameFlow {
       this.finishReturnToShip();
       return;
     }
-    // ?skipTutorial drops straight into the puzzle, for the harnesses in tools/ that are testing
-    // what comes *after* the opening and would otherwise have to drive five gated steps and a
-    // briefing to reach it. tools/test-tutorial-flow.mjs covers the real route. There is no
-    // player-facing path here: the only way in without this parameter is the console.
+    // ?skipTutorial drops straight into the galaxy reveal, for the harnesses in tools/ that are
+    // testing what comes *after* the opening and would otherwise have to drive five gated steps
+    // to reach it. tools/test-tutorial-flow.mjs covers the real route. There is no player-facing
+    // path here: the only way in without this parameter is the console.
     if (new URLSearchParams(location.search).has('skipTutorial')) {
       this.firstGameStarted = true;
-      this.startBattle();
+      this.transitionToGalaxyReveal();
       return;
     }
     this.tutorial = new TutorialSequence(this.shipScene);
@@ -89,8 +87,8 @@ export class GameFlow {
 
   /**
    * The handover between the tutorial and the first game. Reached only from the console the
-   * tutorial walked the player to: booting navigation is what puts the contact on the scan, which
-   * is what the threat-response puzzle is a response to.
+   * tutorial walked the player to: booting navigation is what brings the star chart up, which is
+   * what the galaxy reveal shows.
    */
   private async beginFirstGame(): Promise<void> {
     if (this.firstGameStarted) return;
@@ -103,36 +101,24 @@ export class GameFlow {
     UIManager.setLookPromptEnabled(false);
     UIManager.setCrosshairVisible(false);
     UIManager.setPrompt(null);
-    gameState.setObjective('Answer the contact.');
+    gameState.setObjective('Find out where you are.');
 
     UIManager.showLetterbox(true);
     UIManager.showCaption('Navigation online. Reserve power routed to long-range scan.', 2600);
     await wait(2500);
-    UIManager.showCaption('Contact — unidentified vessel, closing fast.', 2400);
-    await wait(2100);
     UIManager.clearCaption();
-    UIManager.showLetterbox(false);
-    // The caption fades over 0.6s and the bars retract over 0.9s. Letting both finish keeps the
-    // briefing from arriving on top of the line it is a response to.
-    await wait(950);
-    showBattleBriefing(() => this.startBattle());
-  }
-
-  private startBattle(): void {
-    if (!this.shipScene) return;
-    this.shipScene.player.enabled = false;
-    InputManager.exitPointerLock();
-    const battle = new BattlePuzzle();
-    battle.onWin = () => {
-      if (this.shipScene) this.shipScene.player.enabled = true;
-      UIManager.setCrosshairVisible(true);
-      this.transitionToGalaxyReveal();
-    };
-    battle.start();
+    // The caption fades over 0.6s; the reveal's own fade-to-black takes over from there. The
+    // letterbox stays up — the cinematic runs letterboxed and retracts it when it ends.
+    await wait(700);
+    await this.transitionToGalaxyReveal();
   }
 
   private async transitionToGalaxyReveal(): Promise<void> {
     await UIManager.fadeToBlack();
+    // Set only once the screen is black: the flag is what enables the desk's "Access Navigation
+    // Console" interaction, and setting it while the interior is still visible pops that prompt
+    // over the handover's final moments.
+    gameState.setFlag('tutorial_battle_complete');
     let GalaxyRevealScene;
     try {
       ({ GalaxyRevealScene } = await import('../galaxy/GalaxyRevealScene'));
@@ -160,6 +146,10 @@ export class GameFlow {
     await UIManager.fadeToBlack();
     this.shipScene = new ShipInteriorScene();
     await this.engine.setScene(() => this.shipScene!);
+    // The handover into the reveal hid the crosshair; the rebuilt interior needs it back. Done
+    // behind the fade, in the same continuation as the scene swap, so there is no window where
+    // the interior is current but the crosshair is still hidden.
+    UIManager.setCrosshairVisible(true);
     await UIManager.fadeFromBlack();
     this.finishReturnToShip();
   }

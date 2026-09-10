@@ -457,7 +457,7 @@ html, body {
 .repair-row button:active:not(:disabled) { transform: translateY(1px); }
 .repair-row button:disabled { background: rgba(255,255,255,0.06); color: var(--ink-dim); border-color: var(--surface-border); cursor: not-allowed; }
 
-/* Power redirect puzzle */
+/* Sequence puzzle panel (the Cistern Heart mechanism on Kethra) */
 #power-puzzle-panel { width: 640px; }
 #power-nodes { display: flex; gap: 16px; justify-content: center; margin: 20px 0; }
 .power-node {
@@ -471,13 +471,7 @@ html, body {
 }
 .power-node .icon { font-size: 22px; }
 .power-node .name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
-.power-node .pips { display: flex; gap: 3px; }
-.power-node .pip { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.15); }
-.power-node .pip.filled { background: var(--accent); }
-.power-node.selected { border-color: var(--accent); box-shadow: 0 0 16px rgba(217,164,65,0.4); }
 #threat-indicator { text-align: center; font-size: 13px; margin-bottom: 6px; letter-spacing: 0.04em; }
-#threat-timer-track { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 16px; }
-#threat-timer-fill { height: 100%; background: linear-gradient(90deg, #d9a441, #c25b3f); width: 100%; }
 
 /* Skill check floating text */
 .skill-check-result {
@@ -783,50 +777,3 @@ body.tutorial-active .look-prompt { padding-bottom: 250px; }
   font-weight: 600;
   letter-spacing: 0.1em;
 }
-
-/* Threat-response briefing — the one-screen explanation of the first game */
-#battle-briefing { width: 600px; }
-.briefing-beats { display: flex; flex-direction: column; gap: 14px; margin: 4px 0 22px; }
-.briefing-beat { display: flex; align-items: flex-start; gap: 14px; }
-.briefing-icon {
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  background: rgba(217, 164, 65, 0.08);
-  color: var(--accent);
-  font-size: 19px;
-}
-.briefing-beat-title {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 2px;
-}
-.briefing-beat-text { font-size: 13.5px; line-height: 1.55; color: var(--ink); }
-.briefing-begin {
-  display: block;
-  width: 100%;
-  padding: 12px;
-  background: rgba(217, 164, 65, 0.14);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.briefing-begin:hover { background: var(--accent); color: #1a1408; }
-.briefing-begin:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.briefing-footer { margin-top: 10px; text-align: center; font-size: 11px; color: var(--ink-dim); }

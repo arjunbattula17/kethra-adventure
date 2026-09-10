@@ -75,8 +75,8 @@ export class TutorialHud {
     this.root.appendChild(this.waypoint);
     this.root.appendChild(this.skipEl);
 
-    // Inserted at the front of #ui-root rather than appended: panels (character sheet, settings,
-    // the battle overlay) are positioned siblings with no z-index of their own, so inside
+    // Inserted at the front of #ui-root rather than appended: panels (character sheet, settings)
+    // are positioned siblings with no z-index of their own, so inside
     // #ui-root's stacking context they paint in DOM order. Appending would float the tutorial card
     // on top of the very panel the tutorial asks the player to open.
     const uiRoot = document.getElementById('ui-root')!;

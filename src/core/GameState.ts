@@ -52,7 +52,6 @@ export interface ClueConnection {
 export interface SceneId {
   scene:
     | 'ship_interior'
-    | 'battle_tutorial'
     | 'galaxy_reveal'
     | 'galaxy_map'
     | 'planet_kethra';

@@ -1,5 +1,6 @@
 // End-to-end check of the opening: game loads -> tutorial -> guided to the desk -> interact with
-// the console monitor -> first game starts. Fails loudly if the battle can start any earlier.
+// the console monitor -> galaxy reveal -> back on the ship with progression unlocked. Fails
+// loudly if the reveal can start any earlier.
 //
 // Everything except the look step is driven through real input: keydown/keyup on the page, a real
 // walk across the room, a real E-press resolved by InteractionSystem. The look step nudges
@@ -72,11 +73,10 @@ await page.waitForFunction(() => window.__DEBUG__?.flow?.tutorial != null, { tim
 // Software rasterisation makes the default tier a slideshow; the flow under test is unaffected.
 await page.evaluate(() => window.__DEBUG__.engine.setManualQualityTier('low'));
 
-// 1. Nothing starts on its own. The old flow had the puzzle on screen ~9s after load; here the
-//    first thing the player ever sees is the tutorial.
+// 1. Nothing starts on its own. The first thing the player ever sees is the tutorial.
 check('tutorial reaches its first step', await until(async () => (await cardTitle()) !== null, 120000));
 check('tutorial card is the first thing shown', (await cardTitle()) === 'Take the Helm', (await cardTitle()) ?? 'no card');
-check('first game does not auto-start on load', !(await page.$('#power-puzzle-panel')));
+check('first game does not auto-start on load', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
 await shot('01_step_look');
 
 // 2. Look step. First, press Tab well before the tutorial asks for it: the HUD advertises
@@ -104,7 +104,7 @@ check('console reads as offline before the tutorial unlocks it', (lockedPrompt ?
 await page.keyboard.press('KeyE');
 const toastShown = await until(async () => !!(await page.$('.toast')), 10000);
 const toast = await page.$eval('.toast', (el) => el.textContent).catch(() => null);
-check('early E on the console does not start the first game', !(await page.$('#battle-briefing')) && !(await page.$('#power-puzzle-panel')));
+check('early E on the console does not start the first game', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
 check('early E explains why, rather than doing nothing', toastShown && (toast ?? '').includes('still rebooting'), toast ?? 'no toast');
 await shot('03_console_locked');
 // Back to spawn facing the console: the look step left the camera pointing off to one side, and
@@ -168,8 +168,10 @@ check('monitor offers the boot prompt at the desk', (bootPrompt ?? '').includes(
 await page.keyboard.press('KeyE');
 await page.waitForTimeout(1500);
 await shot('08_boot_cinematic');
-check('booting the console leads into the first game briefing', await until(async () => !!(await page.$('#battle-briefing')), 30000));
-await shot('09_briefing');
+// The boot handover fades to black and swaps in the galaxy reveal — its GLB/texture loads can
+// take a while under software rendering, so the wait is generous.
+check('booting the console leads into the galaxy reveal', await until(async () => !!(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)), 120000));
+await shot('09_reveal');
 
 // The tutorial has to leave nothing behind — DOM, body class, or scene objects.
 const leftovers = await page.evaluate(() => {
@@ -183,18 +185,27 @@ const leftovers = await page.evaluate(() => {
 });
 check('tutorial cleans itself up at the handover', !Object.values(leftovers).some(Boolean), JSON.stringify(leftovers));
 
-// 8. And the briefing hands over to the puzzle itself.
-await page.click('#battle-briefing button');
-check('first game starts after the briefing', await until(async () => !!(await page.$('#power-puzzle-panel')), 30000));
-await page.waitForTimeout(1500);
-await shot('10_first_game');
+// 8. The reveal plays out, offers its continue prompt, and hands back to the ship interior with
+//    the post-reveal progression flags set.
+check('the reveal reaches its continue prompt', await until(async () => await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene()?.readyForContinue === true), 180000));
+await shot('10_reveal_done');
+await page.keyboard.press('Enter');
+check('continuing returns to the ship interior', await until(async () => await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.player), 120000));
+const postFlags = await page.evaluate(() => ({
+  flags: window.__DEBUG__.gameState.data.flags,
+  planets: window.__DEBUG__.gameState.data.planetsUnlocked,
+  crosshairHidden: document.getElementById('crosshair')?.classList.contains('hidden'),
+}));
+check('reveal sets the post-reveal progression flags', ['tutorial_battle_complete', 'galaxy_revealed', 'logs_available', 'damage_assessed'].every((f) => postFlags.flags.includes(f)) && postFlags.planets.includes('kethra'), JSON.stringify(postFlags));
+check('crosshair is restored after the reveal', postFlags.crosshairHidden === false, JSON.stringify(postFlags.crosshairHidden));
+await shot('11_back_on_ship');
 
 // 9. A player who has already been through the opening never sees it again.
 await page.goto(baseUrl + '/?skipIntro=1&newGame=1', { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__DEBUG__?.engine?.getCurrentScene?.(), { timeout: 120000 });
 await page.waitForTimeout(3000);
 check('a returning player gets no tutorial', !(await page.$('.tut-card')) && !(await page.evaluate(() => !!window.__DEBUG__.flow.tutorial)));
-check('a returning player gets no auto-started puzzle either', !(await page.$('#power-puzzle-panel')));
+check('a returning player gets no auto-started reveal either', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
 
 check('no page or console errors during the opening', errors.length === 0, errors.join(' | '));
 

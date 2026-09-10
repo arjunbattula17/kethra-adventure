@@ -55,11 +55,11 @@ export const MONITOR_ANCHOR = { x: 0, y: 1.6, z: DESK_Z - 0.52 };
  * Session gate on booting the console, owned by the opening tutorial (TutorialSequence sets both
  * fields; nothing else writes them).
  *
- * Deliberately module state rather than a gameState flag: this is not saved progress. The battle
- * that follows the boot awards XP, which can emit `level:up`, which writes a save — so a flag set
- * here could come back on a reload whose tutorial restarts from step one, with the console already
- * unlocked. `consumed` retires the prompt the instant it is used, so the interact hint is not left
- * hanging over the cinematic the boot triggers.
+ * Deliberately module state rather than a gameState flag: this is not saved progress — it is
+ * per-run tutorial choreography, and a saved flag could come back on a reload whose tutorial
+ * restarts from step one, with the console already unlocked. `consumed` retires the prompt the
+ * instant it is used, so the interact hint is not left hanging over the cinematic the boot
+ * triggers.
  */
 export const consoleBootGate = { unlocked: false, consumed: false };
 

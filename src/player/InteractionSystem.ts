@@ -58,6 +58,13 @@ export class InteractionSystem {
   clear(): void {
     this.interactables = [];
     this.currentTarget = null;
+    // The prompt is global DOM, not scene-owned: without this, a prompt visible at the moment a
+    // scene is disposed stays on screen for the whole next scene (seen as "Access Navigation
+    // Console" floating over the galaxy reveal).
+    if (this.currentLabel !== null) {
+      this.currentLabel = null;
+      this.onPromptChange(null);
+    }
   }
 
   update(camera: THREE.Camera): void {
