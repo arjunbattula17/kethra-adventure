@@ -78,6 +78,9 @@ const PRESETS = {
   },
   'galaxy-reveal': async (page) => {
     await gotoReady(page);
+    // __DEBUG__ is exposed before flow.start()'s own boot setScene resolves; transitioning while
+    // that call is still in flight lets the boot scene land AFTER the reveal and clobber it.
+    await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene(), undefined, { timeout: 120000, polling: 500 });
     await page.evaluate(() => window.__DEBUG__.flow['transitionToGalaxyReveal']?.());
     // transitionToGalaxyReveal() is async and doesn't resolve until its own fade-to-black, scene
     // init (real GLTF loading for the kitbashed ship hull), and fade-from-black are all done, so a
@@ -90,7 +93,8 @@ const PRESETS = {
         return !!s?.ship;
       },
       undefined,
-      { timeout: 30000 },
+      // Generous: under CPU throttling the reveal's GLTF load + compileAsync can far exceed 30s.
+      { timeout: 180000, polling: 500 },
     );
     await page.waitForTimeout(1500);
   },
@@ -98,7 +102,10 @@ const PRESETS = {
 
 async function gotoReady(page, query = '?skipIntro=1&newGame=1') {
   await page.goto(BASE_URL + query, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 45000 });
+  // Interval polling, not the default rAF polling: during boot the main thread runs long
+  // synchronous tasks (PMREM build, kit parsing) and nothing services rAF, so an rAF-polled
+  // wait can starve past its timeout while the page is in fact making progress.
+  await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 120000, polling: 500 });
   await page.waitForTimeout(1500);
 }
 
@@ -136,7 +143,12 @@ async function trace(presetName, throttle) {
   const preset = PRESETS[presetName];
   if (!preset) throw new Error(`unknown preset "${presetName}" — known: ${Object.keys(PRESETS).join(', ')}`);
 
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader'] });
+  // The anti-backgrounding flags matter as much as the GL ones (see docs/learnings.md): without
+  // them headless Chromium throttles rAF/timers in an un-interacted page, which both starves the
+  // waitForFunction polls below and corrupts the frame-time sample itself.
+  const browser = await chromium.launch({
+    args: ['--use-gl=angle', '--enable-unsafe-swiftshader', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
+  });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   const pageErrors = [];
   page.on('pageerror', (e) => pageErrors.push(e.message));

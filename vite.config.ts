@@ -32,4 +32,11 @@ export default defineConfig({
       },
     },
   },
+  server: {
+    // The capture/audit harnesses under tools/ write their screenshots into renders/ and reports/
+    // while a Playwright page is mid-run. Those writes land inside the project root, so the default
+    // watcher treats them as source changes and full-reloads the page between shots -- which resets
+    // the scene the harness just set up. None of these directories are imported by the app.
+    watch: { ignored: ['**/tools/**', '**/renders/**', '**/reports/**'] },
+  },
 });
