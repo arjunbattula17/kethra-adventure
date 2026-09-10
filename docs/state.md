@@ -62,3 +62,14 @@ The uncommitted WIP (freighter GLB + texture planets) is already in and builds g
       (all under SwiftShader software rendering); DPR-2 production capture confirms a true
       2560x1440 composer buffer. All uncommitted — this session's changes sit on top of the
       prior session's planet-texture WIP.
+
+# Follow-up — zero-gameplay-impact performance pass (2026-09-09, same day)
+Diagnosis-first (tools/perf-profile.mjs, new): interior was draw-submission-bound at 2,468
+calls/frame; the shadow pass re-rendered an identical depth map every frame (~1,136 calls).
+Fix: per-scene `staticShadows` opt-in (Engine) — interior opts in, Kethra keeps live shadows
+(its creature moves), reveal has no shadow lights. Verified pixel-identical (framebuffer hash,
+frozen vs live), 24/24 opening flow test, Kethra loads clean. Throttled prod traces:
+ship-hero p50 46.3→36.1ms, ship-walk p50 37.2→26.3ms (drop<30fps 87%→14%), reveal unchanged.
+Deliberately NOT done (no profiling evidence / would change behavior or visuals): allocation
+micro-fixes (GC absent from every profile), GTAO restructuring, Kethra changes (raster-bound),
+tick/update frequency reductions.
