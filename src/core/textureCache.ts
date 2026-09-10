@@ -24,6 +24,18 @@ import * as THREE from 'three';
  */
 const inFlight = new Map<string, Promise<THREE.Texture>>();
 
+// Ceiling on kit texture dimensions, set by Engine from the quality tier before any scene loads.
+// The kits ship 2048x2048 maps (~21MB each on the GPU); on the low tier — old integrated GPUs
+// with 2-4GB of *shared* memory — halving them to 1024 cuts the two kits' texture memory by ~75%
+// (interior ~344MB -> ~100MB estimated) and halves decode+upload work during scene loads, for a
+// softness cost that at this game's wall/prop viewing distances sits below the resolution the low
+// tier renders at anyway. The cache key includes the active ceiling, so a later manual switch to
+// a higher tier reloads fresh full-size copies instead of serving the downscaled ones.
+let maxTextureSize = Infinity;
+export function setKitTextureMaxSize(px: number): void {
+  maxTextureSize = px;
+}
+
 /**
  * Mirrors GLTFLoader's own choice of image loader. ImageBitmapLoader decodes off the main thread;
  * TextureLoader decodes on it. Routing everything through TextureLoader instead cost 11 seconds of
@@ -50,11 +62,26 @@ function loadTextureOnce(manager: THREE.LoadingManager, resolved: string): Promi
   if (!decodesOffThread()) return new THREE.TextureLoader(manager).loadAsync(resolved);
   // THREE.Cache is off, so ImageBitmapLoader never takes its own broken cache path; the dedupe is
   // the inFlight map below.
-  return new THREE.ImageBitmapLoader(manager).loadAsync(resolved).then((bitmap) => {
-    const texture = new THREE.Texture(bitmap as unknown as HTMLImageElement);
-    texture.needsUpdate = true;
-    return texture;
-  });
+  return new THREE.ImageBitmapLoader(manager)
+    .loadAsync(resolved)
+    .then(async (bitmap) => {
+      // Downscale oversized kit maps at decode time on constrained tiers (see maxTextureSize
+      // above). Only on the ImageBitmap path: the TextureLoader fallback serves the rare old
+      // Safari/Firefox engines, which aren't the shared-VRAM low-end this targets.
+      if (bitmap.width > maxTextureSize || bitmap.height > maxTextureSize) {
+        const scale = maxTextureSize / Math.max(bitmap.width, bitmap.height);
+        const small = await createImageBitmap(bitmap, {
+          resizeWidth: Math.round(bitmap.width * scale),
+          resizeHeight: Math.round(bitmap.height * scale),
+          resizeQuality: 'high',
+        });
+        bitmap.close();
+        bitmap = small;
+      }
+      const texture = new THREE.Texture(bitmap as unknown as HTMLImageElement);
+      texture.needsUpdate = true;
+      return texture;
+    });
 }
 
 class SharedTextureLoader extends THREE.Loader<THREE.Texture> {
@@ -66,11 +93,14 @@ class SharedTextureLoader extends THREE.Loader<THREE.Texture> {
   ): void {
     // The manager's URL modifier is what redirects a glTF's bare filename to the shared folder and
     // to the .jpg sibling, so the cache has to be keyed on the resolved URL, not the requested one.
+    // The size ceiling joins the key so a tier change mid-session refetches at the new size rather
+    // than serving copies decoded under the old one.
     const resolved = this.manager.resolveURL(url);
-    let pending = inFlight.get(resolved);
+    const cacheKey = `${maxTextureSize}|${resolved}`;
+    let pending = inFlight.get(cacheKey);
     if (!pending) {
       pending = loadTextureOnce(this.manager, resolved);
-      inFlight.set(resolved, pending);
+      inFlight.set(cacheKey, pending);
     }
     pending
       .then((base) => {
@@ -80,7 +110,7 @@ class SharedTextureLoader extends THREE.Loader<THREE.Texture> {
       })
       .catch((err) => {
         // Drop the rejected entry so a later attempt can retry rather than replaying the failure.
-        inFlight.delete(resolved);
+        inFlight.delete(cacheKey);
         onError?.(err);
       });
   }

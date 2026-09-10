@@ -4,6 +4,7 @@ import { initSharedEnvironment } from './Environment';
 import { PostProcessing } from './PostProcessing';
 import type { QualityTier } from './PostProcessing';
 import { UIManager } from '../ui/UIManager';
+import { setKitTextureMaxSize } from './textureCache';
 
 // Per-tier renderer settings. shadowMap.enabled and pixelRatio are both free to toggle at
 // runtime (no GL context loss, no re-construction) — only the WebGLRenderer's own creation-time
@@ -61,6 +62,12 @@ export class Engine {
   // downgrade monitor stops overriding their choice. Players who never open the menu keep the
   // fully automatic behavior above.
   private manualOverride = false;
+  // Below-'low' relief valve for machines where even the low tier stays GPU-bound (old integrated
+  // graphics): the same sustained-p95 evidence that walks the tier down keeps going, stepping the
+  // internal render scale 1 -> 0.85 -> 0.7. Like the tier itself it never climbs back mid-session
+  // (see the recordFrameForQuality note), and a manual tier choice resets it to 1.
+  private renderScale = 1;
+  private static readonly RENDER_SCALE_STEPS = [1, 0.85, 0.7];
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -92,8 +99,12 @@ export class Engine {
 
   private applyTier(tier: QualityTier): void {
     const settings = TIERS[tier];
-    const ratio = Math.min(window.devicePixelRatio, settings.pixelRatio);
+    const ratio = Math.min(window.devicePixelRatio, settings.pixelRatio) * this.renderScale;
     this.renderer.setPixelRatio(ratio);
+    // Scenes loaded from here on decode kit textures at half size on the lowest tier — the
+    // shared-VRAM integrated GPUs that land there gain ~75% of the kits' texture memory back.
+    // Already-loaded scenes keep their current textures; the cache re-decodes on a tier change.
+    setKitTextureMaxSize(tier === 'low' ? 1024 : Infinity);
     // The composer holds its own copy of the pixel ratio (snapshotted at construction) — without
     // this it keeps rendering at the old ratio and the result is scaled to fit the canvas.
     this.postFx.setPixelRatio(ratio);
@@ -114,7 +125,8 @@ export class Engine {
   // downgrade so the renderer has time to actually recover before being judged again.
   private recordFrameForQuality(dtMs: number): void {
     if (this.manualOverride) return; // player has chosen a tier themselves — stop overriding it
-    if (this.tier === 'low') return; // nowhere further down to go
+    // At the bottom tier the render-scale steps are what's left; stop only once those run out too.
+    if (this.tier === 'low' && this.renderScale <= Engine.RENDER_SCALE_STEPS[Engine.RENDER_SCALE_STEPS.length - 1]) return;
     this.recentFrameMs.push(dtMs);
     if (this.recentFrameMs.length < 60) return;
     if (this.recentFrameMs.length > 90) this.recentFrameMs.shift();
@@ -126,7 +138,12 @@ export class Engine {
     const p95 = sorted[Math.floor(sorted.length * 0.95)];
     if (p95 > 33.3) {
       // sustained sub-30fps at p95 — a real, felt stutter, not a one-off hitch
-      this.tier = this.tier === 'high' ? 'medium' : 'low';
+      if (this.tier !== 'low') {
+        this.tier = this.tier === 'high' ? 'medium' : 'low';
+      } else {
+        const steps = Engine.RENDER_SCALE_STEPS;
+        this.renderScale = steps[Math.min(steps.indexOf(this.renderScale) + 1, steps.length - 1)];
+      }
       this.applyTier(this.tier);
       this.lastDowngradeAt = now;
       this.recentFrameMs.length = 0;
@@ -194,6 +211,9 @@ export class Engine {
   // and permanently disables the automatic downgrade monitor for the rest of the session.
   setManualQualityTier(tier: QualityTier): void {
     this.manualOverride = true;
+    // An explicit choice also clears any render-scale relief the automatic path had applied —
+    // the player asked for this tier's real resolution.
+    this.renderScale = 1;
     this.tier = tier;
     this.applyTier(tier);
   }
