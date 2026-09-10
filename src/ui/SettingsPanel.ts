@@ -25,9 +25,14 @@ function isQualityTier(v: unknown): v is QualityTier {
   return v === 'low' || v === 'medium' || v === 'high';
 }
 
-function loadSettings(): Settings {
+/** Returns the player's explicitly saved settings, or null when they have never chosen any. The
+ * distinction matters: applying a *default* through setManualQualityTier() would permanently
+ * disable the engine's automatic tier selection and runtime downgrade monitor — which is exactly
+ * the bug this replaced: every fresh profile was forced to 'high' at boot, so a 2-core machine
+ * never saw the low tier and the frame-time governor never ran for anyone. */
+function loadSettings(): Settings | null {
   const raw = localStorage.getItem(SETTINGS_KEY);
-  if (!raw) return { ...DEFAULT_SETTINGS };
+  if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
     if (
@@ -42,7 +47,7 @@ function loadSettings(): Settings {
   } catch {
     // fall through to defaults
   }
-  return { ...DEFAULT_SETTINGS };
+  return null;
 }
 
 function saveSettings(settings: Settings): void {
@@ -63,6 +68,10 @@ const TOGGLE_OPTIONS: { key: 'shadows' | 'ao' | 'bloom'; label: string }[] = [
 
 class SettingsPanelImpl {
   private settings: Settings = { ...DEFAULT_SETTINGS };
+  // False until the player explicitly picks something in this panel (now or in a past session).
+  // While false, the engine stays on its automatic tier/downgrade behavior and this panel only
+  // mirrors what the engine chose.
+  private playerChosen = false;
 
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'KeyO') {
@@ -76,11 +85,25 @@ class SettingsPanelImpl {
 
   init(): void {
     window.addEventListener('keydown', this.keyHandler);
-    this.settings = loadSettings();
-    this.apply();
+    const saved = loadSettings();
+    if (saved) {
+      this.playerChosen = true;
+      this.settings = saved;
+      this.apply();
+    }
+    // No saved choice: leave the engine alone — its hardware guess and runtime downgrade monitor
+    // are the defaults, and apply() would silence them for good (see loadSettings).
   }
 
   open(): void {
+    if (!this.playerChosen) {
+      // Mirror whatever the automatic system currently runs at, so the panel opens truthful.
+      const engine = getActiveEngine();
+      if (engine) {
+        const tier = engine.getQualityTier();
+        this.settings = { tier, ...TIER_DEFAULTS[tier] };
+      }
+    }
     this.render();
   }
 
@@ -94,6 +117,7 @@ class SettingsPanelImpl {
   }
 
   private setTier(tier: QualityTier): void {
+    this.playerChosen = true;
     this.settings = { tier, ...TIER_DEFAULTS[tier] };
     saveSettings(this.settings);
     this.apply();
@@ -101,6 +125,7 @@ class SettingsPanelImpl {
   }
 
   private setToggle(key: 'shadows' | 'ao' | 'bloom', value: boolean): void {
+    this.playerChosen = true;
     this.settings = { ...this.settings, [key]: value };
     saveSettings(this.settings);
     this.apply();
