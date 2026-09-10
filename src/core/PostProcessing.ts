@@ -92,12 +92,32 @@ export class PostProcessing {
   private renderPass: RenderPass;
   private aoPass: GTAOPass;
   private bloomPass: UnrealBloomPass;
+  // Whether the *current scene* can benefit from AO at all, independent of the quality tier and of
+  // the settings menu's own toggle. Both of those choose whether to pay for AO; this decides
+  // whether AO is even meaningful here. See GameScene.usesAO.
+  private aoSupported = true;
+  private aoRequested = true;
   // GTAOPass keeps its own internal render targets sized independently of the main canvas — see
   // setSize() below.
   private static readonly AO_SCALE = 0.5;
 
-  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
-    this.composer = new EffectComposer(renderer);
+  // CSS-pixel size, tracked so pass-level size overrides (AO at half res, bloom at CSS res) can
+  // be re-applied after composer.setSize()/setPixelRatio() resize every pass to full buffer size.
+  private width = window.innerWidth;
+  private height = window.innerHeight;
+
+  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, samples: number) {
+    // Two things the default EffectComposer target gets wrong for this game:
+    // - It has no MSAA samples, and the canvas's own `antialias: true` does not apply to
+    //   composer rendering, so every edge in the game was aliased.
+    // - The composer snapshots the renderer's pixel ratio at construction and never re-reads it;
+    //   Engine raises the renderer to its tier's pixel ratio *after* building this object, so
+    //   without setPixelRatio() below the whole game rendered at 1x and was upscaled to the
+    //   canvas — uniformly blurry on any display with devicePixelRatio > 1.
+    this.composer = new EffectComposer(
+      renderer,
+      new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType, samples }),
+    );
     this.renderPass = new RenderPass(scene, camera);
     this.composer.addPass(this.renderPass);
 
@@ -162,9 +182,24 @@ export class PostProcessing {
   }
 
   setSize(width: number, height: number): void {
+    this.width = width;
+    this.height = height;
     this.composer.setSize(width, height);
-    this.aoPass.setSize(Math.round(width * PostProcessing.AO_SCALE), Math.round(height * PostProcessing.AO_SCALE));
-    this.bloomPass.setSize(width, height);
+    this.applyPassSizes();
+  }
+
+  /** Keep the composer's buffers in step with the renderer's pixel ratio (see constructor note). */
+  setPixelRatio(ratio: number): void {
+    this.composer.setPixelRatio(ratio);
+    this.applyPassSizes();
+  }
+
+  // composer.setSize()/setPixelRatio() size every pass to the full effective buffer; AO is
+  // deliberately cheaper than that (half CSS resolution — it's a low-frequency effect, see the
+  // constructor note) and bloom stays at CSS resolution (a blur pass gains nothing from DPR).
+  private applyPassSizes(): void {
+    this.aoPass.setSize(Math.round(this.width * PostProcessing.AO_SCALE), Math.round(this.height * PostProcessing.AO_SCALE));
+    this.bloomPass.setSize(this.width, this.height);
   }
 
   // Toggling pass.enabled is instant and free — EffectComposer just skips a disabled pass's
@@ -173,15 +208,22 @@ export class PostProcessing {
   // note above), so it's the first thing to drop; bloom is comparatively cheap but still real
   // cost on a genuinely weak device, so 'low' drops both.
   setQuality(tier: QualityTier): void {
-    this.aoPass.enabled = tier === 'high';
+    this.aoRequested = tier === 'high';
+    this.aoPass.enabled = this.aoRequested && this.aoSupported;
     this.bloomPass.enabled = tier !== 'low';
+  }
+
+  setAOSupported(supported: boolean): void {
+    this.aoSupported = supported;
+    this.aoPass.enabled = this.aoRequested && supported;
   }
 
   // Independent toggles for the settings menu, so a player can drop just one heavy effect
   // without forcing the coarser tier preset down. setQuality() above remains the default the
   // tier selector applies before either of these overrides it.
   setAOEnabled(enabled: boolean): void {
-    this.aoPass.enabled = enabled;
+    this.aoRequested = enabled;
+    this.aoPass.enabled = enabled && this.aoSupported;
   }
 
   setBloomEnabled(enabled: boolean): void {

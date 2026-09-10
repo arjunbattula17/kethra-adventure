@@ -31,6 +31,11 @@ export interface GameScene {
   update(dt: number, elapsed: number): void;
   dispose(): void;
   onResize?(width: number, height: number): void;
+  /** Opt out of screen-space ambient occlusion. Defaults to on. A scene that is mostly empty space
+   * has nothing for GTAO to occlude, and the pass's half-resolution buffer instead paints visible
+   * blocky rectangles across the sky and a hard square halo around additive sprites -- see the
+   * with/without pair in renders/space-audit. */
+  usesAO?: boolean;
 }
 
 export class Engine {
@@ -71,8 +76,9 @@ export class Engine {
     initSharedEnvironment(this.renderer);
     InputManager.init(this.renderer.domElement);
 
-    this.postFx = new PostProcessing(this.renderer, new THREE.Scene(), new THREE.PerspectiveCamera());
     this.tier = guessInitialTier();
+    // MSAA resolves per-frame at full buffer resolution, so only the low tier skips it.
+    this.postFx = new PostProcessing(this.renderer, new THREE.Scene(), new THREE.PerspectiveCamera(), this.tier === 'low' ? 0 : 4);
     this.applyTier(this.tier);
 
     window.addEventListener('resize', () => this.handleResize());
@@ -80,7 +86,11 @@ export class Engine {
 
   private applyTier(tier: QualityTier): void {
     const settings = TIERS[tier];
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, settings.pixelRatio));
+    const ratio = Math.min(window.devicePixelRatio, settings.pixelRatio);
+    this.renderer.setPixelRatio(ratio);
+    // The composer holds its own copy of the pixel ratio (snapshotted at construction) — without
+    // this it keeps rendering at the old ratio and the result is scaled to fit the canvas.
+    this.postFx.setPixelRatio(ratio);
     this.renderer.shadowMap.enabled = settings.shadows;
     this.postFx.setQuality(tier);
   }
@@ -137,6 +147,7 @@ export class Engine {
       await this.renderer.compileAsync(scene.scene, scene.camera);
       this.current = scene;
       this.postFx.setActive(scene.scene, scene.camera);
+      this.postFx.setAOSupported(scene.usesAO !== false);
       this.handleResize();
     } finally {
       UIManager.hideLoading();
