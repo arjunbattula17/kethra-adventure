@@ -36,6 +36,12 @@ export interface GameScene {
    * blocky rectangles across the sky and a hard square halo around additive sprites -- see the
    * with/without pair in renders/space-audit. */
   usesAO?: boolean;
+  /** Declare that nothing in this scene that casts a shadow ever moves (meshes or lights — light
+   * intensity changes are fine, they don't touch the depth map). The engine then renders the
+   * scene's shadow maps once instead of every frame. Measured on the ship interior: the per-frame
+   * shadow pass was ~1,100 of its ~2,470 draw calls, re-drawing an identical depth map. A scene
+   * that opts in and later animates a caster must arm renderer.shadowMap.needsUpdate itself. */
+  staticShadows?: boolean;
 }
 
 export class Engine {
@@ -92,6 +98,9 @@ export class Engine {
     // this it keeps rendering at the old ratio and the result is scaled to fit the canvas.
     this.postFx.setPixelRatio(ratio);
     this.renderer.shadowMap.enabled = settings.shadows;
+    // A static-shadow scene (shadowMap.autoUpdate off) has consumed its one needsUpdate; shadows
+    // coming back after a tier change need a fresh paint or they'd show a stale/empty map.
+    if (settings.shadows && !this.renderer.shadowMap.autoUpdate) this.renderer.shadowMap.needsUpdate = true;
     this.postFx.setQuality(tier);
   }
 
@@ -148,6 +157,9 @@ export class Engine {
       this.current = scene;
       this.postFx.setActive(scene.scene, scene.camera);
       this.postFx.setAOSupported(scene.usesAO !== false);
+      this.renderer.shadowMap.autoUpdate = scene.staticShadows !== true;
+      // One paint for the new scene's maps; consumed by the first render when autoUpdate is off.
+      this.renderer.shadowMap.needsUpdate = true;
       this.handleResize();
     } finally {
       UIManager.hideLoading();
@@ -188,6 +200,8 @@ export class Engine {
 
   setShadowsEnabled(enabled: boolean): void {
     this.renderer.shadowMap.enabled = enabled;
+    // Same re-arm as applyTier: a static-shadow scene needs one fresh paint on re-enable.
+    if (enabled && !this.renderer.shadowMap.autoUpdate) this.renderer.shadowMap.needsUpdate = true;
   }
 
   setAOEnabled(enabled: boolean): void {

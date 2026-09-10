@@ -33,6 +33,12 @@ export class ShipInteriorScene implements GameScene {
    * "all targets reachable" claim had only ever been checked against a dev build.
    */
   readonly kind = 'ShipInteriorScene';
+  // Everything in this room that casts a shadow is static: the only animated *transforms* are the
+  // two screen-sweep quads (console radar, suspended display), both MeshBasicMaterial overlays
+  // with castShadow unset, and the one shadow-casting light (lighting.ts's key) only ripples its
+  // intensity, which the depth map doesn't see. If a shadow-casting mesh or light ever starts
+  // moving, either drop this flag or arm renderer.shadowMap.needsUpdate from its animation tick.
+  readonly staticShadows = true;
   /**
    * Per-frame hook for a director that lives outside the scene — currently the opening tutorial,
    * which has to poll movement and the player's position but is owned by GameFlow, not by the room.
