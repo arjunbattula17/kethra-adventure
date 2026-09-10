@@ -73,3 +73,15 @@ ship-hero p50 46.3→36.1ms, ship-walk p50 37.2→26.3ms (drop<30fps 87%→14%),
 Deliberately NOT done (no profiling evidence / would change behavior or visuals): allocation
 micro-fixes (GC absent from every profile), GTAO restructuring, Kethra changes (raster-bound),
 tick/update frequency reductions.
+
+# Follow-up — low-end hardware pass (2026-09-10)
+Three changes, all verified on a simulated low-end machine (CDP: 2 cores + 4-6x CPU throttle,
+prod build): (1) fixed SettingsPanel silently forcing manual 'high' tier on every fresh profile,
+which had disabled the hardware guess AND the runtime downgrade monitor for all players;
+(2) kit textures decode at 1024 max on the low tier (interior texture est. 344->233MB; the
+remainder is procedural canvases), keyed into the texture cache so tier changes refetch;
+(3) below-low render-scale governor (1 -> 0.85 -> 0.7, same p95 evidence + cooldown, one-way,
+manual choice resets). Results, bad-laptop profile: Kethra p50 43.3->16.6ms (drop<30fps 100%->0%),
+interior settles 36->27.6ms p50 after adaptation, reveal unchanged, high tier byte-identical
+behavior (full-size textures, 24/24 flow test). Not done: canvas-texture scaling, deeper draw-call
+batching (365 singleton materials — atlas-level work), any gameplay-affecting throttling.
