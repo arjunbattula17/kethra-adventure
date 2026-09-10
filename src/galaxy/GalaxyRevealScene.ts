@@ -24,6 +24,29 @@ function buildGlowTexture(): THREE.Texture {
   return texture;
 }
 
+// Soft round sprite shared by the star fields, the asteroid belt and the engine trail. Without a
+// map, THREE.PointsMaterial draws hard-edged SQUARES -- which is exactly what the pre-fix renders
+// show: white squares for stars and chunky grey blocks for the asteroid belt, both obvious enough
+// to read as a rendering fault rather than as sky.
+let pointSprite: THREE.Texture | null = null;
+function getPointSprite(): THREE.Texture {
+  if (pointSprite) return pointSprite;
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.25, 'rgba(255,255,255,0.85)');
+  g.addColorStop(0.55, 'rgba(255,255,255,0.25)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  pointSprite = new THREE.CanvasTexture(canvas);
+  return pointSprite;
+}
+
 function buildStarfield(count: number, spread: number, size: number): THREE.Points {
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
@@ -34,32 +57,100 @@ function buildStarfield(count: number, spread: number, size: number): THREE.Poin
     positions[i * 3 + 2] = (Math.random() - 0.5) * spread;
     const warmth = Math.random();
     tint.setHSL(warmth > 0.8 ? 0.08 : warmth < 0.15 ? 0.6 : 0.12, 0.25, 0.75 + Math.random() * 0.25);
-    colors[i * 3] = tint.r;
-    colors[i * 3 + 1] = tint.g;
-    colors[i * 3 + 2] = tint.b;
+    // Most stars should be faint. A uniform brightness reads as a scattering of identical dots
+    // rather than a sky with depth in it, so each star gets a random dimming weighted toward dim.
+    const brightness = 0.25 + Math.pow(Math.random(), 2.2) * 0.75;
+    colors[i * 3] = tint.r * brightness;
+    colors[i * 3 + 1] = tint.g * brightness;
+    colors[i * 3 + 2] = tint.b * brightness;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const mat = new THREE.PointsMaterial({ vertexColors: true, size, sizeAttenuation: true });
+  const mat = new THREE.PointsMaterial({
+    vertexColors: true,
+    size,
+    map: getPointSprite(),
+    sizeAttenuation: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
   return new THREE.Points(geo, mat);
 }
 
-function buildAsteroidField(count: number, innerRadius: number, outerRadius: number): THREE.Points {
-  // Positions are relative to the field's own origin; caller positions/rotates the returned object
-  // so the whole belt can drift as one piece instead of sitting frozen in place.
-  const positions = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
+/** A belt of real rock, not a flat annulus of grey squares. Individual instanced chunks near the
+ * camera plus a dust haze of points further out: the pre-fix version used one big PointsMaterial
+ * for everything, which put unlit grey blocks the size of moons in front of the sun. */
+function buildAsteroidField(
+  chunkCount: number,
+  dustCount: number,
+  innerRadius: number,
+  outerRadius: number,
+): THREE.Group {
+  const group = new THREE.Group();
+
+  // Positions are relative to the field's own origin; the caller positions/rotates the returned
+  // object so the whole belt drifts as one piece instead of sitting frozen in place.
+  const place = (radiusJitter: number, thickness: number) => {
     const angle = Math.random() * Math.PI * 2;
-    const radius = THREE.MathUtils.lerp(innerRadius, outerRadius, Math.random());
-    positions[i * 3] = Math.cos(angle) * radius;
-    positions[i * 3 + 1] = (Math.random() - 0.5) * 6;
-    positions[i * 3 + 2] = Math.sin(angle) * radius;
+    const radius = THREE.MathUtils.lerp(innerRadius, outerRadius, Math.random()) + radiusJitter;
+    return new THREE.Vector3(
+      Math.cos(angle) * radius,
+      (Math.random() - 0.5) * thickness,
+      Math.sin(angle) * radius,
+    );
+  };
+
+  // One low-poly icosahedron reused through an InstancedMesh: 400 lit, individually tumbled rocks
+  // for a single draw call. Non-uniform per-instance scale keeps them from reading as clones.
+  const rock = new THREE.InstancedMesh(
+    new THREE.IcosahedronGeometry(1, 0),
+    new THREE.MeshStandardMaterial({ color: 0x8f8679, roughness: 0.9, metalness: 0.05, flatShading: true }),
+    chunkCount,
+  );
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  const scale = new THREE.Vector3();
+  for (let i = 0; i < chunkCount; i++) {
+    e.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    q.setFromEuler(e);
+    const base = 0.12 + Math.pow(Math.random(), 3) * 0.85;
+    scale.set(base, base * (0.55 + Math.random() * 0.6), base * (0.6 + Math.random() * 0.7));
+    m.compose(place(0, 5), q, scale);
+    rock.setMatrixAt(i, m);
+  }
+  rock.instanceMatrix.needsUpdate = true;
+  group.add(rock);
+
+  // Dust: too small and too numerous to be worth geometry, and now soft-sprited so it reads as
+  // haze rather than as pixels.
+  const positions = new Float32Array(dustCount * 3);
+  for (let i = 0; i < dustCount; i++) {
+    const p = place(0, 7);
+    positions[i * 3] = p.x;
+    positions[i * 3 + 1] = p.y;
+    positions[i * 3 + 2] = p.z;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const mat = new THREE.PointsMaterial({ color: 0x8a8378, size: 0.5, sizeAttenuation: true });
-  return new THREE.Points(geo, mat);
+  group.add(
+    new THREE.Points(
+      geo,
+      new THREE.PointsMaterial({
+        color: 0x8a8378,
+        size: 0.28,
+        map: getPointSprite(),
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.75,
+        depthWrite: false,
+      }),
+    ),
+  );
+
+  return group;
 }
 
 function buildRingTexture(): THREE.Texture {
@@ -80,23 +171,6 @@ function buildRingTexture(): THREE.Texture {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
-}
-
-// Soft circular sprite for engine-trail particles. THREE.PointsMaterial renders hard-edged
-// squares without a map, which reads as blocky/artificial once particles overlap the ship hull.
-function buildParticleSprite(): THREE.Texture {
-  const size = 64;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  g.addColorStop(0, 'rgba(255,255,255,1)');
-  g.addColorStop(0.4, 'rgba(255,255,255,0.6)');
-  g.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-  return new THREE.CanvasTexture(canvas);
 }
 
 /** A small pool of additive-blended embers that stream backward from the ship's engines,
@@ -126,7 +200,7 @@ class EngineTrail {
     geo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
     const mat = new THREE.PointsMaterial({
       size: 0.4,
-      map: buildParticleSprite(),
+      map: getPointSprite(),
       vertexColors: true,
       transparent: true,
       opacity: 1,
@@ -181,6 +255,9 @@ class EngineTrail {
 }
 
 export class GalaxyRevealScene implements GameScene {
+  // Nothing in open space occludes anything; GTAO only paints half-resolution blocky artefacts
+  // across the sky here (see Engine.GameScene.usesAO).
+  readonly usesAO = false;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 4000);
   private sequencer: CinematicSequencer;
@@ -190,7 +267,7 @@ export class GalaxyRevealScene implements GameScene {
   private planetInstances: PlanetInstance[] = [];
   private coronaInner!: THREE.Sprite;
   private coronaOuter!: THREE.Sprite;
-  private asteroidField!: THREE.Points;
+  private asteroidField!: THREE.Group;
   private engineTrail: EngineTrail;
   private engineLocalPositions: THREE.Vector3[] = [];
   private pingSprite!: THREE.Sprite;
@@ -218,21 +295,23 @@ export class GalaxyRevealScene implements GameScene {
     UIManager.setLookPromptEnabled(false);
     this.scene.background = new THREE.Color(0x02030a);
     this.scene.environment = getSharedEnvironment();
-    this.scene.environmentIntensity = 0.12;
+    // High enough that the hull's metals have something to reflect (metalness without an
+    // environment reads as flat black), low enough that space still reads as vacuum-dark.
+    this.scene.environmentIntensity = 0.3;
 
-    // Real NASA randomized-star equirect (public domain, see public/models/CREDITS.md) behind the
-    // procedural point-star fields below — a flat color reads as empty space, this reads as a sky.
-    // Loaded at its low-res "print" resolution (1024x512, ~38KB): still a proper 2:1 equirect, and
-    // this cinematic's own camera keyframes never get close enough for the softness to show.
-    new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/space/starmap.jpg`, (texture) => {
+    // Generated 4096x2048 equirect sky (tools/prep-starfield.mjs) behind the procedural
+    // point-star fields below — a flat color reads as empty space, this reads as a sky. It
+    // replaced the NASA starmap's 1024x512 print-resolution JPEG, whose compression blotches
+    // were the single largest source of "the space background looks blurry".
+    new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/space/starfield.jpg`, (texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping;
       texture.colorSpace = THREE.SRGBColorSpace;
       this.scene.background = texture;
       // The shared post-process grade (PostProcessing.ts) was tuned entirely against the ship
-      // interior's lit surfaces, and its shadow-toe lift/gamma compression flattens this mostly-
-      // near-black photo into a duller grey than the source image's own galactic band actually is.
+      // interior's lit surfaces, and its shadow-toe lift/gamma compression flattens a mostly-
+      // near-black sky into a duller grey than the texture's own galactic band actually is.
       // backgroundIntensity boosts just the background draw, independent of that shared pipeline.
-      this.scene.backgroundIntensity = 1.8;
+      this.scene.backgroundIntensity = 1.5;
     });
 
     this.scene.add(buildStarfield(2400, 500, 1.1));
@@ -251,9 +330,50 @@ export class GalaxyRevealScene implements GameScene {
     const ambient = new THREE.AmbientLight(0x445577, 0.3);
     this.scene.add(ambient);
 
+    // A real photospheric surface (granulation and active regions, from Solar System Scope via
+    // tools/prep-planet-textures.mjs) with limb darkening toward the edge. The flat
+    // MeshBasicMaterial disc this replaces had a hard aliased rim and read as a paper cutout.
     this.sun = new THREE.Mesh(
-      new THREE.SphereGeometry(9, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xffd88a }),
+      new THREE.SphereGeometry(9, 48, 32),
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uMap: { value: new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/planets/sun.jpg`) },
+          uTime: { value: 0 },
+        },
+        vertexShader: /* glsl */ `
+          varying vec2 vUv;
+          varying vec3 vNormal;
+          varying vec3 vViewDir;
+          void main() {
+            vUv = uv;
+            vNormal = normalize(mat3(modelMatrix) * normal);
+            vec4 worldPos = modelMatrix * vec4(position, 1.0);
+            vViewDir = normalize(cameraPosition - worldPos.xyz);
+            gl_Position = projectionMatrix * viewMatrix * worldPos;
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          precision highp float;
+          uniform sampler2D uMap;
+          uniform float uTime;
+          varying vec2 vUv;
+          varying vec3 vNormal;
+          varying vec3 vViewDir;
+          void main() {
+            // Slow drift so the granulation isn't a frozen photograph.
+            vec3 base = texture2D(uMap, vec2(vUv.x + uTime * 0.004, vUv.y)).rgb;
+            // Limb darkening: a real star is dimmer and redder at its edge because the line of
+            // sight there exits the photosphere at a shallower depth.
+            float mu = clamp(dot(normalize(vNormal), normalize(vViewDir)), 0.0, 1.0);
+            float limb = 0.42 + 0.58 * pow(mu, 0.55);
+            vec3 color = base * limb;
+            color.b *= mix(0.72, 1.0, mu);
+            gl_FragColor = vec4(color * 1.35, 1.0);
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+          }
+        `,
+      }),
     );
     this.sun.position.set(0, 0, -140);
     this.scene.add(this.sun);
@@ -262,13 +382,24 @@ export class GalaxyRevealScene implements GameScene {
     sunLight.position.copy(this.sun.position);
     this.scene.add(sunLight);
 
-    // Dedicated rim/key lights on the ship — it sits far from the sun at scene start, so without
-    // these it reads as a flat unlit silhouette against the starfield.
-    const shipKey = new THREE.PointLight(0xffe3ab, 3.5, 20);
-    shipKey.position.set(4, 3, 6);
+    // The sun as a *directional* key on the ship. The point light above carries the belt and the
+    // near-sun space; at the ship's distance its decay leaves almost nothing, which is why the
+    // hull used to read as an unlit silhouette. A directional light is the correct model for a
+    // star 140 units away, and one light is far cheaper than turning the point light's decay off.
+    const sunKey = new THREE.DirectionalLight(0xffe0b8, 3.2);
+    sunKey.position.copy(this.sun.position);
+    sunKey.target.position.set(0, 0, 0);
+    this.scene.add(sunKey);
+    this.scene.add(sunKey.target);
+
+    // Dedicated fill/rim lights on the ship, placed relative to the hero pass's camera side
+    // (the -Z, sunward flank): a warm fill so the near flank's greebles read, and a cool rim
+    // from behind-above so the silhouette separates from the sky in the pull-back shots.
+    const shipKey = new THREE.PointLight(0xffe3ab, 3, 20);
+    shipKey.position.set(5.5, 3, -6.5);
     this.scene.add(shipKey);
-    const shipRim = new THREE.PointLight(0x7ab8ff, 4, 18);
-    shipRim.position.set(-3, -1, -4);
+    const shipRim = new THREE.PointLight(0x7ab8ff, 3.5, 18);
+    shipRim.position.set(-4, 2, 5);
     this.scene.add(shipRim);
 
     this.coronaInner = new THREE.Sprite(
@@ -298,7 +429,7 @@ export class GalaxyRevealScene implements GameScene {
     this.coronaOuter.position.copy(this.sun.position);
     this.scene.add(this.coronaOuter);
 
-    this.asteroidField = buildAsteroidField(900, 26, 42);
+    this.asteroidField = buildAsteroidField(420, 1400, 26, 42);
     this.asteroidField.position.copy(this.sun.position);
     this.scene.add(this.asteroidField);
 
@@ -315,28 +446,27 @@ export class GalaxyRevealScene implements GameScene {
     this.pingSprite.visible = false;
     this.scene.add(this.pingSprite);
 
-    // Planets load their real glTF geometry in parallel — see planetModels.ts — rather than one
-    // at a time, so the cinematic doesn't stall for the sum of four separate loads.
-    const instances = await Promise.all(
-      PLANETS.map((p) => {
-        const angle = p.orbitAngle;
-        const position = new THREE.Vector3(
-          Math.cos(angle) * p.orbitRadius,
-          Math.sin(angle * 0.4) * 8,
-          this.sun.position.z + Math.sin(angle) * p.orbitRadius,
-        );
-        return buildPlanetInstance(p, position, this.sun.position, this.camera);
-      }),
-    );
-    instances.forEach((instance, i) => {
-      instance.group.userData.planetId = PLANETS[i].id;
+    // Planets are shader spheres built off prepared equirect maps (planetShader.ts), so there is
+    // no per-planet asset load to stagger here -- construction is synchronous and the textures
+    // stream in behind it.
+    PLANETS.forEach((p) => {
+      const angle = p.orbitAngle;
+      const position = new THREE.Vector3(
+        Math.cos(angle) * p.orbitRadius,
+        Math.sin(angle * 0.4) * 8,
+        this.sun.position.z + Math.sin(angle) * p.orbitRadius,
+      );
+      const instance = buildPlanetInstance(p, position, this.sun.position, this.camera);
+      instance.group.userData.planetId = p.id;
       this.scene.add(instance.group);
       this.planetMeshes.push(instance.group);
       this.planetInstances.push(instance);
     });
 
-    this.camera.position.set(0, 0.6, 6);
-    this.camera.lookAt(this.ship.position.clone().add(new THREE.Vector3(3, 0, 0)));
+    // Parked on the ship's sunlit side (the sun sits at -Z): the old park on +Z looked at the
+    // shadow flank, which put an unlit silhouette on screen for the whole first shot.
+    this.camera.position.set(3.5, 1.0, -6.5);
+    this.camera.lookAt(this.ship.position.clone().add(new THREE.Vector3(2, 0, 0)));
 
     window.addEventListener('keydown', this.continueHandler);
     window.addEventListener('click', this.clickHandler);
@@ -349,7 +479,9 @@ export class GalaxyRevealScene implements GameScene {
     const sunPos = this.sun.position;
     this.sequencer.play(
       [
-        { position: new THREE.Vector3(4, 1.2, 10), lookAt: this.ship.position.clone(), duration: 3.2, hold: 0.4 },
+        // Hero pass along the sunlit flank: nose in frame, engines trailing away, hull catching
+        // the directional key. Stays on the -Z side so the dolly never crosses through the hull.
+        { position: new THREE.Vector3(8.5, 3, -7), lookAt: this.ship.position.clone(), duration: 3.2, hold: 0.4 },
         { position: new THREE.Vector3(24, 14, 42), lookAt: new THREE.Vector3(-6, 2, sunPos.z * 0.4), duration: 4.5, hold: 0.8, fov: 55 },
         { position: new THREE.Vector3(38, 48, 158), lookAt: new THREE.Vector3(12, -8, sunPos.z * 0.58), duration: 5.5, hold: 2, fov: 58 },
       ],
@@ -402,6 +534,8 @@ export class GalaxyRevealScene implements GameScene {
     }
     this.ship.rotation.y = Math.sin(this.elapsedTotal * 0.15) * 0.05;
     this.ship.updateMatrixWorld();
+
+    (this.sun.material as THREE.ShaderMaterial).uniforms.uTime.value = this.elapsedTotal;
 
     // Sun corona shimmer — slow independent pulses so it doesn't read as a static painted circle.
     const innerPulse = 1 + Math.sin(this.elapsedTotal * 0.6) * 0.05;

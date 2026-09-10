@@ -1,181 +1,158 @@
 import * as THREE from 'three';
-import { kitPiece } from '../ship/interior/kit';
 
-// Kitbashed from the same Quaternius Modular Sci-Fi MegaKit already wired up for the ship
-// interior (src/ship/interior/kit.ts) — no separate ship-exterior asset pack reads as a match for
-// this project's gritty PBR aesthetic, so the exterior hull is built out of the interior's own
-// wall/column/platform/prop pieces instead. Every placement below was derived from the real local
-// bounding box of each glTF (min/max of its POSITION accessors, read directly out of the .gltf
-// JSON) rather than guessed against the kit's authored pivots, which vary piece to piece.
+// The player's ship. This used to be kitbashed out of the interior's own wall panels and floor
+// tiles, on the theory that no free ship-exterior asset matched this project's PBR look. It did not
+// work: renders/space-audit shows a hollow rectangular box, see-through from above and behind, with
+// the interior kit's red wall trim reading as painted racing stripes. A kit of room parts cannot
+// make a hull, because a hull's whole job is to be a closed, tapered, asymmetric volume.
+//
+// So this loads a purpose-built freighter instead (public/models/ship/freighter.glb -- "Colored
+// Freighter" by Jacques Fourie, CC-BY, see public/models/CREDITS.md). It was picked over fifteen
+// other free candidates for one reason: every other free ship in that survey is a single-seat
+// fighter, and this game has a walkable ship interior with an airlock, a bunk and a repair console.
+// Only a hull with real freighter mass -- a spine, a crew section, cargo racks, four engine pods on
+// pylons -- can plausibly contain that interior.
+//
+// The catch is that it ships as eleven flat, unlit colour slots (candy pink engine rings, yellow
+// pylons, white hull) with metalness 0 and roughness 1, which is what makes it read as a toy. Its
+// UVs are a Google-Poly palette atlas -- every vertex points at a tiny swatch -- so texture maps
+// cannot be applied through them. What it does have is 47k triangles of real greeble geometry, and
+// that only ever looked flat because pure-diffuse plastic has no specular response. Re-assigning
+// each colour slot to a PBR role below (see RE_MATERIAL) lets the scene's shared environment map do
+// the rest.
 
-function toTuple(v: THREE.Vector3 | [number, number, number]): [number, number, number] {
-  return Array.isArray(v) ? v : [v.x, v.y, v.z];
-}
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-/** Local ship axes: +X nose, -X aft/engines, +Y up, +Z right (mirrored to -Z for the left side). */
+/** Local ship axes: +X nose, -X aft/engines, +Y up, +Z right. */
 export interface ShipHull {
   group: THREE.Group;
   /** World-facing exhaust points at the tip of each engine nacelle, in the group's local space. */
   engineLocalPositions: THREE.Vector3[];
 }
 
-/**
- * Loads `name`, applies `scale` (in the piece's own authored axes, before rotation), then
- * recenters it so its scaled bounding-box center sits at the wrapper's local origin. This decouples
- * "where do I want this piece in ship-space" from wherever the kit happened to author its pivot —
- * every piece below is placed by center position + rotation, not by hand-derived pivot offsets.
- */
-async function centeredPiece(
-  name: string,
-  center: THREE.Vector3 | [number, number, number],
-  rotation: THREE.Euler = new THREE.Euler(),
-  scale: THREE.Vector3 | [number, number, number] = [1, 1, 1],
-): Promise<THREE.Group> {
-  const piece = await kitPiece(name);
-  piece.scale.set(...toTuple(scale));
-  const box = new THREE.Box3().setFromObject(piece);
-  piece.position.sub(box.getCenter(new THREE.Vector3()));
-
-  const wrapper = new THREE.Group();
-  wrapper.add(piece);
-  wrapper.position.set(...toTuple(center));
-  wrapper.rotation.copy(rotation);
-  return wrapper;
+interface MaterialRole {
+  color: number;
+  metalness: number;
+  roughness: number;
+  emissive?: number;
+  emissiveIntensity?: number;
 }
 
-const HALF_PI = Math.PI / 2;
+// Keyed by the glTF's own material names. The source palette is arbitrary (mat1, mat4, mat12...),
+// so each is identified by what it is actually painted on in the model, then reassigned.
+const RE_MATERIAL: Record<string, MaterialRole> = {
+  // Main hull plating: the model's white. Weathered off-white, mostly metal, moderately rough --
+  // a working freighter, not a showroom.
+  mat21: { color: 0x9aa1a6, metalness: 0.85, roughness: 0.46 },
+  // Secondary plating (the model's light grey), a shade cooler so panel breaks read.
+  mat15: { color: 0x76808a, metalness: 0.85, roughness: 0.52 },
+  // Structural pylons and spars -- the model's yellow. Bare, scuffed metal.
+  mat12: { color: 0x8d7f6b, metalness: 0.95, roughness: 0.38 },
+  // Deep recesses and shadowed structure.
+  mat17: { color: 0x1b2228, metalness: 0.7, roughness: 0.7 },
+  mat16: { color: 0x39434c, metalness: 0.8, roughness: 0.6 },
+  // Blackout surfaces: viewports, sensor faces, engine bells seen end-on.
+  mat23: { color: 0x0a0c0f, metalness: 0.4, roughness: 0.35 },
+  // Rust/scorch streaking, kept close to the interior's own oxidised palette.
+  mat19: { color: 0x6b4326, metalness: 0.6, roughness: 0.82 },
+  // Hazard trim. Stays red because hull warning striping genuinely is, but desaturated to paint.
+  mat14: { color: 0x8f2d21, metalness: 0.3, roughness: 0.65 },
+  // Engine rings -- the model's purple. The one place the toy palette was pointing at something
+  // real: these ARE the thrusters, so they become the warm emissive the engine trail feeds from.
+  // The deeper orange on both emissives survives ACES with its saturation intact instead of
+  // washing out to cream.
+  mat1: { color: 0x3a2517, metalness: 0.5, roughness: 0.4, emissive: 0xff8c3a, emissiveIntensity: 1.2 },
+  // Running lights, lit viewport strips, AND the four big aft hexagonal panels -- the model's
+  // orange slot covers all of them (verified by hiding materials one at a time in a live scene).
+  // Intensity has to stay low: at 1.6 those hex panels rendered as huge flat cream discs that
+  // dominated every shot showing the ship's stern.
+  mat13: { color: 0x2a1c12, metalness: 0.3, roughness: 0.5, emissive: 0xff9a4a, emissiveIntensity: 0.55 },
+  // Cockpit/corridor glow behind glass -- the model's teal.
+  mat4: { color: 0x123038, metalness: 0.3, roughness: 0.45, emissive: 0x8fd8ff, emissiveIntensity: 1.1 },
+};
 
-/** Small self-lit accent — engine glow, nav lights, cockpit backlight. Never a kit material, since
- * every kit glTF is loaded once and its material shared across every clone (see kit.ts); tinting a
- * shared material here would leak into every other piece that reuses it, including a future ship
- * interior visit. */
-function accentMesh(
-  geometry: THREE.BufferGeometry,
-  color: number,
-  intensity: number,
-  center: THREE.Vector3 | [number, number, number],
-  rotation?: THREE.Euler,
-): THREE.Mesh {
-  const mat = new THREE.MeshStandardMaterial({
-    color,
-    emissive: color,
-    emissiveIntensity: intensity,
-    roughness: 0.4,
-    metalness: 0.1,
-  });
-  const mesh = new THREE.Mesh(geometry, mat);
-  mesh.position.set(...toTuple(center));
-  if (rotation) mesh.rotation.copy(rotation);
-  return mesh;
+const loader = new GLTFLoader();
+let template: Promise<THREE.Object3D> | null = null;
+
+function loadTemplate(): Promise<THREE.Object3D> {
+  if (!template) {
+    template = loader
+      .loadAsync(`${import.meta.env.BASE_URL}models/ship/freighter.glb`)
+      .then((gltf) => gltf.scene);
+  }
+  return template;
 }
 
 export async function buildShipHull(): Promise<ShipHull> {
+  const source = await loadTemplate();
+  // Cloned so a second visit to this scene re-materials a fresh copy rather than compounding onto
+  // an already-mutated shared one.
+  const model = source.clone(true);
+
+  model.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    const src = mesh.material as THREE.MeshStandardMaterial;
+    const role = RE_MATERIAL[src.name];
+    const mat = new THREE.MeshStandardMaterial({
+      color: role ? role.color : 0x8a9198,
+      metalness: role ? role.metalness : 0.8,
+      roughness: role ? role.roughness : 0.5,
+      emissive: role?.emissive ?? 0x000000,
+      emissiveIntensity: role?.emissiveIntensity ?? 0,
+    });
+    mat.name = src.name;
+    mesh.material = mat;
+  });
+
+  // The model is authored nose-down its own -Z with an arbitrary pivot and scale. Normalise it into
+  // this project's ship axes (+X nose) at a known length, so every camera keyframe, engine-trail
+  // origin and nav-light position downstream is expressed in ship units rather than glTF units.
+  const HULL_LENGTH = 9.5;
+  const inner = new THREE.Group();
+  inner.add(model);
+  inner.rotation.y = -Math.PI / 2;
+
   const group = new THREE.Group();
+  group.add(inner);
 
-  const engineLocalPositions = [new THREE.Vector3(-4.75, -0.18, 1.05), new THREE.Vector3(-4.75, -0.18, -1.05)];
+  group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(group);
+  const size = box.getSize(new THREE.Vector3());
+  const scale = HULL_LENGTH / size.x;
+  inner.scale.setScalar(scale);
+  group.updateMatrixWorld(true);
 
-  const pieces = await Promise.all([
-    // Keel: Column_Large_Straight is authored 10 units tall along local Y — laid on its side
-    // (rotate.z=-90 sends local +Y to world +X) and squashed to 7.2 it becomes the ship's
-    // structural spine, running nose to aft through the hull's centerline.
-    centeredPiece('Column_Large_Straight', [0.4, 0, 0], new THREE.Euler(0, 0, -HALF_PI), [1, 0.72, 1]),
+  const scaled = new THREE.Box3().setFromObject(group);
+  const center = scaled.getCenter(new THREE.Vector3());
+  inner.position.sub(center);
+  group.updateMatrixWorld(true);
 
-    // Belly and dorsal skin: two floor tiles per side is the same "wall panel as hull plate" trick
-    // the brief calls for — a Platform tile is a flat, PBR-detailed plate authored face-up, so it
-    // needs a 180 flip (rotation.z=PI) to read as belly armor with its greebled face pointing down.
-    // Narrowed on Z (native tiles are 4 wide) to sit *inside* the flank plates below — full width
-    // tiles stuck out past the flanks and hid them from a broadside view, reading as one flat slab
-    // instead of a hull with distinct top/bottom/side faces.
-    centeredPiece('Platform_DarkPlates', [-1.8, -1.05, 0], new THREE.Euler(0, 0, Math.PI), [1, 1, 0.68]),
-    centeredPiece('Platform_DarkPlates', [2.6, -1.05, 0], new THREE.Euler(0, 0, Math.PI), [1, 1, 0.68]),
-    centeredPiece('Platform_Metal2', [-1.8, 1.05, 0], new THREE.Euler(), [1, 1, 0.68]),
-    centeredPiece('Platform_Metal2', [2.6, 1.05, 0], new THREE.Euler(), [1, 1, 0.68]),
+  // Exhaust points sit at the aft face of the hull, inboard of the engine pods. Derived from the
+  // normalised bounding box rather than hand-typed, so they stay correct if HULL_LENGTH changes.
+  const finalBox = new THREE.Box3().setFromObject(group);
+  const half = finalBox.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+  const engineLocalPositions = [
+    new THREE.Vector3(-half.x * 0.94, half.y * 0.42, half.z * 0.52),
+    new THREE.Vector3(-half.x * 0.94, half.y * 0.42, -half.z * 0.52),
+    new THREE.Vector3(-half.x * 0.94, -half.y * 0.42, half.z * 0.52),
+    new THREE.Vector3(-half.x * 0.94, -half.y * 0.42, -half.z * 0.52),
+  ];
 
-    // Flank plating: WallAstra_Straight_Flat is a thin vertical wall bay (0.1 x 3.0 x 4.0, same
-    // material as every interior wall). rotation.y=+-90 swings its 4-unit length onto the ship's
-    // X axis and its thin face-normal onto Z, turning a room wall into a side hull plate.
-    centeredPiece('WallAstra_Straight_Flat', [-1.8, 0, 1.52], new THREE.Euler(0, HALF_PI, 0), [1, 1, 1.8]),
-    centeredPiece('WallAstra_Straight_Flat', [2.2, 0, 1.52], new THREE.Euler(0, HALF_PI, 0)),
-    centeredPiece('WallAstra_Straight_Flat', [-1.8, 0, -1.52], new THREE.Euler(0, -HALF_PI, 0), [1, 1, 1.8]),
-    centeredPiece('WallAstra_Straight_Flat', [2.2, 0, -1.52], new THREE.Euler(0, -HALF_PI, 0)),
-
-    // Structural rib trim: Column_MetalSupport is a thin floor-mounted brace (0.96 x 0.04 x 4) —
-    // mounted proud of the flank plates it reads as a raised longeron rather than a repeat of the
-    // flat plate behind it.
-    centeredPiece('Column_MetalSupport', [0.4, 0.85, 1.62], new THREE.Euler(0, HALF_PI, 0), [1, 1, 1.8]),
-    centeredPiece('Column_MetalSupport', [0.4, -0.85, 1.62], new THREE.Euler(0, HALF_PI, 0), [1, 1, 1.8]),
-    centeredPiece('Column_MetalSupport', [0.4, 0.85, -1.62], new THREE.Euler(0, -HALF_PI, 0), [1, 1, 1.8]),
-    centeredPiece('Column_MetalSupport', [0.4, -0.85, -1.62], new THREE.Euler(0, -HALF_PI, 0), [1, 1, 1.8]),
-
-    // Edge trim: BottomMetal_Straight is a thin flat strip, run along each of the four long
-    // dorsal/belly-to-flank seams so the hull reads as faceted panels meeting at a corner rather
-    // than a smooth-blended slab.
-    centeredPiece('BottomMetal_Straight', [0.4, 1.02, 1.58], new THREE.Euler(0, HALF_PI, 0), [1, 1, 1.8]),
-    centeredPiece('BottomMetal_Straight', [0.4, -1.02, 1.58], new THREE.Euler(0, HALF_PI, 0), [1, 1, 1.8]),
-    centeredPiece('BottomMetal_Straight', [0.4, 1.02, -1.58], new THREE.Euler(0, -HALF_PI, 0), [1, 1, 1.8]),
-    centeredPiece('BottomMetal_Straight', [0.4, -1.02, -1.58], new THREE.Euler(0, -HALF_PI, 0), [1, 1, 1.8]),
-
-    // Nose: Column_Round laid along X and squashed short gives a rounded prow instead of a hard
-    // flat cutoff at the hull's forward end.
-    centeredPiece('Column_Round', [4.55, 0, 0], new THREE.Euler(0, 0, -HALF_PI), [0.85, 0.5, 0.85]),
-
-    // Cockpit viewport: WallWindow_Straight is the kit's own glazed wall bay, scaled down and
-    // canted like a canopy just aft of the nose cap.
-    centeredPiece('WallWindow_Straight', [3.05, 0.5, 0], new THREE.Euler(0, HALF_PI, -0.32), [0.85, 0.42, 0.5]),
-
-    // Engine nacelles: Column_Round pods flanking the aft end of the spine, each capped with a
-    // real fan mesh (Prop_Fan_Small + its propeller) facing aft so the exhaust reads as machinery
-    // rather than a bare cylinder end.
-    ...engineLocalPositions.flatMap((origin) => [
-      centeredPiece(
-        'Column_Round',
-        [origin.x + 0.75, origin.y, origin.z],
-        new THREE.Euler(0, 0, -HALF_PI),
-        [0.62, 0.56, 0.62],
-      ),
-      centeredPiece('Prop_Fan_Small', origin, new THREE.Euler(0, 0, -HALF_PI), [0.42, 0.42, 0.42]),
-      centeredPiece('Prop_Fan_Small_Propeller', origin, new THREE.Euler(0, 0, -HALF_PI), [0.42, 0.42, 0.42]),
-    ]),
-
-    // Hull greebles: vents and a small hatch break up the flank/dorsal plating so it doesn't read
-    // as bare panel.
-    centeredPiece('Prop_Vent_Big', [-0.6, 0.98, 1.05], new THREE.Euler(0, 0, 0), [0.7, 1, 0.7]),
-    centeredPiece('Prop_Vent_Big', [-0.6, 0.98, -1.05], new THREE.Euler(0, 0, 0), [0.7, 1, 0.7]),
-    centeredPiece('Prop_Vent_Wide', [1.4, -0.98, 0.9], new THREE.Euler(HALF_PI, 0, 0), [0.8, 1, 0.8]),
-    centeredPiece('Prop_PipeHolder', [-3.0, 0.3, 0], new THREE.Euler(0, HALF_PI, 0), [0.55, 0.55, 0.55]),
-    centeredPiece('Prop_Clamp', [-2.2, 0, 1.55], new THREE.Euler(0, HALF_PI, 0)),
-  ]);
-
-  for (const piece of pieces) group.add(piece);
-
-  // Warm engine glow, matching EngineTrail's own ember tint (0xffb870) so the emitter and the
-  // particles it feeds read as the same light source.
-  for (const origin of engineLocalPositions) {
-    group.add(
-      accentMesh(
-        new THREE.CylinderGeometry(0.24, 0.24, 0.06, 14),
-        0xffb870,
-        2.2,
-        [origin.x - 0.05, origin.y, origin.z],
-        new THREE.Euler(0, 0, HALF_PI),
-      ),
+  // Nav lights: port/starboard convention, matching the interior's own LED palette. Small enough to
+  // read as point sources at cinematic distance rather than as visible spheres.
+  const navLight = (color: number, at: THREE.Vector3) => {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.055, 8, 8),
+      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 2.2, roughness: 0.4 }),
     );
-  }
-
-  // Nav lights: cool port/starboard convention (red/cyan) matching the interior's own LED palette.
-  group.add(accentMesh(new THREE.SphereGeometry(0.05, 8, 8), 0xe0552f, 1.6, [1.0, 0.15, 1.58]));
-  group.add(accentMesh(new THREE.SphereGeometry(0.05, 8, 8), 0x4fd8f0, 1.6, [1.0, 0.15, -1.58]));
-
-  // Cockpit backlight, seen through the viewport rather than as its own visible shape.
-  group.add(
-    accentMesh(
-      new THREE.PlaneGeometry(0.5, 0.3),
-      0xbfe3ff,
-      0.9,
-      [2.9, 0.5, 0],
-      new THREE.Euler(0, HALF_PI, 0),
-    ),
-  );
+    mesh.position.copy(at);
+    group.add(mesh);
+  };
+  navLight(0xe0552f, new THREE.Vector3(half.x * 0.1, half.y * 0.55, half.z * 0.96));
+  navLight(0x4fd8f0, new THREE.Vector3(half.x * 0.1, half.y * 0.55, -half.z * 0.96));
 
   return { group, engineLocalPositions };
 }
