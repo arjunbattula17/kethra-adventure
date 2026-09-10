@@ -85,3 +85,12 @@ manual choice resets). Results, bad-laptop profile: Kethra p50 43.3->16.6ms (dro
 interior settles 36->27.6ms p50 after adaptation, reveal unchanged, high tier byte-identical
 behavior (full-size textures, 24/24 flow test). Not done: canvas-texture scaling, deeper draw-call
 batching (365 singleton materials — atlas-level work), any gameplay-affecting throttling.
+
+# Follow-up — loading pass (2026-09-10)
+Boot attribution via new performance marks in Engine.setScene (scene:init / scene:compile /
+scene:warmup): init 2.0s, compile 15.6s (SwiftShader-inflated), and the real defect — a ~40s
+first-visible-frame stall AFTER the loading overlay hid (deferred driver specialization +
+texture uploads at first use; same pattern after every transition fade). Fixed with a warm-up
+render inside setScene behind the overlay/fade; post-ready frames now 36ms. Network confirmed
+a non-issue (34 requests / 6.2MB). Flow test 24/24 after also fixing a latent
+waitForFunction-options-position bug in the harness.

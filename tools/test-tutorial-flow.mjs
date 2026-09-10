@@ -69,7 +69,11 @@ async function setPlayer(x, z, yaw) {
 }
 
 await page.goto(baseUrl + '/?newGame=1', { waitUntil: 'load' });
-await page.waitForFunction(() => window.__DEBUG__?.flow?.tutorial != null, { timeout: 120000 });
+// Options are waitForFunction's THIRD parameter — passing them second silently makes them the
+// page function's argument and leaves the default 30s timeout in force, which the boot warm-up
+// frame (a single long task under software rendering) then blows through. Interval polling for
+// the same reason: nothing services rAF while that task runs.
+await page.waitForFunction(() => window.__DEBUG__?.flow?.tutorial != null, undefined, { timeout: 180000, polling: 500 });
 // Software rasterisation makes the default tier a slideshow; the flow under test is unaffected.
 await page.evaluate(() => window.__DEBUG__.engine.setManualQualityTier('low'));
 
@@ -202,7 +206,7 @@ await shot('11_back_on_ship');
 
 // 9. A player who has already been through the opening never sees it again.
 await page.goto(baseUrl + '/?skipIntro=1&newGame=1', { waitUntil: 'load' });
-await page.waitForFunction(() => !!window.__DEBUG__?.engine?.getCurrentScene?.(), { timeout: 120000 });
+await page.waitForFunction(() => !!window.__DEBUG__?.engine?.getCurrentScene?.(), undefined, { timeout: 180000, polling: 500 });
 await page.waitForTimeout(3000);
 check('a returning player gets no tutorial', !(await page.$('.tut-card')) && !(await page.evaluate(() => !!window.__DEBUG__.flow.tutorial)));
 check('a returning player gets no auto-started reveal either', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
