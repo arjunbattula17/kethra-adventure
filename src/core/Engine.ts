@@ -161,8 +161,10 @@ export class Engine {
         this.current.dispose();
         this.current = null;
       }
+      performance.mark('scene-init-start');
       const scene = await factory();
       await scene.init();
+      performance.mark('scene-init-end');
       // WebGLRenderer compiles (and on some drivers, links) each material's shader program lazily
       // on its first real draw call — not at material-creation time — so without this, the first
       // frame(s) a given material is actually visible on screen pay a real, synchronous compile
@@ -171,6 +173,11 @@ export class Engine {
       // is used) instead of surfacing as an unpredictable mid-gameplay hitch the first time the
       // camera turns toward a material nothing has rendered yet.
       await this.renderer.compileAsync(scene.scene, scene.camera);
+      // Boot/transition phases, visible in devtools and to the tools/ harnesses. measure() keeps
+      // the pairs queryable; the marks cost nothing per frame (this only runs on scene changes).
+      performance.mark('scene-compile-end');
+      performance.measure('scene:init', 'scene-init-start', 'scene-init-end');
+      performance.measure('scene:compile', 'scene-init-end', 'scene-compile-end');
       this.current = scene;
       this.postFx.setActive(scene.scene, scene.camera);
       this.postFx.setAOSupported(scene.usesAO !== false);
@@ -178,6 +185,16 @@ export class Engine {
       // One paint for the new scene's maps; consumed by the first render when autoUpdate is off.
       this.renderer.shadowMap.needsUpdate = true;
       this.handleResize();
+      // Warm-up frame, drawn while the loading overlay (boot) or fade-to-black (transitions)
+      // still covers the screen. compileAsync links the programs, but drivers defer per-program
+      // draw specialization and every texture upload to first *use* — without this, all of that
+      // lands in the first visible frame, i.e. a freeze exactly when the loading UI disappears.
+      // Measured on the software-rendered harness: ~40s of first-frame stall (93 programs, ~300
+      // texture sources) moved from after the overlay to behind it; real GPUs pay the same
+      // pattern at smaller scale, on boot and on every ship<->planet<->reveal transition.
+      performance.mark('scene-warmup-start');
+      this.postFx.render();
+      performance.measure('scene:warmup', 'scene-warmup-start');
     } finally {
       UIManager.hideLoading();
     }
