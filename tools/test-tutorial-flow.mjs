@@ -81,6 +81,10 @@ await page.evaluate(() => window.__DEBUG__.engine.setManualQualityTier('low'));
 check('tutorial reaches its first step', await until(async () => (await cardTitle()) !== null, 120000));
 check('tutorial card is the first thing shown', (await cardTitle()) === 'Take the Helm', (await cardTitle()) ?? 'no card');
 check('first game does not auto-start on load', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
+// This browser profile has never finished the opening, so the whole-tutorial skip must not be
+// offered (the cold-open caption skip hint has its own label and is gone by the time the first
+// card is up).
+check('a first-time player is not offered the tutorial skip', !(await page.$('.tut-skip.visible')));
 await shot('01_step_look');
 
 // 2. Look step. First, press Tab well before the tutorial asks for it: the HUD advertises
@@ -210,6 +214,23 @@ await page.waitForFunction(() => !!window.__DEBUG__?.engine?.getCurrentScene?.()
 await page.waitForTimeout(3000);
 check('a returning player gets no tutorial', !(await page.$('.tut-card')) && !(await page.evaluate(() => !!window.__DEBUG__.flow.tutorial)));
 check('a returning player gets no auto-started reveal either', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
+
+// 10. A returning player who starts a NEW game gets the tutorial-skip offer — this profile earned
+//     it by reaching the handover earlier in this very run — and Enter jumps the whole tutorial,
+//     landing on the same handover path (captions, then the reveal).
+await page.goto(baseUrl + '/?newGame=1', { waitUntil: 'load' });
+await page.waitForFunction(() => window.__DEBUG__?.flow?.tutorial != null, undefined, { timeout: 180000, polling: 500 });
+check('a returning new game reaches the tutorial again', await until(async () => (await cardTitle()) === 'Take the Helm', 120000));
+check('a returning player is offered the tutorial skip', await until(async () => {
+  const label = await page.$eval('.tut-skip.visible', (el) => el.textContent).catch(() => null);
+  return (label ?? '').includes('Skip tutorial');
+}, 15000));
+await shot('12_skip_offer');
+await page.waitForTimeout(1500); // the skip arms one second after the first card
+await page.keyboard.press('Enter');
+check('Enter skips the tutorial into the galaxy reveal', await until(async () => !!(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)), 180000));
+check('the skipped tutorial cleans itself up too', !(await page.$('.tut-root')) && !(await page.evaluate(() => document.body.classList.contains('tutorial-active'))));
+await shot('13_skipped_into_reveal');
 
 check('no page or console errors during the opening', errors.length === 0, errors.join(' | '));
 

@@ -167,7 +167,8 @@ export class TutorialHud {
     this.measureCard();
   }
 
-  showSkipHint(show: boolean): void {
+  showSkipHint(show: boolean, label?: string): void {
+    if (label !== undefined) this.skipEl.innerHTML = label;
     this.skipEl.classList.toggle('visible', show);
   }
 

@@ -11,6 +11,28 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Whether this machine has ever finished the opening, across saves. Deliberately not part of the
+ * save (a new game wipes that): it exists so the tutorial can offer its skip to a returning
+ * player who starts over. try/catch because localStorage can be unavailable (privacy modes) —
+ * the graceful failure is simply treating the player as new.
+ */
+const OPENING_SEEN_KEY = 'kethra_opening_seen_v1';
+function hasSeenOpening(): boolean {
+  try {
+    return localStorage.getItem(OPENING_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function markOpeningSeen(): void {
+  try {
+    localStorage.setItem(OPENING_SEEN_KEY, '1');
+  } catch {
+    // nothing to do — the skip offer is a convenience, not progress
+  }
+}
+
 export class GameFlow {
   private engine: Engine;
   private shipScene: ShipInteriorScene | null = null;
@@ -68,6 +90,9 @@ export class GameFlow {
     this.engine.start();
 
     if (gameState.hasFlag('tutorial_battle_complete')) {
+      // Covers players whose completed save predates the skip marker: their save already proves
+      // they finished the opening, so a later "new game" should still offer the skip.
+      markOpeningSeen();
       this.finishReturnToShip();
       return;
     }
@@ -80,7 +105,7 @@ export class GameFlow {
       this.transitionToGalaxyReveal();
       return;
     }
-    this.tutorial = new TutorialSequence(this.shipScene);
+    this.tutorial = new TutorialSequence(this.shipScene, hasSeenOpening());
     this.tutorial.onComplete = () => this.beginFirstGame();
     this.tutorial.start();
   }
@@ -95,6 +120,8 @@ export class GameFlow {
     this.firstGameStarted = true;
     this.tutorial = null;
     if (!this.shipScene) return;
+    // Both routes here — finishing the tutorial and skipping it — count as having seen the opening.
+    markOpeningSeen();
 
     this.shipScene.player.enabled = false;
     InputManager.exitPointerLock();

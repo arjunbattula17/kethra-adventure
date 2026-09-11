@@ -25,8 +25,11 @@ import type { TutorialKeyChip } from './TutorialHud';
  * console's real InteractionSystem entry for the handover. Nothing advances on a timer and nothing
  * advances on an "OK" button, so a player who reaches the end has demonstrably done all of it.
  *
- * The one escape valve is the cold-open captions, which are skippable -- they carry no instruction,
- * and they are the part a returning player has already read.
+ * Two escape valves. The cold-open captions are skippable for everyone -- they carry no
+ * instruction, and they are the part a returning player has already read. The steps themselves
+ * are skippable only for a player who has finished the opening before on this machine (GameFlow
+ * passes that in from a localStorage marker the save-wipe of a new game doesn't touch): skipping
+ * runs the exact completion path, so everything downstream of the console boot is identical.
  */
 
 interface TutorialStep {
@@ -97,9 +100,14 @@ export class TutorialSequence {
   private skipRequested = false;
   private resolveWait: (() => void) | null = null;
   private unsubscribe: (() => void) | null = null;
+  /** elapsed at the moment the first step card appeared; arms the whole-tutorial skip below. */
+  private stepsStartedAt = Infinity;
+  /** Whether this player may skip the steps themselves — true only for returning players. */
+  private readonly allowSkip: boolean;
 
-  constructor(scene: ShipInteriorScene) {
+  constructor(scene: ShipInteriorScene, allowSkip = false) {
     this.scene = scene;
+    this.allowSkip = allowSkip;
     this.beacon = new TutorialBeacon(scene.scene);
     this.lastYaw = scene.player.yaw;
     this.lastPitch = scene.player.pitch;
@@ -241,6 +249,8 @@ export class TutorialSequence {
     await this.wait(950);
     if (this.finished) return;
     this.stepIndex = 0;
+    this.stepsStartedAt = this.elapsed;
+    if (this.allowSkip) this.hud.showSkipHint(true, '<kbd>Enter</kbd>Skip tutorial');
     this.enterStep();
   }
 
@@ -383,6 +393,21 @@ export class TutorialSequence {
     if (this.stepIndex < 0 && (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter')) {
       this.skipRequested = true;
       this.resolveWait?.();
+      return;
+    }
+    // Whole-tutorial skip, returning players only. Armed a second after the first card appears so
+    // an Enter mashed through the cold-open captions can't fall through and skip everything; the
+    // repeat guard covers a held key the same way. Ignored while a panel is open — the handover
+    // this triggers assumes the game, not a menu, is on screen.
+    if (
+      this.allowSkip &&
+      this.stepIndex >= 0 &&
+      !e.repeat &&
+      !PanelManager.isOpen &&
+      (e.code === 'Enter' || e.code === 'NumpadEnter') &&
+      this.elapsed - this.stepsStartedAt > 1
+    ) {
+      this.complete();
       return;
     }
     if (e.code === 'Tab') {
