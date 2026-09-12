@@ -181,8 +181,16 @@ await until(async () => (await promptText())?.includes('Boot Navigation Console'
 const bootPrompt = await promptText();
 check('monitor offers the boot prompt at the desk', (bootPrompt ?? '').includes('Boot Navigation Console'), bootPrompt ?? 'no prompt');
 await page.keyboard.press('KeyE');
-await page.waitForTimeout(1500);
-await shot('08_boot_cinematic');
+// E first glides the player down into the pilot chair; the handover captions only start once
+// seated. Verify the seat is actually reached — position, seated eye height, and level yaw —
+// while the interior is still the current scene.
+check('pressing E seats the player in the pilot chair first', await until(async () => await page.evaluate(() => {
+  const s = window.__DEBUG__.engine.getCurrentScene();
+  if (!s?.player) return false;
+  const p = s.player.rig.position;
+  return Math.abs(p.x) < 0.05 && Math.abs(p.z - -4.06) < 0.08 && Math.abs(s.camera.position.y - 1.24) < 0.04 && Math.abs(s.player.yaw % (Math.PI * 2)) < 0.05;
+}), 15000));
+await shot('08_seated_at_console');
 // The boot handover fades to black and swaps in the galaxy reveal — its GLB/texture loads can
 // take a while under software rendering, so the wait is generous.
 check('booting the console leads into the galaxy reveal', await until(async () => !!(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)), 120000));

@@ -50,6 +50,10 @@ const DESK_FRONT_Z = DESK_Z + 0.37;
 export const CONSOLE_APPROACH = { x: 0, z: DESK_Z + 1.8 };
 /** Centre of the monitor bank's screen grid — the thing the tutorial hands the first game over on. */
 export const MONITOR_ANCHOR = { x: 0, y: 1.6, z: DESK_Z - 0.52 };
+/** The pilot chair's centre and the eye height of someone settled into it — where the handover
+ * cinematic seats the player before the navigation boot plays out. Matches buildChair()'s
+ * placement (DESK_Z + 0.74); keep the two in step if the chair ever moves. */
+export const CONSOLE_SEAT = { x: 0, z: DESK_Z + 0.74, eyeY: 1.24 };
 
 /**
  * Session gate on booting the console, owned by the opening tutorial (TutorialSequence sets both

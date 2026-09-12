@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import type { Engine } from './Engine';
 import { ShipInteriorScene } from '../ship/ShipInteriorScene';
 import { UIManager } from '../ui/UIManager';
@@ -6,6 +7,8 @@ import { InputManager } from './InputManager';
 import { bus } from './EventBus';
 import { SaveSystem } from './SaveSystem';
 import { TutorialSequence } from '../tutorial/TutorialSequence';
+import { CONSOLE_SEAT, MONITOR_ANCHOR } from '../ship/interior/console';
+import { AudioSystem } from '../audio/AudioSystem';
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -183,7 +186,11 @@ export class GameFlow {
     UIManager.setPrompt(null);
     gameState.setObjective('Find out where you are.');
 
+    // The letterbox rises while the player is guided into the pilot chair, so the sit-down reads
+    // as the cinematic's first shot rather than a wait before it.
     UIManager.showLetterbox(true);
+    await this.sitAtConsole();
+    await wait(250);
     UIManager.showCaption('Navigation online. Reserve power routed to long-range scan.', 2600);
     await wait(2500);
     UIManager.clearCaption();
@@ -191,6 +198,67 @@ export class GameFlow {
     // letterbox stays up — the cinematic runs letterboxed and retracts it when it ends.
     await wait(700);
     await this.transitionToGalaxyReveal();
+  }
+
+  /**
+   * First-person sit-down: eases the player from wherever they pressed E into the pilot chair,
+   * facing the monitor bank, before the navigation-boot captions play. Runs on the scene's own
+   * tick (so it pauses with the engine) while the player is disabled — PlayerController.update()
+   * is a hard no-op then, so nothing fights the glide and the seated pose holds afterwards with
+   * no snap-back. Position follows a quadratic bezier through a point behind the chair at
+   * standing height, which turns "lerp through the furniture" into "step in, turn, settle";
+   * the eye-height drop is weighted into the second half so it reads as sitting down rather
+   * than a descending elevator.
+   */
+  private sitAtConsole(): Promise<void> {
+    const scene = this.shipScene;
+    if (!scene) return Promise.resolve();
+    const player = scene.player;
+    const camera = scene.camera;
+
+    const start = {
+      x: player.rig.position.x,
+      z: player.rig.position.z,
+      eye: camera.position.y,
+      yaw: player.yaw,
+      pitch: player.pitch,
+    };
+    // Approach control point: behind the chair on the player's side, still at standing height.
+    const mid = { x: CONSOLE_SEAT.x, z: CONSOLE_SEAT.z + 0.55 };
+    const seatEye = CONSOLE_SEAT.eyeY;
+    // Seated gaze: the centre of the screen grid, from the seated eye point.
+    const dz = MONITOR_ANCHOR.z - CONSOLE_SEAT.z;
+    const targetPitch = Math.atan2(MONITOR_ANCHOR.y - seatEye, Math.abs(dz));
+    const targetYaw = 0;
+    // Shortest arc, so a player who approached facing +x doesn't spin the long way round.
+    const yawDelta = THREE.MathUtils.euclideanModulo(targetYaw - start.yaw + Math.PI, Math.PI * 2) - Math.PI;
+
+    const DURATION = 1.8;
+    const ease = (v: number) => (v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
+
+    return new Promise((resolve) => {
+      let elapsed = 0;
+      scene.onTick = (dt) => {
+        elapsed += dt;
+        const t = ease(Math.min(1, elapsed / DURATION));
+        const u = 1 - t;
+        player.rig.position.x = u * u * start.x + 2 * u * t * mid.x + t * t * CONSOLE_SEAT.x;
+        player.rig.position.z = u * u * start.z + 2 * u * t * mid.z + t * t * CONSOLE_SEAT.z;
+        // The drop into the seat happens across the back half of the move.
+        const sitT = ease(THREE.MathUtils.clamp((elapsed / DURATION - 0.45) / 0.55, 0, 1));
+        camera.position.y = THREE.MathUtils.lerp(start.eye, seatEye, sitT);
+        player.yaw = start.yaw + yawDelta * t;
+        player.pitch = THREE.MathUtils.lerp(start.pitch, targetPitch, t);
+        player.rig.rotation.set(0, player.yaw, 0);
+        camera.rotation.set(player.pitch, 0, 0);
+        if (elapsed >= DURATION) {
+          scene.onTick = null;
+          // A low, soft contact note as the seat takes the weight.
+          AudioSystem.playTone(70, 0.22, 'sine', 0.05);
+          resolve();
+        }
+      };
+    });
   }
 
   private async transitionToGalaxyReveal(): Promise<void> {
