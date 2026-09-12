@@ -85,14 +85,13 @@ export class GameFlow {
   }
 
   async start(): Promise<void> {
-    this.shipScene = new ShipInteriorScene();
-    await this.engine.setScene(() => this.shipScene!);
-    this.engine.start();
-
     if (gameState.hasFlag('tutorial_battle_complete')) {
       // Covers players whose completed save predates the skip marker: their save already proves
       // they finished the opening, so a later "new game" should still offer the skip.
       markOpeningSeen();
+      this.shipScene = new ShipInteriorScene();
+      await this.engine.setScene(() => this.shipScene!);
+      this.engine.start();
       this.finishReturnToShip();
       return;
     }
@@ -102,9 +101,38 @@ export class GameFlow {
     // path here: the only way in without this parameter is the console.
     if (new URLSearchParams(location.search).has('skipTutorial')) {
       this.firstGameStarted = true;
+      this.shipScene = new ShipInteriorScene();
+      await this.engine.setScene(() => this.shipScene!);
+      this.engine.start();
       this.transitionToGalaxyReveal();
       return;
     }
+    // Fresh game: the drifting-ship intro plays before anything else. It is also the cheapest
+    // scene to stand up (cached hull GLB, two starfields, three lights), so the first image lands
+    // sooner than booting the full interior would — and loading it pre-warms the hull template
+    // the galaxy reveal reuses later.
+    let IntroScene;
+    try {
+      ({ IntroScene } = await import('../galaxy/IntroScene'));
+    } catch {
+      // Same guard as every lazy cinematic chunk: if it fails to arrive, skip the mood piece and
+      // boot the old way rather than stranding the player on a black screen.
+      await this.beginTutorialOnShip();
+      return;
+    }
+    const intro = new IntroScene();
+    intro.onDone = () => void this.beginTutorialOnShip();
+    await this.engine.setScene(() => intro);
+    this.engine.start();
+  }
+
+  /** The intro-to-interior handover: build the ship behind a fade, then start the tutorial. */
+  private async beginTutorialOnShip(): Promise<void> {
+    await UIManager.fadeToBlack();
+    this.shipScene = new ShipInteriorScene();
+    await this.engine.setScene(() => this.shipScene!);
+    this.engine.start();
+    await UIManager.fadeFromBlack();
     this.tutorial = new TutorialSequence(this.shipScene, hasSeenOpening());
     this.tutorial.onComplete = () => this.beginFirstGame();
     this.tutorial.start();

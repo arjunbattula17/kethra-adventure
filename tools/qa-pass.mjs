@@ -17,7 +17,9 @@ await page.goto(baseUrl + '?newGame=1', { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 30000 });
 // The opening is the tutorial now: cold-open captions, then the first instruction card. The galaxy
 // reveal must not start at all until the player boots the console themselves.
-await page.waitForSelector('.tut-card.visible', { timeout: 120000 }).catch(() => null);
+// Real timing includes the full intro cinematic (~32s) plus the interior build and its warm-up
+// frame, all magnified under software rendering — hence the long ceiling.
+await page.waitForSelector('.tut-card.visible', { timeout: 300000 }).catch(() => null);
 const openingCard = await page.$eval('.tut-card.visible .tut-title', (el) => el.textContent).catch(() => null);
 console.log('Opening step shown:', openingCard ?? 'NONE — tutorial did not start');
 console.log('First game did NOT auto-start:', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));

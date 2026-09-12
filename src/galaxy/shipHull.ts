@@ -143,16 +143,19 @@ export async function buildShipHull(): Promise<ShipHull> {
 
   // Nav lights: port/starboard convention, matching the interior's own LED palette. Small enough to
   // read as point sources at cinematic distance rather than as visible spheres.
-  const navLight = (color: number, at: THREE.Vector3) => {
+  const navLight = (name: string, color: number, at: THREE.Vector3) => {
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(0.055, 8, 8),
       new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 2.2, roughness: 0.4 }),
     );
+    // Named so the cinematics can find and drive them (the intro blinks the port light while the
+    // rest of the hull is still dark).
+    mesh.name = name;
     mesh.position.copy(at);
     group.add(mesh);
   };
-  navLight(0xe0552f, new THREE.Vector3(half.x * 0.1, half.y * 0.55, half.z * 0.96));
-  navLight(0x4fd8f0, new THREE.Vector3(half.x * 0.1, half.y * 0.55, -half.z * 0.96));
+  navLight('nav-light-port', 0xe0552f, new THREE.Vector3(half.x * 0.1, half.y * 0.55, half.z * 0.96));
+  navLight('nav-light-starboard', 0x4fd8f0, new THREE.Vector3(half.x * 0.1, half.y * 0.55, -half.z * 0.96));
 
   return { group, engineLocalPositions };
 }

@@ -50,6 +50,7 @@ export class Engine {
   clock = new THREE.Clock();
   private current: GameScene | null = null;
   private rafId = 0;
+  private running = false;
   private paused = false;
   private postFx: PostProcessing;
   private tier: QualityTier;
@@ -250,6 +251,10 @@ export class Engine {
   }
 
   start(): void {
+    // Idempotent: the flow calls this from whichever boot path runs first, and the intro handover
+    // calls it again after the interior is built — a second live loop would double every update.
+    if (this.running) return;
+    this.running = true;
     const loop = () => {
       this.rafId = requestAnimationFrame(loop);
       const dt = Math.min(this.clock.getDelta(), 0.1);
@@ -265,6 +270,7 @@ export class Engine {
   }
 
   stop(): void {
+    this.running = false;
     cancelAnimationFrame(this.rafId);
   }
 }
