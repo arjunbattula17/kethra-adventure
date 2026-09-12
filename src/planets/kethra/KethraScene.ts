@@ -4,7 +4,8 @@ import { PlayerController } from '../../player/PlayerController';
 import { InteractionSystem } from '../../player/InteractionSystem';
 import { UIManager } from '../../ui/UIManager';
 import { gameState } from '../../core/GameState';
-import { disposeCanvasTextures } from '../../core/disposeCanvasTextures';
+import { disposeSceneTextures, downscaleCanvasTextures } from '../../core/disposeSceneTextures';
+import { getActiveEngine } from '../../core/EngineRegistry';
 import { bus } from '../../core/EventBus';
 import { getSharedEnvironment } from '../../core/Environment';
 import { DialogueSystem } from '../../dialogue/DialogueSystem';
@@ -359,6 +360,9 @@ export class KethraScene implements GameScene {
 
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
     this.unsub.push(bus.on('player:shake', (amount: number) => this.player.addShake(amount)));
+
+    // Same low-tier canvas budget as the ship interior — see the note there.
+    if (getActiveEngine()?.getQualityTier() === 'low') downscaleCanvasTextures(this.scene, 1024);
 
     this.puzzle.onSolved = () => this.setCanopyBright(true);
     if (gameState.hasFlag('kethra_mechanism_solved')) this.setCanopyBright(true);
@@ -1084,6 +1088,6 @@ export class KethraScene implements GameScene {
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
     });
-    disposeCanvasTextures(this.scene);
+    disposeSceneTextures(this.scene);
   }
 }

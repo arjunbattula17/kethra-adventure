@@ -116,3 +116,18 @@ loading, GC — see entries above; none of that was redone):
   spaceDressing.ts); pre-warms the hull template the reveal reuses. GameFlow boots the intro
   first on a fresh game (cheapest scene = fastest first image), builds the interior behind the
   exit fade, then runs the tutorial; cold-open captions now narrate the reboot just watched.
+
+# Follow-up — remaining-issues fix + full stress pass (2026-09-12, later)
+The "+6 textures per round trip" residual was identified: per-scene SHADOW MAP render targets
+(Kethra's moon runs a 2048x2048 map, ~16MB) were never freed — disposeSceneTextures (renamed
+from disposeCanvasTextures) now calls LightShadow.dispose() on teardown. Three ship<->Kethra
+round trips now measure ship 297 -> 293 -> 293 / kethra 58 -> 58 -> 54: zero growth. The
+low-tier canvas budget landed too (downscaleCanvasTextures, 1024 cap, both scenes) — capped
+deliberately at 1024 rather than 512 because the console screens are gameplay-readable
+textures; the cap trims only the oversized outliers (largest canvas 1536 -> 1024).
+Full stress suite on the production build, all green, zero page/console errors anywhere:
+flow 30/30, qa-pass edge cases, save-check, collision flood-fill (ship 1757/1757 cells,
+kethra 8996/8996, all 14 targets reachable), movement-check, interaction-check, throttled
+traces (ship-hero p50 24.0/p95 29.9, kethra 16.5/18.9, reveal 16.7/19.1), and a 90s idle
+soak (p50 16.5-16.7 flat, textures/geometries/heap constant). Intro audio staying minimal is
+a browser autoplay-policy constraint, not a bug.

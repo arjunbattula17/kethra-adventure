@@ -4,7 +4,8 @@ import { PlayerController } from '../player/PlayerController';
 import { InteractionSystem } from '../player/InteractionSystem';
 import { UIManager } from '../ui/UIManager';
 import { bus } from '../core/EventBus';
-import { disposeCanvasTextures } from '../core/disposeCanvasTextures';
+import { disposeSceneTextures, downscaleCanvasTextures } from '../core/disposeSceneTextures';
+import { getActiveEngine } from '../core/EngineRegistry';
 import { getSharedEnvironment } from '../core/Environment';
 import { AudioSystem } from '../audio/AudioSystem';
 import type { InteriorCtx, StatusLight } from './interior/ctx';
@@ -136,6 +137,13 @@ export class ShipInteriorScene implements GameScene {
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
     this.unsubShake = bus.on('player:shake', (amount: number) => this.player.addShake(amount));
 
+    // The same memory budget the texture cache applies to the kits' file textures, extended to
+    // this room's ~130 generated canvases (~170MB at full size) — the shared-VRAM tier's biggest
+    // remaining texture population. Runs before the scene's first render, so full-size canvases
+    // are never uploaded. (Module-cached canvases stay halved for the rest of the session if the
+    // player later switches tiers by hand — same trade the kit cache makes, minus its refetch.)
+    if (getActiveEngine()?.getQualityTier() === 'low') downscaleCanvasTextures(this.scene, 1024);
+
     bus.emit('scene:ship_interior:ready');
   }
 
@@ -191,6 +199,6 @@ export class ShipInteriorScene implements GameScene {
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
     });
-    disposeCanvasTextures(this.scene);
+    disposeSceneTextures(this.scene);
   }
 }
