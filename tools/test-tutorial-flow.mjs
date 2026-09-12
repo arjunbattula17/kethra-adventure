@@ -215,26 +215,29 @@ await shot('10_reveal_done');
 await page.keyboard.press('Enter');
 check('continuing returns to the ship interior', await until(async () => await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.player), 120000));
 
-// 8b. The scan-correlation puzzle gates the calibration now. Solve it: first place one contact
-//     WRONG to prove the instruments push back, then fix all four (gamma=I, delta=II, beta=III,
-//     alpha=IV per the clue set) and correlate.
-check('the scan correlation puzzle opens after the reveal', await until(async () => !!(await page.$('#scan-correlation-panel')), 30000));
-await shot('11a_scan_puzzle');
-const place = async (contact, slot) => {
-  await page.click(`.scan-contact[data-contact="${contact}"]`);
-  await page.click(`.scan-slot[data-slot="${slot}"]`);
-};
-await place('alpha', 1); await place('beta', 2); await place('gamma', 3); await place('delta', 4);
-await page.click('.scan-correlate');
-check('a wrong correlation gets an instrument contradiction', await until(async () =>
-  await page.evaluate(() => document.querySelector('.scan-status')?.classList.contains('warn')), 8000));
-await place('gamma', 1); await place('delta', 2); await place('beta', 3); await place('alpha', 4);
-await page.click('.scan-correlate');
-check('the correct correlation calibrates the chart', await until(async () =>
-  await page.evaluate(() => document.querySelector('.scan-status')?.classList.contains('good') && document.querySelector('.scan-status')?.textContent?.includes('CALIBRATED')), 10000));
-await shot('11b_scan_solved');
+// 8b. The course-plot math puzzle gates the calibration now. Enter one WRONG figure to prove
+//     the computer teaches rather than tells, then work the real plot: 60-12=48 Mkm,
+//     48/8=6 days, (6+2)/2=4 cells.
+check('the course plot opens after the reveal', await until(async () => !!(await page.$('#course-plot-panel')), 30000));
+await shot('11a_course_plot');
+const key = async (k) => page.click(`.plot-key[data-key="${k}"]`);
+const enter = async (digits) => { for (const d of String(digits)) await key(d); await key('ENTER'); };
+await enter(50);
+check('a wrong figure gets a teaching hint, not the answer', await until(async () =>
+  await page.evaluate(() => {
+    const s = document.querySelector('.plot-status');
+    return s?.classList.contains('warn') && !s.textContent.includes('48');
+  }), 8000));
+await enter(48);
+check('the distance locks and the transfer line draws', await until(async () =>
+  await page.evaluate(() => document.querySelector('.plot-step.done')?.textContent?.includes('48')), 8000));
+await enter(6);
+await enter(4);
+check('the full plot calibrates the chart', await until(async () =>
+  await page.evaluate(() => document.querySelector('.plot-status')?.classList.contains('good') && document.querySelector('.plot-status')?.textContent?.includes('CALIBRATED')), 10000));
+await shot('11b_course_plot_solved');
 check('the puzzle closes itself and control returns', await until(async () =>
-  await page.evaluate(() => !document.querySelector('#scan-correlation-panel') && window.__DEBUG__.engine.getCurrentScene()?.player?.enabled === true), 30000));
+  await page.evaluate(() => !document.querySelector('#course-plot-panel') && window.__DEBUG__.engine.getCurrentScene()?.player?.enabled === true), 30000));
 
 const postFlags = await page.evaluate(() => ({
   flags: window.__DEBUG__.gameState.data.flags,

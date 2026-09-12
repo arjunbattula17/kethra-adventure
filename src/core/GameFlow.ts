@@ -9,7 +9,7 @@ import { SaveSystem } from './SaveSystem';
 import { TutorialSequence } from '../tutorial/TutorialSequence';
 import { CONSOLE_SEAT, MONITOR_ANCHOR } from '../ship/interior/console';
 import { AudioSystem } from '../audio/AudioSystem';
-import { ScanCorrelation } from '../ship/ScanCorrelation';
+import { CoursePlot } from '../ship/CoursePlot';
 import { ShipLibrary } from '../journal/shipLibrary';
 
 function wait(ms: number): Promise<void> {
@@ -302,9 +302,9 @@ export class GameFlow {
     camera.rotation.set(player.pitch, 0, 0);
     await UIManager.fadeFromBlack();
 
-    // The first game: the reveal ended on a sensor ping, and this is making sense of what it
-    // saw. The chart-calibration flags the player has always been handed are now the SOLVE.
-    const puzzle = new ScanCorrelation();
+    // The first game: the reveal showed the system, and this is the navigator's arithmetic to
+    // reach the one world in range. The chart-calibration flags are the SOLVE.
+    const puzzle = new CoursePlot();
     puzzle.onSolved = () => void this.completeCalibration();
     puzzle.start();
   }
@@ -317,10 +317,10 @@ export class GameFlow {
     }
     gameState.setFlag('logs_available');
     gameState.setFlag('damage_assessed');
-    // The concepts the correlation just made the player USE — Doppler pacing, absorption
-    // spectroscopy, Kepler's period-distance law, the belt as a fixed landmark — land in the
-    // Ship's Library the moment they earned the calibration with them.
-    ShipLibrary.award(['lib_doppler', 'lib_spectroscopy', 'lib_kepler', 'lib_belts']);
+    // The concepts the plot just made the player USE — distance/speed/time navigation math and
+    // the Doppler-confirmed cruise speed — plus what the reveal's scan itself demonstrated,
+    // land in the Ship's Library the moment they earned the calibration.
+    ShipLibrary.award(['lib_navigation', 'lib_doppler', 'lib_spectroscopy', 'lib_kepler', 'lib_belts']);
 
     await this.standFromConsole();
     UIManager.setCrosshairVisible(true);

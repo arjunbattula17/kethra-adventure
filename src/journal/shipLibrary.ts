@@ -6,10 +6,10 @@ import type { JournalLogEntry } from '../core/GameState';
 
 /**
  * The Ship's Library: short, real-science reference entries earned by playing. Each unlocks at
- * the moment the game just USED the concept — solve the scan correlation and the Doppler,
- * spectroscopy and Kepler entries appear, because those are literally the tools the puzzle
- * handed the player; reach Kethra's glowing canopy and bioluminescence unlocks; repair a ship
- * system and energy systems unlock. The science is real and checkable; the last line of each
+ * the moment the game just USED the concept — solve the course plot and the navigation-math,
+ * Doppler, spectroscopy, Kepler and belt entries appear, because those are the tools the scan
+ * and the plot just handed the player; reach Kethra's glowing canopy and bioluminescence
+ * unlocks; repair a ship system and energy systems unlock. The science is real and checkable; the last line of each
  * entry ties it back to the thing the player just did, so the education rides the game instead
  * of interrupting it. Entries live in the normal journal (locked entries are hidden until
  * earned, same as Kethra's lore fragments).
@@ -17,9 +17,17 @@ import type { JournalLogEntry } from '../core/GameState';
 
 const LIBRARY_ENTRIES: JournalLogEntry[] = [
   {
+    id: 'lib_navigation',
+    title: 'Ship’s Library — Distance, Speed, Time',
+    body: 'All navigation stands on one relationship: distance equals speed multiplied by time. Rearrange it and any one figure falls out of the other two — sailors have used it with log lines and hourglasses, pilots use it every flight, and mission planners use it to schedule burns years ahead. Add a margin on top of the answer, because real journeys never go exactly to plan. The course plot to Kethra was this arithmetic and nothing more: a gap, a speed, a share of days, and two spare.',
+    corrupted: false,
+    timestamp: 'REFERENCE ARCHIVE',
+    unlocked: false,
+  },
+  {
     id: 'lib_kepler',
     title: 'Ship’s Library — Kepler’s Third Law',
-    body: 'Planets do not all move at the same speed: the farther a body orbits from its star, the slower it travels and the longer its year. Johannes Kepler pinned the exact relationship in 1619 — the square of the orbital period grows with the cube of the orbit’s size — and it still holds for every planet, moon and spacecraft we know. It is why the scan could place Contact α on the farthest orbit from nothing but its lazy drift.',
+    body: 'Planets do not all move at the same speed: the farther a body orbits from its star, the slower it travels and the longer its year. Johannes Kepler pinned the exact relationship in 1619 — the square of the orbital period grows with the cube of the orbit’s size — and it still holds for every planet, moon and spacecraft we know. It is why the reveal’s slowest, farthest wanderer had to be the outermost world — no other orbit moves that lazily.',
     corrupted: false,
     timestamp: 'REFERENCE ARCHIVE',
     unlocked: false,
@@ -27,7 +35,7 @@ const LIBRARY_ENTRIES: JournalLogEntry[] = [
   {
     id: 'lib_doppler',
     title: 'Ship’s Library — The Doppler Effect',
-    body: 'Waves from something moving toward you arrive compressed; waves from something moving away arrive stretched. You hear it in a siren’s falling pitch as it passes, and astronomers see it in light: motion shifts a body’s spectrum toward blue when approaching and red when receding. Careful Doppler measurements reveal how fast planets orbit — and have discovered hundreds of worlds around other stars by the wobble they leave in their sun’s light. It is how the scanner clocked each contact’s speed without ever visiting one.',
+    body: 'Waves from something moving toward you arrive compressed; waves from something moving away arrive stretched. You hear it in a siren’s falling pitch as it passes, and astronomers see it in light: motion shifts a body’s spectrum toward blue when approaching and red when receding. Careful Doppler measurements reveal how fast planets orbit — and have discovered hundreds of worlds around other stars by the wobble they leave in their sun’s light. It is how the ship confirmed its own cruise speed for the course plot without a single landmark to pace against.',
     corrupted: false,
     timestamp: 'REFERENCE ARCHIVE',
     unlocked: false,

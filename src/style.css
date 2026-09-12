@@ -778,86 +778,71 @@ body.tutorial-active .look-prompt { padding-bottom: 250px; }
   letter-spacing: 0.1em;
 }
 
-/* Scan correlation — the post-reveal first-game puzzle */
-#scan-correlation-panel { width: 880px; max-width: 94vw; }
-.scan-chart {
+/* Course plot — the post-reveal first-game math puzzle */
+#course-plot-panel { width: 760px; max-width: 94vw; }
+.plot-chart {
   display: block;
   width: 100%;
-  height: 208px;
+  height: 190px;
   border: 1px solid var(--surface-border);
   border-radius: 4px;
-  margin: 10px 0 8px;
+  margin: 10px 0 10px;
   background: #05060a;
 }
-.scan-orbits { display: flex; gap: 8px; margin-bottom: 12px; }
-.scan-orbits .scan-slot { flex: 1; }
-.scan-contacts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-.scan-contact {
-  border: 1px solid var(--surface-border);
-  border-radius: 4px;
-  background: var(--surface);
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+.plot-steps { display: flex; gap: 8px; margin-bottom: 12px; }
+.plot-step {
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--surface-border); border-radius: 4px;
+  padding: 7px 10px; font-size: 12px; color: var(--ink-dim);
 }
-.scan-contact:hover { background: var(--surface-hover); }
-.scan-contact.selected { border-color: var(--accent); background: rgba(217,164,65,0.12); }
-.scan-contact.placed { opacity: 0.75; }
-.scan-contact.locked { border-color: var(--success); opacity: 0.6; cursor: default; }
-.scan-contact-title {
-  font-family: var(--font-display);
-  font-size: 13px; font-weight: 600; letter-spacing: 0.08em;
-  color: var(--accent); text-transform: uppercase; margin-bottom: 3px;
-  display: flex; align-items: center; gap: 8px;
-}
-.scan-glyph {
+.plot-step.active { border-color: var(--accent); color: var(--ink); }
+.plot-step.done { border-color: var(--success); color: var(--success); }
+.plot-step-num {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px;
-  border: 1px solid var(--accent-dim); border-radius: 50%;
-  font-size: 12px; color: var(--ink);
+  width: 18px; height: 18px; flex-shrink: 0;
+  border: 1px solid currentColor; border-radius: 50%;
+  font-size: 11px;
 }
-.scan-contact.locked .scan-glyph { border-color: var(--success); color: var(--success); }
-.scan-contact.locked .scan-contact-title { color: var(--success); }
-.scan-reading { font-size: 12px; color: var(--ink); line-height: 1.45; }
-.scan-slot {
-  border: 1px dashed var(--surface-border);
-  border-radius: 4px;
-  padding: 8px 12px;
+.plot-step-name { flex: 1; }
+.plot-step-value { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.04em; }
+.plot-work { display: flex; gap: 20px; align-items: stretch; margin-bottom: 10px; }
+.plot-question { flex: 1; }
+.plot-q-prompt {
+  font-family: var(--font-display);
+  font-size: 17px; font-weight: 600; letter-spacing: 0.05em;
+  color: var(--accent); text-transform: uppercase; margin-bottom: 6px;
+}
+.plot-q-detail { font-size: 13.5px; line-height: 1.55; color: var(--ink); }
+.plot-entry-row { display: flex; gap: 12px; align-items: flex-start; }
+.plot-entry {
+  min-width: 96px; padding: 10px 12px; text-align: right;
+  border: 1px solid var(--panel-border); border-radius: 4px;
+  background: rgba(0,0,0,0.4);
+  font-family: var(--font-display); font-size: 22px; font-weight: 600;
+  color: var(--ink);
+}
+.plot-entry.solved { border-color: var(--success); color: var(--success); }
+.plot-entry-unit { font-size: 11px; color: var(--ink-dim); margin-left: 6px; }
+.plot-keypad { display: grid; grid-template-columns: repeat(3, 44px); gap: 5px; }
+.plot-key {
+  height: 32px;
+  border: 1px solid var(--surface-border); border-radius: 4px;
+  background: var(--surface); color: var(--ink);
+  font-family: var(--font-display); font-size: 13px; font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
-.scan-slot:hover { background: var(--surface-hover); }
-.scan-slot.filled { border-style: solid; }
-.scan-slot.locked { border-color: var(--success); background: rgba(124,191,124,0.07); cursor: default; }
-.scan-slot-label { font-size: 10px; letter-spacing: 0.1em; color: var(--ink-dim); text-transform: uppercase; }
-.scan-slot-fix { font-size: 13px; margin-top: 3px; color: var(--ink); }
-.scan-slot.locked .scan-slot-fix { color: var(--success); }
-.scan-notes {
-  border-left: 2px solid var(--accent-dim);
-  padding: 6px 12px; margin-bottom: 10px;
-  background: rgba(217,164,65,0.05);
-}
-.scan-notes-title { font-size: 10px; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 4px; }
-.scan-note { font-size: 12px; color: var(--ink-dim); line-height: 1.5; }
-.scan-footer { display: flex; align-items: center; gap: 16px; }
-.scan-footer .scan-correlate { width: 220px; flex-shrink: 0; }
-.scan-status { flex: 1; min-height: 20px; font-size: 13px; color: var(--ink-dim); }
-.scan-status.warn { color: var(--corrupt); }
-.scan-status.good { color: var(--success); }
-.scan-status.flash { animation: scan-shake 0.3s ease; }
+.plot-key:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent-dim); }
+.plot-key.enter { border-color: var(--accent); color: var(--accent); }
+.plot-key.enter:hover:not(:disabled) { background: var(--accent); color: #1a1408; }
+.plot-key.clr { color: var(--ink-dim); }
+.plot-key:disabled { opacity: 0.4; cursor: not-allowed; }
+.plot-status { min-height: 20px; font-size: 13px; color: var(--ink-dim); }
+.plot-status.warn { color: var(--corrupt); }
+.plot-status.good { color: var(--success); }
+.plot-status.flash { animation: scan-shake 0.3s ease; }
 @keyframes scan-shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-4px); }
   75% { transform: translateX(4px); }
 }
-.scan-correlate {
-  display: block; padding: 11px;
-  background: rgba(217,164,65,0.14);
-  border: 1px solid var(--accent); border-radius: 4px;
-  color: var(--ink);
-  font-family: var(--font-display); font-size: 14px; font-weight: 600;
-  letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
-}
-.scan-correlate:hover:not(:disabled) { background: var(--accent); color: #1a1408; }
-.scan-correlate:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--surface-border); }

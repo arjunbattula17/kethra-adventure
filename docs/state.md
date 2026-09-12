@@ -167,3 +167,11 @@ and stands via a short reverse glide after. Flow test to be extended to solve it
 Shipped: ScanCorrelation panel + GameFlow integration (seated continuity, flags moved to
 the solve, stand-up glide). Flow test grew to 35 checks incl. a deliberate wrong correlation
 (instrument contradiction verified) and the solve; all passing, zero errors.
+
+# Update — course-plot math puzzle replaces scan correlation (2026-09-14, later)
+Per request, the post-reveal puzzle is now accessible math instead of a deduction grid:
+CoursePlot.ts — three chained distance/speed/time steps (60-12=48 Mkm, 48/8=6 days,
+(6+2)/2=4 cells), on-screen keypad, teaching hints on wrong answers that never reveal the
+figure, and the course drawing itself onto the mini nav chart per step. ScanCorrelation.ts
+deleted; Ship's Library gains lib_navigation (d=vt) and the Kepler/Doppler tie-lines were
+reworded off the old contacts. Flow test updated (wrong-figure hint + full solve); 36 checks.
