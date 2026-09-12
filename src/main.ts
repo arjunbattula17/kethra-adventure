@@ -54,6 +54,14 @@ else if (SaveSystem.hasSave()) {
   else UIManager.toast('Your saved journey could not be read. Starting a new one.');
 }
 if (params.get('skipIntro')) gameState.setFlag('tutorial_battle_complete');
+// Pins the quality tier for this session, bypassing both the hardware guess and the runtime
+// downgrade monitor. For the capture/trace harnesses in tools/ (the GPU-aware guess correctly
+// classifies their software renderer as 'low', which would strip bloom from every screenshot)
+// and for anyone who wants to force a tier from the URL.
+const tierParam = params.get('tier');
+if (tierParam === 'low' || tierParam === 'medium' || tierParam === 'high') {
+  engine.setManualQualityTier(tierParam);
+}
 if (params.get('unlockKethra')) {
   gameState.setFlag('galaxy_revealed');
   gameState.setFlag('logs_available');

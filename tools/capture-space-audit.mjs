@@ -14,7 +14,7 @@ page.on('console', (m) => { if (m.type() === 'error') console.log('[console.erro
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 page.on('framenavigated', (f) => { if (f === page.mainFrame()) console.log('[navigated]', f.url()); });
 
-await page.goto(baseUrl + '?skipIntro=1', { waitUntil: 'load' });
+await page.goto(baseUrl + '?skipIntro=1&tier=high', { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 15000 });
 await page.waitForTimeout(400);
 await page.evaluate(() => { void window.__DEBUG__.flow['transitionToGalaxyReveal']?.(); });

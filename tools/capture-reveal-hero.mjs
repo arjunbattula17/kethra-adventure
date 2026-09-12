@@ -3,7 +3,7 @@ const baseUrl = process.argv[2] || 'http://localhost:5180';
 const outPath = process.argv[3] || 'reveal_hero.png';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-await page.goto(baseUrl + '?skipIntro=1', { waitUntil: 'load' });
+await page.goto(baseUrl + '?skipIntro=1&tier=high', { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 10000 });
 await page.waitForTimeout(400);
 await page.evaluate(() => window.__DEBUG__.flow['transitionToGalaxyReveal']?.());

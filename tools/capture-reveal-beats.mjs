@@ -20,7 +20,7 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: dsf });
 page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
-await page.goto(baseUrl + '?skipIntro=1', { waitUntil: 'load' });
+await page.goto(baseUrl + '?skipIntro=1&tier=high', { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 30000 });
 // __DEBUG__ is exposed before flow.start()'s own boot setScene resolves (which can run tens of
 // seconds under software rendering). Transitioning while that call is still in flight lets the

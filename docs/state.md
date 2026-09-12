@@ -131,3 +131,22 @@ kethra 8996/8996, all 14 targets reachable), movement-check, interaction-check, 
 traces (ship-hero p50 24.0/p95 29.9, kethra 16.5/18.9, reveal 16.7/19.1), and a 90s idle
 soak (p50 16.5-16.7 flat, textures/geometries/heap constant). Intro audio staying minimal is
 a browser autoplay-policy constraint, not a bug.
+
+# Follow-up — loading/lag fixes (2026-09-13)
+Root causes measured (see learnings for the full story): ANGLE shader compilation on cold
+Chrome shader-cache (68s cold vs 12s warm to tutorial on this RTX 4060), the game being played
+via a week-old dev server, and orphaned node servers. Fixes shipped:
+- Interior now builds AND compiles during the intro cinematic (Engine.prepareScene +
+  setScene({prepared}) + GameFlow.pendingShip): warm-cache handover after a watched intro is
+  ~4.1s total (fades + 1.5s warmup); cold-cache boots overlap ~19s of compile with the intro.
+- GPU-aware initial tier (guessInitialTier reads UNMASKED_RENDERER): Intel/mobile integrated
+  parts cap at medium, software rasterizers at low, discrete GPUs keep the core-count guess.
+  Pattern-tested against 10 representative ANGLE strings.
+- Manual tier changes crossing the MSAA boundary rebuild the PostProcessing pipeline (with
+  disposal), so low-guess machines raised to High by hand actually get anti-aliasing.
+- ?tier=low|medium|high URL override (used by the capture tools, which would otherwise now
+  correctly guess 'low'-equivalent on headless and lose bloom in screenshots).
+Verified: flow test 30/30, zero errors; classifier 10/10; cold/warm boot matrix measured.
+Remaining known cost: ~45s first-ever-boot shader compile on cold caches at any tier —
+reducible only by cutting the interior's 93 shader programs (material feature normalization),
+deliberately not attempted in this pass.

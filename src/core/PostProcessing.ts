@@ -233,4 +233,11 @@ export class PostProcessing {
   render(): void {
     this.composer.render();
   }
+
+  /** Releases the composer's render targets and every pass's internal buffers. Only called when
+   * the whole pipeline is rebuilt (a manual tier change that crosses the MSAA boundary). */
+  dispose(): void {
+    for (const pass of this.composer.passes) pass.dispose?.();
+    this.composer.dispose();
+  }
 }

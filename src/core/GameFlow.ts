@@ -39,6 +39,8 @@ export class GameFlow {
   /** Live only during the opening. Public so the harnesses in tools/ can drive it through __DEBUG__. */
   tutorial: TutorialSequence | null = null;
   private firstGameStarted = false;
+  /** Interior scene being prepared behind the intro cinematic; consumed at the handover. */
+  private pendingShip: Promise<ShipInteriorScene> | null = null;
 
   constructor(engine: Engine) {
     this.engine = engine;
@@ -124,13 +126,36 @@ export class GameFlow {
     intro.onDone = () => void this.beginTutorialOnShip();
     await this.engine.setScene(() => intro);
     this.engine.start();
+    // Build and compile the interior WHILE the cinematic plays. The intro spends ~30 seconds
+    // rendering an almost-idle scene; the interior's whole stand-up (kit fetch + geometry build
+    // + ~93 shader programs) fits inside that window, so a player who watches the intro hands
+    // over with only the warm-up frame left to pay. A rejection is caught at the await site in
+    // beginTutorialOnShip, which falls back to building the interior the direct way.
+    this.pendingShip = (async () => {
+      const scene = new ShipInteriorScene();
+      await this.engine.prepareScene(scene);
+      return scene;
+    })();
+    this.pendingShip.catch(() => {});
   }
 
   /** The intro-to-interior handover: build the ship behind a fade, then start the tutorial. */
   private async beginTutorialOnShip(): Promise<void> {
+    const prepared = this.pendingShip;
+    this.pendingShip = null;
     await UIManager.fadeToBlack();
-    this.shipScene = new ShipInteriorScene();
-    await this.engine.setScene(() => this.shipScene!);
+    let scene: ShipInteriorScene | null = null;
+    if (prepared) {
+      try {
+        scene = await prepared;
+      } catch {
+        // Preparation failed (a kit fetch died mid-intro) — fall through to the direct build,
+        // which surfaces its own failure the same way the pre-preload boot did.
+        scene = null;
+      }
+    }
+    this.shipScene = scene ?? new ShipInteriorScene();
+    await this.engine.setScene(() => this.shipScene!, { prepared: scene !== null });
     this.engine.start();
     await UIManager.fadeFromBlack();
     this.tutorial = new TutorialSequence(this.shipScene, hasSeenOpening());

@@ -15,14 +15,36 @@ const TIERS: Record<QualityTier, { pixelRatio: number; shadows: boolean }> = {
   low: { pixelRatio: 1, shadows: false },
 };
 
-// One-shot startup guess from a real, immediately-available signal (logical core count) — crude,
-// but the runtime monitor below corrects a wrong guess within a couple of seconds of actual play,
-// so this only has to be roughly right, not perfectly right.
-function guessInitialTier(): QualityTier {
+const TIER_ORDER: QualityTier[] = ['low', 'medium', 'high'];
+
+/**
+ * One-shot startup guess from two immediately-available signals. Logical core count alone was
+ * the original heuristic, and it misclassifies the most common weak machine there is: a
+ * many-core laptop on integrated graphics guessed 'high' and spent its first ~15-20s stuttering
+ * while the runtime monitor walked the tier back down (the monitor never climbs, so the guess is
+ * the ceiling for the whole session). The GPU string caps the guess: Intel/mobile integrated
+ * parts start at 'medium', software rasterizers at 'low'. Chrome reports it through the ANGLE
+ * wrapper ("ANGLE (Intel, Intel(R) Iris(R) Xe Graphics ..., D3D11)"), so substring matching is
+ * the dependable shape. Unrecognized GPUs cap nothing — discrete parts stay on the core guess,
+ * and the runtime monitor still corrects any leftover optimism within seconds of real play.
+ */
+function guessInitialTier(renderer: THREE.WebGLRenderer): QualityTier {
   const cores = navigator.hardwareConcurrency || 4;
-  if (cores <= 2) return 'low';
-  if (cores <= 4) return 'medium';
-  return 'high';
+  const coreGuess: QualityTier = cores <= 2 ? 'low' : cores <= 4 ? 'medium' : 'high';
+
+  let gpu = '';
+  try {
+    const gl = renderer.getContext();
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    gpu = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)).toLowerCase();
+  } catch {
+    // No renderer string — fall through to the core guess alone.
+  }
+  let gpuCap: QualityTier = 'high';
+  if (/swiftshader|llvmpipe|software/.test(gpu)) gpuCap = 'low';
+  else if (/intel|iris|uhd graphics|hd graphics|mali|adreno|radeon\(tm\) graphics/.test(gpu)) gpuCap = 'medium';
+
+  return TIER_ORDER[Math.min(TIER_ORDER.indexOf(coreGuess), TIER_ORDER.indexOf(gpuCap))];
 }
 
 export interface GameScene {
@@ -69,6 +91,11 @@ export class Engine {
   // (see the recordFrameForQuality note), and a manual tier choice resets it to 1.
   private renderScale = 1;
   private static readonly RENDER_SCALE_STEPS = [1, 0.85, 0.7];
+  // The composer's multisample count is baked into its render target at construction, so it can
+  // only follow a tier change by rebuilding the whole PostProcessing pipeline — done exclusively
+  // for MANUAL tier choices (a menu action can absorb a one-off rebuild; the automatic downgrade
+  // path stays instant and just keeps whatever samples it started with).
+  private msaaSamples: number;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -90,9 +117,10 @@ export class Engine {
     initSharedEnvironment(this.renderer);
     InputManager.init(this.renderer.domElement);
 
-    this.tier = guessInitialTier();
+    this.tier = guessInitialTier(this.renderer);
     // MSAA resolves per-frame at full buffer resolution, so only the low tier skips it.
-    this.postFx = new PostProcessing(this.renderer, new THREE.Scene(), new THREE.PerspectiveCamera(), this.tier === 'low' ? 0 : 4);
+    this.msaaSamples = this.tier === 'low' ? 0 : 4;
+    this.postFx = new PostProcessing(this.renderer, new THREE.Scene(), new THREE.PerspectiveCamera(), this.msaaSamples);
     this.applyTier(this.tier);
 
     window.addEventListener('resize', () => this.handleResize());
@@ -151,7 +179,24 @@ export class Engine {
     }
   }
 
-  async setScene(factory: () => Promise<GameScene> | GameScene): Promise<void> {
+  /**
+   * Prepares a scene without making it current: init (asset fetch, geometry build), then the
+   * program compile the setScene path would otherwise do. Safe to run while another scene is
+   * rendering — compileAsync creates and links programs but draws nothing — which is what lets
+   * the ship interior build itself behind the intro cinematic instead of after it. Pass the
+   * prepared scene to setScene with `prepared: true` so it isn't initialized twice.
+   */
+  async prepareScene(scene: GameScene): Promise<void> {
+    performance.mark('scene-init-start');
+    await scene.init();
+    performance.mark('scene-init-end');
+    await this.renderer.compileAsync(scene.scene, scene.camera);
+    performance.mark('scene-compile-end');
+    performance.measure('scene:init', 'scene-init-start', 'scene-init-end');
+    performance.measure('scene:compile', 'scene-init-end', 'scene-compile-end');
+  }
+
+  async setScene(factory: () => Promise<GameScene> | GameScene, opts: { prepared?: boolean } = {}): Promise<void> {
     // Asset fetch + shader compile below can run several seconds on a cold cache (first load, or
     // a judge's laptop on unfamiliar wifi) with nothing else on screen — the caller's fade-to-black
     // covers scene transitions, but the very first scene at boot has no fade at all. A spinner here
@@ -162,23 +207,14 @@ export class Engine {
         this.current.dispose();
         this.current = null;
       }
-      performance.mark('scene-init-start');
       const scene = await factory();
-      await scene.init();
-      performance.mark('scene-init-end');
       // WebGLRenderer compiles (and on some drivers, links) each material's shader program lazily
-      // on its first real draw call — not at material-creation time — so without this, the first
-      // frame(s) a given material is actually visible on screen pay a real, synchronous compile
-      // stall. compileAsync walks the scene up front and warms every program before the scene is
-      // exposed to the player, so that cost lands here (behind the caller's fade-to-black, where one
-      // is used) instead of surfacing as an unpredictable mid-gameplay hitch the first time the
-      // camera turns toward a material nothing has rendered yet.
-      await this.renderer.compileAsync(scene.scene, scene.camera);
-      // Boot/transition phases, visible in devtools and to the tools/ harnesses. measure() keeps
-      // the pairs queryable; the marks cost nothing per frame (this only runs on scene changes).
-      performance.mark('scene-compile-end');
-      performance.measure('scene:init', 'scene-init-start', 'scene-init-end');
-      performance.measure('scene:compile', 'scene-init-end', 'scene-compile-end');
+      // on its first real draw call — not at material-creation time — so without the compile in
+      // prepareScene, the first frame(s) a given material is actually visible on screen pay a
+      // real, synchronous compile stall. Landing it here keeps that cost behind the caller's
+      // fade-to-black (where one is used) instead of surfacing as an unpredictable mid-gameplay
+      // hitch. A scene the caller already ran through prepareScene() skips straight to handover.
+      if (!opts.prepared) await this.prepareScene(scene);
       this.current = scene;
       this.postFx.setActive(scene.scene, scene.camera);
       this.postFx.setAOSupported(scene.usesAO !== false);
@@ -233,6 +269,20 @@ export class Engine {
     // the player asked for this tier's real resolution.
     this.renderScale = 1;
     this.tier = tier;
+    // Crossing the MSAA boundary (low <-> the AA'd tiers) needs the composer rebuilt, or a
+    // machine that guessed 'low' and was manually raised would silently run High without
+    // anti-aliasing for the rest of the session.
+    const samples = tier === 'low' ? 0 : 4;
+    if (samples !== this.msaaSamples) {
+      this.msaaSamples = samples;
+      this.postFx.dispose();
+      this.postFx = new PostProcessing(this.renderer, new THREE.Scene(), new THREE.PerspectiveCamera(), samples);
+      if (this.current) {
+        this.postFx.setActive(this.current.scene, this.current.camera);
+        this.postFx.setAOSupported(this.current.usesAO !== false);
+      }
+      this.postFx.setSize(window.innerWidth, window.innerHeight);
+    }
     this.applyTier(tier);
   }
 
