@@ -9,6 +9,7 @@ import { SaveSystem } from './SaveSystem';
 import { TutorialSequence } from '../tutorial/TutorialSequence';
 import { CONSOLE_SEAT, MONITOR_ANCHOR } from '../ship/interior/console';
 import { AudioSystem } from '../audio/AudioSystem';
+import { ScanCorrelation } from '../ship/ScanCorrelation';
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -284,6 +285,31 @@ export class GameFlow {
   }
 
   private async finishReveal(): Promise<void> {
+    await UIManager.fadeToBlack();
+    this.shipScene = new ShipInteriorScene();
+    await this.engine.setScene(() => this.shipScene!);
+    // Continuity: the player sat down at this console to boot navigation and watched the reveal
+    // from that seat — they come back still in it, facing the screens the scan panel opens over.
+    const player = this.shipScene.player;
+    const camera = this.shipScene.camera;
+    player.enabled = false;
+    player.rig.position.set(CONSOLE_SEAT.x, 0, CONSOLE_SEAT.z);
+    player.yaw = 0;
+    player.pitch = Math.atan2(MONITOR_ANCHOR.y - CONSOLE_SEAT.eyeY, Math.abs(MONITOR_ANCHOR.z - CONSOLE_SEAT.z));
+    player.rig.rotation.set(0, 0, 0);
+    camera.position.y = CONSOLE_SEAT.eyeY;
+    camera.rotation.set(player.pitch, 0, 0);
+    await UIManager.fadeFromBlack();
+
+    // The first game: the reveal ended on a sensor ping, and this is making sense of what it
+    // saw. The chart-calibration flags the player has always been handed are now the SOLVE.
+    const puzzle = new ScanCorrelation();
+    puzzle.onSolved = () => void this.completeCalibration();
+    puzzle.start();
+  }
+
+  /** Runs when the scan correlation is solved: award the calibration, stand up, hand control back. */
+  private async completeCalibration(): Promise<void> {
     gameState.setFlag('galaxy_revealed');
     if (!gameState.data.planetsUnlocked.includes('kethra')) {
       gameState.data.planetsUnlocked.push('kethra');
@@ -291,15 +317,38 @@ export class GameFlow {
     gameState.setFlag('logs_available');
     gameState.setFlag('damage_assessed');
 
-    await UIManager.fadeToBlack();
-    this.shipScene = new ShipInteriorScene();
-    await this.engine.setScene(() => this.shipScene!);
-    // The handover into the reveal hid the crosshair; the rebuilt interior needs it back. Done
-    // behind the fade, in the same continuation as the scene swap, so there is no window where
-    // the interior is current but the crosshair is still hidden.
+    await this.standFromConsole();
     UIManager.setCrosshairVisible(true);
-    await UIManager.fadeFromBlack();
     this.finishReturnToShip();
+  }
+
+  /** The sit-down's mirror: rise from the chair and step back to the console approach point. */
+  private standFromConsole(): Promise<void> {
+    const scene = this.shipScene;
+    if (!scene) return Promise.resolve();
+    const player = scene.player;
+    const camera = scene.camera;
+    const start = { z: player.rig.position.z, eye: camera.position.y, pitch: player.pitch };
+    const DURATION = 1.1;
+    const ease = (v: number) => (v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
+    return new Promise((resolve) => {
+      let elapsed = 0;
+      scene.onTick = (dt) => {
+        elapsed += dt;
+        const t = ease(Math.min(1, elapsed / DURATION));
+        // Rise first, step back second — the reverse weighting of the sit-down.
+        const riseT = ease(Math.min(1, (elapsed / DURATION) / 0.65));
+        camera.position.y = THREE.MathUtils.lerp(start.eye, 1.7, riseT);
+        player.rig.position.z = THREE.MathUtils.lerp(start.z, -3.0, t);
+        player.pitch = THREE.MathUtils.lerp(start.pitch, 0, t);
+        camera.rotation.set(player.pitch, 0, 0);
+        if (elapsed >= DURATION) {
+          scene.onTick = null;
+          player.enabled = true;
+          resolve();
+        }
+      };
+    });
   }
 
   private async finishReturnToShip(): Promise<void> {

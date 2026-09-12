@@ -150,3 +150,20 @@ Verified: flow test 30/30, zero errors; classifier 10/10; cold/warm boot matrix 
 Remaining known cost: ~45s first-ever-boot shader compile on cold caches at any tier —
 reducible only by cutting the interior's 93 shader programs (material feature normalization),
 deliberately not attempted in this pass.
+
+# Done — scan-correlation puzzle after the reveal (2026-09-14)
+The reveal ends on a sensor ping; the new first-game beat is making sense of that scan.
+Design: seated at the console after the reveal, a "Scan Correlation" panel presents four
+unlabeled contacts (alpha/beta/gamma/delta = shuffled planets) with instrument readings, and
+four orbit slots I-IV. Clues (all true in planetData terms): two ring echoes, the artificial
+one (Vessek's shattered ring-station) sunward of the natural one (Isilthe); chlorophyll-analog
+absorption on the first orbit past the belt (Kethra); slowest Doppler period = outermost
+(Isilthe); Orrun by elimination. Assign all four -> CORRELATE -> correct slots lock with a
+chime, wrong ones get a specific instrument contradiction and can be reassigned. Success =
+chart calibrated, Kethra resolves as the one in-range destination; the post-reveal flags and
+toasts only land after the solve. Player stays seated through it (continuity from the sit-down)
+and stands via a short reverse glide after. Flow test to be extended to solve it.
+
+Shipped: ScanCorrelation panel + GameFlow integration (seated continuity, flags moved to
+the solve, stand-up glide). Flow test grew to 35 checks incl. a deliberate wrong correlation
+(instrument contradiction verified) and the solve; all passing, zero errors.

@@ -777,3 +777,62 @@ body.tutorial-active .look-prompt { padding-bottom: 250px; }
   font-weight: 600;
   letter-spacing: 0.1em;
 }
+
+/* Scan correlation — the post-reveal first-game puzzle */
+#scan-correlation-panel { width: 860px; max-width: 92vw; }
+.scan-columns { display: flex; gap: 22px; margin: 14px 0 12px; }
+.scan-contacts { flex: 1.15; display: flex; flex-direction: column; gap: 8px; }
+.scan-orbits { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.scan-contact {
+  border: 1px solid var(--surface-border);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.scan-contact:hover { background: var(--surface-hover); }
+.scan-contact.selected { border-color: var(--accent); background: rgba(217,164,65,0.12); }
+.scan-contact.placed { opacity: 0.75; }
+.scan-contact.locked { border-color: var(--success); opacity: 0.6; cursor: default; }
+.scan-contact-title {
+  font-family: var(--font-display);
+  font-size: 13px; font-weight: 600; letter-spacing: 0.08em;
+  color: var(--accent); text-transform: uppercase; margin-bottom: 3px;
+}
+.scan-contact.locked .scan-contact-title { color: var(--success); }
+.scan-reading { font-size: 12px; color: var(--ink); line-height: 1.45; }
+.scan-slot {
+  border: 1px dashed var(--surface-border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.scan-slot:hover { background: var(--surface-hover); }
+.scan-slot.filled { border-style: solid; }
+.scan-slot.locked { border-color: var(--success); background: rgba(124,191,124,0.07); cursor: default; }
+.scan-slot-label { font-size: 10px; letter-spacing: 0.1em; color: var(--ink-dim); text-transform: uppercase; }
+.scan-slot-fix { font-size: 13px; margin-top: 3px; color: var(--ink); }
+.scan-slot.locked .scan-slot-fix { color: var(--success); }
+.scan-notes {
+  border-left: 2px solid var(--accent-dim);
+  padding: 6px 12px; margin-bottom: 10px;
+  background: rgba(217,164,65,0.05);
+}
+.scan-notes-title { font-size: 10px; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 4px; }
+.scan-note { font-size: 12px; color: var(--ink-dim); line-height: 1.5; }
+.scan-status { min-height: 20px; font-size: 13px; color: var(--ink-dim); margin-bottom: 10px; }
+.scan-status.warn { color: var(--corrupt); }
+.scan-status.good { color: var(--success); }
+.scan-correlate {
+  display: block; width: 100%; padding: 11px;
+  background: rgba(217,164,65,0.14);
+  border: 1px solid var(--accent); border-radius: 4px;
+  color: var(--ink);
+  font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+.scan-correlate:hover:not(:disabled) { background: var(--accent); color: #1a1408; }
+.scan-correlate:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--surface-border); }

@@ -214,6 +214,28 @@ check('the reveal reaches its continue prompt', await until(async () => await pa
 await shot('10_reveal_done');
 await page.keyboard.press('Enter');
 check('continuing returns to the ship interior', await until(async () => await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.player), 120000));
+
+// 8b. The scan-correlation puzzle gates the calibration now. Solve it: first place one contact
+//     WRONG to prove the instruments push back, then fix all four (gamma=I, delta=II, beta=III,
+//     alpha=IV per the clue set) and correlate.
+check('the scan correlation puzzle opens after the reveal', await until(async () => !!(await page.$('#scan-correlation-panel')), 30000));
+await shot('11a_scan_puzzle');
+const place = async (contact, slot) => {
+  await page.click(`.scan-contact[data-contact="${contact}"]`);
+  await page.click(`.scan-slot[data-slot="${slot}"]`);
+};
+await place('alpha', 1); await place('beta', 2); await place('gamma', 3); await place('delta', 4);
+await page.click('.scan-correlate');
+check('a wrong correlation gets an instrument contradiction', await until(async () =>
+  await page.evaluate(() => document.querySelector('.scan-status')?.classList.contains('warn')), 8000));
+await place('gamma', 1); await place('delta', 2); await place('beta', 3); await place('alpha', 4);
+await page.click('.scan-correlate');
+check('the correct correlation calibrates the chart', await until(async () =>
+  await page.evaluate(() => document.querySelector('.scan-status')?.classList.contains('good') && document.querySelector('.scan-status')?.textContent?.includes('CALIBRATED')), 10000));
+await shot('11b_scan_solved');
+check('the puzzle closes itself and control returns', await until(async () =>
+  await page.evaluate(() => !document.querySelector('#scan-correlation-panel') && window.__DEBUG__.engine.getCurrentScene()?.player?.enabled === true), 30000));
+
 const postFlags = await page.evaluate(() => ({
   flags: window.__DEBUG__.gameState.data.flags,
   planets: window.__DEBUG__.gameState.data.planetsUnlocked,
