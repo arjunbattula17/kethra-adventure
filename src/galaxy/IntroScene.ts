@@ -84,7 +84,7 @@ export class IntroScene implements GameScene {
     // a hole in the starfield no matter how the lights are aimed. A low-intensity IBL is what
     // makes the dead ship read as a *shaped* silhouette.
     this.scene.environment = getSharedEnvironment();
-    this.scene.environmentIntensity = 0.15;
+    this.scene.environmentIntensity = 0.35;
     new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/space/starfield.jpg`, (texture) => {
       if (this.finished) return;
       texture.mapping = THREE.EquirectangularReflectionMapping;
@@ -92,7 +92,7 @@ export class IntroScene implements GameScene {
       this.scene.background = texture;
       // Noticeably brighter than the hull: the dead ship reads as a silhouette against the sky
       // band, the one cinematic tool that works when the subject itself must stay dark.
-      this.scene.backgroundIntensity = 0.9;
+      this.scene.backgroundIntensity = 1.15;
     });
     this.scene.add(buildStarfield(1400, 600, 0.7));
 
@@ -126,15 +126,15 @@ export class IntroScene implements GameScene {
 
     // A dead ship still has a shape: faint cool rim from the distant, unseen star, and just
     // enough ambient that black-on-black reads as silhouette instead of nothing.
-    const rim = new THREE.DirectionalLight(0x8fb4ff, 1.15);
+    const rim = new THREE.DirectionalLight(0x8fb4ff, 1.7);
     rim.position.set(-6, 3, -10);
     this.scene.add(rim);
     // The rim alone lights the far side; a whisper of cool fill from the camera side keeps the
     // near hull a *shaped* black instead of a hole in the starfield.
-    const fill = new THREE.DirectionalLight(0x44557a, 0.55);
+    const fill = new THREE.DirectionalLight(0x5a70a0, 0.95);
     fill.position.set(4, 2, 10);
     this.scene.add(fill);
-    this.scene.add(new THREE.AmbientLight(0x25314a, 0.24));
+    this.scene.add(new THREE.AmbientLight(0x2d3b58, 0.34));
 
     // The "somebody's home" glow that fades up over the crew section late in the timeline.
     this.crewGlow = new THREE.PointLight(0xffc27a, 0, 14);
