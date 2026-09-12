@@ -5,6 +5,7 @@ import { UIManager } from './ui/UIManager';
 import { PanelManager } from './ui/PanelManager';
 import { GameFlow } from './core/GameFlow';
 import { JournalSystem } from './journal/JournalSystem';
+import { ShipLibrary } from './journal/shipLibrary';
 import { RepairUI } from './ship/RepairUI';
 import { MapController } from './galaxy/MapController';
 import { CharacterPanel } from './rpg/CharacterPanel';
@@ -39,6 +40,7 @@ PanelManager.onOpenChange = (open) => {
 };
 AudioSystem.init();
 JournalSystem.init();
+ShipLibrary.init();
 RepairUI.init();
 MapController.init();
 CharacterPanel.init();

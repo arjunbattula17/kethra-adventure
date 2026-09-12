@@ -11,6 +11,7 @@ import { getSharedEnvironment } from '../../core/Environment';
 import { DialogueSystem } from '../../dialogue/DialogueSystem';
 import { WARDEN_DIALOGUE, ARCHIVIST_DIALOGUE } from './kethraDialogue';
 import { KETHRA_LORE_ENTRIES } from './kethraLore';
+import { ShipLibrary } from '../../journal/shipLibrary';
 import { KethraMechanismPuzzle } from './KethraMechanismPuzzle';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { applyPbr } from '../../core/TextureLibrary';
@@ -330,6 +331,8 @@ export class KethraScene implements GameScene {
     if (gameState.data.journalLogs.length > 0 && !gameState.data.journalLogs.some((l) => l.id === KETHRA_LORE_ENTRIES[0]?.id)) {
       gameState.data.journalLogs.push(...KETHRA_LORE_ENTRIES.map((l) => ({ ...l })));
     }
+    // Standing under a forest that makes its own light is the moment the concept means something.
+    ShipLibrary.award(['lib_biolum']);
 
     this.buildGround();
     this.buildTerraces();

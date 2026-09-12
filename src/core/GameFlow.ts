@@ -10,6 +10,7 @@ import { TutorialSequence } from '../tutorial/TutorialSequence';
 import { CONSOLE_SEAT, MONITOR_ANCHOR } from '../ship/interior/console';
 import { AudioSystem } from '../audio/AudioSystem';
 import { ScanCorrelation } from '../ship/ScanCorrelation';
+import { ShipLibrary } from '../journal/shipLibrary';
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -316,6 +317,10 @@ export class GameFlow {
     }
     gameState.setFlag('logs_available');
     gameState.setFlag('damage_assessed');
+    // The concepts the correlation just made the player USE — Doppler pacing, absorption
+    // spectroscopy, Kepler's period-distance law, the belt as a fixed landmark — land in the
+    // Ship's Library the moment they earned the calibration with them.
+    ShipLibrary.award(['lib_doppler', 'lib_spectroscopy', 'lib_kepler', 'lib_belts']);
 
     await this.standFromConsole();
     UIManager.setCrosshairVisible(true);
