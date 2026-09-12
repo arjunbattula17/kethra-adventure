@@ -4,6 +4,7 @@ import { PlayerController } from '../player/PlayerController';
 import { InteractionSystem } from '../player/InteractionSystem';
 import { UIManager } from '../ui/UIManager';
 import { bus } from '../core/EventBus';
+import { disposeCanvasTextures } from '../core/disposeCanvasTextures';
 import { getSharedEnvironment } from '../core/Environment';
 import { AudioSystem } from '../audio/AudioSystem';
 import type { InteriorCtx, StatusLight } from './interior/ctx';
@@ -190,5 +191,6 @@ export class ShipInteriorScene implements GameScene {
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
     });
+    disposeCanvasTextures(this.scene);
   }
 }

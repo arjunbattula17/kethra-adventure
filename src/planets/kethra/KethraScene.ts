@@ -4,6 +4,7 @@ import { PlayerController } from '../../player/PlayerController';
 import { InteractionSystem } from '../../player/InteractionSystem';
 import { UIManager } from '../../ui/UIManager';
 import { gameState } from '../../core/GameState';
+import { disposeCanvasTextures } from '../../core/disposeCanvasTextures';
 import { bus } from '../../core/EventBus';
 import { getSharedEnvironment } from '../../core/Environment';
 import { DialogueSystem } from '../../dialogue/DialogueSystem';
@@ -1083,5 +1084,6 @@ export class KethraScene implements GameScene {
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
     });
+    disposeCanvasTextures(this.scene);
   }
 }
