@@ -63,10 +63,6 @@ export const MONITOR_ANCHOR = { x: 0, y: 1.6, z: DESK_Z - 0.52 };
  */
 export const consoleBootGate = { unlocked: false, consumed: false };
 
-// ---------------------------------------------------------------------------------------------
-// Geometry helpers
-// ---------------------------------------------------------------------------------------------
-
 /**
  * A box with every edge chamfered, built as a corner-cut rectangle extruded with a bevel. The
  * reference has no sharp 90° prop edge anywhere — every plate and cabinet catches a highlight on
@@ -155,9 +151,7 @@ function groundGroup(root: THREE.Object3D): void {
   });
 }
 
-// ---------------------------------------------------------------------------------------------
 // Shared material / geometry kit
-// ---------------------------------------------------------------------------------------------
 
 interface Kit {
   bone: THREE.MeshStandardMaterial;
@@ -430,10 +424,6 @@ function addScreen(
 
   return faceMat;
 }
-
-// ---------------------------------------------------------------------------------------------
-// Build
-// ---------------------------------------------------------------------------------------------
 
 /** Nav console housing, its monitor bank, the pilot chair, and the two side wall stations. */
 export function buildConsole(ctx: InteriorCtx): void {

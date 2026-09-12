@@ -103,7 +103,7 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
   doorFloorPool.renderOrder = 2;
   ctx.scene.add(doorFloorPool);
 
-  // ===== shared material variation =====
+  // shared material variation
   // The recurring critique across every piece: one uniform roughness reading as tinted plastic.
   // These give the airlock's own hand-built dressing real map/roughness/normal response instead
   // of flat MeshStandardMaterial colours.
@@ -115,7 +115,7 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
   const trimRough = buildPaintRoughnessTexture();
   trimRough.repeat.set(1, 3.5);
 
-  // ===== alarm-orange trim jambs =====
+  // alarm-orange trim jambs
   // The palette table calls out alarm red-orange specifically for "door trim" — the reference
   // crop's most visible saturated accent. Also gives the frame opening a lit edge so it doesn't
   // crush to the same near-black as the unlit kit steel behind it.
@@ -139,7 +139,7 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
     ctx.scene.add(jamb);
   }
 
-  // ===== header placard =====
+  // header placard
   const placardMat = new THREE.MeshStandardMaterial({
     map: buildAirlockPlacardTexture('AIRLOCK 04', 'MAIN HATCH — CYCLE BEFORE OPENING'),
     roughness: 0.55,
@@ -151,7 +151,7 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
   placard.receiveShadow = true;
   ctx.scene.add(placard);
 
-  // ===== keypad panel — the one piece of the old hand-built airlock with an actual gameplay
+  // keypad panel — the one piece of the old hand-built airlock with an actual gameplay
   // tie-in (its three lamps run on the shared status-blink loop), rebuilt with real material
   // response instead of a flat colour. =====
   const panelMat = new THREE.MeshStandardMaterial({
@@ -212,7 +212,7 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
     ctx.statusLights.push({ mesh: lamp, material: mat, phase: i * 1.7, onIntensity: 1.9 });
   });
 
-  // ===== threshold =====
+  // threshold
   // Non-slip hazard-edged tread plate right under the hatch, and the worn deck stencilling the
   // reference's own foreground floor is built for. Both are real texture builders this module
   // already shipped but never wired into a scene until now.
@@ -234,7 +234,7 @@ export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
   deckStencil.renderOrder = 1;
   ctx.scene.add(deckStencil);
 
-  // ===== breaking the mirror =====
+  // breaking the mirror
   // Round-4's critic named the door bay's near-mirror left/right massing (matched decal, matched
   // locker/panel weight) as the single biggest gap. The keypad cluster above already lives only on
   // the left; everything below is deliberately lopsided in kind, not just position — a wall-mounted

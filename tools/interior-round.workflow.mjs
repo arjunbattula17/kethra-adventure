@@ -197,25 +197,25 @@ Then answer:
 - \`reasoning\`: 2–4 sentences on what separates them.`
 }
 
-// ---- Build: the eight geometry/material pieces, in parallel ----
+// Build: the eight geometry/material pieces, in parallel
 phase('Build')
 await parallel(builders.map((p) => () => agent(builderPrompt(p), { label: `build:${p.name}`, phase: 'Build' })))
 
-// ---- Render: barrier, so lighting calibrates against the finished material pass ----
+// Render: barrier, so lighting calibrates against the finished material pass
 phase('Render')
 await agent(renderPrompt('the material pass'), { label: `render:materials`, phase: 'Render' })
 log(`round ${round}: material pass rendered, calibrating lighting`)
 
-// ---- Light: alone, iterating against the reference histogram ----
+// Light: alone, iterating against the reference histogram
 phase('Light')
 const lightingReport = await agent(lightingPrompt(), { label: 'light:calibrate', phase: 'Light' })
 
-// ---- Rerender: fresh blind pairs from the lit result ----
+// Rerender: fresh blind pairs from the lit result
 phase('Rerender')
 const renderReport = await agent(renderPrompt('the final round state'), { label: `render:final`, phase: 'Rerender' })
 log(`round ${round} rendered, judging`)
 
-// ---- Judge ----
+// Judge
 phase('Judge')
 const verdicts = await parallel(
   all.map((p) => () =>

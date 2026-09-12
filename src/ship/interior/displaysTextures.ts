@@ -866,7 +866,6 @@ export function buildFrameLabelTexture(text: string): THREE.CanvasTexture {
   return tex;
 }
 
-// =================================================================================================
 // Material maps.
 //
 // Each surface here gets a real map set per material class instead of one tinted plastic with a
@@ -875,7 +874,6 @@ export function buildFrameLabelTexture(text: string): THREE.CanvasTexture {
 // paint, bare steel and grime respond to the same light differently. Three classes are built --
 // painted enclosure, machined bare steel, rubber -- and their roughness/metalness ranges are
 // deliberately kept far apart.
-// =================================================================================================
 
 export interface SurfaceMaps {
   map: THREE.CanvasTexture;

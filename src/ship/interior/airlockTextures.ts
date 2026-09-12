@@ -500,14 +500,12 @@ export function buildAirlockPlacardTexture(main: string, sub: string, accent = '
   return tex;
 }
 
-// =================================================================================================
 // Roughness fields
 //
 // The round-1 critique was that steel, paint, rubber and glass all shared one response. A single
 // scalar `roughness` per material is what causes that: real surfaces vary across themselves, and
 // the variation is what produces the moving specular breakup that reads as "material" rather than
 // "tinted plastic". These are linear-space greyscale maps — white = rough, black = polished.
-// =================================================================================================
 
 function greyNoise(g: CanvasRenderingContext2D, S: number, rand: () => number, count: number, lo: number, hi: number): void {
   for (let i = 0; i < count; i++) {
@@ -651,7 +649,6 @@ export function buildAirlockSteelNormalTexture(): THREE.CanvasTexture {
   return finish(c, false);
 }
 
-// =================================================================================================
 // Grounding decals
 //
 // The scene's only shadow caster is one 1024px directional key, which cannot resolve the contact
@@ -661,7 +658,6 @@ export function buildAirlockSteelNormalTexture(): THREE.CanvasTexture {
 // All of them use straight alpha blending, never MultiplyBlending: a multiply decal drawn from a
 // canvas with cleared regions multiplies the destination by RGB 0 wherever alpha is 0, which paints
 // an opaque black rectangle around the decal instead of nothing.
-// =================================================================================================
 
 /** Radial contact-occlusion pool for the footprint of a prop standing on the deck. */
 export function buildContactShadowTexture(): THREE.CanvasTexture {

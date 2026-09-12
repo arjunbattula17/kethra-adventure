@@ -2,7 +2,6 @@ import * as THREE from 'three';
 
 import { mulberry32, hashStr } from '../../core/rng';
 
-
 /**
  * Procedural canvas textures for the set-dressing props. These are the "third layer" of detail —
  * label plates, louvre shading, stencils and wear that would be uneconomical as geometry at
@@ -481,9 +480,7 @@ export function buildRackUnitTexture(label: string): THREE.CanvasTexture {
   return finish(canvas);
 }
 
-// ===========================================================================================
 // material-response layer: tiling detail / roughness / normal sets, plus decal maps
-// ===========================================================================================
 
 /** Soft grey blob, redrawn across the tile edges so the noise field stays seamless. */
 function blob(c: CanvasRenderingContext2D, w: number, h: number, x: number, y: number, r: number, v: number, a: number): void {

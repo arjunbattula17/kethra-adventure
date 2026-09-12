@@ -162,7 +162,7 @@ export function buildPlateMaps(variant: PlateVariant): SurfaceMaps {
   o.fillStyle = rm(p.rough, p.metal);
   o.fillRect(0, 0, S, S);
 
-  // ---- Mottled paint / oxide variation. The roughness copy is what actually stops the surface
+  // Mottled paint / oxide variation. The roughness copy is what actually stops the surface
   // reading as one moulded plastic sheet; the albedo copy alone never did.
   for (let i = 0; i < 2600; i++) {
     const x = rand() * S;
@@ -176,7 +176,7 @@ export function buildPlateMaps(variant: PlateVariant): SurfaceMaps {
     o.fillRect(x, y, w, h);
   }
 
-  // ---- Brushed anisotropy on bare metal: long shallow roughness streaks along one axis, which is
+  // Brushed anisotropy on bare metal: long shallow roughness streaks along one axis, which is
   // what makes rolled steel smear a highlight sideways instead of pooling it into a plastic blob.
   if (p.brushed) {
     for (let i = 0; i < 900; i++) {
@@ -197,7 +197,7 @@ export function buildPlateMaps(variant: PlateVariant): SurfaceMaps {
   }
   a.globalAlpha = 1;
 
-  // ---- Panel seams: a milled recess with a lit lower/right shoulder, cut into the height field
+  // Panel seams: a milled recess with a lit lower/right shoulder, cut into the height field
   // so the groove genuinely self-shadows, and roughened because dirt collects in a channel.
   const seams = [0, S / 2];
   for (const s of seams) {
@@ -220,7 +220,7 @@ export function buildPlateMaps(variant: PlateVariant): SurfaceMaps {
     o.fillRect(0, s - 4, S, 8);
   }
 
-  // ---- Bolt heads inset from every panel corner: raised in height, bare metal in the orm map.
+  // Bolt heads inset from every panel corner: raised in height, bare metal in the orm map.
   const bolt = (x: number, y: number) => {
     a.beginPath();
     a.arc(x, y, 4.4, 0, Math.PI * 2);
@@ -260,7 +260,7 @@ export function buildPlateMaps(variant: PlateVariant): SurfaceMaps {
     }
   }
 
-  // ---- Chipped paint, motivated at the seams and panel edges where a plate actually gets knocked.
+  // Chipped paint, motivated at the seams and panel edges where a plate actually gets knocked.
   // Bare metal is smoother and fully metallic; a rust bloom is rougher and dielectric.
   for (let i = 0; i < 84; i++) {
     const alongSeam = rand() < 0.72;
@@ -302,7 +302,7 @@ export function buildPlateMaps(variant: PlateVariant): SurfaceMaps {
     blob(o);
   }
 
-  // ---- Grime pooling at the lower edge plus vertical drip streaks under the mid seam. Grime is
+  // Grime pooling at the lower edge plus vertical drip streaks under the mid seam. Grime is
   // matte and non-metallic wherever it lands, which is most of what "dirt in the seams" looks like.
   const grad = a.createLinearGradient(0, S * 0.72, 0, S);
   grad.addColorStop(0, 'rgba(0,0,0,0)');

@@ -9,7 +9,6 @@ import {
   buildLouverTexture,
 } from './lightingTextures';
 
-// ---------------------------------------------------------------------------------------------
 // Lighting piece: the room's whole light rig *and* every visible fixture that motivates it.
 //
 // The reference frame never shows a light without showing the thing making it — a hanging
@@ -22,7 +21,6 @@ import {
 // brightest large surface and the vertical walls fall off), a cool low ambient that lets corners
 // crush toward near-black, and then *local* warm pools from practicals overlapping a single cool
 // focal wash at the console end. Warm and cool are separated strictly by fixture type.
-// ---------------------------------------------------------------------------------------------
 
 const WARM = 0xffd9a0;
 const WARM_HOT = 0xfff2dc;
@@ -44,7 +42,7 @@ const CEIL_FACE = 4.88; // ceiling slab underside (interior-nobatch.json: slab A
 
 /** All non-prop scene lighting: the room rig plus the practical fixtures that motivate it. */
 export function buildLighting(ctx: InteriorCtx): void {
-  // ===== shared geometry =====
+  // shared geometry
   // Everything in this module is one of five buffers, scaled per instance. A unit box covers all
   // housings/plates/tubes-ends, a unit cylinder all stems and tubes, a unit quad all glow decals.
   const gBox = new THREE.BoxGeometry(1, 1, 1);
@@ -53,7 +51,7 @@ export function buildLighting(ctx: InteriorCtx): void {
   const gRing = new THREE.TorusGeometry(1, 0.055, 5, 16);
   const gDome = new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
 
-  // ===== shared materials =====
+  // shared materials
   const matHousing = new THREE.MeshStandardMaterial({ color: STEEL, roughness: 0.62, metalness: 0.55, emissive: 0x191d23, emissiveIntensity: 0.6 });
   const matHousingDark = new THREE.MeshStandardMaterial({ color: STEEL_DARK, roughness: 0.55, metalness: 0.62, emissive: 0x14181d, emissiveIntensity: 0.6 });
   const matTrim = new THREE.MeshStandardMaterial({ color: STEEL_TRIM, roughness: 0.38, metalness: 0.72, emissive: 0x222831, emissiveIntensity: 0.5 });
@@ -110,7 +108,7 @@ export function buildLighting(ctx: InteriorCtx): void {
 
   const matLouver = new THREE.MeshBasicMaterial({ color: 0x1b1f25, alphaMap: buildLouverTexture(), transparent: true, depthWrite: false });
 
-  // ===== builders =====
+  // builders
   const box = (w: number, h: number, d: number, mat: THREE.Material, x: number, y: number, z: number) => {
     const m = new THREE.Mesh(gBox, mat);
     m.scale.set(w, h, d);
@@ -164,9 +162,7 @@ export function buildLighting(ctx: InteriorCtx): void {
     }
   };
 
-  // ===============================================================================================
   // 1. Room rig — the value structure everything else sits on.
-  // ===============================================================================================
 
   // Cool sky over a warm bounce: the sky term lights up-facing surfaces (deck, prop tops), the
   // ground term lights down-facing ones (ceiling underside, shelf bottoms) with the colour the
@@ -241,9 +237,7 @@ export function buildLighting(ctx: InteriorCtx): void {
   starlight.position.set(-2, 4.5, -18);
   ctx.scene.add(starlight);
 
-  // ===============================================================================================
   // 2. Hanging twin-tube pendants — the reference's hero fixture, dead centre under the duct spine.
-  // ===============================================================================================
 
   const pendantLights: THREE.PointLight[] = [];
   // The old room's ceiling duct spine this stem mounted into is gone (ceiling.ts is now a flat
@@ -341,10 +335,8 @@ export function buildLighting(ctx: InteriorCtx): void {
   addPendant((-0.2 * 4) / 3);
   addPendant((2.9 * 4) / 3);
 
-  // ===============================================================================================
   // 3. Hooded wall downlights — the cone pools grazing the plating are the single most
   //    recognisable lighting cue in the reference crop.
-  // ===============================================================================================
 
   // 2.72 * 5/4 = 3.4 put the whole fixture (y 3.17..3.63) in the band above the wall body, where it
   // was pierced by the pair of surface conduits the walls run at y[3.47,3.53], x[+-5.44,+-5.58] for
@@ -399,9 +391,7 @@ export function buildLighting(ctx: InteriorCtx): void {
   for (const z of [-6, -2.75, 1.3, 5.2]) addSconce(-1, z, z === -6);
   for (const z of [-5.9, -0.8, 2.933, 6.667]) addSconce(1, z, z === -0.8);
 
-  // ===============================================================================================
   // 4. Bare strip tubes clamped high on the side walls, plus the graze they throw down the plating.
-  // ===============================================================================================
 
   const flickerTargets: { mat: THREE.MeshStandardMaterial; graze: THREE.MeshBasicMaterial; baseE: number; baseO: number }[] = [];
   const addWallStrip = (side: 1 | -1, z: number, len: number, flicker: boolean) => {
@@ -438,9 +428,7 @@ export function buildLighting(ctx: InteriorCtx): void {
   addWallStrip(1, (-3.0 * 4) / 3, 2.2, false);
   addWallStrip(1, (2.6 * 4) / 3, 1.9, true);
 
-  // ===============================================================================================
   // 5. Recessed egg-crate troffers set between the ceiling beams.
-  // ===============================================================================================
 
   // The troffers recess into the slab, whose underside is CEIL_FACE. ROOM_H - 0.075 = 4.925 was
   // 45 mm too high, which left the pan straddling the slab face and — the real defect — put the
@@ -489,10 +477,8 @@ export function buildLighting(ctx: InteriorCtx): void {
     addTroffer(x, (3.0 * 4) / 3);
   }
 
-  // ===============================================================================================
   // 6. Cool focal wash at the console end. Every screen-coloured photon in the room comes from
   //    here; the practicals above stay strictly warm so the two never blend into one tint.
-  // ===============================================================================================
 
   const coolLights: THREE.PointLight[] = [];
   for (const [x, y, z] of [[0, 1.7, (-2.6 * 4) / 3], [(-1.5 * 4) / 3, 2.4, (-3.8 * 4) / 3]] as [number, number, number][]) {
@@ -516,9 +502,7 @@ export function buildLighting(ctx: InteriorCtx): void {
     box(0.1, 0.14, 1.0, matHousingDark, side * 2.24, 0.08, (-4.6 * 4) / 3);
   }
 
-  // ===============================================================================================
   // 7. Caged alarm beacons.
-  // ===============================================================================================
 
   const beaconSweeps: THREE.Object3D[] = [];
   const addBeacon = (side: 1 | -1, z: number, primary: boolean) => {
@@ -566,9 +550,7 @@ export function buildLighting(ctx: InteriorCtx): void {
   addBeacon(-1, (-2.6 * 4) / 3, true);
   addBeacon(1, (4.1 * 4) / 3, false);
 
-  // ===============================================================================================
   // 8. Bolt heads across every wall-mounted fixture, batched into one instanced draw.
-  // ===============================================================================================
 
   if (boltMatrices.length > 0) {
     const bolts = new THREE.InstancedMesh(gCyl, matBolt, boltMatrices.length);
@@ -577,9 +559,7 @@ export function buildLighting(ctx: InteriorCtx): void {
     ctx.scene.add(bolts);
   }
 
-  // ===============================================================================================
   // 9. Animation.
-  // ===============================================================================================
 
   const pendantBase = pendantLights.map((l) => l.intensity);
   const coolBase = coolLights.map((l) => l.intensity);

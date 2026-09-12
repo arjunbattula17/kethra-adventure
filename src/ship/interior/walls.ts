@@ -214,7 +214,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
 
   const jobs: Placement[] = [];
 
-  // ----- side walls (the long runs, x = +-HALF_W): two straight bays each, corners left for the
+  // side walls (the long runs, x = +-HALF_W): two straight bays each, corners left for the
   // corner pass below -----
   //
   // WallAstra_Straight/TopAstra_Straight are NOT authored front-facing like every other prop in
@@ -238,7 +238,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     }
   }
 
-  // ----- console (-Z) end wall: one straight bay, covering the centre tile (x -2..2). The
+  // console (-Z) end wall: one straight bay, covering the centre tile (x -2..2). The
   // starfield viewport bay is dressed onto the front face of this wall by buildStarfieldWindow().
   //
   // A straight bay is authored as a -X wall (see the bounds table above), so pointing its face at
@@ -256,7 +256,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     jobs.push({ name: WALL_TOP, pos: [0, 0, z], yaw });
   }
 
-  // ----- four corners -----
+  // four corners
   //
   // A square inner corner is authored as the -X/-Z corner: both arms run out from the piece origin
   // along -X and -Z, so yaw only ever takes the four axis-aligned values that swing that quadrant
@@ -283,7 +283,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     }
   }
 
-  // ----- structural rhythm along the long (side) walls, echoing the kit's own preview shots -----
+  // structural rhythm along the long (side) walls, echoing the kit's own preview shots
   const columns: Placement[] = [];
   for (const s of [-1, 1] as const) {
     for (const z of [-KIT_TILE / 2, KIT_TILE / 2]) {
@@ -320,7 +320,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     );
   }
 
-  // ----- per-bay dressing: every side bay gets a floor-level dirt/scuff pass (motivated by boots
+  // per-bay dressing: every side bay gets a floor-level dirt/scuff pass (motivated by boots
   // and trolleys working the walking lane) plus one distinct secondary element so the four bays
   // read as four different pieces of a lived-in wall instead of one flat panel copy-pasted four
   // times — the "block-out feel" the critic named directly. -----
@@ -428,7 +428,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
     ctx.statusLights.push({ mesh: led, material: ledMat, phase: y * 1.7, onIntensity: 1.7 });
   });
 
-  // ----- warm practical sconces, one per side wall, grounded in a visible housing rather than a
+  // warm practical sconces, one per side wall, grounded in a visible housing rather than a
   // bare light — the round's "little warm/cool pooling" gap is a material/lighting-response
   // problem this module can answer directly on the surfaces it owns. -----
   const SCONCE_COLOR = 0xffd9a0;

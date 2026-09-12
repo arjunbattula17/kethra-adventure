@@ -17,7 +17,6 @@ import {
   paneUvRect,
 } from './displaysTextures';
 
-// ---------------------------------------------------------------------------------------------
 // The suspended command display -- the room's focal point.
 //
 // The reference's screen bank is structurally a 3x2 GRID of separate glass slabs carrying ONE
@@ -37,7 +36,6 @@ import {
 // lowest hardware stays well clear of player eye height 1.7, so nothing blocks the walk-up from
 // spawn. The gantry's header beam climbs to just under the flat ceiling slab (ceiling.ts, y =
 // ROOM_H - 0.06 = 4.94), the same margin it kept under the old room's ceiling greeble.
-// ---------------------------------------------------------------------------------------------
 
 // 0.18 in front of the console's DESK_Z (console.ts), kept fixed as DESK_Z moved from -3.6 to
 // -4.8 with the room rebuild.

@@ -101,7 +101,7 @@ function gridLines(half: number, margin: number, target: number): number[] {
 export function buildFloor(ctx: InteriorCtx): void {
   const add = (o: THREE.Object3D) => ctx.scene.add(o);
 
-  // ===== shared materials =====
+  // shared materials
   // Distinct material *response*, not just colour, per the recurring critique:
   //   painted deck / markings   metalness 0.00, roughness 0.85-1.0 (mapped)
   //   worn composite tread      metalness 0.30, roughness 0.62 (mapped)
@@ -250,7 +250,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     add(m);
   };
 
-  // ===== 1. deck slab =====
+  // 1. deck slab
   const floor = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.2, ROOM_D), deckMat);
   floor.position.y = -0.1;
   floor.receiveShadow = true;
@@ -281,7 +281,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   polish.renderOrder = 1;
   add(polish);
 
-  // ===== 2. panel seam ribs + bolts =====
+  // 2. panel seam ribs + bolts
   // Raised 3 cm ribs on a ~1.5 m grid. Real geometry rather than a seam texture: at deck grazing
   // angles the rib top catches light and drops a hard shadow line, which a map cannot fake.
   // Ribs run wall to wall and die into the kick strip's room-facing face, not to ROOM_W/ROOM_D-0.3
@@ -311,7 +311,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     for (const z of gridLines(HALF_D, 0.7, 0.9)) bolts.push({ p: [x, 0.017, z] });
   }
 
-  // ===== 3. wall-base kick strip =====
+  // 3. wall-base kick strip
   // Coving the deck into the walls, so the floor never just intersects a vertical plane. Sits on
   // the measured room-facing wall surfaces (WALL_X / WALL_Z), not on HALF_W / HALF_D: the old
   // HALF_W-0.16 / HALF_D-0.16 placement put the whole strip at a measured x ∈ [5.76, 5.92] and
@@ -365,7 +365,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     }
   }
 
-  // ===== 4. recessed tread insert (walkway grate) =====
+  // 4. recessed tread insert (walkway grate)
   const insetW = INSET_HALF_X * 2;
   const insetD = INSET_Z1 - INSET_Z0;
 
@@ -451,7 +451,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   whiteLine.position.set(TROUGH_X + 0.36, 0.004, INSET_CZ);
   add(whiteLine);
 
-  // ===== 4b. foreground grate wear =====
+  // 4b. foreground grate wear
   // Spawn is z=4, inside the insert's 0.6-5.8 span, so the plate row centred near z=3.2 sits
   // right under the player and fills most of the foreground frame — the critic's single biggest
   // gap ("the corrugated grate panel in the very front... comparatively flat"). The diffuse/normal
@@ -472,7 +472,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   bolts.push({ p: [0.62, 0.054, rowCenterZ[1] - 0.35], r: [Math.PI / 2, 0.4, 0] });
   bolts.push({ p: [-0.42, 0.054, rowCenterZ[1] + 0.3], r: [Math.PI / 2, 1.15, 0] });
 
-  // ===== 5. ribbed threshold band =====
+  // 5. ribbed threshold band
   // The horizontal ribbed step that splits the reference's foreground from the console bay.
   // Left out of ctx.floorMeshes so the ground raycast keeps returning the flat deck.
   // ROOM_W - 0.5 reached x = ±5.75, 0.185 m past the 5.565 wall face; the band now dies into the
@@ -500,7 +500,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     bolts.push({ p: [x, 0.032, THRESHOLD_Z + 0.5] });
   }
 
-  // ===== 6. painted lane markings =====
+  // 6. painted lane markings
   // Two long lines flanking the walkway insert, plus caution cross-hatch where the lane meets
   // the threshold band — hazard yellow stays a narrow accent, never a large surface.
   const laneGeo = new THREE.BoxGeometry(0.07, 0.006, insetD + 0.6);
@@ -515,7 +515,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     add(patch);
   }
 
-  // ===== 7. stencils =====
+  // 7. stencils
   // Every one of these used to run under solid deck hardware, which cut the lettering into pieces:
   // NAV reached z = -2.65 against the band's outer lip face at -2.45; REPAIR (x ∈ [3.65, 4.55],
   // z ∈ [1.65, 2.55]) overlapped the access plate at z ∈ [1.24, 1.96]; CAUTION overlapped the hatch
@@ -538,7 +538,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     add(decal);
   }
 
-  // ===== 8. deck hatch =====
+  // 8. deck hatch
   const hatchX = -3.0;
   const hatchZ = -1.8;
   const hatchWell = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.02, 1.02), voidMat);
@@ -595,7 +595,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   hatchLabel.renderOrder = 2;
   add(hatchLabel);
 
-  // ===== 9. floor vents =====
+  // 9. floor vents
   const ventFrameGeo = new THREE.BoxGeometry(0.66, 0.035, 0.46);
   const ventWellGeo = new THREE.BoxGeometry(0.56, 0.02, 0.36);
   const ventSlatGeo = new THREE.BoxGeometry(0.52, 0.014, 0.032);
@@ -627,7 +627,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     }
   }
 
-  // ===== 10. cargo tie-down rings =====
+  // 10. cargo tie-down rings
   const ringPadGeo = new THREE.BoxGeometry(0.17, 0.02, 0.17);
   const ringGeo = new THREE.TorusGeometry(0.05, 0.013, 5, 12);
   const ringSpots: [number, number][] = [
@@ -641,7 +641,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   })), true));
   for (const [x, z] of ringSpots) addContact('pad', x, z, 0.42, 0.42, 0, 0.0115);
 
-  // ===== 11. bolted access plates =====
+  // 11. bolted access plates
   const accessSpots: [number, number, number][] = [
     [-4.6, -5.4, 0],
     [4.5, 1.6, Math.PI / 2],
@@ -665,7 +665,7 @@ export function buildFloor(ctx: InteriorCtx): void {
     }
   }
 
-  // ===== 12. recessed deck LED strips =====
+  // 12. recessed deck LED strips
   // Cool light on flat geometry (not a point light), seated in a dark channel so it reads as
   // inset hardware rather than a painted line, flanking the walkway insert. ShipInteriorScene
   // drives emissiveIntensity for everything in ctx.floorLedMats every frame, so the base value
@@ -697,7 +697,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   crossStrip.position.set(0, 0.036, crossZ);
   add(crossStrip);
 
-  // ===== 13. loose grate panels =====
+  // 13. loose grate panels
   // The signature foreground prop in the reference: removable walkway grilles pulled up and
   // stacked on the deck. One geometry set, three placements, one leaning on another.
   const gratePanel = () => {
@@ -739,7 +739,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   addContact('pad', -3.05, 6.62, 2.1, 1.15, -0.62, 0.0115);
   addContact('pad', -3.4, HALF_D - 2.9, 2.1, 1.15, -1.32, 0.0115);
 
-  // ===== 14. localised wear =====
+  // 14. localised wear
   // Motivated, not a uniform tint: traffic in the walking lane, oil where the deck is worked on,
   // grime pooling at the wall/deck joints and around the recessed trough.
   addWear('scuff', 0, 3.4, 2.6, 2.4);
@@ -758,7 +758,7 @@ export function buildFloor(ctx: InteriorCtx): void {
   addWear('grime', 0, -WALL_Z + 0.9, 4.2, 1.5);
   addWear('drip', hatchX + 0.55, hatchZ - 0.6, 1.0, 1.4, 0.3);
 
-  // ===== 15. floor cable runs + coiled hose =====
+  // 15. floor cable runs + coiled hose
   // The critic's single biggest gap: the open apron between the threshold band (z=-3.0) and the
   // walkway insert (z=0.6) reads as bare repeating tile with nothing breaking it up. Two flex
   // conduit runs cross it diagonally, motivated as power/data feeds — one plugs into the sub-deck
@@ -850,6 +850,6 @@ export function buildFloor(ctx: InteriorCtx): void {
   addContact('pad', 4.3, -0.8, 0.9, 0.9, 0, 0.0113);
   addWear('oil', 4.3, -0.55, 0.7, 0.6, 0.4);
 
-  // ===== bolt batch =====
+  // bolt batch
   add(instance(boltGeo, boltMat, bolts));
 }

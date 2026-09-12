@@ -19,7 +19,6 @@ import {
   buildSpaceBackdropTexture,
 } from './starfieldWindowTextures';
 
-// ---------------------------------------------------------------------------------------------
 // Forward viewport bay — the armoured window assembly filling the console (-Z) bulkhead.
 //
 // The bulkhead itself (buildWalls) is a solid box, so there is no literal hole to see through.
@@ -59,7 +58,6 @@ import {
 //
 // Walkway: nothing here reaches past z = -5.15, which is behind the bulkhead collider plane at
 // -5.5... — everything forward of the frame below eye height stays under y = 1.5.
-// ---------------------------------------------------------------------------------------------
 
 // Every constant below is the old 9x12x4 room's value scaled by the same 4/3 (x) / 5/4 (y) that
 // took the room to 12x16x5, so the whole bay grows proportionally with the wall it's mounted on
@@ -147,7 +145,7 @@ function slab(
 }
 
 export function buildStarfieldWindow(ctx: InteriorCtx): void {
-  // ===== materials =====================================================================
+  // materials
   // Cool grey steel throughout. The bulkhead behind this assembly is the room's warm worn
   // band, so the bay is what carries the brief's wall-steel values into the -Z end of the room.
   //
@@ -266,7 +264,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     roughnessMap: paintMaps.roughnessMap,
   });
 
-  // ===== soft occlusion decals =========================================================
+  // soft occlusion decals
   // The key light is a single 1024 orthographic map covering the whole 9x12 room, so it cannot
   // resolve the 2-5 cm creases where these forms meet. These decals put the darkening there by
   // hand — black with a gradient alpha, straight alpha blend so the strength is predictable.
@@ -300,7 +298,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     ctx.scene.add(m);
   }
 
-  // ===== exterior view stack ===========================================================
+  // exterior view stack
   // Every layer is oversized 12% past the aperture: at the off-axis review vantage a
   // plane sized exactly to the opening falls a little short of it in screen space (each layer
   // sits at a different recess depth, so perspective shrinks the far ones faster), which is what
@@ -372,7 +370,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   glassTint.renderOrder = 3;
   ctx.scene.add(glassTint);
 
-  // ===== bolts (accumulated, then one instanced draw call) =============================
+  // bolts (accumulated, then one instanced draw call)
   const boltXforms: THREE.Matrix4[] = [];
   const boltQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
   const boltScale = new THREE.Vector3(1, 1, 1);
@@ -398,7 +396,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     slatXforms.push(new THREE.Matrix4().compose(slatPos, noRot, slatScale));
   }
 
-  // ===== aperture reveal ===============================================================
+  // aperture reveal
   // The recess walls. From the off-axis review vantage these returns are most of what sells
   // the window as a metre-thick armoured opening rather than a picture hung on the bulkhead.
   const revealD = FRONT_Z - WALL_Z;                 // 0.533
@@ -435,7 +433,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     slab(ctx, gasketMat, 0.05, APER_H + 0.1, 0.09, s * (APER_HW + 0.025), APER_CY, FRONT_Z - 0.06);
   }
 
-  // ===== mullion grid ==================================================================
+  // mullion grid
   // I-section: a deep web spanning the recess, a proud front flange, a back flange, and a
   // bolted shoe at each end. Three panes across, two high — the reference's screen grid.
   const mullionD = revealD - 0.04;
@@ -478,7 +476,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     }
   }
 
-  // ===== stepped surround ==============================================================
+  // stepped surround
   // Each side is three slabs of decreasing depth so the frame has a chamfered profile rather
   // than one square edge — the front nose reads as a distinct highlight band at grazing angles.
   const lintelH = LINTEL_T - APER_T;                // 0.44
@@ -522,7 +520,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
       FRONT_Z + 0.004, s * Math.PI / 2);
   }
 
-  // ===== retracted blast shutter =======================================================
+  // retracted blast shutter
   // The big secondary form above the lintel: housing, ribbed body, end caps, an actuator
   // cylinder down each jamb and a hydraulic line feeding it. This is the layer that breaks
   // the top of the silhouette instead of ending the assembly on a flat beam.
@@ -575,7 +573,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     ao('radial', 0.5, 0.42, 1.5, s * ACT_X, 2.4, FRONT_Z + 0.002);
   }
 
-  // ===== jamb hardware =================================================================
+  // jamb hardware
   const ledGeo = new THREE.PlaneGeometry(0.4, 0.6);
   const placardTex = buildStencilPlacardTexture('V-04', 'FWD VIEWPORT');
   const placardMat = new THREE.MeshStandardMaterial({
@@ -667,7 +665,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     }
   }
 
-  // ===== port jamb: access panel left hanging open ======================================
+  // port jamb: access panel left hanging open
   // The reference's own weakness is that it is perfectly mirror-symmetric. This is the loudest
   // break: one plate off its seat, a dark cavity, a colour-coded loom and two breakers.
   const bayX = -JAMB_CX;
@@ -709,7 +707,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   loom.castShadow = true;
   ctx.scene.add(loom);
 
-  // ===== starboard sill: clip-on work lamp ==============================================
+  // starboard sill: clip-on work lamp
   // The critic's note on the reference was that its light is uniformly ambient with nothing
   // pooling. This is the answer: a practical the crew clamped on, throwing a hard warm pool
   // across one end of the sill and down the apron, off-axis and unmirrored.
@@ -750,7 +748,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   ctx.scene.add(lamp.target);
   ctx.scene.add(lamp);
 
-  // ===== sill instruments, kick strip, practical =======================================
+  // sill instruments, kick strip, practical
   // Cool inserts angled up out of the ledge, breaking the bottom of the pane with a foreground
   // layer the way the reference stacks readouts in front of its display bank.
   const readoutGeo = new THREE.PlaneGeometry(0.46, 0.16);
@@ -778,7 +776,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   kick.renderOrder = 1;
   slab(ctx, warmStripMat, FRAME_HW * 2 - 1.4, 0.04, 0.14, 0, 1.03 * (5 / 4), FRONT_Z + 0.04);
 
-  // ===== bolted repair patch over the pane ==============================================
+  // bolted repair patch over the pane
   // A plate someone welded over a cracked corner, sealant squeezed out round the edge. It sits
   // *on* the glass, so it also proves the pane has a front surface.
   const patchX = -2.32 * (4 / 3);
@@ -792,7 +790,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   }
   ao('radial', 0.6, 0.86, 0.68, patchX, patchY - 0.02, FRONT_Z - 0.088);
 
-  // ===== apron carrying the bay to the deck ============================================
+  // apron carrying the bay to the deck
   // Without this, the raw bulkhead below the sill reads as a large warm rust band directly
   // under the room's coolest element. The apron keeps the whole -Z end in grey steel.
   slab(ctx, steelMat, FRAME_HW * 2, SILL_B, 0.12, 0, SILL_B / 2, WALL_Z + 0.06);
@@ -815,7 +813,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   ao('bottom', 0.8, FRAME_HW * 2, 0.34, 0, 0.17, WALL_Z + 0.222);
   ao('top', 0.55, FRAME_HW * 2, 0.5, 0, 0.012, WALL_Z + 0.35, 0, -Math.PI / 2);
 
-  // ===== localised wear ================================================================
+  // localised wear
   // Drips under the sill and under each actuator gland only — corrosion where fluid actually
   // runs, rather than a uniform tint over the frame.
   const dripTex = buildDripStreakTexture();
@@ -833,7 +831,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     ctx.scene.add(dripB);
   }
 
-  // ===== starboard corner service run ==================================================
+  // starboard corner service run
   // The bay's own material pass stops dead at the jamb (x = FRAME_HW = 5.6); the side wall it runs
   // into, and the ceiling above it, belong to a different module and
   // measured as one flat, evenly-lit panel sitting right next to this assembly's worn frame —
@@ -1083,7 +1081,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
     0.32,
   );
 
-  // ===== instanced batches =============================================================
+  // instanced batches
   const slats = new THREE.InstancedMesh(UNIT_BOX, slatMat, slatXforms.length);
   for (let i = 0; i < slatXforms.length; i++) slats.setMatrixAt(i, slatXforms[i]);
   slats.instanceMatrix.needsUpdate = true;
@@ -1101,7 +1099,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   bolts.castShadow = true;
   ctx.scene.add(bolts);
 
-  // ===== light =========================================================================
+  // light
   const paneLight = new THREE.PointLight(0x6fd0ea, 1.2, 7.5, 2);
   paneLight.position.set(0, 2.5 * (5 / 4), -4.9 * (4 / 3));
   ctx.scene.add(paneLight);
@@ -1116,7 +1114,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   shutterFill.position.set(0, shutterY - 0.1, FRONT_Z + 0.3);
   ctx.scene.add(shutterFill);
 
-  // ===== hull-exterior starfield =======================================================
+  // hull-exterior starfield
   // The scene rotates whatever is registered here about Y, so this cloud is a spherical shell
   // centred on the room: rotation stays a no-op on its silhouette and it can never swing
   // inside the hull. The view a player reads is the parallax stack above.
@@ -1139,7 +1137,7 @@ export function buildStarfieldWindow(ctx: InteriorCtx): void {
   ctx.setStarfield(starfield);
   ctx.scene.add(starfield);
 
-  // ===== animation =====================================================================
+  // animation
   // Each exterior layer drifts at its own rate; the difference between them is the parallax
   // cue that keeps the pane from reading as wallpaper.
   ctx.animated.push((elapsed) => {

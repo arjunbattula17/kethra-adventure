@@ -142,7 +142,6 @@ export function buildCeiling(ctx: InteriorCtx): void {
     ctx.scene.add(beam);
   }
 
-  // ===============================================================================================
   // Hand-placed panel seams + rivets — round 4's fix for the biggest critique against this piece:
   // the previous pass baked its seam lines and rivet rows straight into the tiling plate texture,
   // so a perfectly uniform lattice repeated across the whole slab and read as a stamped decal
@@ -150,7 +149,6 @@ export function buildCeiling(ctx: InteriorCtx): void {
   // "a 2-4cm raised rib reads better than a texture at this scale"), laid out on an irregular
   // grid — panel sizes vary ±30% around a ~1.1-1.2m average per the brief's 0.5-1.5m band — so
   // no two seams or rivet rows land the same distance apart.
-  // ===============================================================================================
   const gridRnd = mulberry32(0xce17);
   const colXs = irregularGrid(WALL_X * 2, 1.15, 0.32, gridRnd);
   const rowZs = irregularGrid(WALL_Z * 2, 1.2, 0.3, gridRnd);
@@ -211,7 +209,6 @@ export function buildCeiling(ctx: InteriorCtx): void {
   rivetMesh.receiveShadow = true;
   ctx.scene.add(rivetMesh);
 
-  // ===============================================================================================
   // Round 5: secondary joists + bolted gusset plates — the direct fix for the single named gap in
   // this round's brief: "the main ceiling grid itself stays fairly repetitive and under-detailed
   // (plain girders and panels)". The transverse beams above run one direction only, so from below
@@ -220,7 +217,6 @@ export function buildCeiling(ctx: InteriorCtx): void {
   // under the transverse beams' bottom flange, with a real bolted gusset plate at every one of the
   // 16 intersections — the brief's "assembled from bolted plates" language applied to the structure
   // itself, not just the panel skin.
-  // ===============================================================================================
   const BEAM_Y = ROOM_H - 0.22;
   const BEAM_BOTTOM = BEAM_Y - 0.1;
   const JOINT_Y = BEAM_BOTTOM - 0.08;
@@ -307,7 +303,6 @@ export function buildCeiling(ctx: InteriorCtx): void {
   gussetBolts.castShadow = true;
   ctx.scene.add(gussetBolts);
 
-  // ===============================================================================================
   // Corrugated deck accent — one patch of ribbed panelling breaking up the bolted-plate slab.
   //
   // Was a 3.4 x 2.6 quad at (2.7, 4.865, -6.5), which was wrong three ways: it ran to z = -7.8,
@@ -319,7 +314,6 @@ export function buildCeiling(ctx: InteriorCtx): void {
   // 4.95: x 2.2..5.2 (wall at 5.565, right-wall LED planes at x = 5.550) and z -1.7..1.7 (the
   // z = +-2 beams occupy z +-1.86..2.14). The joists it passes over sit at y 4.52..4.68, well
   // below the quad, so they read as hanging under the decking rather than through it.
-  // ===============================================================================================
   const corrMap = buildCorrugatedDeckTexture();
   const corrNormal = buildCorrugatedDeckNormal();
   const corrRough = buildCorrugatedDeckRoughness();
@@ -339,10 +333,8 @@ export function buildCeiling(ctx: InteriorCtx): void {
   corrPanel.receiveShadow = true;
   ctx.scene.add(corrPanel);
 
-  // ===============================================================================================
   // Painted-trim material shared by junction boxes, pipe brackets and vent housings — genuinely
   // distinct from both the bare pipe steel and the bolted plate: low metalness, semi-matte paint.
-  // ===============================================================================================
   const trimMap = buildPaintedTrimTexture();
   const trimRough = buildPaintedTrimRoughness();
   const trimMat = new THREE.MeshStandardMaterial({
@@ -362,11 +354,9 @@ export function buildCeiling(ctx: InteriorCtx): void {
     return m;
   };
 
-  // ===============================================================================================
   // Overhead conduit run — bare steel, high metalness, tight roughness: a deliberately different
   // material response from the painted slab and trim. Runs the depth of the room at x = -4.6,
   // clear of the x = -3.667 troffer housings (0.23 clearance) and below beam height.
-  // ===============================================================================================
   const pipeMap = buildPipeSteelTexture();
   const pipeRough = buildPipeRoughness();
   const PIPE_LEN = 14.6;
@@ -397,11 +387,9 @@ export function buildCeiling(ctx: InteriorCtx): void {
     box(0.05, ROOM_H - 0.06 - PIPE_Y, 0.05, PIPE_X, (ROOM_H - 0.06 + PIPE_Y) / 2, z, trimMat);
   }
 
-  // ===============================================================================================
   // Round 5: flange couplings, a stop valve and a slung secondary cable along the pipe run. Bare
   // pipe with no fittings reads as one plain cylinder no matter how good its texture is — the
   // couplings and the valve wheel are what make it read as plumbing someone actually built.
-  // ===============================================================================================
   const flangeMat = new THREE.MeshStandardMaterial({ color: 0x8b929c, roughness: 0.35, metalness: 0.75 });
   const flangeGeo = new THREE.TorusGeometry(0.095, 0.022, 6, 14);
   for (const z of [-4.8, 0, 4.8]) {
@@ -443,10 +431,8 @@ export function buildCeiling(ctx: InteriorCtx): void {
     ctx.scene.add(cable);
   }
 
-  // ===============================================================================================
   // Junction boxes: base flange + smaller body for a chamfered silhouette rather than one sharp
   // box, mounted to the beam undersides away from every lighting.ts fixture.
-  // ===============================================================================================
   const addJunctionBox = (x: number, z: number) => {
     box(0.34, 0.05, 0.34, x, ROOM_H - 0.22 - 0.1 - 0.025, z, trimMat);
     box(0.22, 0.16, 0.22, x, ROOM_H - 0.22 - 0.1 - 0.13, z, trimMat);
@@ -470,10 +456,8 @@ export function buildCeiling(ctx: InteriorCtx): void {
   addJunctionLed(2.2, -6, 0x4fd8f0);
   addJunctionLed(-2.6, 6, 0xff4a2c);
 
-  // ===============================================================================================
   // Recessed vent grilles — dark louvred housing let into the slab. A third, genuinely different
   // material story (matte composite/mesh) alongside painted trim and bare pipe steel.
-  // ===============================================================================================
   const grilleMat = new THREE.MeshStandardMaterial({ map: buildGrilleTexture(), roughness: 0.72, metalness: 0.4 });
   const addVent = (x: number, z: number) => {
     box(0.86, 0.05, 0.86, x, ROOM_H - 0.06 - 0.06 - 0.025, z, trimMat);
@@ -489,13 +473,11 @@ export function buildCeiling(ctx: InteriorCtx): void {
   // clear of the left-wall LED strip planes at x = -5.550.
   addVent(-5.09, 2.6);
 
-  // ===============================================================================================
   // Round 5: a recessed maintenance hatch with a real hinge-and-wheel-lock mechanism. A flat panel
   // decal reads as paint; hardware you could actually turn reads as "assembled" the way the
   // console's dials and switches do — this is the single richest hero prop this piece adds. Set at
   // x=0, z=-3: clear of every joist (nearest at x=+-1.3), both beam lines it sits between (z=-2
   // and the z=-4 troffers, which are also off on x=+-3.667), and the pendant column at z=-0.27/3.87.
-  // ===============================================================================================
   // The 1.0 x 1.0 m leaf was the one surface this module left as a large flat untextured colour
   // field (audit id 299: BoxGeometry 1 x 0.025 x 1, MeshStandardMaterial, hasMap false) — a blank
   // panel a metre across, dead centre of the overhead, which is exactly the case the brief calls
@@ -564,7 +546,6 @@ export function buildCeiling(ctx: InteriorCtx): void {
   hatchPlacard.receiveShadow = true;
   ctx.scene.add(hatchPlacard);
 
-  // ===============================================================================================
   // Wear decals, motivated by the new geometry above rather than a uniform tint: a drip stain at
   // a pipe joint, a streak trail running off another bracket, and a soot bloom by the junction
   // box. Round 4 rebuilt the drip/soot textures themselves (ceilingTextures.ts) to run in one
@@ -572,7 +553,6 @@ export function buildCeiling(ctx: InteriorCtx): void {
   // instead of blooming out as a symmetric radial blob. Opaque-white-base multiply decals,
   // matching the convention `addGrimeOverlay` in ctx.ts uses — a cleared canvas would
   // premultiply to a hard black quad under MultiplyBlending.
-  // ===============================================================================================
   const addDecal = (
     map: THREE.Texture,
     width: number,

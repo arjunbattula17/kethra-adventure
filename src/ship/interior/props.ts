@@ -45,9 +45,7 @@ const WALL_X_UPPER = 5.914;
 const BACK_Z = -7.565;
 const FRONT_Z = 7.565;
 
-// ===========================================================================================
 // geometry / material kit
-// ===========================================================================================
 
 /** Deterministic PRNG for scatter layouts (mulberry32) — reproducible without a per-call seed arg. */
 function mulberry32(seed: number): () => number {
@@ -499,9 +497,7 @@ function boltRow(
   }
 }
 
-// ===========================================================================================
 // props
-// ===========================================================================================
 
 /**
  * Supply crate: chamfered shell, skid base, lid rim, corner posts, stencilled face panel and
@@ -1297,9 +1293,7 @@ function scatterFloorGrime(k: Kit, count: number): void {
   }
 }
 
-// ===========================================================================================
 // entry point
-// ===========================================================================================
 
 /**
  * Set dressing: cargo, storage, maintenance hardware, conduit runs, safety gear and clutter, plus
@@ -1331,7 +1325,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
     floorGrime: [0, 1, 2].map((v) => new Batch(plane(1, 1), decalMaterial(buildFloorGrimeTexture(v)), false, 1)),
   };
 
-  // ----- console face controls -----
+  // console face controls
   const buttonMats = [m.ledRed, m.ledAmber, m.ledCyan, m.ledAmber];
   const buttonGeo = cyl(0.045, 0.045, 0.03, 10);
   const bezelGeo = chamferBox(0.11, 0.11, 0.02, 0.008);
@@ -1352,14 +1346,14 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
     place(k, cyl(0.011, 0.014, 0.07, 6), m.steelLight, x, y + 0.035, -3.4 - Math.floor(i / 3) * 0.08 + CONSOLE_DZ, 0.5, 0, i % 2 === 0 ? 0.4 : -0.4);
   }
 
-  // ----- wall services -----
+  // wall services
   for (const sign of [1, -1] as const) {
     // Both runs live in the y 3.0-3.5 band, above the shell's step, so they hang off WALL_X_UPPER.
     buildConduitRun(k, sign * WALL_X_UPPER, sign);
     buildCableTray(k, ctx, sign * WALL_X_UPPER, sign);
   }
 
-  // ----- ceiling volume: this round's primary target. A cross duct and two sagging cable spans
+  // ceiling volume: this round's primary target. A cross duct and two sagging cable spans
   // bridge the open middle of the ceiling between the two wall-hugging runs above, so the
   // overhead reads as one continuous mechanical system instead of two dressed shelves over a
   // flat, dark void.
@@ -1400,7 +1394,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   buildWallShelf(k, -WALL_X, 1.55, 3.45, -1);
   buildWallShelf(k, WALL_X, 1.5, -3.05, 1);
 
-  // ----- left wall floor line -----
+  // left wall floor line
   buildRiser(k, -WALL_X + 0.24, -5.4, -1);
   buildWorkbench(k, ctx, -WALL_X, -2.4, -1);
   buildCanisterRack(k, -WALL_X + 0.3, -0.95, faceRy(-1));
@@ -1416,7 +1410,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   // wants strong hero pooling under the set-dressed props, not just base fill.
   heroPool(ctx, -WALL_X + 0.55, 1.1, 1.3, 0xffd9a0, 0.9, 2.8, 3.0);
 
-  // ----- right wall floor line -----
+  // right wall floor line
   buildRelayRack(k, ctx, WALL_X - 0.36, -5.05, faceRy(1));
   // Cool pool echoing the rack's own status LEDs — grounds the comms cluster as its own lit zone.
   heroPool(ctx, WALL_X - 0.6, 1.5, -5.0, 0x4fd8f0, 0.75, 2.3, 0.4);
@@ -1431,13 +1425,13 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   // Warm work-light pool over the tool chest / first-aid cluster.
   heroPool(ctx, WALL_X - 0.55, 1.0, 4.85, 0xffd9a0, 1.0, 2.4, 1.8);
 
-  // ----- airlock wall: suit lockers one side, hose reel and cargo the other -----
+  // airlock wall: suit lockers one side, hose reel and cargo the other
   buildLockerBank(k, -3.05, FRONT_Z - 0.34, Math.PI, ['EVA-1', 'EVA-2']);
   buildHoseReel(k, 3.1, 1.6, FRONT_Z - 0.06);
   buildCrate(k, crateOlive, m.paintOlive, 3.35, 0, FRONT_Z - 0.55, Math.PI, 0.7, 0.5, 0.55);
   buildCrate(k, crateSteel, m.paintGrey, 2.6, 0, FRONT_Z - 0.5, Math.PI + 0.3, 0.55, 0.42, 0.48);
 
-  // ----- console wall corners: breaker cabinets adding background depth behind the console -----
+  // console wall corners: breaker cabinets adding background depth behind the console
   for (const sx of [-1, 1] as const) {
     const x = sx * 3.55;
     place(k, chamferBox(0.7, 0.9, 0.22, 0.02), m.paintGrey, x, 1.5, BACK_Z + 0.13);
@@ -1454,7 +1448,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
     grimeDecal(k, x, 1.0, BACK_Z + 0.26, 0, 0.86, 1.0, 0);
   }
 
-  // ----- status light clusters -----
+  // status light clusters
   const dotColors = [0xe0552f, 0x4fd8f0, 0xffd9a0];
   const clusters: [1 | -1, number][] = [[-1, 0.35], [-1, 4.6], [1, -0.6]];
   for (const [sign, cz] of clusters) {
@@ -1473,7 +1467,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
     }
   }
 
-  // ----- stencilled ID placards -----
+  // stencilled ID placards
   const placards: [string, string | undefined, number, number, number, number][] = [
     ['KB-215', 'MAINT BAY', -WALL_X + 0.02, 2.0, -4.5, Math.PI / 2],
     ['RST-04', 'HULL SEC', WALL_X - 0.02, 2.0, 4.35, -Math.PI / 2],
@@ -1497,7 +1491,7 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
     }
   }
 
-  // ----- loose deck clutter along the wall bases -----
+  // loose deck clutter along the wall bases
   const clutterSpots: [number, number, number][] = [
     [-3.5, 1.4, 0],
     [-3.9, 5.0, 2],
@@ -1512,12 +1506,12 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
   ];
   for (const [x, z, variant] of clutterSpots) buildDeckClutter(k, x, z, variant);
 
-  // ----- scattered floor grime: the other half of this round's critique, alongside the ceiling
+  // scattered floor grime: the other half of this round's critique, alongside the ceiling
   // volume work above — breaks up the plasticky-uniform floor read with localised stains instead
   // of a flat material colour.
   scatterFloorGrime(k, 70);
 
-  // ----- flush instanced batches -----
+  // flush instanced batches
   k.bolt.flush(ctx.scene);
   k.slat.flush(ctx.scene);
   k.clamp.flush(ctx.scene);
