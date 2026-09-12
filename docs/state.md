@@ -94,3 +94,25 @@ texture uploads at first use; same pattern after every transition fade). Fixed w
 render inside setScene behind the overlay/fade; post-ready frames now 36ms. Network confirmed
 a non-issue (34 requests / 6.2MB). Flow test 24/24 after also fixing a latent
 waitForFunction-options-position bug in the harness.
+
+# Follow-up — full audit + opening cinematic (2026-09-12)
+Audit findings on top of the prior passes (which already covered draw calls, shaders, textures,
+loading, GC — see entries above; none of that was redone):
+- MEMORY LEAK (fixed): scene dispose() freed geometry but never textures, so every interior
+  rebuild leaked its ~130 procedural canvas textures on the GPU — measured 276 -> 432 -> 567 live
+  textures across two ship<->Kethra round trips (~170MB/trip estimated). Fixed with
+  disposeCanvasTextures() (canvas-backed maps only — file-backed kit textures stay shared with
+  the persistent piece caches). After: 276 -> 303 -> 309 (+6/cycle residual, small canvases).
+- WALL SEE-THROUGH (investigated, not a shipped bug): translucent panes/floating shard visible
+  only from noclip positions inside the north window-bay assembly (x ±5.4, z -6.9). The
+  collision flood-fill (tools/collision-check.mjs) shows all z <= -6.8 blocked wall-to-wall, and
+  screenshots from the extreme reachable cells show a fully dressed set. No change made — there
+  is nothing player-visible to fix.
+- cannon-es removed (zero imports anywhere).
+- Opening cinematic added (src/galaxy/IntroScene.ts): the emergency reboot watched from outside,
+  before the tutorial — dead drifting freighter, port beacon blink, viewport strips flickering
+  back, warm crew glow, push-in on the lit band; engines stay dark (their repair is the game).
+  Skippable for everyone (Space/Enter/click). Reuses hull GLB + starfield helpers (extracted to
+  spaceDressing.ts); pre-warms the hull template the reveal reuses. GameFlow boots the intro
+  first on a fresh game (cheapest scene = fastest first image), builds the interior behind the
+  exit fade, then runs the tutorial; cold-open captions now narrate the reboot just watched.
