@@ -16,6 +16,8 @@ interface HitTarget {
   x: number;
   y: number;
   r: number;
+  /** Set for targets that show a hover treatment (solar-chart planets). */
+  id?: string;
   onClick: () => void;
 }
 
@@ -41,6 +43,12 @@ class MapControllerImpl {
   private zoom = 1;
   private wasPlayerEnabled = true;
   private startTime = 0;
+  private hoveredId: string | null = null;
+  // The chart draws each surveyed world with its real surface map — the same equirects the 3D
+  // planets render with — so the destination the player can actually pick looks like a place,
+  // not a colored dot. Loaded once per session, drawn only when decoded; a still-loading image
+  // falls back to the flat disc for a frame or two.
+  private planetImages = new Map<string, HTMLImageElement>();
 
   init(): void {
     bus.on('ui:open_galaxy_map', () => this.open());
@@ -50,6 +58,13 @@ class MapControllerImpl {
     this.view = 'solar';
     this.currentPlanetId = null;
     this.startTime = performance.now();
+    for (const p of PLANETS) {
+      if (!this.planetImages.has(p.id)) {
+        const img = new Image();
+        img.src = `${import.meta.env.BASE_URL}textures/planets/${p.id}_day.jpg`;
+        this.planetImages.set(p.id, img);
+      }
+    }
     this.setActivePlayer(false);
     this.render();
   }
@@ -154,17 +169,16 @@ class MapControllerImpl {
 
   private handleHover(e: MouseEvent): void {
     const { x, y } = this.toCanvasSpace(e);
-    let found: string | null = null;
+    let found: HitTarget | null = null;
     for (const t of this.hitTargets) {
       if (Math.hypot(t.x - x, t.y - y) <= t.r) {
-        found = `${t.x},${t.y}`;
+        found = t;
         break;
       }
     }
+    this.hoveredId = found?.id ?? null;
     this.canvas.style.cursor = found ? 'pointer' : 'default';
   }
-
-  // ---------- Solar system view ----------
 
   private drawSolarSystem(): void {
     const { ctx, canvas } = this;
@@ -210,13 +224,30 @@ class MapControllerImpl {
     }
     ctx.restore();
 
+    const dpr = window.devicePixelRatio;
     const cx = w * 0.5;
     const cy = h * 0.52;
     const maxOrbit = Math.max(...PLANETS.map((p) => p.orbitRadius));
-    const scale = (Math.min(w, h) * 0.42) / maxOrbit;
+    // Width-aware: the orbit ellipses are squashed to 0.42 vertically, so scaling purely off the
+    // panel's height left half the panel's width empty. Bound the chart by both axes instead.
+    const scale = Math.min(w * 0.38, h * 0.92) / maxOrbit;
 
-    // Sun.
-    const sunR = 18 * window.devicePixelRatio;
+    // Sun: a limb-shaded disc under the glow, with slow faint rays so the chart's centre is
+    // alive rather than a painted blob.
+    const sunR = 18 * dpr;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(t * 0.04);
+    ctx.strokeStyle = 'rgba(255,220,160,0.07)';
+    ctx.lineWidth = 2 * dpr;
+    for (let i = 0; i < 8; i++) {
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath();
+      ctx.moveTo(sunR * 1.6, 0);
+      ctx.lineTo(sunR * 4.6, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
     const sunGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, sunR * 5);
     sunGlow.addColorStop(0, 'rgba(255,220,160,0.9)');
     sunGlow.addColorStop(0.3, 'rgba(217,164,65,0.35)');
@@ -225,68 +256,147 @@ class MapControllerImpl {
     ctx.beginPath();
     ctx.arc(cx, cy, sunR * 5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#ffe3ab';
+    const sunDisc = ctx.createRadialGradient(cx - sunR * 0.3, cy - sunR * 0.3, 0, cx, cy, sunR);
+    sunDisc.addColorStop(0, '#fff6e0');
+    sunDisc.addColorStop(0.7, '#ffe3ab');
+    sunDisc.addColorStop(1, '#e8b96a');
+    ctx.fillStyle = sunDisc;
     ctx.beginPath();
     ctx.arc(cx, cy, sunR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Orbit rings + planets.
+    // Scanner-range ring: the chart's own explanation of why some worlds are selectable and
+    // some are "out of scanner range" — drawn between the furthest surveyed orbit and the
+    // nearest unsurveyed one, so it stays truthful as more worlds unlock.
+    const unlockedOrbits = PLANETS.filter((p) => gameState.data.planetsUnlocked.includes(p.id)).map((p) => p.orbitRadius);
+    const lockedOrbits = PLANETS.filter((p) => !gameState.data.planetsUnlocked.includes(p.id)).map((p) => p.orbitRadius);
+    if (lockedOrbits.length > 0) {
+      const inner = unlockedOrbits.length > 0 ? Math.max(...unlockedOrbits) : 0;
+      const outer = Math.min(...lockedOrbits);
+      const rangeR = ((inner + outer) / 2) * scale;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(217,164,65,0.28)';
+      ctx.lineWidth = 1.2 * dpr;
+      ctx.setLineDash([6 * dpr, 7 * dpr]);
+      ctx.lineDashOffset = -t * 4 * dpr;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rangeR, rangeR * 0.42, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = `${9 * dpr}px ui-sans-serif, system-ui`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(217,164,65,0.55)';
+      ctx.fillText('SCANNER RANGE', cx, cy - rangeR * 0.42 - 7 * dpr);
+      ctx.restore();
+    }
+
+    // Orbit rings + planets. Surveyed orbits are solid and a touch brighter; unsurveyed ones
+    // are dashed — the same read-at-a-glance hierarchy as the scanner ring.
     for (const p of PLANETS) {
       const orbitR = p.orbitRadius * scale;
-      ctx.strokeStyle = 'rgba(180,190,220,0.15)';
-      ctx.lineWidth = 1 * window.devicePixelRatio;
+      const unlocked = gameState.data.planetsUnlocked.includes(p.id);
+      ctx.save();
+      if (!unlocked) ctx.setLineDash([3 * dpr, 5 * dpr]);
+      ctx.strokeStyle = unlocked ? 'rgba(190,205,230,0.26)' : 'rgba(180,190,220,0.11)';
+      ctx.lineWidth = 1 * dpr;
       ctx.beginPath();
       ctx.ellipse(cx, cy, orbitR, orbitR * 0.42, 0, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
 
       const angle = p.orbitAngle;
       const px = cx + Math.cos(angle) * orbitR;
       const py = cy + Math.sin(angle) * orbitR * 0.42;
-      const unlocked = gameState.data.planetsUnlocked.includes(p.id);
-      const radius = 10 * window.devicePixelRatio;
+      const hovered = this.hoveredId === p.id;
+      const radius = (unlocked ? 15 : 9) * dpr * (hovered && unlocked ? 1.12 : 1);
+      const hex = `#${p.color.toString(16).padStart(6, '0')}`;
 
       if (unlocked) {
-        const glow = ctx.createRadialGradient(px, py, 0, px, py, radius * 3);
-        glow.addColorStop(0, this.hexToRgba(`#${p.color.toString(16).padStart(6, '0')}`, 0.55));
+        const glow = ctx.createRadialGradient(px, py, 0, px, py, radius * (hovered ? 3.4 : 2.6));
+        glow.addColorStop(0, this.hexToRgba(hex, hovered ? 0.6 : 0.45));
         glow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(px, py, radius * 3, 0, Math.PI * 2);
+        ctx.arc(px, py, radius * 3.4, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      ctx.globalAlpha = unlocked ? 1 : 0.35;
-      ctx.fillStyle = `#${p.color.toString(16).padStart(6, '0')}`;
-      ctx.beginPath();
-      ctx.arc(px, py, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = unlocked ? '#eae2d0' : 'rgba(234,226,208,0.4)';
-      ctx.lineWidth = 1.4 * window.devicePixelRatio;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      const img = this.planetImages.get(p.id);
+      if (unlocked && img?.complete && img.naturalWidth > 0) {
+        // Real surface: a square crop of the world's own day map, clipped to the disc, then
+        // shaded away from the sun so the lit limb faces the chart's centre like a real body.
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.clip();
+        const crop = img.naturalHeight;
+        ctx.drawImage(img, (img.naturalWidth - crop) / 2, 0, crop, crop, px - radius, py - radius, radius * 2, radius * 2);
+        const toSun = Math.atan2(cy - py, cx - px);
+        const shade = ctx.createRadialGradient(
+          px + Math.cos(toSun) * radius * 0.5, py + Math.sin(toSun) * radius * 0.5, radius * 0.2,
+          px, py, radius * 1.35,
+        );
+        shade.addColorStop(0, 'rgba(255,240,215,0.14)');
+        shade.addColorStop(0.55, 'rgba(0,0,0,0.05)');
+        shade.addColorStop(1, 'rgba(2,4,10,0.72)');
+        ctx.fillStyle = shade;
+        ctx.fillRect(px - radius, py - radius, radius * 2, radius * 2);
+        ctx.restore();
+        ctx.strokeStyle = hovered ? '#d9a441' : 'rgba(234,226,208,0.75)';
+        ctx.lineWidth = (hovered ? 1.8 : 1.2) * dpr;
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        // Unsurveyed (or texture still decoding): a dim body with no surface detail — the
+        // scanner hasn't resolved it, and the chart shouldn't spoil what it looks like.
+        ctx.globalAlpha = unlocked ? 1 : 0.4;
+        ctx.fillStyle = hex;
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = unlocked ? '#eae2d0' : 'rgba(234,226,208,0.4)';
+        ctx.lineWidth = 1.4 * dpr;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
 
       if (p.hasRing) {
         ctx.strokeStyle = unlocked ? 'rgba(234,226,208,0.6)' : 'rgba(234,226,208,0.2)';
-        ctx.lineWidth = 1.2 * window.devicePixelRatio;
+        ctx.lineWidth = 1.2 * dpr;
         ctx.beginPath();
         ctx.ellipse(px, py, radius * 1.7, radius * 0.6, -0.4, 0, Math.PI * 2);
         ctx.stroke();
       }
 
-      ctx.font = `${11 * window.devicePixelRatio}px ui-sans-serif, system-ui`;
+      if (hovered && unlocked) {
+        const pulse = 1 + 0.06 * Math.sin(t * 5);
+        ctx.strokeStyle = 'rgba(217,164,65,0.8)';
+        ctx.lineWidth = 1.4 * dpr;
+        ctx.beginPath();
+        ctx.arc(px, py, radius * 1.55 * pulse, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.font = `${11 * dpr}px ui-sans-serif, system-ui`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = unlocked ? '#eae2d0' : 'rgba(234,226,208,0.45)';
-      ctx.fillText(unlocked ? p.name.toUpperCase() : 'UNKNOWN', px, py + radius + 16 * window.devicePixelRatio);
+      ctx.fillStyle = unlocked ? (hovered ? '#ffe9c2' : '#eae2d0') : 'rgba(234,226,208,0.45)';
+      ctx.fillText(unlocked ? p.name.toUpperCase() : 'UNKNOWN', px, py + radius + 16 * dpr);
       if (!unlocked) {
-        ctx.font = `${9 * window.devicePixelRatio}px ui-sans-serif, system-ui`;
+        ctx.font = `${9 * dpr}px ui-sans-serif, system-ui`;
         ctx.fillStyle = 'rgba(217,164,65,0.6)';
-        ctx.fillText('OUT OF SCANNER RANGE', px, py + radius + 30 * window.devicePixelRatio);
+        ctx.fillText('OUT OF SCANNER RANGE', px, py + radius + 30 * dpr);
+      } else if (hovered) {
+        ctx.font = `${9 * dpr}px ui-sans-serif, system-ui`;
+        ctx.fillStyle = 'rgba(217,164,65,0.85)';
+        ctx.fillText('CLICK TO VIEW CHARTS', px, py + radius + 30 * dpr);
       }
 
       this.hitTargets.push({
         x: px,
         y: py,
         r: radius * 2.4,
+        id: p.id,
         onClick: () => {
           if (!unlocked) {
             UIManager.toast('Scanner range insufficient for that destination.');
@@ -303,6 +413,14 @@ class MapControllerImpl {
     const shipY = onPlanet ? cy + Math.sin(onPlanet.orbitAngle) * onPlanet.orbitRadius * scale * 0.42 : cy + 34 * window.devicePixelRatio;
     ctx.save();
     ctx.translate(shipX, shipY - 22 * window.devicePixelRatio);
+    // Sensor-ping ring expanding from the marker — the same beacon language as the reveal's
+    // scan pulse, cheap enough to run every frame.
+    const ping = (t * 0.55) % 1;
+    ctx.strokeStyle = `rgba(124,201,224,${(0.5 * (1 - ping)).toFixed(3)})`;
+    ctx.lineWidth = 1.2 * window.devicePixelRatio;
+    ctx.beginPath();
+    ctx.arc(0, 0, (6 + ping * 16) * window.devicePixelRatio, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.fillStyle = '#7cc9e0';
     ctx.beginPath();
     ctx.moveTo(0, -7 * window.devicePixelRatio);
@@ -315,6 +433,13 @@ class MapControllerImpl {
     ctx.textAlign = 'center';
     ctx.fillText('YOUR SHIP', 0, 18 * window.devicePixelRatio);
     ctx.restore();
+
+    // Edge vignette so the chart's focus falls on the system rather than the panel corners.
+    const vig = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.35, cx, cy, Math.max(w, h) * 0.72);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(2,3,7,0.55)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, w, h);
   }
 
   /** Which planet the player is actually standing on right now, in the live 3D game — distinct
@@ -336,8 +461,6 @@ class MapControllerImpl {
     AudioSystem.playChime();
     this.render();
   }
-
-  // ---------- Planet map view ----------
 
   private worldToMap(config: PlanetMapConfig, x: number, z: number, w: number, h: number): { x: number; y: number } {
     const { minX, maxX, minZ, maxZ } = config.bounds;
@@ -365,7 +488,6 @@ class MapControllerImpl {
     ctx.fillRect(0, 0, w, h);
     this.drawGrain(w, h);
 
-    // Grid.
     ctx.strokeStyle = 'rgba(120,180,150,0.08)';
     ctx.lineWidth = 1;
     const gridStep = 40 * window.devicePixelRatio * this.zoom;
