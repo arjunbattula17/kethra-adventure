@@ -1,9 +1,14 @@
 import * as THREE from 'three';
 
 import { mulberry32, hashStr } from '../core/rng';
+import { memoTexture } from '../core/memoTexture';
 
 
 export function buildHazardStripeTexture(): THREE.CanvasTexture {
+  return memoTexture('ship:hazardStripe', () => paintHazardStripeTexture());
+}
+
+function paintHazardStripeTexture(): THREE.CanvasTexture {
   const size = 128;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -358,6 +363,10 @@ export function buildFirstAidTexture(): THREE.CanvasTexture {
 }
 
 export function buildWarningStripeTexture(color: 'amber' | 'red'): THREE.CanvasTexture {
+  return memoTexture(`ship:warningStripe:${color}`, () => paintWarningStripeTexture(color));
+}
+
+function paintWarningStripeTexture(color: 'amber' | 'red'): THREE.CanvasTexture {
   const size = 128;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -527,6 +536,10 @@ export function buildFloorStainTexture(variant: 'oil' | 'scorch'): THREE.CanvasT
 // surface (UV 0..1) and multiply-blended over a tiled PBR material — RepeatWrapping would
 // make the streaks themselves repeat and reintroduce the tiling artifact this is meant to hide.
 export function buildPanelGrimeTexture(): THREE.CanvasTexture {
+  return memoTexture('ship:panelGrime', () => paintPanelGrimeTexture());
+}
+
+function paintPanelGrimeTexture(): THREE.CanvasTexture {
   const rng = mulberry32(0x5705);
   const size = 512;
   const canvas = document.createElement('canvas');

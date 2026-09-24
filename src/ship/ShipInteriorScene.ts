@@ -5,6 +5,7 @@ import { InteractionSystem } from '../player/InteractionSystem';
 import { UIManager } from '../ui/UIManager';
 import { bus } from '../core/EventBus';
 import { disposeSceneTextures, downscaleCanvasTextures } from '../core/disposeSceneTextures';
+import { clearMemoTextures } from '../core/memoTexture';
 import { getActiveEngine } from '../core/EngineRegistry';
 import { getSharedEnvironment } from '../core/Environment';
 import { AudioSystem } from '../audio/AudioSystem';
@@ -200,5 +201,6 @@ export class ShipInteriorScene implements GameScene {
       if (mesh.geometry) mesh.geometry.dispose();
     });
     disposeSceneTextures(this.scene);
+    clearMemoTextures();
   }
 }

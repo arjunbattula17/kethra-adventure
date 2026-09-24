@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 import { mulberry32, hashStr } from '../../core/rng';
+import { memoTexture, memoTextureSet } from '../../core/memoTexture';
 
 
 /**
@@ -163,12 +164,22 @@ export interface PlateMaps {
  * That correlation is what separates a material from a tinted plastic.
  */
 export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): PlateMaps {
+  return memoTextureSet(`walls:plate:${variant}:${cols}x${rows}`, () => paintWallPlateSet(variant, cols, rows));
+}
+
+function paintWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): PlateMaps {
   const rng = mulberry32(0x7101 ^ hashStr(`${variant}:${cols}x${rows}`));
+  // Drawn in 512-unit design space and rasterized at 2x. The wall panels are the largest
+  // surfaces in the first scene; tools/texture-audit.mjs measured them at 109-134 texels/m at 512,
+  // a quarter of the interior's 512 texels/m standard, so every seam and bolt read soft from a
+  // metre away. The transform keeps every stroke width and the seeded layout identical.
   const size = 512;
-  const [el, ctx] = canvas2d(size, size);
-  const [hEl, h] = canvas2d(size, size);
-  const [rEl, r] = canvas2d(size, size);
-  const [mEl, m] = canvas2d(size, size);
+  const res = 2;
+  const [el, ctx] = canvas2d(size * res, size * res);
+  const [hEl, h] = canvas2d(size * res, size * res);
+  const [rEl, r] = canvas2d(size * res, size * res);
+  const [mEl, m] = canvas2d(size * res, size * res);
+  for (const c of [ctx, h, r, m]) c.scale(res, res);
   const pal = PLATE[variant];
   const cw = size / cols;
   const ch = size / rows;
@@ -373,7 +384,8 @@ export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): Pl
 
   return {
     map: finish(el),
-    normalMap: finish(heightToNormal(hEl, 5.5), true, false),
+    // heightToNormal differentiates per texel, so the same relief needs strength x res.
+    normalMap: finish(heightToNormal(hEl, 5.5 * res), true, false),
     ormMap: packOrm(rEl, mEl),
   };
 }
@@ -384,6 +396,10 @@ export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): Pl
  * a surface, so each material declares its dirtiest state and the map wears it back.
  */
 export function buildGrungeRoughTexture(): THREE.CanvasTexture {
+  return memoTexture('walls:grungeRough', () => paintGrungeRoughTexture());
+}
+
+function paintGrungeRoughTexture(): THREE.CanvasTexture {
   const rng = mulberry32(0x7102);
   const size = 256;
   const [el, ctx] = canvas2d(size, size);
@@ -458,6 +474,10 @@ export function buildDustFilmTexture(): THREE.CanvasTexture {
  * darkening) so the seam still carries material under it rather than crushing to a void.
  */
 export function buildUpperAOTexture(): THREE.CanvasTexture {
+  return memoTexture('walls:upperAO', () => paintUpperAOTexture());
+}
+
+function paintUpperAOTexture(): THREE.CanvasTexture {
   const rng = mulberry32(0x7104);
   const w = 512;
   const hgt = 200;
@@ -490,6 +510,10 @@ export function buildUpperAOTexture(): THREE.CanvasTexture {
  * height. Multiply-blended, so it darkens the plate underneath rather than painting a tint over it.
  */
 export function buildLowerDirtTexture(): THREE.CanvasTexture {
+  return memoTexture('walls:lowerDirt', () => paintLowerDirtTexture());
+}
+
+function paintLowerDirtTexture(): THREE.CanvasTexture {
   const rng = mulberry32(0x7105);
   const w = 512;
   const hgt = 256;
@@ -685,6 +709,10 @@ export function buildWindowInteriorTexture(seed = 0): THREE.CanvasTexture {
 
 /** Diagonal hazard chevrons on a transparent ground, for painting onto plate. */
 export function buildChevronTexture(color = '#d8a63a', bars = 5): THREE.CanvasTexture {
+  return memoTexture(`walls:chevron:${color}:${bars}`, () => paintChevronTexture(color, bars));
+}
+
+function paintChevronTexture(color = '#d8a63a', bars = 5): THREE.CanvasTexture {
   const rng = mulberry32(0x7108 ^ hashStr(`${color}:${bars}`));
   const w = 256;
   const h = 128;
@@ -737,6 +765,10 @@ export function buildStencilTextTexture(text: string, px = 74): THREE.CanvasText
  * small decal plane at the actual drip source, not a full-wall tint.
  */
 export function buildDripTexture(): THREE.CanvasTexture {
+  return memoTexture('walls:drip', () => paintDripTexture());
+}
+
+function paintDripTexture(): THREE.CanvasTexture {
   const rng = mulberry32(0x710a);
   const size = 256;
   const [el, ctx] = canvas2d(size, size);
@@ -779,6 +811,10 @@ export function buildDripTexture(): THREE.CanvasTexture {
 
 /** Scuff band for walking lanes and corners — dark abraded paint, transparent elsewhere. */
 export function buildScuffTexture(): THREE.CanvasTexture {
+  return memoTexture('walls:scuff', () => paintScuffTexture());
+}
+
+function paintScuffTexture(): THREE.CanvasTexture {
   const rng = mulberry32(0x710b);
   const w = 256;
   const h = 128;

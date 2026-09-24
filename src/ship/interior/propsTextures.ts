@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { memoTexture } from '../../core/memoTexture';
 
 import { mulberry32, hashStr } from '../../core/rng';
 
@@ -265,6 +266,10 @@ const CANISTER_COLORS: Record<string, [string, string]> = {
 
 /** Wrapped canister band: colour code stripe, hazard diamond and repeated contents text. */
 export function buildCanisterLabelTexture(kind: 'o2' | 'fuel' | 'coolant'): THREE.CanvasTexture {
+  return memoTexture(`props:canisterLabel:${kind}`, () => paintCanisterLabelTexture(kind));
+}
+
+function paintCanisterLabelTexture(kind: 'o2' | 'fuel' | 'coolant'): THREE.CanvasTexture {
   const w = 256;
   const h = 64;
   const [canvas, ctx] = makeCanvas(w, h);

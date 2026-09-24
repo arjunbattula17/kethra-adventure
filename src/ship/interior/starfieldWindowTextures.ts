@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { memoTexture } from '../../core/memoTexture';
 
 // Procedural canvases owned by the forward viewport bay: the space seen through the glass, the
 // glass surface itself, the localised corrosion under the sill, and the small lit inserts
@@ -439,6 +440,10 @@ export function buildAoTexture(shape: AoShape): THREE.CanvasTexture {
  * toggles and a printed wiring card. Only ever used on one jamb — the asymmetry is the point.
  */
 export function buildOpenBayTexture(): THREE.CanvasTexture {
+  return memoTexture('window:openBay', () => paintOpenBayTexture());
+}
+
+function paintOpenBayTexture(): THREE.CanvasTexture {
   const w = 256;
   const h = 384;
   const c = surface(w, h);
