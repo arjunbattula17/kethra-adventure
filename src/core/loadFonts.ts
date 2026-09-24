@@ -10,15 +10,27 @@ const WEIGHTS: Array<[string, number]> = [
   ['rajdhani-700.woff2', 700],
 ];
 
+let ready: Promise<void> = Promise.resolve();
+
+/** Resolves once every weight has loaded or failed — for a scene whose first frame shows display
+ * type and must not swap fonts mid-animation. Never rejects. */
+export function displayFontsReady(): Promise<void> {
+  return ready;
+}
+
 export function loadFonts(): void {
   const base = import.meta.env.BASE_URL;
+  const loads: Promise<void>[] = [];
   for (const [file, weight] of WEIGHTS) {
     // display: 'swap' so headings paint in the fallback stack immediately instead of staying
     // invisible until the woff2 lands — these three fetches overlap almost the whole boot window.
     const face = new FontFace('Rajdhani', `url(${base}fonts/${file})`, { weight: String(weight), display: 'swap' });
-    face
-      .load()
-      .then((loaded) => document.fonts.add(loaded))
-      .catch((err) => console.error(`[loadFonts] failed to load ${file}`, err));
+    loads.push(
+      face
+        .load()
+        .then((loaded) => void document.fonts.add(loaded))
+        .catch((err) => console.error(`[loadFonts] failed to load ${file}`, err)),
+    );
   }
+  ready = Promise.all(loads).then(() => {});
 }

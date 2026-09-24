@@ -215,6 +215,68 @@ html, body {
 }
 #cinematic-caption.visible { opacity: 1; }
 
+/* Opening reboot readout (IntroScene). Lower-left, inside the letterbox's picture area, sized
+   against viewport height so it keeps its place in the frame from 720p to 4K and 16:10 to 21:9.
+   Only opacity and transform animate, so every reveal stays on the compositor. */
+.intro-readout {
+  position: absolute;
+  left: clamp(20px, 5vw, 110px);
+  bottom: calc(12vh + clamp(14px, 3.5vh, 44px));
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  z-index: 21;
+}
+.intro-readout-head {
+  font-size: clamp(18px, 3vh, 64px);
+  letter-spacing: 0.34em;
+  color: var(--accent);
+}
+.intro-readout-head span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.35em);
+  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(var(--i) * 28ms);
+}
+.intro-readout-head.on span { opacity: 1; transform: none; }
+.intro-readout-rule {
+  height: 1px;
+  margin: 0.55em 0 0.7em;
+  width: clamp(180px, 22vh, 480px);
+  background: linear-gradient(90deg, var(--accent), rgba(217, 164, 65, 0));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.15s;
+}
+.intro-readout-head.on + .intro-readout-rule { transform: none; }
+.intro-readout-row {
+  display: grid;
+  grid-template-columns: 9.5em auto;
+  font-size: clamp(11px, 1.55vh, 34px);
+  letter-spacing: 0.2em;
+  line-height: 1.9;
+  opacity: 0;
+  transform: translateY(0.5em);
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.intro-readout-row .k { color: var(--ink-dim); }
+.intro-readout-row .v { color: var(--accent); opacity: 0; transition: opacity 0.3s ease-out 0.25s; }
+.intro-readout-row .v.bad { color: #d06a5c; } /* --corrupt, lifted to read at 11px over the hull */
+.intro-readout-row.on { opacity: 1; transform: none; }
+.intro-readout-row.on .v { opacity: 1; }
+/* Exit: rows leave bottom-up, then the header, each easing in (accelerating away). */
+.intro-readout.out .intro-readout-row,
+.intro-readout.out .intro-readout-head span,
+.intro-readout.out .intro-readout-rule {
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.55, 0, 1, 0.45);
+  transition-delay: calc(var(--r, 4) * 90ms);
+}
+.intro-readout.out.fast * { transition-duration: 0.2s; transition-delay: 0s; }
+
 /* Panels (dialogue, journal, galaxy map, repair, evidence) */
 .panel-overlay {
   position: absolute;

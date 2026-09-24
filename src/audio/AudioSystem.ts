@@ -27,6 +27,11 @@ export const AudioSystem = {
     window.addEventListener('keydown', unlockOnGesture, { once: true });
   },
 
+  /** Create the context now rather than on the first sound (see IntroScene.init). */
+  prepare(): void {
+    getCtx();
+  },
+
   setMasterVolume(v: number): void {
     if (masterGain) masterGain.gain.value = v;
   },
