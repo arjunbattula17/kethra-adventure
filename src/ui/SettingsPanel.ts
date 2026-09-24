@@ -101,7 +101,8 @@ class SettingsPanelImpl {
       const engine = getActiveEngine();
       if (engine) {
         const tier = engine.getQualityTier();
-        this.settings = { tier, ...TIER_DEFAULTS[tier] };
+        // Automatic downgrades leave shadows as they were, so read the live state, not the preset.
+        this.settings = { tier, ...TIER_DEFAULTS[tier], shadows: engine.renderer.shadowMap.enabled };
       }
     }
     this.render();

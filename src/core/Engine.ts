@@ -81,6 +81,13 @@ export class Engine {
   // downgrade on its own.
   private recentFrameMs: number[] = [];
   private lastDowngradeAt = -Infinity;
+  // Loading is not evidence of a slow machine. A scene preparing in the background (the interior
+  // builds behind the intro) and the first seconds after a handover (driver-deferred shader and
+  // texture work) produce multi-second frames on any GPU; judged as gameplay, they walked an
+  // RTX 4060 from high to low within the intro. The monitor ignores frames while either is true.
+  private preparing = 0;
+  private governorHoldUntil = 0;
+  private static readonly POST_SCENE_GRACE_MS = 4000;
   // Set once a player explicitly picks a tier in the settings menu — from then on the automatic
   // downgrade monitor stops overriding their choice. Players who never open the menu keep the
   // fully automatic behavior above.
@@ -126,7 +133,10 @@ export class Engine {
     window.addEventListener('resize', () => this.handleResize());
   }
 
-  private applyTier(tier: QualityTier): void {
+  // `automatic` keeps the current shadow state: toggling shadowMap.enabled changes the program of
+  // every shadow-receiving material, and the recompile froze the ship interior for ~7s — worse than
+  // the frame time it was meant to save. Startup guesses and manual choices apply the full preset.
+  private applyTier(tier: QualityTier, automatic = false): void {
     const settings = TIERS[tier];
     const ratio = Math.min(window.devicePixelRatio, settings.pixelRatio) * this.renderScale;
     this.renderer.setPixelRatio(ratio);
@@ -137,10 +147,12 @@ export class Engine {
     // The composer holds its own copy of the pixel ratio (snapshotted at construction) — without
     // this it keeps rendering at the old ratio and the result is scaled to fit the canvas.
     this.postFx.setPixelRatio(ratio);
-    this.renderer.shadowMap.enabled = settings.shadows;
-    // A static-shadow scene (shadowMap.autoUpdate off) has consumed its one needsUpdate; shadows
-    // coming back after a tier change need a fresh paint or they'd show a stale/empty map.
-    if (settings.shadows && !this.renderer.shadowMap.autoUpdate) this.renderer.shadowMap.needsUpdate = true;
+    if (!automatic) {
+      this.renderer.shadowMap.enabled = settings.shadows;
+      // A static-shadow scene (shadowMap.autoUpdate off) has consumed its one needsUpdate; shadows
+      // coming back after a tier change need a fresh paint or they'd show a stale/empty map.
+      if (settings.shadows && !this.renderer.shadowMap.autoUpdate) this.renderer.shadowMap.needsUpdate = true;
+    }
     this.postFx.setQuality(tier);
   }
 
@@ -156,11 +168,12 @@ export class Engine {
     if (this.manualOverride) return; // player has chosen a tier themselves — stop overriding it
     // At the bottom tier the render-scale steps are what's left; stop only once those run out too.
     if (this.tier === 'low' && this.renderScale <= Engine.RENDER_SCALE_STEPS[Engine.RENDER_SCALE_STEPS.length - 1]) return;
+    const now = performance.now();
+    if (this.preparing > 0 || now < this.governorHoldUntil) return;
     this.recentFrameMs.push(dtMs);
     if (this.recentFrameMs.length < 60) return;
     if (this.recentFrameMs.length > 90) this.recentFrameMs.shift();
 
-    const now = performance.now();
     if (now - this.lastDowngradeAt < 5000) return;
 
     const sorted = [...this.recentFrameMs].sort((a, b) => a - b);
@@ -173,7 +186,7 @@ export class Engine {
         const steps = Engine.RENDER_SCALE_STEPS;
         this.renderScale = steps[Math.min(steps.indexOf(this.renderScale) + 1, steps.length - 1)];
       }
-      this.applyTier(this.tier);
+      this.applyTier(this.tier, true);
       this.lastDowngradeAt = now;
       this.recentFrameMs.length = 0;
     }
@@ -187,11 +200,17 @@ export class Engine {
    * prepared scene to setScene with `prepared: true` so it isn't initialized twice.
    */
   async prepareScene(scene: GameScene): Promise<void> {
-    performance.mark('scene-init-start');
-    await scene.init();
-    performance.mark('scene-init-end');
-    await this.renderer.compileAsync(scene.scene, scene.camera);
-    performance.mark('scene-compile-end');
+    this.preparing++;
+    try {
+      performance.mark('scene-init-start');
+      await scene.init();
+      performance.mark('scene-init-end');
+      await this.renderer.compileAsync(scene.scene, scene.camera);
+      performance.mark('scene-compile-end');
+    } finally {
+      this.preparing--;
+      this.holdGovernor();
+    }
     performance.measure('scene:init', 'scene-init-start', 'scene-init-end');
     performance.measure('scene:compile', 'scene-init-end', 'scene-compile-end');
   }
@@ -234,7 +253,13 @@ export class Engine {
       performance.measure('scene:warmup', 'scene-warmup-start');
     } finally {
       UIManager.hideLoading();
+      this.holdGovernor();
     }
+  }
+
+  private holdGovernor(): void {
+    this.recentFrameMs.length = 0;
+    this.governorHoldUntil = performance.now() + Engine.POST_SCENE_GRACE_MS;
   }
 
   private handleResize(): void {
