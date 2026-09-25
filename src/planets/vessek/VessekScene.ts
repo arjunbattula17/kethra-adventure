@@ -120,6 +120,8 @@ export class VessekScene implements GameScene {
   private emergencyLights: THREE.PointLight[] = [];
   private shipLamps: { mat: THREE.MeshBasicMaterial; angle: number; base: THREE.Color }[] = [];
   private hullMats: THREE.MeshStandardMaterial[] = [];
+  private hemi!: THREE.HemisphereLight;
+  private key!: THREE.DirectionalLight;
   private whiteSky!: THREE.Mesh;
   private skyMat!: THREE.MeshBasicMaterial;
   private planet: PlanetInstance | null = null;
@@ -499,10 +501,6 @@ export class VessekScene implements GameScene {
     book.position.y = 1.13;
     book.rotation.x = -0.3;
     g.add(book);
-    const readLamp = new THREE.PointLight(0xffd8a8, 0.6, 3, 2);
-    readLamp.position.set(0, 1.7, 0.3);
-    g.add(readLamp);
-    this.lamps.push({ group: 'lamps', light: readLamp, mat: null, base: 0.6, target: 1, level: 1, phase: 0.7 });
     this.scene.add(g);
     const ledger = VESSEK_ENTRIES.find((e) => e.id === 'vessek_ledger')!;
     this.interaction.register({
@@ -538,6 +536,9 @@ export class VessekScene implements GameScene {
     const plants: { position: THREE.Vector3; yaw: number; scale: number }[] = [];
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const growLight = new THREE.PointLight(0xd8ffd8, 1.4, 7, 1.6);
+    growLight.position.set(-4.7, 2.1, -8.4);
+    this.scene.add(growLight);
     for (const z of [-10.2, -8.4, -6.6]) {
       const table = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.9, 1.0), tableMat);
       table.position.set(-4.7, 0.45, z);
@@ -552,10 +553,8 @@ export class VessekScene implements GameScene {
       const bar = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.06, 0.16), barMat);
       bar.position.set(-4.7, 2.3, z);
       this.scene.add(bar);
-      const light = new THREE.PointLight(0xd8ffd8, 0.8, 4, 2);
-      light.position.set(-4.7, 2.1, z);
-      this.scene.add(light);
-      this.lamps.push({ group: 'grow', light, mat: barMat, base: 0.8, target: 1, level: 1, phase: z });
+      // One light for the three bars (see the dock lights); each bar still glows on its own.
+      this.lamps.push({ group: 'grow', light: growLight, mat: barMat, base: 1.4, target: 1, level: 1, phase: z });
     }
     const half = Math.ceil(plants.length / 2);
     const built = await Promise.all([
@@ -644,11 +643,13 @@ export class VessekScene implements GameScene {
   private buildLighting(): void {
     const hemi = new THREE.HemisphereLight(0x8a9bb0, 0x3a3128, 0.35);
     this.scene.add(hemi);
+    this.hemi = hemi;
     // Light off Vessek through the windows: a cool fill from the east.
     const planetLight = new THREE.DirectionalLight(0xc8d6ff, 0.55);
     planetLight.position.set(30, 8, -6);
     this.scene.add(planetLight);
     const key = new THREE.DirectionalLight(0xffe6c8, 0.35);
+    this.key = key;
     key.position.set(-5, 12, 6);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
@@ -670,12 +671,13 @@ export class VessekScene implements GameScene {
       this.scene.add(light);
       this.lamps.push({ group: 'lamps', light, mat, base: 1.4, target: 1, level: 1, phase: i * 1.7 });
     });
-    // Dock lights over the collar.
-    for (const x of [-4, 0, 4]) {
-      const light = new THREE.PointLight(0xe8f0ff, 0.7, 5, 2);
-      light.position.set(x, 0.6, 7.2);
+    // Dock lights over the collar: one light for the row of floor fixtures (every point light is
+    // written into every shader, so a row of lamps shares one; see ShipInteriorScene.applyLightBudget).
+    {
+      const light = new THREE.PointLight(0xe8f0ff, 1.1, 9, 1.6);
+      light.position.set(0, 0.7, 7.2);
       this.scene.add(light);
-      this.lamps.push({ group: 'dock', light, mat: null, base: 0.7, target: 1, level: 1, phase: x });
+      this.lamps.push({ group: 'dock', light, mat: null, base: 1.1, target: 1, level: 1, phase: 0 });
     }
     // Emergency strips at knee height: off until the pulse, then the only light left.
     for (const [x, z, len, yaw] of [[-WALL_FACE_X + 0.1, 0, 20, Math.PI / 2], [WALL_FACE_X - 0.35, 0, 20, -Math.PI / 2]] as const) {
@@ -686,8 +688,8 @@ export class VessekScene implements GameScene {
       this.scene.add(strip);
       this.emergency.push(mat);
     }
-    for (const [x, z] of [[-6, -6], [-6, 6], [6, -2], [4.6, -9.5], [0, 9]]) {
-      const light = new THREE.PointLight(0xff9a40, 0, 7, 2);
+    for (const [x, z] of [[-4, -5], [3, 2]]) {
+      const light = new THREE.PointLight(0xff9a40, 0, 12, 1.6);
       light.position.set(x, 0.8, z);
       this.scene.add(light);
       this.emergencyLights.push(light);
@@ -961,6 +963,14 @@ export class VessekScene implements GameScene {
         if (l.mat) l.mat.emissiveIntensity = 1.6 * l.level;
       }
     }
+    // The hall's general light follows its lamps, so a brown-out is actually dark.
+    let hall = 0;
+    let n = 0;
+    for (const l of this.lamps) if (l.group === 'lamps') { hall += l.level; n++; }
+    const lit = n ? hall / n : 1;
+    this.hemi.intensity = 0.1 + 0.25 * lit;
+    this.key.intensity = 0.08 + 0.27 * lit;
+
     if (this.relightShips) {
       for (const s of this.shipLamps) s.mat.color.lerp(s.base, Math.min(1, dt * 1.5));
       for (const m of this.hullMats) if (m.userData.lit !== undefined) m.emissiveIntensity += (m.userData.lit - m.emissiveIntensity) * Math.min(1, dt * 1.5);

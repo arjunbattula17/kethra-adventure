@@ -269,11 +269,14 @@ export class GameFlow {
     // at the handover. Same total wait, now all of it where the loading UI says so; the intro then
     // plays uninterrupted and hands over to an interior that's ready to draw.
     UIManager.showLoading();
+    UIManager.setLoadingProgress(0.1, 'Waking the Wren');
     void UIManager.fadeToBlack(); // keeps the pre-warm frame from showing through the overlay
     try {
       const scene = new ShipInteriorScene();
       await this.engine.prepareScene(scene);
+      UIManager.setLoadingProgress(0.85, 'Warming up the graphics card');
       this.engine.prewarmScene(scene);
+      UIManager.setLoadingProgress(1, '');
       this.pendingShip = Promise.resolve(scene);
     } catch {
       // A kit fetch failed: leave the ship to beginTutorialOnShip's direct build, which surfaces

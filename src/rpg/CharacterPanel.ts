@@ -4,14 +4,17 @@ import { bus } from '../core/EventBus';
 import { PanelManager } from '../ui/PanelManager';
 import { UIManager } from '../ui/UIManager';
 import { SaveSystem } from '../core/SaveSystem';
+import { AudioSystem } from '../audio/AudioSystem';
 
+// Each description names where the stat actually matters, so the sheet teaches the player what a
+// point buys. Keep these true to the code: every line below is checked somewhere in a level.
 const ATTRIBUTE_INFO: Record<AttributeKey, { label: string; description: string }> = {
-  insight: { label: 'Insight', description: 'Connects disparate clues into new conclusions on the evidence board.' },
-  archaeology: { label: 'Archaeology', description: 'Reveals the true meaning of artifacts, ruins, and symbol systems.' },
-  engineering: { label: 'Engineering', description: 'Understands and safely manipulates ancient and ship mechanisms.' },
-  traversal: { label: 'Traversal', description: 'Opens riskier climbs, ledges, and shortcuts through the environment.' },
-  persuasion: { label: 'Persuasion', description: 'Unlocks additional dialogue options and hidden information from NPCs.' },
-  perception: { label: 'Perception', description: 'Reveals hidden objects, clues, and environmental anomalies.' },
+  insight: { label: 'Insight', description: 'Puts what you have learned into words: deeper questions and better offers in conversation.' },
+  archaeology: { label: 'Archaeology', description: 'Reads Kindling script: boundary glyphs, carvings, the plate under the Anchorage.' },
+  engineering: { label: 'Engineering', description: 'Reads machines: the load stamped on a breaker, a fair trade for a repair.' },
+  traversal: { label: 'Traversal', description: 'Climbs and squeezes: tight ducts and steep shortcuts.' },
+  persuasion: { label: 'Persuasion', description: 'Finds the words: questions and offers people won’t hear from a stranger.' },
+  perception: { label: 'Perception', description: 'Notices things: the first colour of a rite, circuits that switched themselves on.' },
 };
 
 const ATTRIBUTE_ICON: Record<AttributeKey, string> = {
@@ -36,7 +39,10 @@ class CharacterPanelImpl {
 
   init(): void {
     window.addEventListener('keydown', this.keyHandler);
-    bus.on('level:up', (level: number) => UIManager.toast(`Level up! You are now level ${level}. Skill point available.`));
+    // Refresh an open sheet when stats change underneath it.
+    bus.on('attribute:changed', () => {
+      if (PanelManager.isOpen && PanelManager.activeId === 'character') this.render();
+    });
   }
 
   open(): void {
@@ -44,63 +50,72 @@ class CharacterPanelImpl {
   }
 
   private render(): void {
+    const d = gameState.data;
     const panel = document.createElement('div');
-    panel.className = 'panel';
-    panel.style.width = '520px';
+    panel.className = 'panel character-panel';
 
-    const heading = document.createElement('h2');
-    heading.textContent = `Explorer — Level ${gameState.data.level}`;
-    panel.appendChild(heading);
-
-    const sub = document.createElement('div');
-    sub.className = 'subtitle';
-    sub.textContent = `${gameState.data.xp} / ${gameState.data.level * 100} XP to next level${gameState.data.unspentPoints > 0 ? ` — ${gameState.data.unspentPoints} unspent point(s)` : ''}`;
-    panel.appendChild(sub);
-
-    const keys = Object.keys(ATTRIBUTE_INFO) as AttributeKey[];
-    for (const key of keys) {
-      const info = ATTRIBUTE_INFO[key];
-      const value = gameState.data.attributes[key];
-      const row = document.createElement('div');
-      row.className = 'repair-row';
-      row.style.alignItems = 'flex-start';
-      row.innerHTML = `
-        <div style="flex:1;">
-          <div class="name"><span class="hud-icon">${ATTRIBUTE_ICON[key]}</span>${info.label} <span style="color:var(--accent)">${value}</span></div>
-          <div class="status" style="margin-top:2px;">${info.description}</div>
-        </div>`;
-      panel.appendChild(row);
+    panel.innerHTML = `<div class="eyebrow">Survey lead</div><h2>Level ${d.level}</h2>
+      <div class="char-xp"><span class="bar"><span class="bar-fill" style="transform:scaleX(${Math.min(1, d.xp / (d.level * 100))})"></span></span>
+      <span>${d.xp} / ${d.level * 100} XP</span></div>`;
+    if (d.unspentPoints > 0) {
+      const note = document.createElement('p');
+      note.className = 'char-points';
+      note.textContent = `${d.unspentPoints} skill point${d.unspentPoints > 1 ? 's' : ''} to spend. Using a skill also raises it.`;
+      panel.appendChild(note);
+    } else {
+      const note = document.createElement('p');
+      note.className = 'subtitle';
+      note.textContent = 'Skills grow as you use them, and each level brings a point to spend.';
+      panel.appendChild(note);
     }
 
-    const saveRow = document.createElement('div');
-    saveRow.style.cssText = 'display:flex; gap:10px; margin-top:18px;';
+    const list = document.createElement('div');
+    list.className = 'char-stats';
+    for (const key of Object.keys(ATTRIBUTE_INFO) as AttributeKey[]) {
+      const info = ATTRIBUTE_INFO[key];
+      const row = document.createElement('div');
+      row.className = 'char-stat';
+      row.innerHTML = `<span class="hud-icon">${ATTRIBUTE_ICON[key]}</span>
+        <div class="char-stat-body"><div class="char-stat-name">${info.label}</div><div class="char-stat-desc">${info.description}</div></div>
+        <div class="char-stat-value">${d.attributes[key]}</div>`;
+      if (d.unspentPoints > 0) {
+        const plus = document.createElement('button');
+        plus.className = 'btn secondary';
+        plus.textContent = '+1';
+        plus.setAttribute('aria-label', `Spend a point on ${info.label}`);
+        plus.onmouseenter = () => AudioSystem.playHover();
+        plus.onclick = () => {
+          if (gameState.spendPoint(key)) {
+            AudioSystem.playCollect();
+            UIManager.toast(`${info.label} is now ${gameState.data.attributes[key]}.`, 'learn');
+          }
+        };
+        row.appendChild(plus);
+      }
+      list.appendChild(row);
+    }
+    panel.appendChild(list);
+
+    const actions = document.createElement('div');
+    actions.className = 'char-actions';
     const saveBtn = document.createElement('button');
-    saveBtn.className = 'text-btn';
-    saveBtn.textContent = 'Save Progress';
+    saveBtn.className = 'btn secondary';
+    saveBtn.textContent = 'Save now';
     saveBtn.onclick = () => {
       SaveSystem.save();
-      UIManager.toast('Progress saved.');
+      AudioSystem.playConfirm();
+      UIManager.toast('Progress saved. The game also saves on its own at every milestone.');
     };
-    const loadBtn = document.createElement('button');
-    loadBtn.className = 'text-btn';
-    loadBtn.textContent = 'Load Last Save';
-    loadBtn.disabled = !SaveSystem.hasSave();
-    loadBtn.onclick = () => {
-      if (SaveSystem.load()) {
-        UIManager.toast('Save loaded.');
-        this.render();
-      }
-    };
-    saveRow.appendChild(saveBtn);
-    saveRow.appendChild(loadBtn);
-    panel.appendChild(saveRow);
+    actions.appendChild(saveBtn);
+    panel.appendChild(actions);
 
     const hint = document.createElement('div');
-    hint.className = 'close-hint';
-    hint.textContent = 'TAB or ESC to close';
+    hint.className = 'panel-foot';
+    hint.innerHTML = '<span class="keycap">Tab</span> or <span class="keycap" style="margin-left:.5em">Esc</span> close';
     panel.appendChild(hint);
 
-    PanelManager.open(panel, undefined, undefined, 'character');
+    if (PanelManager.isOpen && PanelManager.activeId === 'character') PanelManager.setContent(panel);
+    else PanelManager.open(panel, undefined, undefined, 'character');
   }
 
   dispose(): void {

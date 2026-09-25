@@ -202,9 +202,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Objective */
 #objective-tracker {
-  top: 20px;
-  left: 20px;
-  max-width: min(400px, 40vw);
   padding: 10px 14px 12px;
   font-size: calc(15px * var(--text-scale));
   line-height: 1.4;
@@ -215,10 +212,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* The meter under the objective (the Anchorage's frost clock). */
 .hud-meter {
-  top: 20px;
-  left: 20px;
-  margin-top: 84px;
-  width: min(400px, 40vw);
   padding: 8px 14px 10px;
   display: none;
 }
@@ -454,11 +447,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 /* Settings */
-#settings-panel { width: min(520px, 94vw); }
+#settings-panel { width: min(600px, 94vw); }
 .settings-section { padding: 14px 0; border-top: 1px solid var(--line); }
 .settings-section:first-of-type { border-top: 0; padding-top: 4px; }
 .settings-section > .eyebrow { margin-bottom: 10px; }
-.settings-row { display: grid; grid-template-columns: 1fr minmax(0, 220px); align-items: center; gap: 12px; padding: 6px 0; }
+.settings-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 340px); align-items: center; gap: 12px; padding: 6px 0; }
 .settings-row label, .settings-row .label { font-size: calc(15px * var(--text-scale)); }
 .settings-row .hint { grid-column: 1 / -1; margin-top: -2px; font-size: calc(13px * var(--text-scale)); color: var(--ink-dim); }
 .segmented { display: flex; border: 1px solid var(--line); border-radius: var(--r-control); overflow: hidden; }
@@ -543,7 +536,9 @@ details.advanced[open] summary { color: var(--ink); }
 .dialogue-option.locked .tag .hud-icon { color: var(--ink-dim); }
 
 /* Journal */
-#journal-panel { width: 760px; height: 74vh; display: flex; gap: 20px; }
+#journal-panel { width: min(820px, 96vw); height: min(74vh, 640px); display: flex; flex-direction: column; }
+#journal-panel > div:nth-child(2) { flex: 1; min-height: 0; }
+.journal-tabs { position: absolute; top: 24px; right: 32px; }
 .journal-col { flex: 1; overflow-y: auto; padding-right: 6px; }
 .journal-col::-webkit-scrollbar { width: 6px; }
 .journal-col::-webkit-scrollbar-thumb { background: var(--accent-dim); border-radius: 3px; }
@@ -1504,3 +1499,27 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .credits-list p { margin: 0 0 10px; font-size: calc(14px * var(--text-scale)); line-height: 1.5; color: var(--ink-dim); }
 .credits-list p:first-child { color: var(--ink); font-weight: 700; }
 .credits-actions { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
+
+/* Character sheet */
+.character-panel { width: min(560px, 94vw); }
+.char-xp { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; font-size: calc(14px * var(--text-scale)); color: var(--ink-dim); }
+.char-xp .bar { flex: 1; height: 6px; }
+.char-xp .bar-fill { background: var(--grove); }
+.char-points { margin: 0 0 12px; font-weight: 700; color: var(--grove); }
+.char-stats { display: grid; gap: 2px; }
+.char-stat { display: grid; grid-template-columns: 20px 1fr auto auto; align-items: center; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--line); }
+.char-stat .hud-icon { color: var(--ink-dim); }
+.char-stat-name { font-weight: 700; }
+.char-stat-desc { font-size: calc(13px * var(--text-scale)); color: var(--ink-dim); line-height: 1.4; }
+.char-stat-value { font-family: var(--font-display); font-weight: 700; font-size: calc(22px * var(--text-scale)); min-width: 1.4ch; text-align: right; }
+.char-stat .btn { padding: 6px 10px; }
+.char-actions { display: flex; gap: 8px; margin-top: 16px; }
+/* Left HUD column: the objective with the frost meter stacked under it when there is one. */
+.hud-left { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 6px; width: min(400px, 40vw); }
+.hud-left > .hud-frame { position: static; }
+
+/* Shown instead of the game where WebGL 2 is unavailable (main.ts). */
+.no-webgl { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: var(--void); }
+.no-webgl .panel { width: min(560px, 94vw); animation: none; }
+.no-webgl ul { margin: 12px 0 0; padding-left: 1.2em; color: var(--ink-dim); line-height: 1.6; }
+.no-webgl p { margin: 0; }

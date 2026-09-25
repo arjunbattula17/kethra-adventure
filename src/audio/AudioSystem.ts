@@ -108,6 +108,13 @@ export const AudioSystem = {
     window.addEventListener('keydown', unlockOnGesture, { once: true });
   },
 
+  /** Silence everything while the tab is hidden, and pick up where it left off after. */
+  setSuspended(suspended: boolean): void {
+    if (!ctx || !unlocked) return;
+    if (suspended) ctx.suspend().catch(() => {});
+    else ctx.resume().catch(() => {});
+  },
+
   /** Create the context now rather than on the first sound (see IntroScene.init). */
   prepare(): void {
     getCtx();

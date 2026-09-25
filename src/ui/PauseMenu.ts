@@ -43,7 +43,7 @@ export const PauseMenu = {
     const panel = document.createElement('div');
     panel.className = 'panel';
     panel.id = 'pause-panel';
-    panel.innerHTML = `<div class="eyebrow">Paused</div><h2>Paused</h2><div class="pause-objective"></div><div class="pause-actions"></div><div class="panel-foot"><span class="keycap">Esc</span> resume</div>`;
+    panel.innerHTML = `<h2>Paused</h2><div class="pause-objective"></div><div class="pause-actions"></div><div class="panel-foot"><span class="keycap">Esc</span> resume</div>`;
     (panel.querySelector('.pause-objective') as HTMLElement).textContent = gameState.data.objective;
     const actions = panel.querySelector('.pause-actions') as HTMLElement;
     const add = (label: string, cls: string, run: () => void) => {

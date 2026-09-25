@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { InputManager } from './InputManager';
-import { initSharedEnvironment } from './Environment';
+import { initSharedEnvironment, rebuildSharedEnvironment } from './Environment';
 import { PostProcessing } from './PostProcessing';
 import type { QualityTier } from './PostProcessing';
 import { UIManager } from '../ui/UIManager';
@@ -103,6 +103,13 @@ export class Engine {
   // for MANUAL tier choices (a menu action can absorb a one-off rebuild; the automatic downgrade
   // path stays instant and just keeps whatever samples it started with).
   private msaaSamples: number;
+  // Frames counted since the governor last judged; it sorts its window every 30 frames instead of
+  // copying and sorting it on every frame (a per-frame allocation in the hot loop).
+  private framesSinceJudged = 0;
+  /** Set when the browser reports low battery: the loop then draws at most 30 frames a second. */
+  private capTo30 = false;
+  private lastDrawAt = 0;
+  private contextLost = false;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -131,6 +138,36 @@ export class Engine {
     this.applyTier(this.tier);
 
     window.addEventListener('resize', () => this.handleResize());
+
+    // A browser can take the GPU context away (driver reset, too many tabs, a laptop switching
+    // graphics). Default behaviour is a permanently black canvas. preventDefault asks for it back;
+    // three.js rebuilds its GPU state on restore and re-uploads textures and geometry on next use.
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.contextLost = true;
+      UIManager.toast('The browser reset the graphics. Restoring…', 'fail');
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.contextLost = false;
+      const env = rebuildSharedEnvironment(this.renderer);
+      if (this.current?.scene.environment) this.current.scene.environment = env;
+      this.renderer.shadowMap.needsUpdate = true;
+      this.handleResize();
+      UIManager.toast('Graphics restored.', 'learn');
+    });
+
+    // Battery: where the browser reports it (Chromium), a laptop below 20% and unplugged drops to
+    // 30 frames a second. Steady 30 costs half the GPU work of 60 and still reads as smooth.
+    const nav = navigator as Navigator & { getBattery?: () => Promise<{ level: number; charging: boolean; addEventListener: (t: string, f: () => void) => void }> };
+    nav.getBattery?.().then((battery) => {
+      const check = () => {
+        this.capTo30 = !battery.charging && battery.level < 0.2;
+      };
+      check();
+      battery.addEventListener('levelchange', check);
+      battery.addEventListener('chargingchange', check);
+    }).catch(() => {});
   }
 
   // `automatic` keeps the current shadow state: toggling shadowMap.enabled changes the program of
@@ -175,6 +212,8 @@ export class Engine {
     if (this.recentFrameMs.length > 90) this.recentFrameMs.shift();
 
     if (now - this.lastDowngradeAt < 5000) return;
+    if (++this.framesSinceJudged < 30) return;
+    this.framesSinceJudged = 0;
 
     const sorted = [...this.recentFrameMs].sort((a, b) => a - b);
     const p95 = sorted[Math.floor(sorted.length * 0.95)];
@@ -354,11 +393,14 @@ export class Engine {
     // calls it again after the interior is built — a second live loop would double every update.
     if (this.running) return;
     this.running = true;
-    const loop = () => {
+    const loop = (now: number) => {
       this.rafId = requestAnimationFrame(loop);
+      // Low-battery cap: skip this display frame if the last drawn one was under ~30 fps ago.
+      if (this.capTo30 && now - this.lastDrawAt < 31) return;
+      this.lastDrawAt = now;
       const dt = Math.min(this.clock.getDelta(), 0.1);
       const elapsed = this.clock.getElapsedTime();
-      if (!this.paused && this.current) {
+      if (!this.paused && this.current && !this.contextLost) {
         this.current.update(dt, elapsed);
         this.postFx.render();
         this.recordFrameForQuality(dt * 1000);

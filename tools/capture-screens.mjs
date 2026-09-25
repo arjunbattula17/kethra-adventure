@@ -173,17 +173,55 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
   await page.close();
 }
 
-// 5. Vessek Anchorage, once it exists.
+// 5. Vessek Anchorage: arrival card, dialogue, the pulse, the breaker panel, a document, the ending.
 {
   const page = await newPage();
-  await page.goto(`${BASE}?skipIntro=1&unlockKethra=1&newGame=1&tier=low`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}?skipIntro=1&unlockVessek=1&newGame=1&tier=low`, { waitUntil: 'domcontentloaded' });
   await waitScene(page, 'ShipInteriorScene');
-  const hasVessek = await page.evaluate(() => typeof window.__DEBUG__.flow.travelToPlanet === 'function' && window.__DEBUG__.levels?.includes?.('vessek'));
+  const hasVessek = await page.evaluate(() => window.__DEBUG__.levels?.includes?.('vessek'));
   if (hasVessek) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(600);
+    await shot(page, 'pause-menu');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
     await page.evaluate(() => window.__DEBUG__.flow.travelToPlanet('vessek'));
     await waitScene(page, 'VessekScene');
-    await page.waitForTimeout(3500);
-    await shot(page, 'vessek-arrival');
+    await page.waitForTimeout(1200);
+    await shot(page, 'vessek-arrival-card');
+    await page.waitForTimeout(5000);
+    await teleport(page, -2.6, 0.2, 0.2, 0);
+    await pressE(page);
+    await page.keyboard.press('Digit2');
+    await page.waitForTimeout(600);
+    await shot(page, 'vessek-dialogue-stat-gates');
+    await page.keyboard.press('Digit1');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Digit1');
+    await page.waitForTimeout(1300);
+    await shot(page, 'vessek-pulse');
+    await page.waitForTimeout(6000);
+    await shot(page, 'vessek-blackout-hud');
+    await teleport(page, 4.6, 0.2, -8.8, 0);
+    await pressE(page);
+    await page.waitForTimeout(500);
+    await page.click('#breaker-panel button[aria-label$="Circulation pumps"]');
+    await page.click('#breaker-panel button[aria-label$="Hydroponics heaters"]');
+    await page.waitForTimeout(300);
+    await shot(page, 'vessek-breakers-overload');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    await teleport(page, -4.2, 0.2, 1.4, 1.57);
+    await pressE(page);
+    await shot(page, 'document-reader');
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => window.__DEBUG__.flow.playEnding());
+    await waitScene(page, 'EndingScene');
+    await page.waitForTimeout(9000);
+    await shot(page, 'ending');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(1500);
+    await shot(page, 'credits');
   }
   await page.close();
 }

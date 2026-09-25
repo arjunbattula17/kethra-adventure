@@ -24,6 +24,9 @@ import { batchStaticGeometry } from './interior/batchStaticGeometry';
 import { mulberry32 } from '../core/rng';
 import { buildInteriorColliders } from './interior/collision';
 
+/** Point lights kept in the room at the default tiers; see applyLightBudget. */
+const POINT_LIGHT_BUDGET = 16;
+
 export class ShipInteriorScene implements GameScene {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.05, 500);
@@ -148,7 +151,31 @@ export class ShipInteriorScene implements GameScene {
     // player later switches tiers by hand — same trade the kit cache makes, minus its refetch.)
     if (getActiveEngine()?.getQualityTier() === 'low') downscaleCanvasTextures(this.scene, 1024);
 
+    this.applyLightBudget(getActiveEngine()?.getQualityTier() === 'low' ? 8 : POINT_LIGHT_BUDGET);
     bus.emit('scene:ship_interior:ready');
+  }
+
+  /**
+   * Keeps only the strongest point lights. three.js writes every point light into every lit shader
+   * as an unrolled block of code, so the room's 41 lights made each of its ~93 shader programs
+   * very long, and the first load on a fresh browser spent over a minute compiling them (measured:
+   * 65 s to the intro on this project's dev PC). The 25 weakest lights are small glows whose
+   * fixtures already glow on their own; dropping them left the room within 2/255 per pixel of the
+   * original across five views (docs/PERF_LOG.md) and halved that load. Scored by intensity times
+   * reach squared, which is roughly how much of the room each light can touch.
+   */
+  private applyLightBudget(max: number): void {
+    const lights: THREE.PointLight[] = [];
+    this.scene.traverse((o) => {
+      if ((o as THREE.PointLight).isPointLight) lights.push(o as THREE.PointLight);
+    });
+    const reach = (l: THREE.PointLight) => l.intensity * l.distance * l.distance;
+    lights.sort((a, b) => reach(b) - reach(a));
+    for (const l of lights.slice(max)) {
+      l.removeFromParent();
+      this.consoleGlow = this.consoleGlow.filter((c) => c !== l);
+      if (this.emergencyLight === l) this.emergencyLight = null;
+    }
   }
 
   private roomColliders(): THREE.Box3[] {

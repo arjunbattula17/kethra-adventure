@@ -194,6 +194,15 @@ export class GameState {
     this.gainXp(amount * 10);
   }
 
+  /** Spends one unspent skill point on a stat. No XP: points come from levelling, not from use. */
+  spendPoint(key: AttributeKey): boolean {
+    if (this.data.unspentPoints <= 0) return false;
+    this.data.unspentPoints -= 1;
+    this.data.attributes[key] += 1;
+    bus.emit('attribute:changed', { key, value: this.data.attributes[key] });
+    return true;
+  }
+
   gainXp(amount: number): void {
     this.data.xp += amount;
     // A loop, not a single check: a grant large enough to cross two thresholds at once used to

@@ -72,8 +72,9 @@ class UIManagerImpl {
     document.body.appendChild(this.root);
     this.root.appendChild(this.crosshair);
     this.root.appendChild(this.interactPrompt);
-    this.root.appendChild(this.objectiveTracker);
-    this.root.appendChild(this.meterEl);
+    const hudLeft = el('div', 'hud-left');
+    hudLeft.append(this.objectiveTracker, this.meterEl);
+    this.root.appendChild(hudLeft);
     this.root.appendChild(this.statusBar);
     this.root.appendChild(this.toastStack);
     this.root.appendChild(this.captionEl);
@@ -306,6 +307,7 @@ class UIManagerImpl {
     const next = () => {
       if (lore) lore.textContent = t(LOADING_LORE[this.loadingLoreIndex++ % LOADING_LORE.length]);
     };
+    if (this.loadingEl.classList.contains('visible')) return;
     next();
     window.clearInterval(this.loadingLoreTimer);
     this.loadingLoreTimer = window.setInterval(next, 7000);

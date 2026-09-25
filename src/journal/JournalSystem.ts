@@ -106,14 +106,15 @@ class JournalSystemImpl {
     panel.id = 'journal-panel';
     panel.style.position = 'relative';
 
+    // One tab control, the same segmented component the settings use.
     const tabs = document.createElement('div');
-    tabs.style.cssText = 'position:absolute; top:20px; right:32px; display:flex; gap:8px;';
+    tabs.className = 'segmented journal-tabs';
+    tabs.setAttribute('role', 'tablist');
     for (const v of ['logs', 'evidence'] as const) {
       const btn = document.createElement('button');
-      btn.className = 'text-btn';
-      btn.style.textDecoration = this.view === v ? 'underline' : 'none';
-      btn.style.opacity = this.view === v ? '1' : '0.6';
-      btn.textContent = v === 'logs' ? 'Travel Logs' : 'Evidence Board';
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-pressed', String(this.view === v));
+      btn.textContent = v === 'logs' ? 'Travel logs' : 'Evidence board';
       btn.onclick = () => {
         this.view = v;
         this.render();
@@ -129,11 +130,12 @@ class JournalSystemImpl {
     }
 
     const hint = document.createElement('div');
-    hint.className = 'close-hint';
-    hint.textContent = 'ESC to close';
+    hint.className = 'panel-foot';
+    hint.innerHTML = '<span class="keycap">Esc</span> close';
     panel.appendChild(hint);
 
-    PanelManager.open(panel);
+    if (PanelManager.isOpen && PanelManager.activeId === 'journal') PanelManager.setContent(panel);
+    else PanelManager.open(panel, undefined, undefined, 'journal');
   }
 
   private renderLogsView(): HTMLElement {
@@ -141,7 +143,7 @@ class JournalSystemImpl {
     wrap.style.cssText = 'display:flex; gap:20px; width:100%; height:100%;';
 
     const heading = document.createElement('h2');
-    heading.textContent = 'Travel Logs';
+    heading.textContent = 'Travel logs';
     const sub = document.createElement('div');
     sub.className = 'subtitle';
     sub.textContent = 'Some entries are corrupted — pieces of the truth are still missing.';
@@ -187,7 +189,7 @@ class JournalSystemImpl {
     container.style.cssText = 'display:flex; flex-direction:column; width:100%;';
 
     const heading = document.createElement('h2');
-    heading.textContent = 'Evidence Board';
+    heading.textContent = 'Evidence board';
     const sub = document.createElement('div');
     sub.className = 'subtitle';
     sub.textContent = gameState.data.clues.length > 0
