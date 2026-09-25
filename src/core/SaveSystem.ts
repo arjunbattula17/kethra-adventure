@@ -5,9 +5,21 @@ const SAVE_KEY = 'kethra_save_v1';
 /** Roughly half a typical 5MB origin quota — a warning, not a limit. */
 const SAVE_WARN_BYTES = 2_000_000;
 
+// Merely touching localStorage throws (SecurityError) where a browser blocks storage: some private
+// modes, and managed school Chromebooks with site data disabled. hasSave() runs at boot, so an
+// unguarded read there left the game on a black screen. Every access goes through these instead,
+// and a blocked browser just plays without saving.
+function readSave(): string | null {
+  try {
+    return localStorage.getItem(SAVE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export const SaveSystem = {
   hasSave(): boolean {
-    return localStorage.getItem(SAVE_KEY) !== null;
+    return readSave() !== null;
   },
 
   /**
@@ -33,7 +45,7 @@ export const SaveSystem = {
   },
 
   load(): boolean {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = readSave();
     if (!raw) return false;
     try {
       gameState.loadFrom(raw);
@@ -44,6 +56,10 @@ export const SaveSystem = {
   },
 
   clear(): void {
-    localStorage.removeItem(SAVE_KEY);
+    try {
+      localStorage.removeItem(SAVE_KEY);
+    } catch {
+      // Storage blocked: there is nothing to clear.
+    }
   },
 };

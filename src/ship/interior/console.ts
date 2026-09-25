@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { gameState } from '../../core/GameState';
 import { bus } from '../../core/EventBus';
 import { UIManager } from '../../ui/UIManager';
+import { t } from '../../content/strings';
 import {
   buildConsoleScreenTexture,
   buildStencilPlacardTexture,
@@ -677,7 +678,7 @@ function buildDeskBody(ctx: InteriorCtx, kit: Kit): THREE.Group {
 
   // Placards, one per end, plus a small stencil in the middle of the fascia.
   const idPlate = new THREE.MeshStandardMaterial({
-    map: buildStencilPlacardTexture('NAV-01', 'CONSOLE'), roughness: 0.7, metalness: 0.2,
+    map: buildStencilPlacardTexture(t('sign.helm.code'), t('sign.helm.label')), roughness: 0.7, metalness: 0.2,
   });
   const busPlate = new THREE.MeshStandardMaterial({
     map: buildStencilPlacardTexture('BUS-C', 'DO NOT ISOLATE'), roughness: 0.7, metalness: 0.2,

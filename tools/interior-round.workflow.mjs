@@ -10,7 +10,9 @@ export const meta = {
   ],
 }
 
-const ROOT = 'C:/Users/deept/Documents/TSAPROJECT'
+// Repo-relative: the round's agents run from the project root. (An absolute path here put a
+// machine user name into the repo; the submission must not carry personal names.)
+const ROOT = '.'
 const round = args.round
 const all = args.pieces
 const builders = all.filter((p) => p.name !== 'lighting')

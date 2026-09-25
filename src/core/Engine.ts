@@ -263,6 +263,24 @@ export class Engine {
     }
   }
 
+  /**
+   * Draws a prepared scene once, while another scene is current, so the driver work setScene's
+   * warm-up frame exists for (per-program specialization, every texture upload, shadow maps, the
+   * AO pass's programs) is paid now rather than at the handover. The caller keeps the canvas
+   * covered: the frame lands on screen.
+   */
+  prewarmScene(scene: GameScene): void {
+    this.postFx.setActive(scene.scene, scene.camera);
+    this.postFx.setAOSupported(scene.usesAO !== false);
+    this.renderer.shadowMap.needsUpdate = true;
+    this.postFx.render();
+    if (this.current) {
+      this.postFx.setActive(this.current.scene, this.current.camera);
+      this.postFx.setAOSupported(this.current.usesAO !== false);
+    }
+    this.holdGovernor();
+  }
+
   private holdGovernor(): void {
     this.recentFrameMs.length = 0;
     this.governorHoldUntil = performance.now() + Engine.POST_SCENE_GRACE_MS;

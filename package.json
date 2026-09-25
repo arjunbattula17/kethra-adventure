@@ -7,7 +7,8 @@
     "dev": "vite",
     "play": "vite build && vite preview --open",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "smoke": "node tools/smoke.mjs"
   },
   "devDependencies": {
     "@types/three": "^0.185.4",

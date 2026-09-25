@@ -4,6 +4,7 @@ import { bus } from '../core/EventBus';
 import { PanelManager } from '../ui/PanelManager';
 import { UIManager } from '../ui/UIManager';
 import { AudioSystem } from '../audio/AudioSystem';
+import { t } from '../content/strings';
 
 function pairKey(a: string, b: string): string {
   return [a, b].sort().join('|');
@@ -57,6 +58,18 @@ class JournalSystemImpl {
   init(): void {
     if (gameState.data.journalLogs.length === 0) {
       gameState.data.journalLogs = STARTER_LOGS.map((l) => ({ ...l }));
+    }
+    // The contract brief predates the voyage, so it leads the logs. Added by id so a save written
+    // before it existed gains it once.
+    if (!gameState.data.journalLogs.some((l) => l.id === 'log_brief')) {
+      gameState.data.journalLogs.unshift({
+        id: 'log_brief',
+        title: t('log.brief.title'),
+        body: t('log.brief.body'),
+        corrupted: false,
+        timestamp: t('log.brief.timestamp'),
+        unlocked: true,
+      });
     }
     bus.on('ui:open_journal', () => this.open());
     bus.on('evidence:pair_selected', (pair: { a: string; b: string }) => this.tryConnect(pair.a, pair.b));

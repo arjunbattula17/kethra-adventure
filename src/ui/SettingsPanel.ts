@@ -31,9 +31,11 @@ function isQualityTier(v: unknown): v is QualityTier {
  * the bug this replaced: every fresh profile was forced to 'high' at boot, so a 2-core machine
  * never saw the low tier and the frame-time governor never ran for anyone. */
 function loadSettings(): Settings | null {
-  const raw = localStorage.getItem(SETTINGS_KEY);
-  if (!raw) return null;
   try {
+    // Inside the try: where a browser blocks storage, touching localStorage at all throws, and
+    // this runs at boot (see SaveSystem.readSave).
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (
       parsed && typeof parsed === 'object' &&
@@ -51,7 +53,11 @@ function loadSettings(): Settings | null {
 }
 
 function saveSettings(settings: Settings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Storage blocked or full: the choice still applies for this session.
+  }
 }
 
 const TIER_OPTIONS: { key: QualityTier; label: string }[] = [

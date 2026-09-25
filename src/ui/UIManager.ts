@@ -2,6 +2,10 @@ import { bus } from '../core/EventBus';
 import { gameState } from '../core/GameState';
 import { InputManager } from '../core/InputManager';
 import { PanelManager } from './PanelManager';
+import { t } from '../content/strings';
+import type { StringKey } from '../content/strings';
+
+const LOADING_LORE: StringKey[] = ['loading.lore.1', 'loading.lore.2', 'loading.lore.3', 'loading.lore.4', 'loading.lore.5', 'loading.lore.6'];
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, html?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -37,7 +41,7 @@ class UIManagerImpl {
     this.captionEl.id = 'cinematic-caption';
     this.fadeEl.classList.add('fade-black');
     this.lookPrompt.innerHTML = `<div class="look-prompt-inner"><div class="look-prompt-icon">◎</div><div>Click to look around</div></div>`;
-    this.loadingEl.innerHTML = `<div class="loading-spinner"></div><div class="loading-text">Loading…</div>`;
+    this.loadingEl.innerHTML = `<div class="loading-spinner"></div><div class="loading-text">Loading…</div><div class="loading-lore"></div>`;
 
     this.objectiveTracker.innerHTML = `<div class="label"><span class="hud-icon">${ICON_OBJECTIVE}</span>Objective</div><div id="objective-text"></div>`;
 
@@ -77,6 +81,8 @@ class UIManagerImpl {
 
   private lookPromptEnabled = true;
   private letterboxActive = false;
+  private loadingLoreIndex = 0;
+  private loadingLoreTimer: number | undefined;
   private captionTimeoutId: number | undefined;
 
   setLookPromptEnabled(enabled: boolean): void {
@@ -139,10 +145,20 @@ class UIManagerImpl {
   }
 
   showLoading(): void {
+    // Lines of lore under the spinner, in order, a new one every 7 s, so a long load (a first
+    // visit compiles every shader) at least tells the player something.
+    const lore = this.loadingEl.querySelector('.loading-lore');
+    const next = () => {
+      if (lore) lore.textContent = t(LOADING_LORE[this.loadingLoreIndex++ % LOADING_LORE.length]);
+    };
+    next();
+    window.clearInterval(this.loadingLoreTimer);
+    this.loadingLoreTimer = window.setInterval(next, 7000);
     this.loadingEl.classList.add('visible');
   }
 
   hideLoading(): void {
+    window.clearInterval(this.loadingLoreTimer);
     this.loadingEl.classList.remove('visible');
   }
 

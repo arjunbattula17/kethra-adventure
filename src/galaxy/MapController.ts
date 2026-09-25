@@ -5,6 +5,8 @@ import { UIManager } from '../ui/UIManager';
 import { AudioSystem } from '../audio/AudioSystem';
 import { getActiveEngine } from '../core/EngineRegistry';
 import { PLANETS } from './planetData';
+import { STRINGS, t } from '../content/strings';
+import type { StringKey } from '../content/strings';
 import { KETHRA_MAP } from '../planets/kethra/kethraMapData';
 import type { PlanetMapConfig, PoiKind } from '../planets/PlanetMapData';
 
@@ -452,7 +454,8 @@ class MapControllerImpl {
 
   private openPlanet(planetId: string): void {
     if (!PLANET_MAPS[planetId]) {
-      UIManager.toast('Detailed charts for this world have not been compiled yet.');
+      const note = `map.uncharted.${planetId}`;
+      UIManager.toast(t(note in STRINGS ? (note as StringKey) : 'map.uncharted.default'));
       return;
     }
     this.view = 'planet';

@@ -130,18 +130,27 @@ export class GameFlow {
     const intro = new IntroScene();
     intro.onDone = () => void this.beginTutorialOnShip();
     await this.engine.setScene(() => intro);
-    this.engine.start();
-    // Build and compile the interior WHILE the cinematic plays. The intro spends ~30 seconds
-    // rendering an almost-idle scene; the interior's whole stand-up (kit fetch + geometry build
-    // + ~93 shader programs) fits inside that window, so a player who watches the intro hands
-    // over with only the warm-up frame left to pay. A rejection is caught at the await site in
-    // beginTutorialOnShip, which falls back to building the interior the direct way.
-    this.pendingShip = (async () => {
+    // Build, compile AND first-draw the interior before the intro's clock starts, under the
+    // loading overlay. It used to build while the intro played, to overlap the wait; but on a
+    // cold shader cache its ~93 programs stalled the GPU for ~11 s, freezing the intro on its
+    // opening frame (measured with tools/intro-check.mjs), and the first-draw stall still landed
+    // at the handover. Same total wait, now all of it where the loading UI says so; the intro then
+    // plays uninterrupted and hands over to an interior that's ready to draw.
+    UIManager.showLoading();
+    void UIManager.fadeToBlack(); // keeps the pre-warm frame from showing through the overlay
+    try {
       const scene = new ShipInteriorScene();
       await this.engine.prepareScene(scene);
-      return scene;
-    })();
-    this.pendingShip.catch(() => {});
+      this.engine.prewarmScene(scene);
+      this.pendingShip = Promise.resolve(scene);
+    } catch {
+      // A kit fetch failed: leave the ship to beginTutorialOnShip's direct build, which surfaces
+      // its own failure the same way the pre-preload boot did.
+      this.pendingShip = null;
+    }
+    this.engine.start();
+    UIManager.hideLoading();
+    await UIManager.fadeFromBlack();
   }
 
   /** The intro-to-interior handover: build the ship behind a fade, then start the tutorial. */
