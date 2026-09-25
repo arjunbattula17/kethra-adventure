@@ -159,6 +159,181 @@ Anchorage and the Wren), and the player's skills to join the two.
 
 ---
 
+## How the Choir works (the rules the story and the puzzles share)
+
+Writers and puzzle designers both lean on these. Keep them consistent.
+
+1. **It fires on a cycle.** The Choir under Isilthe's sea transmits a full pulse every 6–9
+   years (the Anchorage ledger's arrival dates match), with faint "rehearsals" between: a hum on
+   long-range scanners, the repeating signal in the Wren's Day 22 log.
+2. **A full pulse is a white sky.** Light arrives from every direction at once for a few
+   seconds. Anything carrying a working **drive field** (a hyperdrive spooled or idling) within
+   roughly the Kessic Drift's span is pulled toward the system and dropped out of drive near the
+   star. Powered systems brown out; life support and anything on a separate circuit usually
+   survive (the Wren woke on emergency power).
+3. **It calls light, not people.** The Kindling built it to call *their* light home: every
+   Kindling machine answered the first full pulse (the White Sky, c. 880 BA), which is why every
+   Kindling light in the system went out in the same breath. Human drives answer by accident: their
+   field resonates on a nearby frequency.
+4. **The Cistern Hearts are relays.** Each Heart draws on the Choir's rehearsal hum to lift water
+   and make light, and each Heart it feeds strengthens the next pulse a little. Kethra's Heart
+   dimming for three seasons is the relay falling out of tune. Relighting it (level 2) makes
+   Kethra bright again and the Choir louder.
+5. **It can be tuned.** Three colours called in order (the Rite of Three Breaths) tune a Heart.
+   The same grammar, sung into the Choir itself at Isilthe, can change what it calls. That is the
+   game's ending, and the reason the signature verb is *tune* (DECISIONS D-2).
+6. **What it can't do:** it has no mind, makes no choices, and never harms anyone directly. The
+   danger is being stranded, not being attacked.
+
+---
+
+## Level by level
+
+The story as the player lives it. Levels 1–2 exist; 3–5 are the plan (DESIGN.md, DECISIONS D-4).
+Each level ends on something the player learns that the previous one didn't tell them.
+
+### Level 1 — The Wren *(built)*
+- **Beats:** the white sky (intro) → waking alone on emergency power → the tutorial → navigation
+  online → the reveal: a system no chart has → the course plot → Kethra in range.
+- **Player learns:** where they are (nowhere charted), what works (air, light, little else),
+  that they're not alone in the system (the scan finds a green world).
+- **Proposed first line for ORION** (the ship computer, not yet in the game; see Characters): "Emergency reboot complete. One of three
+  crew awake. That's you."
+
+### Level 2 — Kethra *(built)*
+- **Beats:** landing under a dimming canopy → Corvenna's suspicion, Fen's welcome → the
+  inscriptions → the Wickmoth → the true order of the Rite → the Heart wakes → the last carving
+  describes the Wren's own white sky.
+- **Player learns:** someone lived here before and vanished in a white sky; the Rite drifted;
+  outsiders have been here before and weren't kind.
+- **Set piece:** light flooding back up the terraces when the Heart wakes.
+- **Exit hook:** the Deep Scanner repair resolves a ring of ships at Vessek (built).
+
+### Level 3 — Vessek Anchorage *(planned)*
+- **Beats:** docking at a ring of lashed-together wrecks → Harbormaster Ilse Varro wants the
+  Wren's hyperdrive core in exchange for the conduit alloy the repairs need → the player learns
+  who the "traders" who robbed Kethra were → **mid-level set piece: a rehearsal pulse** browns out
+  the ring deck by deck; the player restores power in the right order before the hydroponics bay
+  freezes → Varro shows the ledger: every ship pulled in, every date.
+- **The reversal:** the ledger's dates sharpen after Kethra's Heart relit. The Heart is a relay.
+  The player's good deed made the Choir louder.
+- **Social puzzle:** bargain for the alloy (persuasion), repair the ring's bus in exchange
+  (engineering), or trade what Fen told you about the Rite (insight) for Varro's trust.
+- **Player learns:** the white sky has a source (Isilthe), a schedule, and a cost.
+
+### Level 4 — Orrun's Reach *(later)*
+- **Beats:** storm windows between dunes → a Kindling relay the size of a town, half buried →
+  the **stellar core shard** is its heart → taking it would silence Orrun's relay (weakening the
+  Choir) but also darken something the Aiveth depend on. The player finds a way to take a
+  *spare*, reading the relay's own labels (archaeology) and timing the storms (traversal).
+- **Player learns:** how the relays connect; the Kindling built for going *home*, not staying.
+
+### Level 5 — Isilthe *(later, the finale)*
+- **Beats:** the Wren flies at last → descent under an ice-rimmed sea → the Choir chamber →
+  a full pulse is due → the player **tunes** the Choir using the Rite's grammar: keep feeding the
+  Hearts, stop calling drives.
+- **Ending:** the white sky comes and goes and, for the first time, nothing falls out of drive.
+  The Anchorage's ships can leave. Kethra stays lit. The Wren's crew wake up. The last shot: the
+  Wren's viewport, and a chart that finally has the way home on it.
+
+---
+
+## Characters
+
+### The Wren
+- **The player (the survey lead).** See *The player* above. Voice in logs: dry, careful,
+  practical, a little too used to being alone.
+- **ORION**, the ship's computer, named for the Orion Interfaces consoles. Speaks in short status
+  lines, 12 words or fewer. Precise, unhurried, occasionally wry. Never panics, never lies about a
+  number. *Sample:* "Life support nominal. Everything else: optimistic." / "Course plotted. Margin
+  included. You're welcome."
+- **Hollis Mbeki**, pilot, in cold sleep. Twenty years of freight runs; the one who argued
+  against taking the contract. Wakes in the ending.
+- **Ines Carrow**, drive engineer, in cold sleep. Built half the Wren's patch jobs; left notes
+  taped inside panels the player will find (a future lore channel).
+
+### Kethra
+- **Warden Corvenna** (kor-VEN-uh). Gatekeeper of the landing terrace. Was an acolyte when the
+  traders came. Believes the Rite is broken and tells no one. *Voice:* few words, weighed; glow
+  "draws inward" when wary. *Wants:* her people safe, then the truth.
+- **Fen Larkspur.** Third-generation archive-keeper, too young for the job and doing it anyway.
+  *Voice:* quick, delighted, then suddenly serious. *Wants:* the Heart understood, for Oshel.
+- **Oshel** (OH-shel). Fen's young sibling, "grove-bound", sleeping through daylight because the
+  lower boughs are too dim to wake them. Never seen on screen in level 2; the reason the stakes
+  are personal.
+- **The Wickmoth.** Territorial, slow, wings "like stained glass with the light still moving
+  through it". Reads light the way the Aiveth read faces. Not hostile, only possessive.
+
+### Vessek Anchorage
+- **Harbormaster Ilse Varro** (VAR-oh). Born on the ring, fourth generation. Keeps the ledger and
+  the peace. Bargains hard and keeps every promise. *Voice:* brisk, funny under pressure, never
+  cruel. *Wants:* one ship home to bring help.
+- **Dace**, twelve, the ring's best duct-crawler; fixes things adults can't reach. Asks the
+  player what other stars look like. *(Level 3 guide character, the Anchorage's Fen.)*
+- **The Lantern Bay's crew** (history): the first castaways; their names are the first page of
+  the ledger.
+
+### The Kindling
+Never seen. Known from what they built and carved. Everything they left is about light, water and
+going home; nothing about war. The Aiveth named them "the Kindling" because their machines lit the
+world.
+
+---
+
+## Places
+
+- **The Wren.** An ARK Ltd survey freighter: one main deck (navigation console at the fore,
+  repair station, bunks, storage), Airlock 04 aft, cold-sleep berths in section 4-B (sealed behind
+  the breach). A long spine, four engine pods, stern hex panels. Everything patched.
+- **Kethra's grove.** Five terraces on a Kindling slope: the landing terrace, the grove plaza,
+  the west and east terraces, the chamber approach, joined by ramps. A secret ledge above the west
+  terrace. The Cistern Heart's chamber at the far end. Bioluminescent canopy overhead.
+- **Vessek Anchorage.** About twenty hulls moored around a broken Kindling ring. The oldest,
+  the *Lantern Bay*, is the town hall. Hydroponics in a tanker's cargo hold; a school in a
+  shuttle bay; lights that blink out of sync because every ship's grid is different.
+- **Orrun's Reach.** Storm desert. Kindling relay machines the size of towns, surfacing and
+  burying with the dunes. Storm windows: minutes of calm between walls of sand.
+- **Isilthe.** An ocean moon, ringed, rimmed with ice at the poles. The Choir lies in a chamber
+  under the sea; the repeating signal is loudest at its surface.
+
+---
+
+## Things
+
+- **Resonant crystal.** Kindling-grown; holds a colour and gives it back. Repairs the Wren's
+  navigation and Deep Scanner. Earned from the Cistern Heart (built).
+- **Conduit alloy.** Salvaged ship metal, the Anchorage's currency. Repairs comms, shields and
+  power distribution. Earned at the Anchorage (planned).
+- **Stellar core shard.** A Kindling relay's heart. The only thing that can restart the Wren's
+  hyperdrive core. Earned at Orrun's Reach (planned).
+- **The Ship's Library.** The Wren's reference archive: real science entries that unlock as the
+  player uses the idea. It is how the game teaches without quizzing.
+- **The ledger.** The Anchorage's record of every ship pulled in, with dates. The evidence for
+  the mid-game reversal.
+
+---
+
+## Voice guide (for anyone writing lines)
+
+- **Short.** On-screen lines are at most 12 words; dialogue nodes at most three sentences.
+- **Concrete.** Name the thing: "the valve", "the lower boughs", "Airlock 04", not "the ancient
+  mechanism".
+- **Each faction sounds different.**
+  - *Aiveth:* unhurried, image-first, talk about light and colour as feeling ("a considering
+    colour").
+  - *Anchorage:* practical, joking, counting things (parts, days, people).
+  - *ORION:* numbers, dry.
+  - *Player logs:* first person, understated.
+- **Nobody is a villain.** Every "bad" act has a reason a player could argue for (the traders
+  fed a starving ring).
+- **E for Everyone.** Tension comes from darkness, cold, distance and machines failing. No
+  weapons, no injury.
+- **Avoid:** "in a world where", "little did they know", ancient evils, chosen ones, prophecies,
+  "the balance", empire names ending in -ia or -oth, all-knowing strangers, history lectures, and
+  the word "tapestry".
+
+---
+
 ## Glossary
 
 | Term | Say it | Meaning |
@@ -187,6 +362,12 @@ Anchorage and the Wren), and the player's skills to join the two.
 | White sky | — | What everyone calls a Choir firing |
 | Wickmoth | — | The large, territorial moth that keeps the Heart's inner chamber |
 | Wren | — | The player's ship: an ARK Ltd survey freighter |
+| Carrow, Ines | KAR-oh | The Wren's drive engineer, in cold sleep |
+| Dace | DAYSS | A twelve-year-old duct-crawler on the Anchorage |
+| Ledger, the | — | The Anchorage's record of every ship pulled in |
+| Mbeki, Hollis | em-BEK-ee | The Wren's pilot, in cold sleep |
+| ORION | OH-ry-un | The Wren's computer, named for its Orion Interfaces consoles |
+| Rehearsal | — | A faint Choir pulse between full firings; browns out power, pulls nothing |
 
 ---
 
@@ -198,6 +379,9 @@ Anchorage and the Wren), and the player's skills to join the two.
 3. **What is under Orrun's sand?** The relays are the size of towns. One may still have power.
 4. **Who sold ARK Ltd the nav fragment**, and how did it get out of the Drift when no ship has?
 5. **Does the Wickmoth belong to the Kindling's machines or to Kethra?** It predates the Aiveth.
+6. **Who in the Anchorage led the trip that robbed Kethra, and are they still aboard?** (A level 3
+   choice: expose them, or let Varro handle it.)
+7. **Does the Choir's new song reach the Kindling, wherever they went?** Left open on purpose.
 
 ### Conflicts in existing text, and the reading chosen
 - **"Alone" vs. "the only one aboard awake."** The reveal caption says the player is "stranded,
@@ -225,3 +409,12 @@ Anchorage and the Wren), and the player's skills to join the two.
 - `src/core/GameState.ts`: ship systems and the three repair resources.
 - Ship signage and screens: ARK LTD // ORION INTERFACES, NAV PLOT // ORION APPROACH, SEC 4-B
   BREACH, AIRLOCK 04.
+
+---
+
+## Changelog
+- **2026-09-24** First version: world, history, conflict, factions, player, goal, glossary,
+  open questions.
+- **2026-09-25** Finished the bible: the Choir's rules, level-by-level story for all five
+  worlds (mid-game reversal and ending), full character sheets (ORION and the sleeping crew named),
+  places, things, and a voice guide.
