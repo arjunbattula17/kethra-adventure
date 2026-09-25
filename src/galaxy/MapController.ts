@@ -93,10 +93,11 @@ class MapControllerImpl {
         this.planetImages.set(p.id, img);
       }
     }
-    // Open on the most useful world: somewhere you can go that isn't where you are.
+    // Open on the most useful world: the newest one charted that isn't where you are, which is the
+    // story's next stop. A keyboard player can then Tab to Set Course and press Enter.
     const here = this.currentSceneLocation();
-    this.selectedId =
-      PLANETS.find((p) => this.isUnlocked(p.id) && p.id !== here)?.id ?? here ?? PLANETS[0].id;
+    const unlocked = gameState.data.planetsUnlocked.filter((id) => id !== here);
+    this.selectedId = unlocked[unlocked.length - 1] ?? here ?? PLANETS[0].id;
     this.setActivePlayer(false);
     this.render();
   }
@@ -161,9 +162,14 @@ class MapControllerImpl {
         cancelAnimationFrame(this.rafId);
         this.resizeObserver?.disconnect();
         this.setActivePlayer(true);
+        window.removeEventListener('keydown', this.keys);
       },
       () => this.handleEscape(),
     );
+
+    window.removeEventListener('keydown', this.keys);
+    window.addEventListener('keydown', this.keys);
+    (sidebar.querySelector('.map-btn.primary') as HTMLButtonElement | null)?.focus({ preventScroll: true });
 
     const resize = () => {
       const rect = chart.getBoundingClientRect();
@@ -348,6 +354,15 @@ class MapControllerImpl {
     PanelManager.close();
     bus.emit('galaxy:travel_to', planetId);
   }
+
+  /** Left/Right cycle the worlds on the solar chart: the keyboard's version of clicking one. */
+  private keys = (e: KeyboardEvent) => {
+    if (this.view !== 'solar' || (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight')) return;
+    e.preventDefault();
+    const i = Math.max(0, PLANETS.findIndex((p) => p.id === this.selectedId));
+    const next = PLANETS[(i + (e.code === 'ArrowRight' ? 1 : PLANETS.length - 1)) % PLANETS.length];
+    this.selectWorld(next.id);
+  };
 
   private selectWorld(id: string): void {
     if (this.selectedId === id) return;

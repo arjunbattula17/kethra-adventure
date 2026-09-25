@@ -69,7 +69,8 @@ export interface GameScene {
 
 export class Engine {
   renderer: THREE.WebGLRenderer;
-  clock = new THREE.Clock();
+  // Timer, not Clock: three.js deprecated Clock (it printed a warning on every load).
+  timer = new THREE.Timer();
   private current: GameScene | null = null;
   private rafId = 0;
   private running = false;
@@ -117,7 +118,8 @@ export class Engine {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // PCFShadowMap: three.js r185 deprecated PCFSoftShadowMap and was already substituting this.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     // On by default, and it makes three.js call gl.getProgramInfoLog/getShaderInfoLog for every
     // program it builds — synchronous calls that force a GPU flush purely to report errors. This
     // scene compiles 91 distinct programs on boot and shader compilation is not cached across page
@@ -398,8 +400,9 @@ export class Engine {
       // Low-battery cap: skip this display frame if the last drawn one was under ~30 fps ago.
       if (this.capTo30 && now - this.lastDrawAt < 31) return;
       this.lastDrawAt = now;
-      const dt = Math.min(this.clock.getDelta(), 0.1);
-      const elapsed = this.clock.getElapsedTime();
+      this.timer.update(now);
+      const dt = Math.min(this.timer.getDelta(), 0.1);
+      const elapsed = this.timer.getElapsed();
       if (!this.paused && this.current && !this.contextLost) {
         this.current.update(dt, elapsed);
         this.postFx.render();

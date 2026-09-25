@@ -1,0 +1,18 @@
+[
+  {
+    "browser": "webkit",
+    "steps": {
+      "title": 857,
+      "intro": 17957,
+      "ship": 50598,
+      "kethra": 59403,
+      "vessek": 93712,
+      "result": "reached every level"
+    },
+    "errors": [],
+    "version": "26.5",
+    "gpu": "Apple GPU",
+    "kethraBrightness": 13.6,
+    "vessekBrightness": 12
+  }
+]

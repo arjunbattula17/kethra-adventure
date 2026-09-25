@@ -29,6 +29,9 @@ const ATTRIBUTE_ICON: Record<AttributeKey, string> = {
 class CharacterPanelImpl {
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Tab') {
+      // Inside another panel or on the title, Tab is the keyboard's way between buttons: leave it be.
+      if (document.body.classList.contains('title-open')) return;
+      if (PanelManager.isOpen && PanelManager.activeId !== 'character') return;
       e.preventDefault();
       // Checking activeId (not just isOpen) so Tab switches TO this panel from a different one
       // (e.g. Settings) instead of just closing whatever else happens to be open.

@@ -42,8 +42,8 @@ const setupErr = await page.evaluate(() => {
   // a different point run to run — noise a frame diff cannot distinguish from a real regression.
   // delta 0 also freezes anything integrated per frame rather than computed from elapsed.
   const engine = window.__DEBUG__.engine;
-  engine.clock.getDelta = () => 0;
-  engine.clock.getElapsedTime = () => 12;
+  engine.timer.getDelta = () => 0;
+  engine.timer.getElapsed = () => 12;
   window.__SETVIEW__ = (x, z, yaw, pitch) => {
     const sc = window.__DEBUG__.engine.getCurrentScene();
     sc.player.rig.position.set(x, 0, z);

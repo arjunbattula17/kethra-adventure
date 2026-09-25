@@ -604,7 +604,9 @@ export class VessekScene implements GameScene {
     }
     const tints = [0x9aa1a6, 0x8d7f6b, 0x6f7c85, 0xa3968a, 0x7b8a7f];
 
-    const count = 12;
+    // Eight hulls: each costs about eleven draw calls (one per paint slot), so this is the view's
+    // whole budget on a slow laptop (docs/PERF_LOG.md).
+    const count = 8;
     for (let i = 0; i < count; i++) {
       // Spread around the far side of the ring, where the windows look.
       const angle = Math.PI + 0.75 + i * ((2 * Math.PI - 1.5) / (count - 1)) + (i % 2) * 0.06;

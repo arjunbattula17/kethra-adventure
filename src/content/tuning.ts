@@ -25,6 +25,8 @@ export const PLAYER = {
    * ledge. Jump buffer: a press this long before landing still jumps on touchdown. Neither changes
    * how high or far a jump goes, so the level layouts above are unaffected. */
   COYOTE_TIME: 0.1,
+  /** Keyboard turning speed (radians per second) for playing without a mouse. */
+  TURN_SPEED: 2.2,
   JUMP_BUFFER: 0.12,
   /** How far the camera dips on a hard landing, and how fast it springs back. */
   LAND_DIP: 0.09,

@@ -18,10 +18,12 @@ export interface Binding {
 
 export const BINDINGS = {
   look: { action: 'Look around', keys: ['Mouse'], codes: [], note: 'Click the game first to capture the mouse.' },
+  turnLeft: { action: 'Turn left (no mouse needed)', keys: ['←'], codes: ['ArrowLeft'] },
+  turnRight: { action: 'Turn right (no mouse needed)', keys: ['→'], codes: ['ArrowRight'] },
   forward: { action: 'Move forward', keys: ['W', '↑'], codes: ['KeyW', 'ArrowUp'] },
   back: { action: 'Move back', keys: ['S', '↓'], codes: ['KeyS', 'ArrowDown'] },
-  left: { action: 'Move left', keys: ['A', '←'], codes: ['KeyA', 'ArrowLeft'] },
-  right: { action: 'Move right', keys: ['D', '→'], codes: ['KeyD', 'ArrowRight'] },
+  left: { action: 'Step left', keys: ['A'], codes: ['KeyA'] },
+  right: { action: 'Step right', keys: ['D'], codes: ['KeyD'] },
   sprint: { action: 'Sprint (hold)', keys: ['Shift'], codes: ['ShiftLeft', 'ShiftRight'] },
   jump: { action: 'Jump', keys: ['Space'], codes: ['Space'] },
   crouch: { action: 'Crouch (hold)', keys: ['C', 'Ctrl'], codes: ['KeyC', 'ControlLeft', 'ControlRight'] },
@@ -35,4 +37,4 @@ export const BINDINGS = {
 export type BindingId = keyof typeof BINDINGS;
 
 /** The order the Controls screen and the doc list them in. */
-export const BINDING_ORDER = ['look', 'forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'interact', 'character', 'settings', 'pause', 'skip'];
+export const BINDING_ORDER = ['look', 'turnLeft', 'turnRight', 'forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'interact', 'character', 'settings', 'pause', 'skip'];

@@ -19,7 +19,7 @@ export interface FloorRaycastTarget {
 const {
   EYE_HEIGHT, WALK_SPEED, SPRINT_SPEED, CROUCH_SPEED, PLAYER_RADIUS, PLAYER_HEIGHT,
   STEP_OVER, GRAVITY, JUMP_SPEED, MOUSE_SENSITIVITY, MAX_STEP_UP,
-  COYOTE_TIME, JUMP_BUFFER, LAND_DIP, LAND_RECOVER,
+  COYOTE_TIME, JUMP_BUFFER, LAND_DIP, LAND_RECOVER, TURN_SPEED,
 } = PLAYER;
 
 // Scratch vectors for update(): it runs every frame, so it allocates nothing.
@@ -161,6 +161,10 @@ export class PlayerController {
     this.yaw -= delta.x * MOUSE_SENSITIVITY * PlayerController.sensitivity;
     this.pitch -= delta.y * MOUSE_SENSITIVITY * PlayerController.sensitivity;
     this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
+    // Keyboard-only play: the arrow keys turn. Interaction targets are found by the way the player
+    // faces (InteractionSystem's proximity fallback), so turning is all a keyboard player needs.
+    if (held('turnLeft')) this.yaw += TURN_SPEED * dt;
+    if (held('turnRight')) this.yaw -= TURN_SPEED * dt;
 
     this.rig.rotation.set(0, this.yaw, 0);
     this.camera.rotation.set(this.pitch, 0, 0);

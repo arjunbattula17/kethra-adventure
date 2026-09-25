@@ -125,4 +125,4 @@ document.addEventListener('visibilitychange', () => AudioSystem.setSuspended(doc
 // Switching away mid-play pauses, so the player comes back to a menu rather than a moving game.
 window.addEventListener('blur', () => PauseMenu.request());
 
-(window as any).__DEBUG__ = { engine, flow, gameState, bus, mapController: MapController, levels: ['kethra', 'vessek'] };
+(window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'] };

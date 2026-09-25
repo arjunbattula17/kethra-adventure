@@ -118,8 +118,8 @@ export class TutorialSequence {
     return [
       {
         title: 'Take the Helm',
-        body: 'Click anywhere on the screen to hand mouse control to the ship, then move your mouse to look around the deck.',
-        keys: [{ code: 'Mouse', label: 'MOUSE' }],
+        body: 'Click the screen to take mouse control, then move the mouse to look around the deck. No mouse? The arrow keys turn too.',
+        keys: [{ code: 'Mouse', label: 'Mouse' }, { code: 'ArrowLeft', label: '←' }, { code: 'ArrowRight', label: '→' }],
         objective: 'Get your bearings.',
         hint: 'Left-click the game window first — that is what captures your mouse. Escape releases it again whenever you want.',
         hintAfter: 9,
