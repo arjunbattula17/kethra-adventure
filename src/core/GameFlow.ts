@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Engine } from './Engine';
 import { ShipInteriorScene } from '../ship/ShipInteriorScene';
 import { UIManager } from '../ui/UIManager';
+import { t } from '../content/strings';
 import { gameState } from './GameState';
 import { InputManager } from './InputManager';
 import { bus } from './EventBus';
@@ -50,6 +51,14 @@ export class GameFlow {
   constructor(engine: Engine) {
     this.engine = engine;
     bus.on('galaxy:travel_to', (planetId: string) => this.travelToPlanet(planetId));
+    // The Deep Scanner's repair is what extends the chart: after Kethra, the next world resolves.
+    // Without this the repair changed nothing the player could see, and level 2 ended in a dead end.
+    bus.on('ship:repaired', (key: string) => {
+      if (key !== 'scanner' || gameState.data.planetsUnlocked.includes('vessek')) return;
+      gameState.data.planetsUnlocked.push('vessek');
+      UIManager.toast(t('toast.scanner.resolved'));
+      gameState.setObjective(t('objective.afterScanner'));
+    });
     for (const event of ['ship:repaired', 'level:up', 'log:unlocked', 'clue:added']) {
       bus.on(event, () => SaveSystem.save());
     }

@@ -51,6 +51,7 @@ export const STRINGS = {
   'map.action.back': 'Back to solar chart',
   'map.action.noRange': 'Out of range',
   'map.action.here': 'Already here',
+  'map.action.notReady': 'No landing charts yet',
   'map.legend.surveyed': 'Surveyed world',
   'map.legend.unsurveyed': 'Unresolved contact',
   'map.legend.wren': 'The Wren',
@@ -67,6 +68,10 @@ export const STRINGS = {
   'map.kethra.region.west': 'West terrace',
   'map.kethra.region.east': 'East terrace',
   'map.kethra.region.chamber': 'Chamber approach',
+
+  // Progression.
+  'toast.scanner.resolved': 'Deep Scanner online. A ring of ships resolves at 95 Mkm.',
+  'objective.afterScanner': 'The scanner found a ring of ships near Vessek. Someone out there still has power.',
 
   // Painted signage aboard the Wren.
   'sign.helm.code': 'WREN-01',

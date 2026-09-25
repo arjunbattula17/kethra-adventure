@@ -265,7 +265,7 @@ class MapControllerImpl {
     const actions = document.createElement('div');
     actions.className = 'map-actions';
     const course = this.button(
-      here ? t('map.action.here') : unlocked ? t('map.action.setCourse') : t('map.action.noRange'),
+      here ? t('map.action.here') : !unlocked ? t('map.action.noRange') : TRAVEL_READY.has(p.id) ? t('map.action.setCourse') : t('map.action.notReady'),
       'primary',
       () => this.setCourse(p.id),
     );

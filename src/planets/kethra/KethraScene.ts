@@ -574,8 +574,13 @@ export class KethraScene implements GameScene {
         label: `Read Inscription${idx + 1 <= 3 ? ` ${idx + 1}` : ''}`,
         range: 2.2,
         onInteract: () => {
+          // Rewards land once. Re-reading used to grant archaeology every press, so mashing E on one
+          // pillar could buy every archaeology-gated dialogue option in the grove.
+          const firstRead = !gameState.hasFlag(flagId);
           gameState.setFlag(flagId);
-          if (entry) {
+          if (entry && !firstRead) {
+            UIManager.toast(`Already recorded: ${entry.title}`);
+          } else if (entry) {
             gameState.unlockLog(entry.id);
             gameState.addClue({ id: entry.id, title: entry.title, summary: entry.body.slice(0, 80), source: 'Kethra inscription' });
             gameState.addAttributeXp('archaeology', 1);
@@ -776,7 +781,13 @@ export class KethraScene implements GameScene {
       label: 'Read the Last Kindling Carving',
       range: 2.8,
       onInteract: () => {
-        if (kindlingEntry) {
+        // The flag is what the navigation map's survey checks for this site; it was never set, so
+        // the carving stayed "unexplored" on the map forever. It also gates the insight reward to
+        // the first read (it used to grant insight on every press).
+        if (kindlingEntry && gameState.hasFlag('kethra_kindling_record')) {
+          UIManager.toast(`Already deciphered: ${kindlingEntry.title}`);
+        } else if (kindlingEntry) {
+          gameState.setFlag('kethra_kindling_record');
           gameState.unlockLog(kindlingEntry.id);
           gameState.addClue({ id: kindlingEntry.id, title: kindlingEntry.title, summary: kindlingEntry.body.slice(0, 80), source: 'Deep chamber carving' });
           gameState.addAttributeXp('insight', 1);
