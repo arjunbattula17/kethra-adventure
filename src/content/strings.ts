@@ -68,6 +68,10 @@ export const STRINGS = {
   'map.kethra.region.west': 'West terrace',
   'map.kethra.region.east': 'East terrace',
   'map.kethra.region.chamber': 'Chamber approach',
+  'map.vessek.region.collar': 'Docking collar',
+  'map.vessek.region.concourse': 'Lantern Bay concourse',
+  'map.vessek.region.hydroponics': 'Hydroponics',
+  'map.vessek.region.gallery': 'Breaker gallery',
 
   // Title screen. title.name is the game's working title (DECISIONS D-17): change it here.
   'title.kicker': 'A deep-space survey',
@@ -84,26 +88,23 @@ export const STRINGS = {
   'toast.saveUnreadable': 'Your saved journey could not be read. Starting a new one.',
 
   // Controls screen. Keep in step with the code (README.md has the same list).
-  'controls.look': 'Look around (click the game first)',
-  'controls.move': 'Move (arrow keys work too)',
-  'controls.sprint': 'Sprint',
-  'controls.jump': 'Jump',
-  'controls.crouch': 'Crouch (or Ctrl)',
-  'controls.interact': 'Interact',
-  'controls.character': 'Character sheet',
-  'controls.settings': 'Settings',
-  'controls.close': 'Close a panel / release the mouse',
-  'controls.skip': 'Skip a cinematic (or click)',
-  'controls.note': 'Everything is taught in the first minute of play.',
+  'controls.note': 'The game teaches each of these the first time you need it.',
 
   // Credits. Required attribution for the CC BY assets (ASSET_LICENSES.md).
   'credits.freighter': '"Colored Freighter" by Jacques Fourie, via Poly Pizza (poly.pizza). CC BY 3.0.',
   'credits.planets': 'Planet maps adapted from Solar System Scope textures (solarsystemscope.com), based on NASA imagery. CC BY 4.0.',
   'credits.kits': 'Ship interior and grove models: Modular Sci-Fi MegaKit and Stylized Nature MegaKit by Quaternius (quaternius.com). CC0.',
   'credits.textures': 'Surface textures by Poly Haven (polyhaven.com). CC0.',
-  'credits.font': 'Rajdhani by Indian Type Foundry. SIL Open Font License 1.1.',
+  'credits.font': 'Rajdhani by Indian Type Foundry, and Atkinson Hyperlegible by the Braille Institute of America. Both SIL Open Font License 1.1.',
   'credits.three': 'Rendering by three.js (threejs.org). MIT License.',
-  'credits.original': 'Code, story, sound and procedural art made by TSA team #____.',
+  'credits.original': 'Made by TSA team #____: code, story, characters, sound and procedural art.',
+
+  // The ending (EndingScene): four lines, then the credits.
+  'ending.line.1': 'Every name in the Anchorage ledger, and every log the Wren kept.',
+  'ending.line.2': 'Light carries them now, out past the Kessic Drift.',
+  'ending.line.3': 'Under Isilthe’s sea, the Choir is still singing.',
+  'ending.line.4': 'This time, someone knows how to answer it.',
+  'ending.lede': 'The Wren woke up, learned to read the light of a dead civilisation, and used it to call for help. Isilthe is next.',
 
   // Progression.
   'toast.scanner.resolved': 'Deep Scanner online. A ring of ships resolves at 95 Mkm.',

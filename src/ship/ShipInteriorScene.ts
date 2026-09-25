@@ -60,6 +60,7 @@ export class ShipInteriorScene implements GameScene {
   private noMerge = new Set<THREE.Object3D>();
   private unsubShake: (() => void) | null = null;
   private stopAmbient: (() => void) | null = null;
+  private stopMusic: (() => void) | null = null;
   // Seeded: the emergency light's random spike was the last thing making two runs of the same build
   // render differently, which is what a frame diff has to be able to rule out.
   private flickerRng = mulberry32(0x3e07);
@@ -134,6 +135,8 @@ export class ShipInteriorScene implements GameScene {
     this.player.onFellOut = () => UIManager.toast('Recovered to the deck.');
     this.player.onFootstep = () => AudioSystem.playFootstep('metal');
     this.stopAmbient = AudioSystem.startAmbient(64, 0.035);
+    this.stopMusic = AudioSystem.startMusic('wren');
+    this.player.onLand = (s) => AudioSystem.playLand(s);
 
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
     this.unsubShake = bus.on('player:shake', (amount: number) => this.player.addShake(amount));
@@ -194,6 +197,7 @@ export class ShipInteriorScene implements GameScene {
   dispose(): void {
     this.unsubShake?.();
     this.stopAmbient?.();
+    this.stopMusic?.();
     this.interaction.clear();
     this.animated.length = 0;
     this.scene.traverse((obj) => {

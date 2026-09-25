@@ -5,9 +5,13 @@
 // paths. import.meta.env.BASE_URL is resolved correctly by Vite in every mode.
 // 600 and 700 only: style.css uses var(--font-display) in exactly four places and every one sets
 // font-weight 600 or 700, so the 500 weight was a third of the font payload fetched for nothing.
-const WEIGHTS: Array<[string, number]> = [
-  ['rajdhani-600.woff2', 600],
-  ['rajdhani-700.woff2', 700],
+// Atkinson Hyperlegible is the body face (docs/STYLE_BIBLE.md, Type): regular, italic and bold.
+const FACES: Array<[family: string, file: string, weight: number, style: 'normal' | 'italic']> = [
+  ['Rajdhani', 'rajdhani-600.woff2', 600, 'normal'],
+  ['Rajdhani', 'rajdhani-700.woff2', 700, 'normal'],
+  ['Atkinson Hyperlegible', 'atkinson-400-normal.woff2', 400, 'normal'],
+  ['Atkinson Hyperlegible', 'atkinson-400-italic.woff2', 400, 'italic'],
+  ['Atkinson Hyperlegible', 'atkinson-700-normal.woff2', 700, 'normal'],
 ];
 
 let ready: Promise<void> = Promise.resolve();
@@ -21,10 +25,10 @@ export function displayFontsReady(): Promise<void> {
 export function loadFonts(): void {
   const base = import.meta.env.BASE_URL;
   const loads: Promise<void>[] = [];
-  for (const [file, weight] of WEIGHTS) {
-    // display: 'swap' so headings paint in the fallback stack immediately instead of staying
-    // invisible until the woff2 lands — these three fetches overlap almost the whole boot window.
-    const face = new FontFace('Rajdhani', `url(${base}fonts/${file})`, { weight: String(weight), display: 'swap' });
+  for (const [family, file, weight, style] of FACES) {
+    // display: 'swap' so text paints in the fallback stack immediately instead of staying
+    // invisible until the woff2 lands — these fetches overlap almost the whole boot window.
+    const face = new FontFace(family, `url(${base}fonts/${file})`, { weight: String(weight), style, display: 'swap' });
     loads.push(
       face
         .load()

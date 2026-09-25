@@ -5,6 +5,10 @@ class InputManagerImpl {
   mouseDeltaX = 0;
   mouseDeltaY = 0;
   private lockedElement: HTMLElement | null = null;
+  private programmaticExit = false;
+  private delta = { x: 0, y: 0 };
+  /** The player released the mouse themselves (Esc while it was captured). The pause menu listens. */
+  onUserUnlock: (() => void) | null = null;
 
   init(canvas: HTMLElement): void {
     this.lockedElement = canvas;
@@ -23,7 +27,12 @@ class InputManagerImpl {
     });
 
     document.addEventListener('pointerlockchange', () => {
+      const wasLocked = this.pointerLocked;
       this.pointerLocked = document.pointerLockElement === this.lockedElement;
+      // A browser eats the Esc that releases a captured mouse, so the release itself is the only
+      // signal that the player asked to stop. Releases the game makes (opening a panel) don't count.
+      if (wasLocked && !this.pointerLocked && !this.programmaticExit) this.onUserUnlock?.();
+      this.programmaticExit = false;
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -42,11 +51,13 @@ class InputManagerImpl {
     return this.justPressed.has(code);
   }
 
+  /** Mouse movement since the last call. Returns a shared object: read it before the next call. */
   consumeMouseDelta(): { x: number; y: number } {
-    const d = { x: this.mouseDeltaX, y: this.mouseDeltaY };
+    this.delta.x = this.mouseDeltaX;
+    this.delta.y = this.mouseDeltaY;
     this.mouseDeltaX = 0;
     this.mouseDeltaY = 0;
-    return d;
+    return this.delta;
   }
 
   endFrame(): void {
@@ -54,7 +65,10 @@ class InputManagerImpl {
   }
 
   exitPointerLock(): void {
-    if (document.pointerLockElement) document.exitPointerLock();
+    if (document.pointerLockElement) {
+      this.programmaticExit = true;
+      document.exitPointerLock();
+    }
   }
 
   requestPointerLock(): void {

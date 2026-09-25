@@ -54,7 +54,8 @@ export interface SceneId {
     | 'ship_interior'
     | 'galaxy_reveal'
     | 'galaxy_map'
-    | 'planet_kethra';
+    | 'planet_kethra'
+    | 'planet_vessek';
 }
 
 export interface GameStateData {

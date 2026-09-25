@@ -25,6 +25,8 @@ class PanelManagerImpl {
     this.overlay.appendChild(this.content);
     document.addEventListener('keydown', (e) => {
       if (e.code !== 'Escape' || !this.isOpen) return;
+      // Marked handled, so the pause menu doesn't take the same Esc as a request to open.
+      e.preventDefault();
       if (this.escapeInterceptor) this.escapeInterceptor();
       else this.close();
     });

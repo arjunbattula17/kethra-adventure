@@ -30,7 +30,20 @@ const LOCK_ICON = `<span class="hud-icon"><svg viewBox="0 0 16 16" width="11" he
 class DialogueSystemImpl {
   private tree: DialogueTree | null = null;
   private currentNodeId = '';
+  private choices: (() => void)[] = [];
   onClose: (() => void) | null = null;
+
+  constructor() {
+    // Keyboard-only play: number keys pick an option (1 is the first). Enter works on the focused one.
+    window.addEventListener('keydown', (e) => {
+      if (!this.tree || e.repeat) return;
+      const n = Number(e.key);
+      if (Number.isInteger(n) && n >= 1 && n <= this.choices.length) {
+        e.preventDefault();
+        this.choices[n - 1]();
+      }
+    });
+  }
 
   isActive(): boolean {
     return this.tree !== null;
@@ -88,32 +101,40 @@ class DialogueSystemImpl {
 
     const displayOptions = node.options.length > 0 ? node.options : [{ text: 'End conversation.', next: null } as DialogueOption];
 
+    this.choices = [];
     for (const opt of displayOptions) {
       const btn = document.createElement('button');
       btn.className = 'dialogue-option';
       const locked = opt.requires && gameState.data.attributes[opt.requires.attribute] < opt.requires.min;
+      const label = document.createElement('span');
       if (locked) {
         btn.classList.add('locked');
-        btn.innerHTML = `<span class="tag">${LOCK_ICON}${opt.requires!.attribute} ${opt.requires!.min}+</span>${opt.lockedHint ?? opt.text}`;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="tag">${LOCK_ICON}${opt.requires!.attribute} ${opt.requires!.min}</span>`;
+        label.textContent = opt.lockedHint ?? opt.text;
       } else {
-        if (opt.requires) {
-          btn.innerHTML = `<span class="tag">${opt.requires.attribute}</span>${opt.text}`;
-        } else {
-          btn.textContent = opt.text;
-        }
-        btn.onclick = () => {
-          AudioSystem.playUiClick();
+        const choose = () => {
+          AudioSystem.playConfirm();
           opt.onChoose?.();
           this.goto(opt.next);
         };
+        this.choices.push(choose);
+        btn.innerHTML = `<span class="opt-num">${this.choices.length}</span>${opt.requires ? `<span class="tag">${opt.requires.attribute}</span>` : ''}`;
+        label.textContent = opt.text;
+        btn.onmouseenter = () => AudioSystem.playHover();
+        btn.onclick = choose;
       }
+      btn.appendChild(label);
       options.appendChild(btn);
     }
     panel.appendChild(options);
 
-    PanelManager.open(panel, () => {
+    if (PanelManager.isOpen && PanelManager.activeId === 'dialogue') PanelManager.setContent(panel);
+    else PanelManager.open(panel, () => {
       this.tree = null;
-    });
+      this.choices = [];
+    }, undefined, 'dialogue');
+    (options.querySelector('.dialogue-option:not(.locked)') as HTMLButtonElement | null)?.focus({ preventScroll: true });
   }
 }
 

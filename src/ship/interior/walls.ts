@@ -115,7 +115,7 @@ function groundKitMaterial(mat: THREE.Material): void {
   }
 }
 
-function groundKitPiece(obj: THREE.Object3D): THREE.Object3D {
+export function groundKitPiece(obj: THREE.Object3D): THREE.Object3D {
   obj.traverse((child) => {
     const mesh = child as THREE.Mesh;
     if (!mesh.isMesh) return;

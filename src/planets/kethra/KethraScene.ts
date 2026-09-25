@@ -17,6 +17,9 @@ import { AudioSystem } from '../../audio/AudioSystem';
 import { applyPbr } from '../../core/TextureLibrary';
 import { KitBatcher, kitInstanceBox, jitter, groveRandom, resetGroveRandom } from './kit';
 import { buildKethraColliders } from './collision';
+import { Figure } from '../../characters/Figure';
+import { buildWickmoth, buildCisternHeart, buildLanternBloom, buildShrineStele, tintByLuminance, CANOPY_TINTS } from './grove';
+import type { Wickmoth, CisternHeart, LanternBloom } from './grove';
 
 const DIM_CANOPY_COLOR = new THREE.Color(0x274a3a);
 const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
@@ -45,6 +48,28 @@ const MIN_BOULDER_ZONE = 7;
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(groveRandom() * arr.length)];
+}
+
+/**
+ * Brings the kit's ground flora into Kethra's palette (ART_BIBLE.md): leaves to sea-green, and the
+ * flowers and mushrooms (red, yellow and orange in the pack) to the pale azure and verdant of the
+ * Rite, glowing faintly, so the grove floor makes its own light the way the lore says it does.
+ */
+function retintFlora(built: Map<string, THREE.InstancedMesh[]>): void {
+  for (const meshes of built.values()) {
+    for (const mesh of meshes) {
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      if (mat.name === 'Flowers' || mat.name === 'Mushrooms') {
+        const glow = mat.name === 'Flowers' ? 0x8fd6ff : 0xb7f0c8;
+        tintByLuminance(mat, glow, 1.2);
+        mat.emissive.set(glow);
+        mat.emissiveMap = mat.map;
+        mat.emissiveIntensity = 0.45;
+      } else if (mat.name.startsWith('Leaves')) {
+        tintByLuminance(mat, 0x5fa88c, 1.5);
+      }
+    }
+  }
 }
 
 // Quaternius Stylized Nature MegaKit species pools (see public/models/CREDITS.md and kit.ts).
@@ -136,7 +161,7 @@ function generateFillerTrees(): TreePlacement[] {
  */
 const TERRACE_CAP_INSET = 0.3;
 
-function makeTerrace(width: number, depth: number, x: number, y: number, z: number, color = 0x9a9385): THREE.Group {
+function makeTerrace(width: number, depth: number, x: number, y: number, z: number, color = 0x7d8c86): THREE.Group {
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.02 });
   applyPbr(mat, 'lichen_rock', [width / 3, depth / 3]);
   const group = new THREE.Group();
@@ -187,7 +212,7 @@ function makeRamp(
   to: [number, number],
   width: number,
   cross: number,
-  color = 0x9a9385,
+  color = 0x7d8c86,
 ): THREE.Group {
   const run = to[0] - from[0];
   const rise = to[1] - from[1];
@@ -302,21 +327,21 @@ export class KethraScene implements GameScene {
   /** Mid-points of the connecting ramps, kept clear of scattered boulders — see buildClutter. */
   private rampAnchors: THREE.Vector3[] = [];
   private canopyMats: THREE.MeshStandardMaterial[] = [];
-  private creature: THREE.Mesh;
-  private creatureTime = 0;
-  private mechanismCore!: THREE.Mesh;
-  private mechanismLight!: THREE.PointLight;
-  private waterPool!: THREE.Mesh;
+  private creature: THREE.Object3D;
+  private wickmoth: Wickmoth;
+  private heart!: CisternHeart;
+  private bloom!: LanternBloom;
   private puzzle = new KethraMechanismPuzzle();
+  private warden: Figure | null = null;
+  private archivist: Figure | null = null;
   private unsub: Array<() => void> = [];
   private stopAmbient: (() => void) | null = null;
+  private stopMusic: (() => void) | null = null;
 
   constructor() {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 2, 18));
-    this.creature = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.7, 1),
-      new THREE.MeshStandardMaterial({ color: 0x88e0c8, emissive: 0x3fd9a8, emissiveIntensity: 1.0, roughness: 0.3 }),
-    );
+    this.wickmoth = buildWickmoth();
+    this.creature = this.wickmoth.root;
   }
 
   async init(): Promise<void> {
@@ -360,6 +385,8 @@ export class KethraScene implements GameScene {
     this.player.onFellOut = () => UIManager.toast('You lose your footing and scramble back to the landing terrace.');
     this.player.onFootstep = () => AudioSystem.playFootstep('organic');
     this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
+    this.stopMusic = AudioSystem.startMusic('kethra');
+    this.player.onLand = (s) => AudioSystem.playLand(s);
 
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
     this.unsub.push(bus.on('player:shake', (amount: number) => this.player.addShake(amount)));
@@ -367,7 +394,18 @@ export class KethraScene implements GameScene {
     // Same low-tier canvas budget as the ship interior — see the note there.
     if (getActiveEngine()?.getQualityTier() === 'low') downscaleCanvasTextures(this.scene, 1024);
 
-    this.puzzle.onSolved = () => this.setCanopyBright(true);
+    this.puzzle.onSolved = () => {
+      this.setCanopyBright(true);
+      bus.emit('player:shake', 0.35);
+      window.setTimeout(() => {
+        AudioSystem.playLevelEnd();
+        UIManager.showChapterCard({
+          eyebrow: 'Level 2 complete',
+          title: 'The Heart wakes',
+          lines: ['Light and water climb the terraces again.', '+3 resonant crystal: enough to repair the Wren’s navigation and Deep Scanner.'],
+        });
+      }, 1600);
+    };
     if (gameState.hasFlag('kethra_mechanism_solved')) this.setCanopyBright(true);
 
     gameState.setObjective('Explore Kethra. Speak with the Aiveth and find the true light-sequence.');
@@ -480,47 +518,48 @@ export class KethraScene implements GameScene {
       // here since this is the player's puzzle-progress feedback.
       mat.emissive = DIM_CANOPY_COLOR.clone();
       mat.emissiveIntensity = 0.8;
-      mat.needsUpdate = true;
+      // The kit's leaves come in autumn red (TwistedTree) and summer green; the art bible gives
+      // Kethra's canopy one palette, sea-greens and teals. Tinting by the leaf texture's brightness
+      // keeps every painted leaf cluster while putting both families in that palette.
+      tintByLuminance(mat, CANOPY_TINTS[species.length % CANOPY_TINTS.length]);
       this.canopyMats.push(mat);
     }
   }
 
-  private addNPC(x: number, z: number, bodyColor: number, glowColor: number): THREE.Group {
-    const group = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.4, 1.3, 6, 10),
-      new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.55, metalness: 0.1 }),
-    );
-    body.position.y = 1.05;
-    group.add(body);
-    const marker = new THREE.Mesh(
-      new THREE.SphereGeometry(0.16, 12, 12),
-      new THREE.MeshStandardMaterial({ color: glowColor, emissive: glowColor, emissiveIntensity: 1 }),
-    );
-    marker.position.y = 2.05;
-    group.add(marker);
-    const light = new THREE.PointLight(glowColor, 1.2, 4);
-    light.position.y = 2.05;
-    group.add(light);
-    group.position.set(x, 0.6, z);
-    this.scene.add(group);
-    return group;
-  }
-
   private buildNPCs(): void {
-    const warden = this.addNPC(-3, 3, 0x5a4a6a, 0xd94f6f);
+    // The plaza's walking surface is 0.38 up (TERRACE_TOP); figures stand on it, turned a little
+    // toward the landing path the player arrives by.
+    this.warden = new Figure({
+      kind: 'aiveth', height: 2.25, build: 1.05, seed: 3,
+      skin: 0x2f5a55, garment: 0x283049, trim: 0x70748f, coat: 1.6,
+      glow: { color: 0x6ab8ff, intensity: 1.2 }, prop: 'staff',
+    });
+    this.warden.group.position.set(-3, TERRACE_TOP, 3);
+    this.warden.group.rotation.y = 0.35;
+    // "Wary rather than welcoming": her light starts drawn in and opens as she comes to trust you.
+    this.warden.setGlow(gameState.hasFlag('kethra_warden_trust_1') ? 1 : 0.45);
+    this.scene.add(this.warden.group);
     this.interaction.register({
-      object: warden,
+      object: this.warden.group,
       label: 'Speak with the Warden',
-      range: 2.4,
-      onInteract: () => DialogueSystem.start(WARDEN_DIALOGUE),
+      range: 2.6,
+      onInteract: () => DialogueSystem.start(WARDEN_DIALOGUE, () => {
+        this.warden?.setGlow(gameState.hasFlag('kethra_warden_trust_1') || gameState.hasFlag('kethra_warden_valve_thanks') ? 1 : 0.45);
+      }),
     });
 
-    const archivist = this.addNPC(3, 4, 0x4a6a5a, 0x4fd9c8);
+    this.archivist = new Figure({
+      kind: 'aiveth', height: 2.0, build: 0.95, seed: 7,
+      skin: 0x3a6b5d, garment: 0x3c5642, trim: 0xb3a27a, coat: 1.1,
+      glow: { color: 0x7be0a0, intensity: 1.35 },
+    });
+    this.archivist.group.position.set(3, TERRACE_TOP, 4);
+    this.archivist.group.rotation.y = -0.4;
+    this.scene.add(this.archivist.group);
     this.interaction.register({
-      object: archivist,
+      object: this.archivist.group,
       label: 'Speak with the Archivist',
-      range: 2.4,
+      range: 2.6,
       onInteract: () => DialogueSystem.start(ARCHIVIST_DIALOGUE),
     });
   }
@@ -629,19 +668,11 @@ export class KethraScene implements GameScene {
       },
     });
 
-    const shrineMat = new THREE.MeshStandardMaterial({ color: 0x4a3a5a, emissive: 0x8a6ad9, emissiveIntensity: 0.5, roughness: 0.6 });
-    applyPbr(shrineMat, 'lichen_rock', [1, 1.5]);
+    const shrineMat = new THREE.MeshStandardMaterial({ color: 0x75857f, roughness: 0.9, flatShading: true });
     // Same fix as valveGroup above: the group holds the world position, children are relative.
-    const shrineGroup = new THREE.Group();
-    shrineGroup.position.set(-1.5, 0, 5);
-    const shrineBase = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.62, 0.2, 12), shrineMat);
-    shrineBase.position.set(0, 0.1, 0);
-    const shrineShaft = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.2, 6), shrineMat);
-    shrineShaft.position.set(0, 0.8, 0);
-    const shrineCapMat = new THREE.MeshStandardMaterial({ color: 0x8a6ad9, emissive: 0x8a6ad9, emissiveIntensity: 1.1, roughness: 0.25, metalness: 0.2 });
-    const shrineCap = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), shrineCapMat);
-    shrineCap.position.set(0, 1.55, 0);
-    shrineGroup.add(shrineBase, shrineShaft, shrineCap);
+    const shrineGroup = buildShrineStele(shrineMat, buildRuneTexture(9));
+    shrineGroup.position.set(-1.5, TERRACE_TOP, 5);
+    shrineGroup.rotation.y = 0.5;
     this.scene.add(shrineGroup);
     const shrineEntry = KETHRA_LORE_ENTRIES.find((l) => l.id === 'kethra_ritual_record');
     this.interaction.register({
@@ -659,100 +690,56 @@ export class KethraScene implements GameScene {
   }
 
   private buildCreatureArea(): void {
-    this.creature.position.set(0, 2.4, -11);
+    this.creature.position.set(0, 2.4, -11.5);
     this.scene.add(this.creature);
-    const creatureLight = new THREE.PointLight(0x3fd9a8, 0.9, 6);
-    this.creature.add(creatureLight);
-    const creatureCore = new THREE.Mesh(
-      new THREE.SphereGeometry(0.32, 10, 10),
-      new THREE.MeshStandardMaterial({ color: 0xd9fff0, emissive: 0xaef5da, emissiveIntensity: 1.4, roughness: 0.15 }),
-    );
-    this.creature.add(creatureCore);
 
-    const grovePlant = new THREE.Mesh(
-      new THREE.SphereGeometry(1.1, 12, 12),
-      new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 0.9 }),
-    );
-    grovePlant.position.set(-4, 2.5, -10);
-    grovePlant.userData.dormant = false;
-    this.scene.add(grovePlant);
-    const groveLight = new THREE.PointLight(0x3fd98a, 1, 7);
-    grovePlant.add(groveLight);
+    // The lantern bloom at the chamber approach's west edge: its open cup is the light that keeps
+    // the Wickmoth awake. Closing it is how the player quiets the guardian.
+    this.bloom = buildLanternBloom();
+    this.bloom.root.position.set(-3.1, 1.48, -10.4);
+    this.bloom.root.rotation.y = 0.6;
+    this.bloom.setClosed(gameState.hasFlag('kethra_grove_dimmed'));
+    this.scene.add(this.bloom.root);
 
     this.interaction.register({
-      object: grovePlant,
-      label: () => (gameState.hasFlag('kethra_grove_dimmed') ? 'Restore the Grove Light' : 'Dim the Grove Light'),
-      range: 2.4,
+      object: this.bloom.root,
+      label: () => (gameState.hasFlag('kethra_grove_dimmed') ? 'Open the lantern bloom' : 'Close the lantern bloom'),
+      range: 2.6,
       onInteract: () => {
         const dimmed = gameState.hasFlag('kethra_grove_dimmed');
         if (dimmed) {
           gameState.data.flags = gameState.data.flags.filter((f) => f !== 'kethra_grove_dimmed');
-          (grovePlant.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.9;
-          groveLight.intensity = 1;
-          UIManager.toast('The grove light returns. The guardian stirs.');
+          this.bloom.setClosed(false);
+          UIManager.toast('The bloom opens. The Wickmoth stirs and lifts off.');
         } else {
           gameState.setFlag('kethra_grove_dimmed');
-          (grovePlant.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.15;
-          groveLight.intensity = 0.15;
-          UIManager.toast('The grove dims. The guardian grows still and drowsy.');
+          this.bloom.setClosed(true);
+          UIManager.toast('You fold the petals shut. In the dimness, the Wickmoth settles.');
         }
       },
     });
   }
 
   private buildMechanismChamber(): void {
-    this.mechanismCore = new THREE.Mesh(
-      new THREE.OctahedronGeometry(1.3, 0),
-      new THREE.MeshStandardMaterial({ color: 0x8a7bd9, emissive: 0x5a4fd9, emissiveIntensity: 1.2, roughness: 0.2, metalness: 0.4 }),
-    );
-    this.mechanismCore.position.set(0, 2.2, -18);
-    this.scene.add(this.mechanismCore);
+    // Kindling-cut stone: flat-shaded and untextured, because a tiled rock map smears into stripes
+    // across extruded shapes, which made the vanes read as planks.
+    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x75857f, roughness: 0.9, flatShading: true });
+    this.heart = buildCisternHeart(stoneMat);
+    this.heart.root.position.set(0, 1.48, -18.2);
+    this.scene.add(this.heart.root);
 
-    this.mechanismLight = new THREE.PointLight(0x8a7bd9, 2.5, 10);
-    this.mechanismLight.position.copy(this.mechanismCore.position);
-    this.scene.add(this.mechanismLight);
-
-    this.waterPool = new THREE.Mesh(
-      new THREE.RingGeometry(1.6, 3.4, 32),
-      new THREE.MeshStandardMaterial({
-        color: 0x3f7fb0,
-        emissive: 0x2a5f8a,
-        emissiveIntensity: 0.3,
-        roughness: 0.15,
-        metalness: 0.6,
-        transparent: true,
-        opacity: 0.12,
-      }),
-    );
-    this.waterPool.rotation.x = -Math.PI / 2;
-    this.waterPool.position.set(0, 1.42, -18);
-    this.scene.add(this.waterPool);
-
-    const consoleMat = new THREE.MeshStandardMaterial({ color: 0x2a2438, roughness: 0.5, metalness: 0.3 });
-    applyPbr(consoleMat, 'metal_plate_02', [1, 1]);
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0x3a3448, roughness: 0.4, metalness: 0.4 });
-    applyPbr(panelMat, 'metal_plate', [0.6, 0.6]);
-
-    const consoleGroup = new THREE.Group();
-    const housing = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 0.8), consoleMat);
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.55, 0.1), panelMat);
-    panel.position.set(0, 0.15, 0.44);
-    panel.rotation.x = -0.25;
-    const trimL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.02, 0.82), panelMat);
-    trimL.position.set(-0.78, 0, 0);
-    const trimR = trimL.clone();
-    trimR.position.set(0.78, 0, 0);
-    consoleGroup.add(housing, panel, trimL, trimR);
-    consoleGroup.position.set(0, 1.9, -16);
+    // The call-stone faces the player coming up the approach; it is where the Rite is sung.
+    const consoleGroup = this.heart.callStone;
+    consoleGroup.position.set(0, 1.48, -14.9);
     this.scene.add(consoleGroup);
 
     this.interaction.register({
       object: consoleGroup,
-      label: 'Access the Cistern Heart',
+      label: 'Sing the Rite at the call-stone',
       range: 3,
       onInteract: () => {
         if (!gameState.hasFlag('kethra_grove_dimmed') && !gameState.hasFlag('kethra_mechanism_solved')) {
-          UIManager.toast('The guardian is too alert to risk this now. Something nearby keeps it awake.');
+          UIManager.toast('The Wickmoth circles the call-stone. Something bright nearby keeps it awake.');
           return;
         }
         this.puzzle.open();
@@ -889,6 +876,7 @@ export class KethraScene implements GameScene {
     for (const [species, meshes] of built) {
       if (ROCKS_BIG.includes(species) && meshes[0]) meshes[0].userData.collides = true;
     }
+    retintFlora(built);
   }
 
   private async buildClutter(): Promise<void> {
@@ -953,6 +941,7 @@ export class KethraScene implements GameScene {
     for (const [species, meshes] of built) {
       if (ROCKS_BIG.includes(species) && meshes[0]) meshes[0].userData.collides = true;
     }
+    retintFlora(built);
   }
 
   private buildAtmosphere(): void {
@@ -1041,7 +1030,8 @@ export class KethraScene implements GameScene {
       const box = await kitInstanceBox(t.species, new THREE.Vector3(...t.position), t.yaw, t.scale);
       boxes.push(box);
     }
-    boxes.push(makeCollider(0, -18, 1, 1, 3.5));
+    // The Heart's basin and plinth: one box, since the basin is a ring the player shouldn't wade into.
+    boxes.push(makeCollider(0, -18.2, 2.45, 2.45, 2.2));
     // The creature drifts on its own path every frame (see update()), so a box baked from where it
     // happens to be at load would block empty air a second later.
     boxes.push(...buildKethraColliders(this.scene, { floorMeshes: this.floorMeshes, animated: [this.creature] }));
@@ -1054,31 +1044,20 @@ export class KethraScene implements GameScene {
       mat.emissive.copy(target);
       mat.emissiveIntensity = bright ? 1.8 : 0.8;
     }
-    const waterMat = this.waterPool.material as THREE.MeshStandardMaterial;
-    waterMat.opacity = bright ? 0.55 : 0.12;
-    waterMat.emissiveIntensity = bright ? 0.9 : 0.3;
+    this.heart.setAwake(bright);
   }
 
   update(dt: number, elapsed: number): void {
     this.player.update(dt);
     this.interaction.update(this.camera);
+    const eye = this.player.getWorldPosition();
+    this.warden?.update(dt, elapsed, eye);
+    this.archivist?.update(dt, elapsed, eye);
 
-    this.creatureTime += dt;
     const dormant = gameState.hasFlag('kethra_grove_dimmed') || gameState.hasFlag('kethra_mechanism_solved');
-    const mat = this.creature.material as THREE.MeshStandardMaterial;
-    if (dormant) {
-      mat.emissiveIntensity = 0.4;
-      this.creature.position.y = 2.0 + Math.sin(this.creatureTime * 0.5) * 0.05;
-    } else {
-      mat.emissiveIntensity = 1.0 + Math.sin(elapsed * 3) * 0.25;
-      this.creature.position.x = Math.sin(this.creatureTime * 0.6) * 4;
-      this.creature.position.y = 2.4 + Math.sin(this.creatureTime * 1.4) * 0.3;
-    }
-
-    this.mechanismCore.rotation.y += dt * 0.4;
-    this.mechanismLight.intensity = gameState.hasFlag('kethra_mechanism_solved')
-      ? 4 + Math.sin(elapsed * 2) * 0.5
-      : 2.5;
+    this.wickmoth.update(dt, elapsed, dormant);
+    this.bloom.update(dt, elapsed);
+    this.heart.update(dt, elapsed);
 
     const motes = this.scene.getObjectByName('motes') as THREE.Points | undefined;
     if (motes) motes.rotation.y += dt * 0.01;
@@ -1092,6 +1071,7 @@ export class KethraScene implements GameScene {
   dispose(): void {
     for (const u of this.unsub) u();
     this.stopAmbient?.();
+    this.stopMusic?.();
     this.interaction.clear();
     this.scene.traverse((obj) => {
       // Kit-sourced InstancedMesh geometries are shared, cached templates (src/planets/kethra/kit.ts)

@@ -21,6 +21,14 @@ export const PLAYER = {
   JUMP_SPEED: 6,
   MOUSE_SENSITIVITY: 0.0022,
   MAX_STEP_UP: 0.45,
+  /** Forgiveness windows (seconds). Coyote time: a jump still works this long after walking off a
+   * ledge. Jump buffer: a press this long before landing still jumps on touchdown. Neither changes
+   * how high or far a jump goes, so the level layouts above are unaffected. */
+  COYOTE_TIME: 0.1,
+  JUMP_BUFFER: 0.12,
+  /** How far the camera dips on a hard landing, and how fast it springs back. */
+  LAND_DIP: 0.09,
+  LAND_RECOVER: 9,
 } as const;
 
 /**

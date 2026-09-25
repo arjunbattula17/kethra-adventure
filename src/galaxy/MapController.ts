@@ -10,6 +10,7 @@ import type { PlanetDefinition } from './planetData';
 import { STRINGS, format, t } from '../content/strings';
 import type { StringKey } from '../content/strings';
 import { KETHRA_MAP } from '../planets/kethra/kethraMapData';
+import { VESSEK_MAP } from '../planets/vessek/vessekMapData';
 import type { PlanetMapConfig, PlanetMapPoi, PoiKind } from '../planets/PlanetMapData';
 
 /**
@@ -24,9 +25,10 @@ import type { PlanetMapConfig, PlanetMapPoi, PoiKind } from '../planets/PlanetMa
 
 const PLANET_MAPS: Record<string, PlanetMapConfig> = {
   kethra: KETHRA_MAP,
+  vessek: VESSEK_MAP,
 };
 /** Worlds GameFlow.travelToPlanet can actually take the player to. */
-const TRAVEL_READY = new Set(['kethra']);
+const TRAVEL_READY = new Set(['kethra', 'vessek']);
 
 interface HitTarget {
   x: number;
@@ -114,8 +116,9 @@ class MapControllerImpl {
   /** Which world the player is standing on in the live 3D game, if any (distinct from the chart
    * being browsed). */
   private currentSceneLocation(): string | null {
-    const scene = getActiveEngine()?.getCurrentScene();
-    if (scene && 'onDepart' in scene) return 'kethra';
+    const kind = (getActiveEngine()?.getCurrentScene() as { kind?: string } | null)?.kind;
+    if (kind === 'KethraScene') return 'kethra';
+    if (kind === 'VessekScene') return 'vessek';
     return null;
   }
 

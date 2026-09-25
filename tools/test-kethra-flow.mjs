@@ -87,8 +87,9 @@ s = await state();
 check('valve realigned', s.flags.includes('kethra_helped_with_valve'));
 check('shrine record in the journal', s.journalLogs.some((l) => l.id === 'kethra_ritual_record' && l.unlocked));
 
-// 5. The Heart is guarded until the grove is dimmed.
-await teleport(0, 1.4, -15.5);
+// 5. The Heart is guarded until the grove is dimmed. The call-stone stands at z -14.9, facing the
+// approach; the player sings the Rite from in front of it.
+await teleport(0, 1.4, -12.8);
 await pressE();
 check('Cistern Heart refused while the guardian is alert', !(await page.$('#power-puzzle-panel')));
 await teleport(-4, 2.4, -9);
@@ -96,11 +97,11 @@ await pressE();
 check('grove dimmed', (await state()).flags.includes('kethra_grove_dimmed'));
 
 // 6. Solve the Heart with the true order read from the inscriptions.
-await teleport(0, 1.4, -15.5);
+await teleport(0, 1.4, -12.8);
 await pressE();
 check('Cistern Heart panel opens', !!(await page.$('#power-puzzle-panel')));
 for (const label of ['Azure', 'Amber', 'Verdant']) {
-  await page.evaluate((lbl) => [...document.querySelectorAll('.power-node')].find((n) => n.textContent.includes(lbl))?.click(), label);
+  await page.evaluate((lbl) => [...document.querySelectorAll('.rite-node')].find((n) => n.textContent.includes(lbl))?.click(), label);
   await page.waitForTimeout(300);
 }
 await page.waitForTimeout(600);

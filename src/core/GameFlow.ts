@@ -12,6 +12,14 @@ import { CONSOLE_SEAT, MONITOR_ANCHOR } from '../ship/interior/console';
 import { AudioSystem } from '../audio/AudioSystem';
 import { CoursePlot } from '../ship/CoursePlot';
 import { ShipLibrary } from '../journal/shipLibrary';
+import { PanelManager } from '../ui/PanelManager';
+import type { GameScene } from './Engine';
+
+/** The levels a player travels to, with the card that names each one on arrival. */
+const LEVELS: Record<string, { number: number; title: string; line: string }> = {
+  kethra: { number: 2, title: 'Kethra', line: 'Terraced ruins under a dimming canopy. Someone lives here.' },
+  vessek: { number: 3, title: 'Vessek Anchorage', line: 'Twenty-one stranded ships and one very old ring.' },
+};
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -48,9 +56,19 @@ export class GameFlow {
   /** Interior scene being prepared behind the intro cinematic; consumed at the handover. */
   private pendingShip: Promise<ShipInteriorScene> | null = null;
 
+  /** The save as it stood when the player entered the current level: "Restart this level" returns here. */
+  private levelSnapshot: { planetId: string; json: string } | null = null;
+  private inLevel: string | null = null;
+
   constructor(engine: Engine) {
     this.engine = engine;
     bus.on('galaxy:travel_to', (planetId: string) => this.travelToPlanet(planetId));
+    // Long-range comms is the last repair the Anchorage's alloy pays for, and the one that lets the
+    // ledger go home: repairing it is what opens the ending.
+    bus.on('ship:repaired', (key: string) => {
+      if (key === 'communications' && gameState.hasFlag('vessek_alloy_given')) window.setTimeout(() => this.offerTransmit(), 900);
+    });
+    bus.on('ui:transmit', () => this.requestTransmit());
     // The Deep Scanner's repair is what extends the chart: after Kethra, the next world resolves.
     // Without this the repair changed nothing the player could see, and level 2 ended in a dead end.
     bus.on('ship:repaired', (key: string) => {
@@ -65,39 +83,144 @@ export class GameFlow {
   }
 
   private async travelToPlanet(planetId: string): Promise<void> {
-    if (planetId !== 'kethra') {
+    const level = LEVELS[planetId];
+    if (!level) {
       UIManager.toast('Scanner range insufficient for that destination.');
       return;
     }
     await UIManager.fadeToBlack();
-    // Loaded on demand. Kethra and the galaxy reveal are each entered at most once per session and
-    // only from behind a fade-to-black, so their code (and the nature kit's loaders and the reveal's
-    // shaders with it) has no reason to sit in the chunk that has to arrive before the ship interior
-    // can render. The await lands inside the fade, where a first-visit fetch is invisible.
-    let KethraScene;
+    // Loaded on demand. Each level is entered from behind the transition, so its code (and the kit
+    // loaders and shaders that come with it) has no reason to sit in the chunk that has to arrive
+    // before the ship interior can render. The await lands behind the cover, where a first-visit
+    // fetch is invisible.
+    let scene: GameScene & { onDepart: (() => void) | null };
     try {
-      ({ KethraScene } = await import('../planets/kethra/KethraScene'));
+      UIManager.showLoading();
+      UIManager.setLoadingProgress(0.15, `Charting ${level.title}`);
+      if (planetId === 'kethra') {
+        const { KethraScene } = await import('../planets/kethra/KethraScene');
+        scene = new KethraScene();
+      } else {
+        const { VessekScene } = await import('../planets/vessek/VessekScene');
+        scene = new VessekScene();
+      }
     } catch {
       // A chunk that fails to arrive (stale deploy, dropped connection) would otherwise reject with
-      // no handler, and the fade above has already blacked the screen — the player would be left
-      // staring at nothing with no way out. Come back up and stay on the ship.
+      // no handler, and the cover is already down — the player would be left staring at nothing
+      // with no way out. Come back up and stay on the ship.
+      UIManager.hideLoading();
       await UIManager.fadeFromBlack();
-      UIManager.toast('Navigation data unavailable. Check your connection and try again.');
+      UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
       return;
     }
-    const kethra = new KethraScene();
-    kethra.onDepart = () => this.returnFromPlanet();
-    await this.engine.setScene(() => kethra);
+    scene.onDepart = () => this.returnFromPlanet();
+    this.levelSnapshot = { planetId, json: gameState.toJSON() };
+    this.inLevel = planetId;
+    UIManager.setLoadingProgress(0.45, `Building ${level.title}`);
+    await this.engine.setScene(() => scene);
+    UIManager.setLoadingProgress(1, '');
+    UIManager.hideLoading();
+    AudioSystem.playLevelStart();
     await UIManager.fadeFromBlack();
+    UIManager.showChapterCard({ eyebrow: `Level ${level.number}`, title: level.title, lines: [level.line] });
+    SaveSystem.save();
+  }
+
+  /** Pause menu: put the save back to how it was on arrival, and enter the level again. */
+  async restartLevel(): Promise<void> {
+    if (!this.levelSnapshot) return;
+    const { planetId, json } = this.levelSnapshot;
+    gameState.loadFrom(json);
+    await this.travelToPlanet(planetId);
+  }
+
+  canRestartLevel(): boolean {
+    return this.inLevel !== null;
   }
 
   private async returnFromPlanet(): Promise<void> {
     await UIManager.fadeToBlack();
+    this.inLevel = null;
+    this.levelSnapshot = null;
     this.shipScene = new ShipInteriorScene();
     await this.engine.setScene(() => this.shipScene!);
     await UIManager.fadeFromBlack();
-    gameState.setObjective('Repair the ship, or chart a course to explore further.');
+    gameState.setObjective(this.shipObjective());
     SaveSystem.save();
+  }
+
+  /** What to do aboard the Wren, from how far the story has got. */
+  private shipObjective(): string {
+    if (gameState.hasFlag('ending_seen')) return 'The ledger is on its way home. Explore, or chart a course.';
+    if (gameState.hasFlag('vessek_alloy_given')) return 'Repair long-range comms with the Anchorage’s alloy (repair station, right of the airlock).';
+    if (gameState.data.planetsUnlocked.includes('vessek')) return 'Chart a course to the ring of ships at Vessek.';
+    if (gameState.hasFlag('kethra_mechanism_solved')) return 'Use the resonant crystal to repair the Deep Scanner.';
+    return 'Repair the ship, or chart a course to explore further.';
+  }
+
+  /**
+   * The moment comms come back: the player chooses to send the ledger, and the ending plays. A
+   * panel rather than an automatic cutscene, so the last act of the story is the player's.
+   */
+  private offerTransmit(): void {
+    if (gameState.hasFlag('ending_seen')) return;
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.style.width = 'min(520px, 92vw)';
+    panel.innerHTML = `<div class="eyebrow">Long-range comms online</div><h2>Send the ledger home?</h2>
+      <p>Sixty years of names from the Anchorage, the Wren's own logs, and a warning about the white sky. It will take the signal a long time to reach anyone. It will get there.</p>
+      <div class="pause-actions" style="display:flex;gap:8px;margin-top:18px"></div>`;
+    const actions = panel.querySelector('.pause-actions') as HTMLElement;
+    const send = document.createElement('button');
+    send.className = 'btn primary';
+    send.textContent = 'Transmit';
+    send.onclick = () => {
+      AudioSystem.playConfirm();
+      PanelManager.close();
+      void this.playEnding();
+    };
+    const later = document.createElement('button');
+    later.className = 'btn secondary';
+    later.textContent = 'Not yet';
+    later.onclick = () => {
+      PanelManager.close();
+      gameState.setObjective('Transmit the ledger from the repair station when you’re ready.');
+    };
+    actions.append(send, later);
+    PanelManager.open(panel, undefined, undefined, 'transmit');
+    send.focus();
+  }
+
+  /** Reopens the transmit choice; the repair station offers it once comms are fixed. */
+  requestTransmit(): void {
+    if (gameState.data.shipSystems.communications.repaired && gameState.hasFlag('vessek_alloy_given')) this.offerTransmit();
+  }
+
+  private async playEnding(): Promise<void> {
+    await UIManager.fadeToBlack();
+    let EndingScene;
+    try {
+      ({ EndingScene } = await import('../galaxy/EndingScene'));
+    } catch {
+      gameState.setFlag('ending_seen');
+      await UIManager.fadeFromBlack();
+      UIManager.toast('Transmission sent.', 'learn');
+      return;
+    }
+    const ending = new EndingScene();
+    ending.onDone = () => void this.finishEnding();
+    await this.engine.setScene(() => ending);
+    await UIManager.fadeFromBlack();
+  }
+
+  private async finishEnding(): Promise<void> {
+    gameState.setFlag('ending_seen');
+    SaveSystem.save();
+    await UIManager.fadeToBlack();
+    this.shipScene = new ShipInteriorScene();
+    await this.engine.setScene(() => this.shipScene!);
+    await UIManager.fadeFromBlack();
+    gameState.setObjective(this.shipObjective());
   }
 
   async start(): Promise<void> {
@@ -375,6 +498,12 @@ export class GameFlow {
   }
 
   private async finishReturnToShip(): Promise<void> {
+    if (gameState.hasFlag('kethra_mechanism_solved') || gameState.hasFlag('vessek_pulse')) {
+      // A continued save from later in the story: say where things stand, not the opening's list.
+      gameState.setObjective(this.shipObjective());
+      SaveSystem.save();
+      return;
+    }
     gameState.setObjective('Review the travel logs, repair the ship, and chart a course to Kethra.');
     UIManager.toast('Travel Logs restored.');
     await wait(1300);

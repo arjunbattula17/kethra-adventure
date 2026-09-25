@@ -16,6 +16,7 @@ import { SaveSystem } from './core/SaveSystem';
 import { AudioSystem } from './audio/AudioSystem';
 import { setActiveEngine } from './core/EngineRegistry';
 import { TitleScreen } from './ui/TitleScreen';
+import { PauseMenu } from './ui/PauseMenu';
 import { t } from './content/strings';
 
 
@@ -51,7 +52,7 @@ SettingsPanel.init();
 const params = new URLSearchParams(location.search);
 // The test and capture tools boot with these flags and skip the title screen; so does New Game
 // from the title itself, which reboots with ?newGame=1 when a save is loaded.
-const bootFlags = ['newGame', 'skipIntro', 'skipTutorial', 'unlockKethra'].some((k) => params.has(k));
+const bootFlags = ['newGame', 'skipIntro', 'skipTutorial', 'unlockKethra', 'unlockVessek'].some((k) => params.has(k));
 // load() returns false on unreadable JSON. It used to be called for its side effect and the success
 // toast shown regardless, so a corrupt save told the player their journey had been restored and
 // then dropped them into a fresh game. The toast now waits for the player to press Continue.
@@ -80,7 +81,25 @@ if (params.get('unlockKethra')) {
   if (!gameState.data.planetsUnlocked.includes('kethra')) gameState.data.planetsUnlocked.push('kethra');
 }
 
+// ?unlockVessek: a save as it would stand after level 2 (the Heart woken, the Deep Scanner fixed),
+// for the harnesses in tools/ that test level 3 without replaying levels 1 and 2.
+if (params.get('unlockVessek')) {
+  for (const f of ['galaxy_revealed', 'logs_available', 'damage_assessed', 'kethra_mechanism_solved', 'kethra_warden_met']) gameState.setFlag(f);
+  for (const p of ['kethra', 'vessek']) if (!gameState.data.planetsUnlocked.includes(p)) gameState.data.planetsUnlocked.push(p);
+  gameState.data.shipSystems.scanner.repaired = true;
+  gameState.data.shipSystems.scanner.damaged = false;
+}
+
 const flow = new GameFlow(engine);
+PauseMenu.init({
+  canPause: () => !document.body.classList.contains('title-open') && !document.body.classList.contains('ending-open') && !UIManager.isCinematic() && !!engine.getCurrentScene(),
+  canRestart: () => flow.canRestartLevel(),
+  restartLevel: () => void flow.restartLevel(),
+  quitToTitle: () => {
+    SaveSystem.save();
+    location.assign(location.pathname);
+  },
+});
 if (bootFlags) {
   if (savedJourney === 'loaded') UIManager.toast(t('toast.continue'));
   flow.start();
@@ -103,4 +122,4 @@ if (bootFlags) {
 }
 if (savedJourney === 'unreadable') UIManager.toast(t('toast.saveUnreadable'));
 
-(window as any).__DEBUG__ = { engine, flow, gameState, bus, mapController: MapController };
+(window as any).__DEBUG__ = { engine, flow, gameState, bus, mapController: MapController, levels: ['kethra', 'vessek'] };

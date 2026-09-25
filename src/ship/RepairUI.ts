@@ -3,6 +3,7 @@ import { gameState } from '../core/GameState';
 import { bus } from '../core/EventBus';
 import { PanelManager } from '../ui/PanelManager';
 import { UIManager } from '../ui/UIManager';
+import { AudioSystem } from '../audio/AudioSystem';
 
 const ICON_DONE = `<span class="hud-icon"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"/></svg></span>`;
 const ICON_READY = `<span class="hud-icon"><svg viewBox="0 0 16 16" width="10" height="10"><circle cx="8" cy="8" r="4" fill="currentColor"/></svg></span>`;
@@ -22,9 +23,12 @@ class RepairUIImpl {
     panel.className = 'panel';
     panel.id = 'repair-panel';
 
+    const eyebrow = document.createElement('div');
+    eyebrow.className = 'eyebrow';
+    eyebrow.textContent = 'The Wren';
     const heading = document.createElement('h2');
-    heading.textContent = 'Ship Repair Interface';
-    panel.appendChild(heading);
+    heading.textContent = 'Ship repair';
+    panel.append(eyebrow, heading);
 
     const sub = document.createElement('div');
     sub.className = 'subtitle';
@@ -59,11 +63,14 @@ class RepairUIImpl {
       barTrack.appendChild(barFill);
 
       const btn = document.createElement('button');
-      btn.textContent = sys.repaired ? 'Repaired' : 'Repair';
-      btn.disabled = sys.repaired || !gameState.canRepair(key);
+      btn.className = ready ? 'btn primary' : 'btn secondary';
+      btn.textContent = sys.repaired ? 'Online' : 'Repair';
+      btn.disabled = sys.repaired || !ready;
+      if (!sys.repaired && !ready && sys.requiredResource) btn.title = `Needs ${sys.requiredAmount - sys.haveAmount} more ${formatResource(sys.requiredResource)}`;
       btn.onclick = () => {
         if (gameState.repairSystem(key)) {
-          UIManager.toast(`${sys.label} repaired.`);
+          AudioSystem.playSuccess();
+          UIManager.toast(`${sys.label} repaired.`, 'learn');
           this.render();
         }
       };
@@ -75,9 +82,18 @@ class RepairUIImpl {
       panel.appendChild(row);
     }
 
+    if (gameState.data.shipSystems.communications.repaired && gameState.hasFlag('vessek_alloy_given') && !gameState.hasFlag('ending_seen')) {
+      const send = document.createElement('button');
+      send.className = 'btn primary';
+      send.style.marginTop = '16px';
+      send.textContent = 'Transmit the Anchorage ledger';
+      send.onclick = () => bus.emit('ui:transmit');
+      panel.appendChild(send);
+    }
+
     const hint = document.createElement('div');
-    hint.className = 'close-hint';
-    hint.textContent = 'ESC to close';
+    hint.className = 'panel-foot';
+    hint.innerHTML = '<span class="keycap">Esc</span> close';
     panel.appendChild(hint);
 
     PanelManager.open(panel);

@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { InputManager } from '../core/InputManager';
 import { PLAYER } from '../content/tuning';
+import { BINDINGS } from '../content/controls';
+import type { BindingId } from '../content/controls';
+
+const held = (id: BindingId) => BINDINGS[id].codes.some((c) => InputManager.isDown(c));
+const pressed = (id: BindingId) => BINDINGS[id].codes.some((c) => InputManager.wasJustPressed(c));
 
 export interface ColliderBox {
   box: THREE.Box3;
@@ -14,7 +19,17 @@ export interface FloorRaycastTarget {
 const {
   EYE_HEIGHT, WALK_SPEED, SPRINT_SPEED, CROUCH_SPEED, PLAYER_RADIUS, PLAYER_HEIGHT,
   STEP_OVER, GRAVITY, JUMP_SPEED, MOUSE_SENSITIVITY, MAX_STEP_UP,
+  COYOTE_TIME, JUMP_BUFFER, LAND_DIP, LAND_RECOVER,
 } = PLAYER;
+
+// Scratch vectors for update(): it runs every frame, so it allocates nothing.
+const _up = new THREE.Vector3(0, 1, 0);
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _moveDir = new THREE.Vector3();
+const _desired = new THREE.Vector3();
+const _rayOrigin = new THREE.Vector3();
+const _down = new THREE.Vector3(0, -1, 0);
 
 export class PlayerController {
   rig = new THREE.Object3D();
@@ -41,7 +56,17 @@ export class PlayerController {
   headBobTime = 0;
   cameraShakeTrauma = 0;
   onFootstep: (() => void) | null = null;
+  /** Fires on touchdown with how hard the landing was (0..1). */
+  onLand: ((strength: number) => void) | null = null;
+  /** Multiplies mouse-look speed; set from the settings menu. */
+  static sensitivity = 1;
+  /** Off in reduced-motion mode: no head bob, no landing dip, no lean, no camera shake. */
+  static motion = true;
   private lastBobHalfCycle = 0;
+  private sinceGrounded = 0;
+  private jumpBufferedFor = 0;
+  private landDip = 0;
+  private lean = 0;
 
   constructor(camera: THREE.PerspectiveCamera, startPos = new THREE.Vector3(0, 1.7, 0)) {
     this.camera = camera;
@@ -104,7 +129,7 @@ export class PlayerController {
   }
 
   private resolveCollisionXZ(desired: THREE.Vector3): THREE.Vector3 {
-    const result = desired.clone();
+    const result = desired;
     const from = this.rig.position;
     // Resolved one axis at a time so a blocked direction slides along the obstacle instead of
     // stopping dead.
@@ -122,7 +147,7 @@ export class PlayerController {
    * own position must park the rig at a height that covers the range it cares about.
    */
   sampleFloorHeight(x: number, z: number): number | null {
-    this.raycaster.set(new THREE.Vector3(x, this.rig.position.y + 2, z), new THREE.Vector3(0, -1, 0));
+    this.raycaster.set(_rayOrigin.set(x, this.rig.position.y + 2, z), _down);
     this.raycaster.far = 10;
     const hits = this.raycaster.intersectObjects(this.floorTargets, true);
     if (hits.length === 0) return null;
@@ -133,35 +158,35 @@ export class PlayerController {
     if (!this.enabled) return;
 
     const delta = InputManager.consumeMouseDelta();
-    this.yaw -= delta.x * MOUSE_SENSITIVITY;
-    this.pitch -= delta.y * MOUSE_SENSITIVITY;
+    this.yaw -= delta.x * MOUSE_SENSITIVITY * PlayerController.sensitivity;
+    this.pitch -= delta.y * MOUSE_SENSITIVITY * PlayerController.sensitivity;
     this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
 
     this.rig.rotation.set(0, this.yaw, 0);
     this.camera.rotation.set(this.pitch, 0, 0);
 
-    this.crouching = InputManager.isDown('ControlLeft') || InputManager.isDown('KeyC');
-    const sprinting = InputManager.isDown('ShiftLeft') && !this.crouching;
+    this.crouching = held('crouch');
+    const sprinting = held('sprint') && !this.crouching;
     const targetSpeed = this.crouching ? CROUCH_SPEED : sprinting ? SPRINT_SPEED : WALK_SPEED;
 
     let moveX = 0;
     let moveZ = 0;
-    if (InputManager.isDown('KeyW') || InputManager.isDown('ArrowUp')) moveZ -= 1;
-    if (InputManager.isDown('KeyS') || InputManager.isDown('ArrowDown')) moveZ += 1;
-    if (InputManager.isDown('KeyA') || InputManager.isDown('ArrowLeft')) moveX -= 1;
-    if (InputManager.isDown('KeyD') || InputManager.isDown('ArrowRight')) moveX += 1;
+    if (held('forward')) moveZ -= 1;
+    if (held('back')) moveZ += 1;
+    if (held('left')) moveX -= 1;
+    if (held('right')) moveX += 1;
 
     const moving = moveX !== 0 || moveZ !== 0;
     this.moveState.speed = moving ? targetSpeed : 0;
 
-    const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
-    const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
-    const moveDir = new THREE.Vector3();
+    const forward = _forward.set(0, 0, -1).applyAxisAngle(_up, this.yaw);
+    const right = _right.set(1, 0, 0).applyAxisAngle(_up, this.yaw);
+    const moveDir = _moveDir.set(0, 0, 0);
     moveDir.addScaledVector(forward, -moveZ);
     moveDir.addScaledVector(right, moveX);
     if (moveDir.lengthSq() > 0) moveDir.normalize();
 
-    const desired = this.rig.position.clone().addScaledVector(moveDir, targetSpeed * dt);
+    const desired = _desired.copy(this.rig.position).addScaledVector(moveDir, targetSpeed * dt);
     const resolved = this.resolveCollisionXZ(desired);
 
     const floorY = this.sampleFloorHeight(resolved.x, resolved.z);
@@ -177,18 +202,31 @@ export class PlayerController {
       }
     }
 
-    if (InputManager.wasJustPressed('Space') && this.onGround) {
+    // Forgiveness: a press shortly before landing is remembered (buffer), and a jump shortly after
+    // leaving a ledge still counts (coyote time). Jump height and distance are unchanged.
+    this.sinceGrounded = this.onGround ? 0 : this.sinceGrounded + dt;
+    this.jumpBufferedFor = pressed('jump') ? JUMP_BUFFER : Math.max(0, this.jumpBufferedFor - dt);
+    if (this.jumpBufferedFor > 0 && (this.onGround || this.sinceGrounded < COYOTE_TIME) && this.velocityY <= 0) {
       this.velocityY = JUMP_SPEED;
       this.onGround = false;
+      this.jumpBufferedFor = 0;
+      this.sinceGrounded = COYOTE_TIME;
     }
 
     if (!this.onGround || floorY === null) {
+      const fallSpeed = -this.velocityY;
       this.velocityY += GRAVITY * dt;
       resolved.y = this.rig.position.y + this.velocityY * dt;
       if (floorY !== null && resolved.y <= floorY) {
         resolved.y = floorY;
         this.velocityY = 0;
         this.onGround = true;
+        // Follow-through on landing: the view dips with the weight and springs back.
+        const strength = THREE.MathUtils.clamp(fallSpeed / 9, 0, 1);
+        if (strength > 0.25) {
+          this.landDip = LAND_DIP * strength;
+          this.onLand?.(strength);
+        }
       }
     } else {
       this.velocityY = 0;
@@ -212,21 +250,24 @@ export class PlayerController {
         this.onFootstep?.();
       }
     }
-    const bobY = moving && this.onGround ? Math.sin(this.headBobTime) * 0.035 : 0;
-    const bobX = moving && this.onGround ? Math.cos(this.headBobTime * 0.5) * 0.02 : 0;
+    const motion = PlayerController.motion ? 1 : 0;
+    const bobY = moving && this.onGround ? Math.sin(this.headBobTime) * 0.035 * motion : 0;
+    const bobX = moving && this.onGround ? Math.cos(this.headBobTime * 0.5) * 0.02 * motion : 0;
+    this.landDip = Math.max(0, this.landDip - this.landDip * Math.min(1, dt * LAND_RECOVER));
+    // A slight roll into strafes, so sideways movement has weight.
+    this.lean += (-moveX * (moving ? 0.012 : 0) * motion - this.lean) * Math.min(1, dt * 8);
 
-    let shakeOffset = new THREE.Vector3();
+    let shakeX = 0;
+    let shakeY = 0;
     if (this.cameraShakeTrauma > 0) {
-      const shake = this.cameraShakeTrauma * this.cameraShakeTrauma;
-      shakeOffset = new THREE.Vector3(
-        (Math.random() - 0.5) * shake * 0.3,
-        (Math.random() - 0.5) * shake * 0.3,
-        0,
-      );
+      const shake = this.cameraShakeTrauma * this.cameraShakeTrauma * motion;
+      shakeX = (Math.random() - 0.5) * shake * 0.3;
+      shakeY = (Math.random() - 0.5) * shake * 0.3;
       this.cameraShakeTrauma = Math.max(0, this.cameraShakeTrauma - dt * 1.6);
     }
 
-    this.camera.position.set(bobX + shakeOffset.x, EYE_HEIGHT + bobY + shakeOffset.y - EYE_HEIGHT * (this.crouching ? 0.35 : 0), shakeOffset.z);
+    this.camera.position.set(bobX + shakeX, EYE_HEIGHT + bobY + shakeY - this.landDip * motion - EYE_HEIGHT * (this.crouching ? 0.35 : 0), 0);
+    this.camera.rotation.z = this.lean;
   }
 
   addShake(amount: number): void {

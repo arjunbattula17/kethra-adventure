@@ -3,6 +3,8 @@ import type { StringKey } from '../content/strings';
 import { PanelManager } from './PanelManager';
 import { SettingsPanel } from './SettingsPanel';
 import { AudioSystem } from '../audio/AudioSystem';
+import { BINDINGS, BINDING_ORDER } from '../content/controls';
+import type { BindingId } from '../content/controls';
 
 /**
  * The title screen: the first thing a judge sees. Plain DOM and CSS, so it appears instantly while
@@ -10,22 +12,9 @@ import { AudioSystem } from '../audio/AudioSystem';
  * until the page gets a gesture).
  *
  * Continue / New Game / Controls / Credits / Settings. Controls and Credits open in the shared
- * panel system; the controls list is the one source for every key the game uses (keep it in step
- * with the code, see README.md), and Credits carries the attribution the CC BY assets require.
+ * panel system. The controls list prints src/content/controls.ts, the same table the player code
+ * reads its keys from, and Credits carries the attribution the CC BY assets require.
  */
-
-const CONTROLS: ReadonlyArray<readonly [StringKey, string[]]> = [
-  ['controls.look', ['Mouse']],
-  ['controls.move', ['W', 'A', 'S', 'D']],
-  ['controls.sprint', ['Shift']],
-  ['controls.jump', ['Space']],
-  ['controls.crouch', ['C']],
-  ['controls.interact', ['E']],
-  ['controls.character', ['Tab']],
-  ['controls.settings', ['O']],
-  ['controls.close', ['Esc']],
-  ['controls.skip', ['Space', 'Enter']],
-];
 
 const CREDIT_KEYS: StringKey[] = [
   'credits.freighter',
@@ -50,12 +39,10 @@ export const TitleScreen = {
     root.innerHTML = `
       <div class="title-stars"></div>
       <div class="title-stars far"></div>
-      <div class="title-glow"></div>
       <div class="title-planet"></div>
       <div class="title-inner">
         <div class="title-kicker"></div>
-        <h1 class="title-name"></h1>
-        <div class="title-rule"></div>
+        <h1 class="title-name"><span class="title-name-text"></span><span class="title-scan" aria-hidden="true"></span></h1>
         <p class="title-tagline"></p>
         <nav class="title-menu"></nav>
       </div>
@@ -63,7 +50,8 @@ export const TitleScreen = {
     // Key art: Kethra itself, from the same surface map the 3D planet and the chart use.
     (root.querySelector('.title-planet') as HTMLDivElement).style.backgroundImage = `url(${import.meta.env.BASE_URL}textures/planets/kethra_day.jpg)`;
     root.querySelector('.title-kicker')!.textContent = t('title.kicker');
-    root.querySelector('.title-name')!.textContent = t('title.name');
+    root.querySelector('.title-name-text')!.textContent = t('title.name');
+    root.querySelector('.title-name')!.setAttribute('data-name', t('title.name'));
     root.querySelector('.title-tagline')!.textContent = t('title.tagline');
     root.querySelector('.title-foot')!.textContent = t('title.foot');
 
@@ -81,6 +69,7 @@ export const TitleScreen = {
       const b = document.createElement('button');
       b.className = `title-btn${primary ? ' primary' : ''}`;
       b.textContent = t(key);
+      b.onmouseenter = () => AudioSystem.playHover();
       b.onclick = () => {
         AudioSystem.playUiClick();
         onClick();
@@ -106,12 +95,14 @@ export const TitleScreen = {
     panel.appendChild(h);
     const list = document.createElement('dl');
     list.className = 'controls-list';
-    for (const [key, keys] of CONTROLS) {
+    for (const id of BINDING_ORDER as BindingId[]) {
+      const b = BINDINGS[id];
       const dt = document.createElement('dt');
-      dt.textContent = t(key);
+      dt.textContent = b.action;
       const dd = document.createElement('dd');
-      for (const k of keys) {
-        const kbd = document.createElement('kbd');
+      for (const k of b.keys) {
+        const kbd = document.createElement('span');
+        kbd.className = 'keycap';
         kbd.textContent = k;
         dd.appendChild(kbd);
       }
@@ -144,8 +135,8 @@ export const TitleScreen = {
 
   closeHint(panel: HTMLElement): void {
     const hint = document.createElement('div');
-    hint.className = 'close-hint';
-    hint.textContent = t('title.closeHint');
+    hint.className = 'panel-foot';
+    hint.innerHTML = '<span class="keycap">Esc</span> close';
     panel.appendChild(hint);
   },
 };
