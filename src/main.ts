@@ -15,6 +15,8 @@ import { bus } from './core/EventBus';
 import { SaveSystem } from './core/SaveSystem';
 import { AudioSystem } from './audio/AudioSystem';
 import { setActiveEngine } from './core/EngineRegistry';
+import { TitleScreen } from './ui/TitleScreen';
+import { t } from './content/strings';
 
 
 loadFonts();
@@ -47,13 +49,20 @@ CharacterPanel.init();
 SettingsPanel.init();
 
 const params = new URLSearchParams(location.search);
-if (params.get('newGame')) SaveSystem.clear();
-else if (SaveSystem.hasSave()) {
-  // load() returns false on unreadable JSON. It used to be called for its side effect and the
-  // success toast shown regardless, so a corrupt save told the player their journey had been
-  // restored and then dropped them into a fresh game.
-  if (SaveSystem.load()) UIManager.toast('Continuing your saved journey.');
-  else UIManager.toast('Your saved journey could not be read. Starting a new one.');
+// The test and capture tools boot with these flags and skip the title screen; so does New Game
+// from the title itself, which reboots with ?newGame=1 when a save is loaded.
+const bootFlags = ['newGame', 'skipIntro', 'skipTutorial', 'unlockKethra'].some((k) => params.has(k));
+// load() returns false on unreadable JSON. It used to be called for its side effect and the success
+// toast shown regardless, so a corrupt save told the player their journey had been restored and
+// then dropped them into a fresh game. The toast now waits for the player to press Continue.
+let savedJourney: 'none' | 'loaded' | 'unreadable' = 'none';
+if (params.get('newGame')) {
+  SaveSystem.clear();
+  // Drop the flag from the address bar, so a later reload continues instead of wiping progress.
+  params.delete('newGame');
+  history.replaceState(null, '', location.pathname + (params.size ? `?${params}` : '') + location.hash);
+} else if (SaveSystem.hasSave()) {
+  savedJourney = SaveSystem.load() ? 'loaded' : 'unreadable';
 }
 if (params.get('skipIntro')) gameState.setFlag('tutorial_battle_complete');
 // Pins the quality tier for this session, bypassing both the hardware guess and the runtime
@@ -72,6 +81,26 @@ if (params.get('unlockKethra')) {
 }
 
 const flow = new GameFlow(engine);
-flow.start();
+if (bootFlags) {
+  if (savedJourney === 'loaded') UIManager.toast(t('toast.continue'));
+  flow.start();
+} else {
+  document.body.classList.add('title-open');
+  TitleScreen.show({
+    hasSave: savedJourney === 'loaded',
+    onContinue: () => {
+      document.body.classList.remove('title-open');
+      UIManager.toast(t('toast.continue'));
+      flow.start();
+    },
+    onNewGame: () => {
+      document.body.classList.remove('title-open');
+      // Nothing loaded: start fresh right here. A loaded save is already in memory, so reboot clean.
+      if (savedJourney === 'none') flow.start();
+      else location.search = '?newGame=1';
+    },
+  });
+}
+if (savedJourney === 'unreadable') UIManager.toast(t('toast.saveUnreadable'));
 
 (window as any).__DEBUG__ = { engine, flow, gameState, bus, mapController: MapController };

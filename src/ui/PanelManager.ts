@@ -13,6 +13,10 @@ class PanelManagerImpl {
    * keybinding can tell "close my own panel" apart from "switch from a different one" instead of
    * only ever seeing the single shared isOpen flag. Null when no panel, or an id-less one, is open. */
   activeId: string | null = null;
+  /** Whether closing a panel hands the mouse back to the game view. Off while the title screen is
+   * up: re-locking there captured the mouse behind the menu, so the cursor vanished and no title
+   * button could be clicked until Esc. */
+  relockPointerOnClose = true;
 
   constructor() {
     this.overlay = document.createElement('div');
@@ -64,7 +68,7 @@ class PanelManagerImpl {
     this.openCallback?.();
     this.openCallback = null;
     this.content.innerHTML = '';
-    InputManager.requestPointerLock();
+    if (this.relockPointerOnClose) InputManager.requestPointerLock();
   }
 }
 

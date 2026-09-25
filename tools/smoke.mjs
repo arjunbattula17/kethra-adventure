@@ -4,14 +4,16 @@
 //   npm run build && npx vite preview   (in another terminal)
 //   npm run smoke            (or: node tools/smoke.mjs [baseUrl])
 //
-// Scenes: the opening cinematic, the ship interior, the galaxy reveal, Kethra. Plus one boot with
-// browser storage blocked (some private modes and managed school Chromebooks), which used to leave
-// a black screen: the game must boot and play without saving.
+// Scenes: the title screen, the opening cinematic, the ship interior, the galaxy reveal, Kethra.
+// Plus one boot with browser storage blocked (some private modes and managed school Chromebooks),
+// which used to leave a black screen: the game must boot and play without saving.
 import { chromium } from 'playwright';
 
 const BASE = process.argv[2] || 'http://localhost:4173/kethra-adventure/';
 
 const CASES = [
+  // The plain link a judge opens: the title screen, then New Game into the intro.
+  { name: 'title', query: '', kind: 'IntroScene', go: async (p) => { await p.waitForSelector('.title-btn', { timeout: 30000 }); await p.getByRole('button', { name: 'New game' }).click(); } },
   { name: 'intro', query: '?newGame=1&tier=low', kind: 'IntroScene' },
   { name: 'ship', query: '?skipIntro=1&newGame=1&tier=low', kind: 'ShipInteriorScene' },
   { name: 'reveal', query: '?skipIntro=1&newGame=1&tier=low', kind: 'GalaxyRevealScene', go: (p) => p.evaluate(() => window.__DEBUG__.flow.transitionToGalaxyReveal()) },
@@ -39,8 +41,12 @@ for (const c of CASES) {
   let ok = true;
   try {
     await page.goto(BASE + c.query, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 180000, polling: 250 });
-    if (c.go) {
+    if (c.name === 'title') {
+      await c.go(page);
+    } else {
+      await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 180000, polling: 250 });
+    }
+    if (c.go && c.name !== 'title') {
       await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 180000, polling: 250 });
       await c.go(page);
     }

@@ -294,6 +294,10 @@ html, body {
   transition: opacity 0.25s ease;
 }
 .panel-overlay.visible { opacity: 1; pointer-events: auto; }
+/* A hidden overlay must never catch clicks. #ui-root .interactive (higher specificity) re-enabled
+   pointer events on it even while invisible, so it silently covered whatever sat under #ui-root:
+   the title screen's buttons, for one. */
+#ui-root .panel-overlay:not(.visible) { pointer-events: none; }
 
 .panel {
   background: var(--panel-bg);
@@ -1104,3 +1108,172 @@ body.tutorial-active .look-prompt { padding-bottom: 250px; }
   color: var(--ink);
   opacity: 0.85;
 }
+
+/* Title screen (TitleScreen.ts). Sits under #ui-root (z 10) so the Controls / Credits / Settings
+   panels open above it; the HUD is hidden while it's up. Pure CSS motion: two drifting star
+   layers at different speeds for depth, a slow amber glow, staggered entrances. */
+body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
+.title-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center start;
+  padding: 0 clamp(24px, 9vw, 180px);
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 78% 60%, #141a26 0%, #0a0d14 45%, #05060a 100%);
+  transition: opacity 0.45s cubic-bezier(0.55, 0, 1, 0.45);
+}
+.title-screen.leaving { opacity: 0; }
+.title-stars,
+.title-stars.far {
+  position: absolute;
+  inset: -50% -50%;
+  background-image:
+    radial-gradient(1.4px 1.4px at 12% 18%, rgba(223,230,245,0.9), transparent 60%),
+    radial-gradient(1px 1px at 38% 72%, rgba(223,230,245,0.7), transparent 60%),
+    radial-gradient(1.2px 1.2px at 64% 34%, rgba(255,228,180,0.8), transparent 60%),
+    radial-gradient(1px 1px at 82% 86%, rgba(223,230,245,0.6), transparent 60%),
+    radial-gradient(1.6px 1.6px at 90% 12%, rgba(223,230,245,0.8), transparent 60%),
+    radial-gradient(1px 1px at 24% 48%, rgba(223,230,245,0.5), transparent 60%);
+  background-size: 340px 340px;
+  animation: title-drift 140s linear infinite;
+  opacity: 0.8;
+}
+.title-stars.far {
+  background-size: 190px 190px;
+  opacity: 0.45;
+  animation-duration: 260s;
+}
+@keyframes title-drift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-340px, -120px, 0); } }
+.title-glow {
+  position: absolute;
+  right: -12vw;
+  bottom: -18vh;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(217,164,65,0.16) 0%, rgba(217,164,65,0.05) 38%, transparent 66%);
+  animation: title-breathe 9s ease-in-out infinite;
+}
+@keyframes title-breathe { 0%, 100% { opacity: 0.75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+.title-planet {
+  position: absolute;
+  right: -14vmin;
+  bottom: -22vmin;
+  width: 88vmin;
+  height: 88vmin;
+  border-radius: 50%;
+  pointer-events: none;
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  /* Lit from the upper left (the unseen star), a thin atmosphere rim, the night side falling off. */
+  box-shadow: inset -1.2vmin 1.2vmin 3vmin rgba(210, 255, 225, 0.25), 0 0 8vmin rgba(90, 200, 150, 0.12);
+  opacity: 0.9;
+  animation: title-spin 240s linear infinite;
+}
+@keyframes title-spin { to { background-position: 200% 50%; } }
+/* The terminator: lit from the upper right (toward the screen corner), falling into night on the
+   side that faces the menu, so the text sits over the dark limb. */
+.title-planet::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 76% 18%, rgba(255, 250, 235, 0.12) 0%, rgba(0, 0, 0, 0) 26%, rgba(3, 5, 10, 0.45) 46%, rgba(3, 5, 10, 0.88) 64%, rgba(3, 5, 10, 0.97) 82%);
+}
+.title-inner { position: relative; z-index: 1; max-width: 560px; }
+.title-stars, .title-glow { pointer-events: none; }
+.title-inner > * { opacity: 0; transform: translateY(0.6em); animation: title-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.title-inner > :nth-child(1) { animation-delay: 0.15s; }
+.title-inner > :nth-child(2) { animation-delay: 0.3s; }
+.title-inner > :nth-child(3) { animation-delay: 0.5s; }
+.title-inner > :nth-child(4) { animation-delay: 0.62s; }
+.title-inner > :nth-child(5) { animation-delay: 0.8s; }
+@keyframes title-in { to { opacity: 1; transform: none; } }
+.title-kicker {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(13px, 1.6vh, 18px);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.title-name {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(64px, 12vh, 150px);
+  line-height: 0.95;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-shadow: 0 6px 40px rgba(0, 0, 0, 0.6);
+}
+.title-rule {
+  width: clamp(80px, 12vh, 160px);
+  height: 2px;
+  margin: 22px 0 18px;
+  background: linear-gradient(90deg, var(--accent), rgba(217,164,65,0));
+}
+.title-tagline {
+  margin: 0 0 34px;
+  font-size: clamp(15px, 1.9vh, 21px);
+  line-height: 1.55;
+  color: var(--ink-dim);
+}
+.title-menu { display: grid; gap: 10px; width: min(320px, 80vw); }
+.title-btn {
+  padding: 13px 18px;
+  text-align: left;
+  border-radius: 5px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(15px, 1.8vh, 19px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--surface-border);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+.title-btn:hover, .title-btn:focus-visible { border-color: var(--accent); background: var(--surface-hover); color: #fff4dc; outline: none; }
+.title-btn.primary { background: var(--accent); color: #1a1408; border-color: var(--accent); }
+.title-btn.primary:hover, .title-btn.primary:focus-visible { background: #e8b75a; }
+.title-foot {
+  position: absolute;
+  left: clamp(24px, 9vw, 180px);
+  bottom: 28px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(234, 226, 208, 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-stars, .title-stars.far, .title-glow, .title-planet { animation: none; }
+}
+
+/* Controls and Credits panels, opened from the title screen. */
+.title-panel { position: relative; width: min(560px, 92vw); }
+.controls-list { display: grid; grid-template-columns: 1fr auto; gap: 10px 20px; margin: 8px 0 0; }
+.controls-list dt { color: var(--ink); font-size: 14px; align-self: center; }
+.controls-list dd { margin: 0; display: flex; gap: 6px; justify-content: flex-end; }
+.controls-list kbd {
+  min-width: 30px;
+  padding: 3px 8px;
+  text-align: center;
+  border: 1px solid var(--surface-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.title-panel-note { margin: 18px 0 0; font-size: 13px; color: var(--ink-dim); }
+.credit-line { margin: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--ink); }

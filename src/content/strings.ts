@@ -69,6 +69,42 @@ export const STRINGS = {
   'map.kethra.region.east': 'East terrace',
   'map.kethra.region.chamber': 'Chamber approach',
 
+  // Title screen. title.name is the game's working title (DECISIONS D-17): change it here.
+  'title.kicker': 'A deep-space survey',
+  'title.name': 'Kethra',
+  'title.tagline': 'Your ship went dark past the edge of the charts. Wake it up.',
+  'title.foot': 'TSA Video Game Design \u00b7 Team #____',
+  'title.continue': 'Continue',
+  'title.newGame': 'New game',
+  'title.controls': 'Controls',
+  'title.credits': 'Credits',
+  'title.settings': 'Settings',
+  'title.closeHint': 'Esc to close',
+  'toast.continue': 'Continuing your saved journey.',
+  'toast.saveUnreadable': 'Your saved journey could not be read. Starting a new one.',
+
+  // Controls screen. Keep in step with the code (README.md has the same list).
+  'controls.look': 'Look around (click the game first)',
+  'controls.move': 'Move (arrow keys work too)',
+  'controls.sprint': 'Sprint',
+  'controls.jump': 'Jump',
+  'controls.crouch': 'Crouch (or Ctrl)',
+  'controls.interact': 'Interact',
+  'controls.character': 'Character sheet',
+  'controls.settings': 'Settings',
+  'controls.close': 'Close a panel / release the mouse',
+  'controls.skip': 'Skip a cinematic (or click)',
+  'controls.note': 'Everything is taught in the first minute of play.',
+
+  // Credits. Required attribution for the CC BY assets (ASSET_LICENSES.md).
+  'credits.freighter': '"Colored Freighter" by Jacques Fourie, via Poly Pizza (poly.pizza). CC BY 3.0.',
+  'credits.planets': 'Planet maps adapted from Solar System Scope textures (solarsystemscope.com), based on NASA imagery. CC BY 4.0.',
+  'credits.kits': 'Ship interior and grove models: Modular Sci-Fi MegaKit and Stylized Nature MegaKit by Quaternius (quaternius.com). CC0.',
+  'credits.textures': 'Surface textures by Poly Haven (polyhaven.com). CC0.',
+  'credits.font': 'Rajdhani by Indian Type Foundry. SIL Open Font License 1.1.',
+  'credits.three': 'Rendering by three.js (threejs.org). MIT License.',
+  'credits.original': 'Code, story, sound and procedural art made by TSA team #____.',
+
   // Progression.
   'toast.scanner.resolved': 'Deep Scanner online. A ring of ships resolves at 95 Mkm.',
   'objective.afterScanner': 'The scanner found a ring of ships near Vessek. Someone out there still has power.',
