@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { InputManager } from '../core/InputManager';
+import { PLAYER } from '../content/tuning';
 
 export interface ColliderBox {
   box: THREE.Box3;
@@ -9,19 +10,11 @@ export interface FloorRaycastTarget {
   meshes: THREE.Object3D[];
 }
 
-const EYE_HEIGHT = 1.7;
-const WALK_SPEED = 3.2;
-const SPRINT_SPEED = 5.6;
-const CROUCH_SPEED = 1.6;
-const PLAYER_RADIUS = 0.35;
-/** Standing height of the collision capsule — the eye sits just under the top of it. */
-const PLAYER_HEIGHT = 1.8;
-/** Obstacles shorter than this are walked over rather than into. */
-const STEP_OVER = 0.25;
-const GRAVITY = -18;
-const JUMP_SPEED = 6;
-const MOUSE_SENSITIVITY = 0.0022;
-const MAX_STEP_UP = 0.45;
+// Movement feel lives in the tuning file; see the warning there before changing it.
+const {
+  EYE_HEIGHT, WALK_SPEED, SPRINT_SPEED, CROUCH_SPEED, PLAYER_RADIUS, PLAYER_HEIGHT,
+  STEP_OVER, GRAVITY, JUMP_SPEED, MOUSE_SENSITIVITY, MAX_STEP_UP,
+} = PLAYER;
 
 export class PlayerController {
   rig = new THREE.Object3D();
