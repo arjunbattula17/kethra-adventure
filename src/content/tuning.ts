@@ -22,3 +22,19 @@ export const PLAYER = {
   MOUSE_SENSITIVITY: 0.0022,
   MAX_STEP_UP: 0.45,
 } as const;
+
+/**
+ * Navigation figures shared by the course-plot puzzle and the galaxy map, so the two always agree.
+ * Orbits are in millions of km (Mkm) and match planetData's orbitRadius values. Changing these
+ * changes the course-plot answers (48 Mkm, 6 days, 4 cells).
+ */
+export const NAV = {
+  /** Where the Wren is parked after the white sky. */
+  SHIP_ORBIT_MKM: 12,
+  CRUISE_MKM_PER_DAY: 8,
+  MARGIN_DAYS: 2,
+  DAYS_PER_CELL: 2,
+  /** The asteroid belt Kethra orbits just past, drawn on the solar chart. */
+  BELT_INNER_MKM: 38,
+  BELT_OUTER_MKM: 47,
+} as const;

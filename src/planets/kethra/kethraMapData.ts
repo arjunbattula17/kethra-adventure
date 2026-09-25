@@ -19,4 +19,20 @@ export const KETHRA_MAP: PlanetMapConfig = {
     { id: 'cistern_heart', label: 'The Cistern Heart', kind: 'objective', x: 0, z: -17 },
     { id: 'kindling_carving', label: 'Last Kindling Carving', kind: 'lore', x: -2.6, z: -17.5, discoveredFlag: 'kethra_kindling_record' },
   ],
+  // Mirrors the slabs KethraScene.buildTerraces() places (makeTerrace(width, depth, x, y, z) and the
+  // makeRamp spans), so the chart shows the grove's real shape. Update both together.
+  terrain: [
+    { x: 0, z: 16, w: 10, d: 10, elevation: 0, kind: 'terrace', labelKey: 'map.kethra.region.landing' },
+    { x: 0, z: 2, w: 16, d: 16, elevation: 0, kind: 'terrace', labelKey: 'map.kethra.region.plaza' },
+    { x: -7, z: 10, w: 4, d: 8, elevation: 0, kind: 'ramp' },
+    { x: 7, z: 10, w: 4, d: 8, elevation: 0, kind: 'ramp' },
+    { x: -16, z: -2, w: 10, d: 9, elevation: 0.6, kind: 'terrace', labelKey: 'map.kethra.region.west' },
+    { x: 16, z: -2, w: 10, d: 9, elevation: 0.6, kind: 'terrace', labelKey: 'map.kethra.region.east' },
+    { x: 0, z: -14, w: 8, d: 10, elevation: 1.1, kind: 'terrace', labelKey: 'map.kethra.region.chamber' },
+    { x: -9.5, z: -0.5, w: 3.6, d: 5, elevation: 0.3, kind: 'ramp' },
+    { x: 9.5, z: -0.5, w: 3.6, d: 5, elevation: 0.3, kind: 'ramp' },
+    { x: 0, z: -6.65, w: 6, d: 5.3, elevation: 0.55, kind: 'ramp' },
+    { x: -20, z: -8, w: 3, d: 3, elevation: 2.4, kind: 'ledge' },
+    { x: -20.6, z: -4.65, w: 2.6, d: 4.3, elevation: 1.7, kind: 'ramp' },
+  ],
 };

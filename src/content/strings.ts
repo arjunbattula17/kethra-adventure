@@ -29,6 +29,44 @@ export const STRINGS = {
   'map.uncharted.orrun': 'Scanner: metal under the dunes, in shapes that don’t erode.',
   'map.uncharted.isilthe': 'Scanner: the repeating signal originates here, somewhere under the sea.',
   'map.uncharted.default': 'Detailed charts for this world have not been compiled yet.',
+  'map.uncharted.kethra': 'Scanner: chlorophyll-analog absorption on the first orbit past the belt.',
+  'map.solar.title': 'Solar Chart',
+  'map.solar.subtitle': 'Uncharted system · plotted by the Wren',
+  'map.hint.solar': 'Click a world to select it · Esc to close',
+  'map.hint.surface': 'Scroll to zoom · Esc for the solar chart',
+  'map.status.here': 'You are here',
+  'map.status.inRange': 'In scanner range',
+  'map.status.outOfRange': 'Out of scanner range',
+  'map.contact.unresolved': 'Unresolved contact',
+  'map.data.orbit': 'Orbit',
+  'map.data.distance': 'From the Wren',
+  'map.data.flight': 'Flight time',
+  'map.data.flightValue': '{days} days + {margin} margin',
+  'map.data.rings': 'Rings',
+  'map.data.yes': 'Yes',
+  'map.data.no': 'No',
+  'map.data.unknown': '—',
+  'map.action.setCourse': 'Set course',
+  'map.action.surface': 'Surface chart',
+  'map.action.back': 'Back to solar chart',
+  'map.action.noRange': 'Out of range',
+  'map.action.here': 'Already here',
+  'map.legend.surveyed': 'Surveyed world',
+  'map.legend.unsurveyed': 'Unresolved contact',
+  'map.legend.wren': 'The Wren',
+  'map.legend.range': 'Scanner range',
+  'map.legend.belt': 'Asteroid belt',
+  'map.label.wren': 'WREN',
+  'map.label.star': 'STAR',
+  'map.survey.title': 'Survey',
+  'map.survey.objective': 'Objective',
+  'map.poi.unexplored': 'Unexplored site',
+  'map.scale': '10 m',
+  'map.kethra.region.landing': 'Landing terrace',
+  'map.kethra.region.plaza': 'Grove plaza',
+  'map.kethra.region.west': 'West terrace',
+  'map.kethra.region.east': 'East terrace',
+  'map.kethra.region.chamber': 'Chamber approach',
 
   // Painted signage aboard the Wren.
   'sign.helm.code': 'WREN-01',
@@ -50,4 +88,9 @@ export function t(key: StringKey): string {
 /** Words in a string, for timing on-screen text by reading pace. */
 export function wordCount(text: string): number {
   return text.trim().split(/\s+/).length;
+}
+
+/** A string with `{name}` placeholders filled in, e.g. format('map.data.flightValue', { days: 6, margin: 2 }). */
+export function format(key: StringKey, values: Record<string, string | number>): string {
+  return t(key).replace(/\{(\w+)\}/g, (_, name: string) => String(values[name] ?? `{${name}}`));
 }

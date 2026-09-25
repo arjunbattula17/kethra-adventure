@@ -1,5 +1,7 @@
 import { PanelManager } from '../ui/PanelManager';
 import { AudioSystem } from '../audio/AudioSystem';
+import { NAV } from '../content/tuning';
+import { PLANETS } from '../galaxy/planetData';
 
 /**
  * The course-plot puzzle — the first game beat, played seated at the console right after the
@@ -21,11 +23,12 @@ import { AudioSystem } from '../audio/AudioSystem';
  * Deliberately not skippable and not failable.
  */
 
-const SHIP_ORBIT = 12;
-const KETHRA_ORBIT = 60;
-const CRUISE_SPEED = 8;
-const MARGIN_DAYS = 2;
-const DAYS_PER_CELL = 2;
+// Shared with the galaxy map through the tuning file, so the chart's flight times match the plot.
+const SHIP_ORBIT = NAV.SHIP_ORBIT_MKM;
+const KETHRA_ORBIT = PLANETS.find((p) => p.id === 'kethra')!.orbitRadius;
+const CRUISE_SPEED = NAV.CRUISE_MKM_PER_DAY;
+const MARGIN_DAYS = NAV.MARGIN_DAYS;
+const DAYS_PER_CELL = NAV.DAYS_PER_CELL;
 
 const DISTANCE = KETHRA_ORBIT - SHIP_ORBIT; // 48
 const DAYS = DISTANCE / CRUISE_SPEED; // 6
