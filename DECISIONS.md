@@ -49,7 +49,7 @@ well. **Option B:** Orrun's Reach (a desert with buried machines; a traversal le
 new outdoor kit and weather, so it's more expensive. Option A is recommended for cost and because
 it delivers the story's mid-game reversal (LORE.md).
 
-### D-5 · ADD · Title screen with a start gate, controls screen, credits — *Proposed*
+### D-5 · ADD · Title screen with a start gate, controls screen, credits — *Done 2026-09-25*
 Required by the rules (a controls screen from the menu), by licensing (CC BY attribution for the
 freighter model and the planet maps), and by browsers (audio can't play before the first
 click or key). A title screen with *Continue / New Game / Controls / Credits / Settings*, in the
@@ -121,3 +121,14 @@ The browser tab still reads "tsaproject", the npm package name, and the reposito
 "kethra-adventure". Judges see the tab title first. The team should pick a title; the options
 depend on how the team pitches the game. The obvious candidates come from the canon: something
 around the white sky, the Wren, or "Cold Start".
+
+### D-18 · UPGRADE · Navigation map redesign, and travel restored — *Done 2026-09-25*
+Clicking a planet stopped starting the trip on Aug 22 (commit 8c0f886) and nothing replaced it, so
+Kethra was unreachable in normal play. The redesigned map puts travel on a Set Course button in a
+dossier panel, draws Kethra's terraces to scale, and adds a survey checklist. It follows
+ART_BIBLE.md, so it's an upgrade in place, not a new style.
+
+### D-19 · ADD · The scanner repair resolves the next world — *Done, reversible*
+Repairing the Deep Scanner after Kethra resolves the ring of ships at Vessek on the chart (no
+landing charts yet), so level 2 no longer ends in a dead end. It anticipates D-4's recommended
+third level; if the team picks Orrun instead, it's one planet id in GameFlow and one string.

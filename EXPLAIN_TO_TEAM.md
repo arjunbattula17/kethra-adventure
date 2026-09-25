@@ -90,3 +90,25 @@ without errors), `test-tutorial-flow.mjs` (36 checks through the opening), `intr
   and only the real renderer shows them.
 - *"What can't you test?"* Other browsers and real Chromebooks, until we run them by hand
   (BACKLOG B-5).
+
+## Title screen (`src/ui/TitleScreen.ts`)
+**What:** the first screen: Continue / New Game / Controls / Credits / Settings. Plain HTML and
+CSS, so it appears instantly.
+**Why:** the rules require a controls screen reachable from a menu; the CC BY assets need visible
+credit; and browsers won't play sound until the player clicks something.
+- *"How does New Game work if there's a save?"* It reloads with `?newGame=1`, which clears the
+  save, then removes that flag from the address bar so a later refresh continues instead of wiping
+  progress.
+- *"How do the tests skip it?"* They open the game with URL flags (`?skipIntro=1` and so on);
+  any of those skip the title.
+- *"Where's the text?"* `src/content/strings.ts` (`title.*`, `controls.*`, `credits.*`).
+
+## Navigation map (`src/galaxy/MapController.ts`)
+**What:** a solar chart and per-planet surface charts drawn on a canvas, with an HTML dossier
+panel beside them. Set Course is how the player travels.
+- *"Why canvas plus HTML?"* The chart animates every frame, which canvas is good at; text and
+  buttons are easier to read and click as HTML.
+- *"Where do the distances come from?"* `NAV` in `src/content/tuning.ts`: the same numbers the
+  course-plot puzzle uses, so the two can't disagree.
+- *"What bug did this fix?"* Travel had silently stopped working in August. We found it by writing
+  a test that plays the level the way a player does.

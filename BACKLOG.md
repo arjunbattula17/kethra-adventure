@@ -10,7 +10,7 @@ DECISIONS.md.
   *Done when:* a first-time player can walk from level 2's return to the Wren, travel to the
   Anchorage, solve its critical path, and see a level-complete beat. Total play from new game to
   the end of level 3 is under 10 minutes for a competent player.
-- **B-2 · Title screen, controls screen, credits, audio gate (D-5)**
+- **B-2 · Title screen, controls screen, credits, audio gate (D-5)** *(done 2026-09-25; still to add: OFL.txt next to the font files)*
   *Done when:* the game opens on a title screen with Continue / New Game / Controls / Credits /
   Settings. The controls list matches the code (WASD/arrows, mouse after clicking, Shift, Space,
   C/Ctrl, E, Tab, O, Esc). Credits name every CC BY asset. The first click or key starts audio.
@@ -50,6 +50,11 @@ DECISIONS.md.
 - **B-13 · One set piece per level**
   *Done when:* level 1 (the reveal) ✓, level 2 (the Heart waking) ✓, and level 3 (the white sky
   on the ring) all play.
+
+- **B-27 · Tests that play the way a player does**
+  *Done when:* every level has an assertion test that reaches it through player-facing controls,
+  not debug hooks. Travel to Kethra was broken for six weeks because every test jumped straight
+  there. Level 2 now has one (`tools/test-kethra-flow.mjs`); level 1 still needs one.
 
 ## 3 · Polish
 - **B-14 · Music per level and stingers**

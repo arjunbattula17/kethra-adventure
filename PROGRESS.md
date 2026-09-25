@@ -3,6 +3,34 @@
 Newest session first. Each entry: what changed (with its DECISIONS bucket), what was verified,
 and what's next.
 
+## 2026-09-25
+**Changed**
+- **Fix: travel to Kethra.** Level 2 had been unreachable in normal play since Aug 22. The map's
+  Set Course button works now (D-18).
+- **UPGRADE: navigation map.** Dossier panel, to-scale Kethra chart, course line, legend, and a
+  survey list (D-18).
+- **Fix: Kethra.**
+  - Re-reading an inscription or the carving could farm stats.
+  - The carving never showed as found on the map.
+  - Level 2 ended in a dead end (D-19).
+- **ADD: title screen, controls, credits, audio gate.** Credits carry the CC BY attribution (D-5).
+- **Fix:**
+  - A hidden panel overlay caught clicks.
+  - Closing a panel captured the mouse behind the title screen.
+- **LORE.md finished:** the Choir's rules, level-by-level story to the ending, characters,
+  places, and a voice guide.
+
+**Verified**
+- `npm run smoke` 6/6, now including the title screen.
+- Tutorial flow 36/36.
+- New `tools/test-kethra-flow.mjs` 18/18.
+- Title flows: New Game, Continue, and New Game over a save.
+
+**Next three backlog items**
+1. B-7: stats solve puzzles on every level.
+2. B-1: level 3 (waiting on D-4).
+3. B-27: a player-path test for level 1.
+
 ## 2026-09-24 — Session 0
 **Changed**
 - **UPGRADE: performance.** The quality system no longer mistakes loading for slowness, and no
