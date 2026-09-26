@@ -122,6 +122,7 @@ export class VessekScene implements GameScene {
   private hullMats: THREE.MeshStandardMaterial[] = [];
   private hemi!: THREE.HemisphereLight;
   private key!: THREE.DirectionalLight;
+  private planetLight!: THREE.DirectionalLight;
   private whiteSky!: THREE.Mesh;
   private skyMat!: THREE.MeshBasicMaterial;
   private planet: PlanetInstance | null = null;
@@ -549,7 +550,8 @@ export class VessekScene implements GameScene {
       for (let i = 0; i < 9; i++) plants.push({ position: new THREE.Vector3(-6.7 + i * 0.5, 0.96, z + (rnd() - 0.5) * 0.4), yaw: rnd() * 6.28, scale: 0.55 + rnd() * 0.3 });
       // Grow light bar: pale green-white, not purple. Grow lights here run on whatever the ring
       // could salvage.
-      const barMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xd8ffd8, emissiveIntensity: 1.6 });
+      // Dark when off: the glow is all emissive, so a dead bar reads as a dead bar.
+      const barMat = new THREE.MeshStandardMaterial({ color: 0x2a2f2c, emissive: 0xd8ffd8, emissiveIntensity: 1.6 });
       const bar = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.06, 0.16), barMat);
       bar.position.set(-4.7, 2.3, z);
       this.scene.add(bar);
@@ -648,6 +650,7 @@ export class VessekScene implements GameScene {
     this.hemi = hemi;
     // Light off Vessek through the windows: a cool fill from the east.
     const planetLight = new THREE.DirectionalLight(0xc8d6ff, 0.55);
+    this.planetLight = planetLight;
     planetLight.position.set(30, 8, -6);
     this.scene.add(planetLight);
     const key = new THREE.DirectionalLight(0xffe6c8, 0.35);
@@ -664,7 +667,7 @@ export class VessekScene implements GameScene {
     // Hall lamps down the concourse, each a different white.
     const lampGeo = new THREE.BoxGeometry(1.3, 0.08, 0.3);
     [[0, 5.5], [0, 0.5], [0, -4.5], [-3.5, -1], [3.5, 2.5]].forEach(([x, z], i) => {
-      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: LAMP_COLORS[i % LAMP_COLORS.length], emissiveIntensity: 1.5 });
+      const mat = new THREE.MeshStandardMaterial({ color: 0x33363a, emissive: LAMP_COLORS[i % LAMP_COLORS.length], emissiveIntensity: 1.5 });
       const fixture = new THREE.Mesh(lampGeo, mat);
       fixture.position.set(x, 4.5, z);
       this.scene.add(fixture);
@@ -972,6 +975,9 @@ export class VessekScene implements GameScene {
     const lit = n ? hall / n : 1;
     this.hemi.intensity = 0.1 + 0.25 * lit;
     this.key.intensity = 0.08 + 0.27 * lit;
+    // The window light has no shadows, so it would light the hall straight through the walls; it
+    // falls with the lamps so the brown-out is actually dark, leaving the emergency strips to read.
+    this.planetLight.intensity = 0.15 + 0.4 * lit;
 
     if (this.relightShips) {
       for (const s of this.shipLamps) s.mat.color.lerp(s.base, Math.min(1, dt * 1.5));

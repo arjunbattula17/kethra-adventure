@@ -1,0 +1,9 @@
+
+final/chromebook-sim: CPU 6x, 10 Mbps, tier auto
+title 1822 ms (0.52 MB), intro playable 60118 ms, ship 69883 ms, total 29.04 MB
+intro       60 fps  p50 16.7  p95 16.7  max 16.8  hitches>50ms 0  calls 18  tier low  heap 27.2 MB  longtasks 1
+ship      16.2 fps  p50 50.1  p95 116.6  max 133.3  hitches>50ms 67  calls 655  tier low  heap 27.3 MB  longtasks 80
+kethra      35 fps  p50 33.3  p95 50  max 50.1  hitches>50ms 3  calls 195  tier low  heap 39.6 MB  longtasks 2
+vessek    46.2 fps  p50 16.7  p95 33.4  max 50.1  hitches>50ms 1  calls 225  tier low  heap 85.6 MB  longtasks 3
+heap after first ship 27.3 MB, after loops 56.6 -> 52 MB (loop-to-loop -8.1%)
+console errors: 0

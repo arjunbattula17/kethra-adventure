@@ -13,34 +13,42 @@ start of this session (commit dc05fdb), measured the same way.
 
 | | Before | After | Budget |
 |---|---|---|---|
-| Title on screen, simulated Chromebook | 2.0 s | 1.7 s | — |
+| Title on screen, simulated Chromebook | 2.0 s | 1.8 s | — |
 | Bytes to the title | 0.45 MB | 0.52 MB | under 5 MB ✓ |
-| New game → intro playable, cold browser, simulated Chromebook (Auto) | 81.9 s | 59.4 s | 5 s ✗ |
-| Same, pinned to the Performance tier | 66.6 s | 23.3 s | 5 s ✗ |
-| Same, desktop, unthrottled | 65–69 s (this session's build before the light budget) | 34.1 s | 2 s local ✗ |
-| Total bytes, a full loop with the cache off | 22.1 MB (2 levels) | 29.0 MB (3 levels + ending) | 20 MB ✗ |
-| Heap growth, second loop through every level vs the first | +105% (no GC before reading) | +4 to +9% (after a forced GC) | within 10% ✓ |
-| Console errors across the run | 0 | 0 | 0 ✓ |
+| New game → intro playable, cold browser, simulated Chromebook, Auto tier | 81.9 s | 60.1 s | 5 s ✗ |
+| Same, pinned to the Performance tier | 66.6 s | 26.6 s | 5 s ✗ |
+| Same, desktop, unthrottled, Auto (stays on Quality) | 65–69 s (this session's build before the light budget) | 32.8 s | 2 s local ✗ |
+| Total bytes, a full loop with the cache off | 22.1 MB (2 levels) | 29.0 MB (3 levels + ending; 24.6 MB unique) | 20 MB ✗ |
+| Heap, second loop through every level vs the first (after a forced GC) | +105% (no GC) | −8.1% (sim), −6.5% (Performance), −4.6% (desktop) | within 10% ✓ |
+| Console errors across every run | 0 | 0 | 0 ✓ |
+| **Second visit** (same browser, reload), desktop: title / intro playable | — | **0.19 s / 3.9 s** | 5 s ✓ |
 
-Per scene, simulated Chromebook, tier chosen automatically (final/chromebook-sim):
+Per scene, simulated Chromebook (final/chromebook-sim, tier chosen automatically; it chose
+Performance):
 
-| Scene | fps | p95 frame | Hitches >50 ms in 8 s | Draw calls | Budget met? |
+| Scene | fps | p95 frame | Hitches >50 ms in 8 s | Draw calls | 30 fps met? |
 |---|---|---|---|---|---|
 | Intro | 60 | 16.7 ms | 0 | 18 | ✓ |
-| The Wren | 15.3 | 100 ms | 83 | 656 | ✗ (30 fps, 100 calls at Low) |
-| Kethra | 57.1 | 16.8 ms | 0 | 158 | ✓ fps, ✗ calls |
-| Vessek Anchorage | 31.9 | 66.6 ms | 21 | 253 | ✓ fps, ✗ hitches and calls |
+| The Wren | 16.2 | 116.6 ms | 67 | 655 | ✗ |
+| Kethra | 35.0 | 50 ms | 3 | 195 | ✓ |
+| Vessek Anchorage | 46.2 | 33.4 ms | 1 | 225 | ✓ |
 
-On the unthrottled desktop, every scene holds 60 fps at the Quality tier with no hitches
-(final/desktop).
+Pinned to Performance with no network limit (final/low-tier): the Wren 22.8, Kethra 56.3,
+Vessek 44.4 fps. On the unthrottled desktop every scene holds 60 fps at Quality with no hitches
+(final/desktop). The same scene varies by several fps between runs on this machine, so treat
+differences under ~5 fps as noise.
+
+The Auto tier's cold start (60 s) is slower than pinned Performance (27 s) because it compiles the
+Quality shaders first and then recompiles when the benchmark steps down. Running the benchmark on
+a lighter scene before the ship is built would remove the double compile (next step, B-4).
 
 ## What moved the numbers
 1. **The point-light budget** (the Wren kept its 16 strongest of 41 lights; 8 on Performance). Every
    light is written into every shader, so the first load compiled 93 very long shader programs.
    Cold boot on the desktop went from ~65 s to ~30 s with the room within about 2/255 per pixel.
 2. **The start-up benchmark** now picks the tier from measured frames, not only from the GPU's
-   name: on the simulated Chromebook it chose Performance before the first frame, which lifted
-   Kethra from 26 to 57 fps and Vessek from 22 to 32 fps against the previous automatic run.
+   name: on the simulated Chromebook it chose Performance before the first frame. Against the
+   automatic run before it existed, Kethra went from 26 to 35 fps and Vessek from 22 to 46 fps.
 3. **Downgrades apply fully at the next level change**, behind the loading cover, so "automatic
    Performance" is the same as choosing Performance.
 4. Vessek's lights 20 → 12 and moored hulls 12 → 8; no per-frame sorting or allocation in the
@@ -61,8 +69,9 @@ Settings turns all of this off, and the player is told once, with where to chang
 - **The Wren on a slow CPU (~15–23 fps).** It draws ~650 objects a frame because its ~350
   generated textures each need their own draw call. The fix is a texture atlas (BACKLOG B-28).
 - **First load on a cold browser.** Still tens of seconds, mostly shader compilation. It
-  happens once; browsers cache compiled shaders, so a second visit is much faster. The loading
-  screen shows real progress and a line of lore throughout.
+  happens once: the browser keeps compiled shaders, and a second visit reached the intro in
+  3.9 s (`tools/warm-load.mjs`). Before presenting, open the game once on the laptop you'll use.
+  The loading screen shows real progress and a line of lore throughout.
 - **Download size.** 29 MB for everything. The largest single files are the freighter model
   (2.9 MB), the starfield (1.3 MB) and the kit textures; compressing the models (meshopt) and
   textures (KTX2) is the next step, and ~70 MB of unused files in the build folder (D-10) are

@@ -74,6 +74,23 @@ the graphics card, so the real Chromebook test (TESTING_ON_A_REAL_CHROMEBOOK.md)
 - **Say it:** "We keep the browser console free of errors and warnings. It's the first place a
   technical judge looks."
 
+### 10. The game measures the computer before you play
+- **What:** while the loading screen is still up, the game draws twelve hidden frames of the ship,
+  times them, and picks the quality tier from what it measured, not only from the graphics chip's
+  name. If it has to lower quality later, the full change waits for the next level transition.
+- **Why it mattered:** before, a slow computer found out mid-play and kept its heaviest effects.
+- **Number it moved:** on the simulated Chromebook, Kethra 26 → 35 fps and Vessek 22 → 46 fps.
+- **Say it:** "Before you see the first frame, the game quietly draws a few frames and times them,
+  so a slow laptop starts on the right settings. It tells you once, and you can change it back in
+  Settings."
+
+### 11. A second visit is fast
+- **What:** nothing new in the code; this is a measurement. Browsers keep the graphics programs
+  the game compiles on the first visit.
+- **Number:** first visit 32.1 s to playable, second visit 3.9 s (`tools/warm-load.mjs`).
+- **Say it:** "The first load compiles the graphics programs once, and the browser keeps them.
+  Reloading gets you back in under four seconds."
+
 ### Tried and dropped
 - Giving small props plain colours on the Performance tier cut draw calls from 661 only to 637, so we
   took it back out. Measuring first is why we didn't keep code that didn't help.

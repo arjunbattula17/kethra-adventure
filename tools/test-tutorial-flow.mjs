@@ -86,7 +86,7 @@ await page.evaluate(() => window.__DEBUG__.engine.setManualQualityTier('low'));
 
 // 1. Nothing starts on its own. The first thing the player ever sees is the tutorial.
 check('tutorial reaches its first step', await until(async () => (await cardTitle()) !== null, 120000));
-check('tutorial card is the first thing shown', (await cardTitle()) === 'Take the Helm', (await cardTitle()) ?? 'no card');
+check('tutorial card is the first thing shown', (await cardTitle()) === 'Take the helm', (await cardTitle()) ?? 'no card');
 check('first game does not auto-start on load', !(await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship)));
 // This browser profile has never finished the opening, so the whole-tutorial skip must not be
 // offered (the cold-open caption skip hint has its own label and is gone by the time the first
@@ -108,7 +108,7 @@ for (let i = 0; i < 8; i++) {
   });
   await page.waitForTimeout(120);
 }
-check('look step clears once the player has looked around', await waitForCard('Find Your Footing'));
+check('look step clears once the player has looked around', await waitForCard('Find your footing'));
 await shot('02_step_move');
 
 // 3. The console must refuse to boot before the tutorial gets there.
@@ -133,7 +133,7 @@ for (const key of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'Space']) {
   await page.keyboard.up(key);
   await page.waitForTimeout(120);
 }
-check('move step clears on W/A/S/D', await waitForCard('Know Your Skills'));
+check('move step clears on W/A/S/D', await waitForCard('Know your skills'));
 const sheetStepLabel = await page.$eval('.tut-card.visible .tut-step', (el) => el.textContent).catch(() => null);
 check('character-sheet step is not pre-completed by the earlier Tab', sheetStepLabel === 'Step 3 / 5', sheetStepLabel ?? 'no step label');
 await shot('04_step_sheet');
@@ -144,7 +144,7 @@ check('Tab opens the character sheet', await until(async () => !!(await page.$('
 await page.waitForTimeout(600); // the overlay fades in over 0.25s — shoot it settled, not mid-fade
 await shot('05_character_sheet');
 await page.keyboard.press('Tab');
-check('character-sheet step clears once it is closed again', await waitForCard('Reach the Console'));
+check('character-sheet step clears once it is closed again', await waitForCard('Reach the console'));
 await shot('06_step_approach');
 
 // 6. Walk to the desk for real. Spawn faces the console, so holding W is the whole journey.
@@ -171,7 +171,7 @@ await page.evaluate(() => {
 await page.waitForTimeout(400);
 
 await page.keyboard.down('KeyW');
-const arrived = await waitForCard('Bring It Online', 30000);
+const arrived = await waitForCard('Bring it online', 30000);
 await page.keyboard.up('KeyW');
 check('reaching the desk clears the approach step', arrived);
 await shot('07_step_boot');
@@ -264,7 +264,7 @@ await until(async () => await page.evaluate(() => window.__DEBUG__?.engine?.getC
 await page.waitForTimeout(600);
 await page.keyboard.press('Space');
 await page.waitForFunction(() => window.__DEBUG__?.flow?.tutorial != null, undefined, { timeout: 180000, polling: 500 });
-check('a returning new game reaches the tutorial again', await until(async () => (await cardTitle()) === 'Take the Helm', 120000));
+check('a returning new game reaches the tutorial again', await until(async () => (await cardTitle()) === 'Take the helm', 120000));
 check('a returning player is offered the tutorial skip', await until(async () => {
   const label = await page.$eval('.tut-skip.visible', (el) => el.textContent).catch(() => null);
   return (label ?? '').includes('Skip tutorial');

@@ -17,12 +17,7 @@ Playwright script; "6×" means Chrome's CPU throttling at 6× slower. Full run d
 | Rebuild the environment map after a GPU context loss | The Wren, after a simulated context loss | screenshot brightness 65.0 before loss, 36.5 after restore | 67.9 after restore | **Kept** |
 | `THREE.Clock` → `THREE.Timer`; `PCFSoftShadowMap` → `PCFShadowMap` | All | two console warnings on every load | none | **Kept** (three.js had already been substituting PCF, so shadows look the same) |
 | Stop drawing and suspend audio in hidden tabs; pause on focus loss; cap to 30 fps below 20% battery unplugged | All | always drawing, always playing | as described | **Kept** (the battery cap needs a real laptop to verify; see TESTING_ON_A_REAL_CHROMEBOOK.md) |
-
-## Heap across two loops through every level
-
-| Build | Loop 1 → loop 2 |
-|---|---|
-| Pre-session, 6×, Low | 49 → 96.3 MB (+96.5%) |
-| Final, 6×, Low | 76 → 68.2 MB (−10.3%) |
-| Final, 6×, Low (before the hull change) | 67.3 → 58.1 MB (−13.7%) |
-| Final, 6×, Auto, 10 Mbps | 81.8 → 97.6 MB (+19.3%, tier changed mid-run) |
+| Start-up benchmark: 12 hidden frames of the ship behind the loading cover, median of the last 8; step down if over 33 ms (Performance) or over 22 ms from Quality (Balanced) (`Engine.benchmarkScene`) | Simulated Chromebook, 6×, 10 Mbps, Auto | Kethra 26.2 fps, Vessek 22.1 fps (governor kept shadows and MSAA on its way down) | Kethra 35.0 fps, Vessek 46.2 fps | **Kept.** First threshold (16 ms) wrongly moved the RTX 4060 desktop to Balanced; raised to 22 ms, desktop stays on Quality at 60 fps |
+| Mid-play downgrades apply their full preset (shadows, anti-aliasing) at the next level change, behind the cover | All, Auto | "automatic Low" kept Quality's shadows and MSAA | same as choosing Performance after one transition | **Kept** |
+| The Wren adapts to a benchmark downgrade (8 lights, halved canvases) and is re-warmed behind the cover | The Wren, 6×, Auto | 14.1 fps | 15.3–16.2 fps across two runs | **Kept** (within run-to-run noise; keeps Low meaning Low) |
+| Heap measured after a forced GC (`--expose-gc`) | Loop through every level twice | +46% loop to loop without GC (noise) | −4.6% (desktop), −6.5% (Low), −8.1% (Chromebook sim) | Measurement fix; no leak |

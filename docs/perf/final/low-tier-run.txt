@@ -1,0 +1,9 @@
+
+final/low-tier: CPU 6x, unthrottled Mbps, tier low
+title 1339 ms (0.52 MB), intro playable 26558 ms, ship 36301 ms, total 24.61 MB
+intro       60 fps  p50 16.7  p95 16.7  max 16.8  hitches>50ms 0  calls 18  tier low  heap 25.6 MB  longtasks 0
+ship      22.8 fps  p50 33.4  p95 83.4  max 116.8  hitches>50ms 53  calls 645  tier low  heap 25.8 MB  longtasks 56
+kethra    56.3 fps  p50 16.7  p95 33.3  max 49.9  hitches>50ms 0  calls 159  tier low  heap 46.5 MB  longtasks 0
+vessek    44.4 fps  p50 16.7  p95 50  max 50.1  hitches>50ms 4  calls 229  tier low  heap 52.3 MB  longtasks 2
+heap after first ship 25.8 MB, after loops 54 -> 50.5 MB (loop-to-loop -6.5%)
+console errors: 0

@@ -241,12 +241,12 @@ and Control Functions.
 - **Say it:** "The music is written by the code while you play, so it never repeats the same way.
   Each place has its own sound that matches how it looks."
 
-### Camera shake, reserved for three moments
-- **What:** shake is used only for the white sky in the intro, the Anchorage's rehearsal pulse and
-  the Cistern Heart waking.
+### Camera shake, reserved for two moments
+- **What:** shake is used only for the Anchorage's rehearsal pulse and the Cistern Heart waking.
+  The intro's white sky swells light instead, because the player isn't holding the camera yet.
 - **Rubric:** C&A.
-- **Say it:** "The screen only shakes three times in the whole game, at the three biggest moments.
-  Shake that happens all the time stops meaning anything."
+- **Say it:** "The screen only shakes twice in the whole game, at the two biggest moments you
+  cause or survive. Shake that happens all the time stops meaning anything."
 
 ### Reduced motion
 - **What:** one switch in Settings (on by default if the computer's own setting asks for it). It

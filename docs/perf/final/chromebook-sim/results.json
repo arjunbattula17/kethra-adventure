@@ -5,18 +5,18 @@
   "tier": "auto",
   "viewport": "1366x768@1x",
   "load": {
-    "titleVisibleMs": 1696,
+    "titleVisibleMs": 1822,
     "titleBytesMB": 0.52,
-    "introPlayableMs": 59412,
-    "introFromNewGameMs": 57477,
+    "introPlayableMs": 60118,
+    "introFromNewGameMs": 58034,
     "introBytesMB": 9.57,
-    "shipPlayableMs": 69165,
-    "kethraTransitionMs": 23581,
-    "vessekTransitionMs": 21827
+    "shipPlayableMs": 69883,
+    "kethraTransitionMs": 24158,
+    "vessekTransitionMs": 22349
   },
   "scenes": {
     "intro": {
-      "frames": 360,
+      "frames": 361,
       "fps": 60,
       "p50": 16.7,
       "p95": 16.7,
@@ -24,141 +24,134 @@
       "max": 16.8,
       "hitchesOver50ms": 0,
       "drawCallsPerFrame": 18,
-      "trianglesPerFrame": 47641,
+      "trianglesPerFrame": 47637,
       "tier": "low",
-      "benchmarkMs": 167.9,
+      "benchmarkMs": 99.2,
       "geometries": 511,
       "textures": 228,
       "heapMB": 27.2,
       "longTasks": {
         "count": 1,
-        "totalMs": 71,
+        "totalMs": 65,
         "top": [
-          71
+          65
         ]
       }
     },
     "ship": {
-      "frames": 123,
-      "fps": 15.3,
-      "p50": 66.7,
-      "p95": 100,
-      "p99": 116.6,
-      "max": 116.7,
-      "hitchesOver50ms": 83,
-      "drawCallsPerFrame": 656,
-      "trianglesPerFrame": 144267,
+      "frames": 131,
+      "fps": 16.2,
+      "p50": 50.1,
+      "p95": 116.6,
+      "p99": 116.8,
+      "max": 133.3,
+      "hitchesOver50ms": 67,
+      "drawCallsPerFrame": 655,
+      "trianglesPerFrame": 144220,
       "tier": "low",
-      "benchmarkMs": 167.9,
+      "benchmarkMs": 99.2,
       "geometries": 521,
       "textures": 233,
       "heapMB": 27.3,
       "longTasks": {
-        "count": 94,
-        "totalMs": 6900,
+        "count": 80,
+        "totalMs": 6398,
         "top": [
-          117,
-          106,
-          106,
-          105,
-          100,
-          99,
-          99,
-          98,
-          96,
-          95
+          127,
+          114,
+          112,
+          112,
+          112,
+          108,
+          107,
+          107,
+          107,
+          107
         ]
       }
     },
     "kethraLoad": {
       "longTasks": {
-        "count": 16,
-        "totalMs": 11616,
+        "count": 18,
+        "totalMs": 12289,
         "top": [
-          7569,
-          1779,
-          930,
-          385,
-          115,
-          112,
-          107,
-          91,
-          84,
-          80
+          8096,
+          2511,
+          490,
+          174,
+          150,
+          90,
+          86,
+          85,
+          77,
+          66
         ]
       }
     },
     "kethra": {
-      "frames": 458,
-      "fps": 57.1,
-      "p50": 16.7,
-      "p95": 16.8,
-      "p99": 33.4,
-      "max": 50,
-      "hitchesOver50ms": 0,
-      "drawCallsPerFrame": 158,
-      "trianglesPerFrame": 310715,
+      "frames": 282,
+      "fps": 35,
+      "p50": 33.3,
+      "p95": 50,
+      "p99": 50.1,
+      "max": 50.1,
+      "hitchesOver50ms": 3,
+      "drawCallsPerFrame": 195,
+      "trianglesPerFrame": 311900,
       "tier": "low",
-      "benchmarkMs": 167.9,
+      "benchmarkMs": 99.2,
       "geometries": 233,
       "textures": 50,
-      "heapMB": 39.8,
+      "heapMB": 39.6,
       "longTasks": {
         "count": 2,
-        "totalMs": 124,
+        "totalMs": 105,
         "top": [
-          73,
-          51
+          55,
+          50
         ]
       }
     },
     "vessekLoad": {
       "longTasks": {
-        "count": 33,
-        "totalMs": 15694,
+        "count": 18,
+        "totalMs": 14861,
         "top": [
-          9702,
-          3042,
-          245,
+          9373,
+          3151,
+          285,
+          269,
           224,
-          213,
-          160,
-          154,
-          136,
-          131,
-          115
+          185,
+          178,
+          175,
+          164,
+          152
         ]
       }
     },
     "vessek": {
-      "frames": 256,
-      "fps": 31.9,
-      "p50": 33.3,
-      "p95": 66.6,
-      "p99": 66.7,
-      "max": 66.7,
-      "hitchesOver50ms": 21,
-      "drawCallsPerFrame": 253,
-      "trianglesPerFrame": 104835,
+      "frames": 370,
+      "fps": 46.2,
+      "p50": 16.7,
+      "p95": 33.4,
+      "p99": 50,
+      "max": 50.1,
+      "hitchesOver50ms": 1,
+      "drawCallsPerFrame": 225,
+      "trianglesPerFrame": 88308,
       "tier": "low",
-      "benchmarkMs": 167.9,
+      "benchmarkMs": 99.2,
       "geometries": 243,
       "textures": 72,
-      "heapMB": 81.6,
+      "heapMB": 85.6,
       "longTasks": {
-        "count": 25,
-        "totalMs": 1457,
+        "count": 3,
+        "totalMs": 197,
         "top": [
-          70,
-          68,
-          68,
-          67,
-          67,
-          66,
-          64,
-          63,
-          63,
-          62
+          92,
+          54,
+          51
         ]
       }
     }
@@ -168,10 +161,10 @@
     "afterLoopMB": 51.8,
     "growthPct": 89.7,
     "afterEachLoopMB": [
-      51.3,
-      56.1
+      56.6,
+      52
     ],
-    "loopToLoopGrowthPct": 9.4
+    "loopToLoopGrowthPct": -8.1
   },
   "bytes": {
     "totalMB": 29.04,

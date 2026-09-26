@@ -117,7 +117,7 @@ export class TutorialSequence {
   private buildSteps(): TutorialStep[] {
     return [
       {
-        title: 'Take the Helm',
+        title: 'Take the helm',
         body: 'Click the screen to take mouse control, then move the mouse to look around the deck. No mouse? The arrow keys turn too.',
         keys: [{ code: 'Mouse', label: 'Mouse' }, { code: 'ArrowLeft', label: '←' }, { code: 'ArrowRight', label: '→' }],
         objective: 'Get your bearings.',
@@ -131,7 +131,7 @@ export class TutorialSequence {
         done: () => this.lookAmount > LOOK_THRESHOLD,
       },
       {
-        title: 'Find Your Footing',
+        title: 'Find your footing',
         body: 'Walk the deck with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>. Hold <kbd>Shift</kbd> to run and tap <kbd>Space</kbd> to jump — those stay with you everywhere you go.',
         keys: [
           { code: 'KeyW', label: 'W' },
@@ -147,7 +147,7 @@ export class TutorialSequence {
         done: () => MOVE_KEYS.every((code) => this.pressed.has(code)),
       },
       {
-        title: 'Know Your Skills',
+        title: 'Know your skills',
         body: 'Insight, engineering, perception — what you are good at decides what this ship, and the worlds past it, will let you do, and those skills grow as you use them. Press <kbd>Tab</kbd> to read your sheet, then close it again.',
         keys: [{ code: 'Tab', label: 'TAB' }],
         objective: 'Review your character sheet.',
@@ -164,7 +164,7 @@ export class TutorialSequence {
         done: () => this.openedCharacterSheet && !PanelManager.isOpen,
       },
       {
-        title: 'Reach the Console',
+        title: 'Reach the console',
         body: 'Nothing gets repaired from where you are standing. The navigation console at the far end of the deck is the one system still listening to you — walk to the marker.',
         objective: 'Reach the navigation console.',
         hint: 'It is the wide bank of screens at the far end of the room. The amber marker on your screen points the way and counts down the distance.',
@@ -177,7 +177,7 @@ export class TutorialSequence {
         done: () => this.horizontalDistanceTo(CONSOLE_APPROACH.x, CONSOLE_APPROACH.z) < ARRIVAL_RADIUS,
       },
       {
-        title: 'Bring It Online',
+        title: 'Bring it online',
         body: 'Look at the console screens and press <kbd>E</kbd> to boot navigation. This is how you use anything out here: put it in the centre of your view, wait for the prompt, press <kbd>E</kbd>.',
         keys: [{ code: 'KeyE', label: 'E' }],
         objective: 'Boot the navigation console.',
