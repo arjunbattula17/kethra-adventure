@@ -92,7 +92,7 @@ without errors), `test-tutorial-flow.mjs` (36 checks through the opening), `intr
   (BACKLOG B-5).
 
 ## Title screen (`src/ui/TitleScreen.ts`)
-**What:** the first screen: Continue / New Game / Controls / Credits / Settings. Plain HTML and
+**What:** the first screen: Continue / New Game / Controls / Settings (the credits roll at the ending). Plain HTML and
 CSS, so it appears instantly.
 **Why:** the rules require a controls screen reachable from a menu; the CC BY assets need visible
 credit; and browsers won't play sound until the player clicks something.

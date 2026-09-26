@@ -11,20 +11,11 @@ import type { BindingId } from '../content/controls';
  * nothing 3D has loaded yet, and the first click on it is what unlocks audio (browsers block sound
  * until the page gets a gesture).
  *
- * Continue / New Game / Controls / Credits / Settings. Controls and Credits open in the shared
+ * Continue / New Game / Controls / Settings. Controls opens in the shared
  * panel system. The controls list prints src/content/controls.ts, the same table the player code
- * reads its keys from, and Credits carries the attribution the CC BY assets require.
+ * reads its keys from. The credits, including the attribution the CC BY assets require, roll at
+ * the end of the game (EndingScene).
  */
-
-const CREDIT_KEYS: StringKey[] = [
-  'credits.freighter',
-  'credits.planets',
-  'credits.kits',
-  'credits.textures',
-  'credits.font',
-  'credits.three',
-  'credits.original',
-];
 
 interface TitleOptions {
   hasSave: boolean;
@@ -45,15 +36,13 @@ export const TitleScreen = {
         <h1 class="title-name"><span class="title-name-text"></span><span class="title-scan" aria-hidden="true"></span></h1>
         <p class="title-tagline"></p>
         <nav class="title-menu"></nav>
-      </div>
-      <div class="title-foot"></div>`;
+      </div>`;
     // Key art: Kethra itself, from the same surface map the 3D planet and the chart use.
     (root.querySelector('.title-planet') as HTMLDivElement).style.backgroundImage = `url(${import.meta.env.BASE_URL}textures/planets/kethra_day.jpg)`;
     root.querySelector('.title-kicker')!.textContent = t('title.kicker');
     root.querySelector('.title-name-text')!.textContent = t('title.name');
     root.querySelector('.title-name')!.setAttribute('data-name', t('title.name'));
     root.querySelector('.title-tagline')!.textContent = t('title.tagline');
-    root.querySelector('.title-foot')!.textContent = t('title.foot');
 
     const menu = root.querySelector('.title-menu')!;
     PanelManager.relockPointerOnClose = false;
@@ -80,7 +69,6 @@ export const TitleScreen = {
     if (opts.hasSave) add('title.continue', true, () => close(opts.onContinue));
     add('title.newGame', !opts.hasSave, () => close(opts.onNewGame));
     add('title.controls', false, () => this.showControls());
-    add('title.credits', false, () => this.showCredits());
     add('title.settings', false, () => SettingsPanel.open());
 
     document.body.appendChild(root);
@@ -113,22 +101,6 @@ export const TitleScreen = {
     note.className = 'title-panel-note';
     note.textContent = t('controls.note');
     panel.appendChild(note);
-    this.closeHint(panel);
-    PanelManager.open(panel);
-  },
-
-  showCredits(): void {
-    const panel = document.createElement('div');
-    panel.className = 'panel title-panel';
-    const h = document.createElement('h2');
-    h.textContent = t('title.credits');
-    panel.appendChild(h);
-    for (const key of CREDIT_KEYS) {
-      const p = document.createElement('p');
-      p.className = 'credit-line';
-      p.textContent = t(key);
-      panel.appendChild(p);
-    }
     this.closeHint(panel);
     PanelManager.open(panel);
   },

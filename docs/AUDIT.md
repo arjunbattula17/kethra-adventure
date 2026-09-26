@@ -8,7 +8,7 @@ recorded in STATE_OF_PLAY.md and docs/STYLE_AUDIT.md at the start of that sessio
 ## What exists
 
 **Levels and story**
-- **Title screen** with Continue, New game, Controls, Credits and Settings.
+- **Title screen** with Continue, New game, Controls and Settings (credits roll at the ending).
 - **Intro** ("Cold Start", 24 s, skippable): the white sky hits the Wren.
 - **Level 1, the Wren:** a five-step tutorial, the galaxy reveal, the course plot, and the ship
   as a hub (travel logs, repairs, the navigation map).

@@ -45,12 +45,12 @@ longer [unsourced — estimate: 12–20 minutes]; nobody has timed one yet (BACK
 | Rule | Status | Evidence |
 |---|---|---|
 | Rated E | ✓ | No weapons or combat anywhere; the dangers are darkness, cold and distance. The only fail states are a fall on Kethra (you scramble back) and the frost clock (the backup warmers buy another try). |
-| Original or permissively licensed, logged | ✓ | docs/ASSET_LICENSE_LOG.md; both CC BY assets credited on the title and in the ending's credits. |
+| Original or permissively licensed, logged | ✓ | docs/ASSET_LICENSE_LOG.md; both CC BY assets credited in the ending's credits. |
 | Plain URL, four browsers, Windows and macOS | ~ | Chromium 151, Edge 153, Firefox 153: every level, 0 errors. WebKit 26.5 (the Windows test build of Safari's engine): every level, 0 errors, but the 3D view stays black while sound plays (also true of the build from before this session). **macOS Safari untested.** docs/perf/browser-matrix.json |
 | Offline from a local folder | ✓ | test-offline above. |
 | Level 3 reachable and completable | ✓ | test-vessek-flow. |
 | Run longer than 3 minutes | ✓ (scripted floor) | above. |
-| Nothing identifies the team | ~ | In the game and its files: only "team #____" on the title and in credits. The repository account and commit author names are D-12, a team action. |
+| Nothing identifies the team | ~ | In the game and its files: only "team #____" in the ending's credits. The repository account and commit author names are D-12, a team action. |
 | Keeps working through Nationals | ✓ | Static files, no services, no expiring keys; Render/Cloudflare/GitHub Pages all work (DEPLOY.md). |
 
 ## Resilience (`tools/test-resilience.mjs`, 8/8)

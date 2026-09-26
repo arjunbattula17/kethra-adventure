@@ -2,8 +2,8 @@
 
 Every asset in the build that isn't written from scratch in this repo, with source, license and
 URL. Per-folder CREDITS.md files hold extra detail (what was re-encoded or remapped, and why).
-**Attribution required** marks licenses that need visible credit in the game; the title screen's
-Credits panel and the ending's credits roll both carry it (`credits.*` in `src/content/strings.ts`).
+**Attribution required** marks licenses that need visible credit in the game; the credits roll at
+the end of the game carries it (`credits.*` in `src/content/strings.ts`).
 
 | Asset | Where | Source | License | Attribution required |
 |---|---|---|---|---|

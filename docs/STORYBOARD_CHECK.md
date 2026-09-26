@@ -7,8 +7,8 @@ game; don't draw them as playable.
 ## Title
 1. **Title screen.** "KETHRA" in large type, cut by an amber scan line: ink above, sea-green below.
    Kethra turns slowly at the right. Buttons: Continue (only if saved), New game, Controls,
-   Credits, Settings. Footer: "TSA Video Game Design · Team #____".
-2. **Controls / Credits / Settings** open as panels over the title.
+   Settings. No footer; the credits roll at the end of the game.
+2. **Controls / Settings** open as panels over the title.
 
 ## Intro: "Cold Start" (24 s, skippable with Space, Enter or a click)
 3. **Loading screen** with a progress bar and a line of lore.
