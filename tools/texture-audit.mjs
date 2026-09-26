@@ -54,14 +54,14 @@ for (const sc of SCENES) {
   await page.goto(BASE + sc.query, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 240000, polling: 250 });
   if (sc.go === 'transitionToGalaxyReveal') {
-    await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 240000, polling: 250 });
+    await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 240000, polling: 250 });
     await page.evaluate(() => window.__DEBUG__.flow.transitionToGalaxyReveal());
   } else if (sc.go === 'kethra') {
     await page.evaluate(() => window.__DEBUG__.flow.travelToPlanet('kethra'));
   }
   await page.waitForFunction(
     (kind) => {
-      const s = window.__DEBUG__.engine.getCurrentScene();
+      const s = window.__DEBUG__?.engine.getCurrentScene();
       return (s?.kind ?? s?.constructor.name) === kind || (kind === 'GalaxyRevealScene' && !!s?.ship && !s.player);
     },
     sc.kind,
@@ -71,7 +71,7 @@ for (const sc of SCENES) {
   await page.waitForTimeout(4000);
 
   report[sc.id] = await page.evaluate(() => {
-    const scene = window.__DEBUG__.engine.getCurrentScene().scene;
+    const scene = window.__DEBUG__?.engine.getCurrentScene().scene;
     scene.updateMatrixWorld(true);
     const SLOTS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap', 'bumpMap', 'lightMap', 'displacementMap'];
     const rows = new Map();

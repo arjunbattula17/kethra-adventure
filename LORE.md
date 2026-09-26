@@ -209,7 +209,7 @@ Each level ends on something the player learns that the previous one didn't tell
 - **Set piece:** light flooding back up the terraces when the Heart wakes.
 - **Exit hook:** the Deep Scanner repair resolves a ring of ships at Vessek (built).
 
-### Level 3 — Vessek Anchorage *(planned)*
+### Level 3 — Vessek Anchorage *(built)*
 - **Beats:** docking at a ring of lashed-together wrecks → Harbormaster Ilse Varro wants the
   Wren's hyperdrive core in exchange for the conduit alloy the repairs need → the player learns
   who the "traders" who robbed Kethra were → **mid-level set piece: a rehearsal pulse** browns out
@@ -220,6 +220,15 @@ Each level ends on something the player learns that the previous one didn't tell
 - **Social puzzle:** bargain for the alloy (persuasion), repair the ring's bus in exchange
   (engineering), or trade what Fen told you about the Rite (insight) for Varro's trust.
 - **Player learns:** the white sky has a source (Isilthe), a schedule, and a cost.
+
+### The end of part one *(built)*
+- **Beats:** comms repaired with the Anchorage's alloy → the player chooses to transmit the ledger
+  → the Wren's own light leaves for home, passing Kethra, whose Heart answers → the credits.
+- **Lines** (EndingScene): "Every name in the Anchorage ledger, and every log the Wren kept." /
+  "Light carries them now, out past the Kessic Drift." / "Under Isilthe's sea, the Choir is still
+  singing." / "This time, someone knows how to answer it."
+- **Player learns:** light is how you call for help as well as how the Choir calls ships; Isilthe
+  is where the story goes next.
 
 ### Level 4 — Orrun's Reach *(later)*
 - **Beats:** storm windows between dunes → a Kindling relay the size of a town, half buried →
@@ -303,7 +312,7 @@ world.
 - **Resonant crystal.** Kindling-grown; holds a colour and gives it back. Repairs the Wren's
   navigation and Deep Scanner. Earned from the Cistern Heart (built).
 - **Conduit alloy.** Salvaged ship metal, the Anchorage's currency. Repairs comms, shields and
-  power distribution. Earned at the Anchorage (planned).
+  power distribution. Earned at the Anchorage (built).
 - **Stellar core shard.** A Kindling relay's heart. The only thing that can restart the Wren's
   hyperdrive core. Earned at Orrun's Reach (planned).
 - **The Ship's Library.** The Wren's reference archive: real science entries that unlock as the

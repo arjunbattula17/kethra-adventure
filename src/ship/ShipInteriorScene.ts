@@ -156,6 +156,16 @@ export class ShipInteriorScene implements GameScene {
   }
 
   /**
+   * The start-up benchmark can lower the tier after this room was built for a higher one; this
+   * brings the room down to the Performance tier's own budget (8 lights, halved canvases) too.
+   */
+  adaptToTier(tier: 'low' | 'medium' | 'high'): void {
+    if (tier !== 'low') return;
+    this.applyLightBudget(8);
+    downscaleCanvasTextures(this.scene, 1024);
+  }
+
+  /**
    * Keeps only the strongest point lights. three.js writes every point light into every lit shader
    * as an unrolled block of code, so the room's 41 lights made each of its ~93 shader programs
    * very long, and the first load on a fresh browser spent over a minute compiling them (measured:

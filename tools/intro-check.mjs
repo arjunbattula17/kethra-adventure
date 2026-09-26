@@ -63,7 +63,7 @@ await page.evaluate(() => {
   s.onDone = () => { L.doneAt = +s.elapsed.toFixed(2); orig?.(); };
 });
 
-const clock = () => page.evaluate(() => { const s = window.__DEBUG__.engine.getCurrentScene(); return s?.kind === 'IntroScene' ? s.elapsed : -1; });
+const clock = () => page.evaluate(() => { const s = window.__DEBUG__?.engine.getCurrentScene(); return s?.kind === 'IntroScene' ? s.elapsed : -1; });
 const waitClock = async (target) => { for (;;) { const c = await clock(); if (c < 0 || c >= target) return c; await page.waitForTimeout(30); } };
 for (const at of shots) {
   if ((await waitClock(at)) < 0) break;

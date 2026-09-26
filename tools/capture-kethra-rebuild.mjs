@@ -30,7 +30,7 @@ console.log('starting shots...');
 async function shot(name, pos, yaw) {
   await page.evaluate(
     ({ pos, yaw }) => {
-      const scene = window.__DEBUG__.engine.getCurrentScene();
+      const scene = window.__DEBUG__?.engine.getCurrentScene();
       scene.player.enabled = true;
       const V = scene.player.rig.position.constructor;
       scene.player.teleport(new V(pos[0], pos[1], pos[2]), yaw);
@@ -47,7 +47,7 @@ async function shot(name, pos, yaw) {
 async function wideShot(name, rigXZ, yaw, camY, pitch, fov = 62) {
   await page.evaluate(
     ({ rigXZ, yaw, camY, pitch, fov }) => {
-      const scene = window.__DEBUG__.engine.getCurrentScene();
+      const scene = window.__DEBUG__?.engine.getCurrentScene();
       scene.player.enabled = false;
       scene.player.rig.position.set(rigXZ[0], 0, rigXZ[1]);
       scene.player.rig.rotation.set(0, yaw, 0);

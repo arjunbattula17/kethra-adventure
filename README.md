@@ -12,16 +12,10 @@ npm run play        # builds and opens the production version
 Development with live reload: `npm run dev`.
 
 ## Controls
-| Action | Key |
-|---|---|
-| Look around | Mouse (click the game first; Esc releases the mouse) |
-| Move | W A S D or arrow keys |
-| Sprint / Jump / Crouch | Shift / Space / C or Ctrl |
-| Interact | E |
-| Character sheet | Tab |
-| Settings | O |
-| Close a panel | Esc |
-| Skip a cinematic | Space, Enter, or click |
+Every key is defined once in `src/content/controls.ts`; the in-game Controls screen and
+docs/CONTROLS_AND_HOW_TO_PLAY.md (regenerate with `node tools/gen-controls-doc.mjs`) print from it.
+Mouse to look (arrow keys turn without a mouse), W/S or ↑/↓ to move, A/D to step, E to interact,
+Tab for the character sheet, O for settings, Esc to pause.
 
 ## Checks
 ```
@@ -29,8 +23,11 @@ npm run build       # type-check + production build
 npx vite preview    # serve the build (keep running)
 npm run smoke       # every scene boots with no console errors
 ```
-More in `tools/`: `test-tutorial-flow.mjs` (full opening), `intro-check.mjs`,
-`movement-check.mjs`, `collision-check.mjs`, `texture-audit.mjs`.
+Player-path tests (run against the preview): `node tools/test-tutorial-flow.mjs <url>` (the
+opening), `test-kethra-flow.mjs` (level 2), `test-vessek-flow.mjs` (level 3 and the ending),
+`test-resilience.mjs` (no WebGL, context loss, blocked storage). Measurement: `perf-run.mjs`
+(throttled profile), `browser-matrix.mjs` (Chromium, Edge, Firefox, WebKit),
+`capture-screens.mjs` (every screen), `capture-tiers.mjs` (quality tiers side by side).
 
 ## Project map
 | Path | What's there |
@@ -40,10 +37,13 @@ More in `tools/`: `test-tutorial-flow.mjs` (full opening), `intro-check.mjs`,
 | `src/galaxy/` | intro cinematic, galaxy reveal, map, planets |
 | `src/ship/` | the Wren's interior (level 1) |
 | `src/planets/kethra/` | Kethra (level 2) |
+| `src/planets/vessek/` | Vessek Anchorage (level 3) |
+| `src/characters/` | the low-poly figure builder (Aiveth and humans) |
+| `src/ui/` | title, pause, settings, HUD, panels |
 | `src/rpg/`, `src/dialogue/`, `src/journal/` | stats, dialogue trees, logs and evidence board |
-| `public/` | models, textures, fonts (see ASSET_LICENSES.md) |
+| `public/` | models, textures, fonts (see docs/ASSET_LICENSE_LOG.md) |
 | `tools/` | tests, audits, capture scripts |
-| `docs/` | earlier design notes and learnings |
+| `docs/` | the submission documents (below), screenshots, performance data |
 
 ## Documents
 - STATE_OF_PLAY.md: honest assessment against the rubric
@@ -54,7 +54,13 @@ More in `tools/`: `test-tutorial-flow.mjs` (full opening), `intro-check.mjs`,
 - LORE.md: story source
 - ART_BIBLE.md: look
 - TEXTURE_AUDIT.md: texture standard and audit
-- ASSET_LICENSES.md: licenses
-- AI_USE_LOG.md: AI use record
+- docs/ASSET_LICENSE_LOG.md: licenses
+- docs/AI_AND_ASSET_LOG.md: AI use record
 - EXPLAIN_TO_TEAM.md: interview prep
 - DEPLOY.md: deploy checklist
+
+Submission documents in `docs/`: AUDIT, PLAN, CHANGELOG_FOR_TEAM, CONTROLS_AND_HOW_TO_PLAY,
+STORYBOARD_CHECK, DEMO_VIDEO_SHOTLIST, INTERVIEW_PREP, PLAYTEST_REPORT; art direction:
+STYLE_AUDIT, STYLE_BIBLE, DESIGN_NOTES, UI_CHANGELOG_FOR_TEAM, screens/before and screens/after;
+performance: PERF_AUDIT, PERF_LOG, PERF_REPORT, PERF_CHANGELOG_FOR_TEAM,
+TESTING_ON_A_REAL_CHROMEBOOK, perf/.

@@ -18,6 +18,7 @@ import { applyPbr } from '../../core/TextureLibrary';
 import { KitBatcher, kitInstanceBox, jitter, groveRandom, resetGroveRandom } from './kit';
 import { buildKethraColliders } from './collision';
 import { Figure } from '../../characters/Figure';
+import { getPointSprite } from '../../galaxy/spaceDressing';
 import { buildWickmoth, buildCisternHeart, buildLanternBloom, buildShrineStele, tintByLuminance, CANOPY_TINTS } from './grove';
 import type { Wickmoth, CisternHeart, LanternBloom } from './grove';
 
@@ -954,7 +955,9 @@ export class KethraScene implements GameScene {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const mat = new THREE.PointsMaterial({ color: 0x9fe8c8, size: 0.06, transparent: true, opacity: 0.6 });
+    // Round, soft motes: without a sprite, points draw as hard squares, which one drifting close to
+    // the camera made obvious.
+    const mat = new THREE.PointsMaterial({ color: 0x9fe8c8, size: 0.06, transparent: true, opacity: 0.6, map: getPointSprite(), depthWrite: false, blending: THREE.AdditiveBlending });
     const motes = new THREE.Points(geo, mat);
     motes.name = 'motes';
     this.scene.add(motes);

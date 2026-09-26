@@ -15,7 +15,7 @@ await page.screenshot({ path: `${outDir}/01_ship_console.png` });
 
 // 2. Ship interior — closeup on console.
 await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   const V = scene.player.rig.position.constructor;
   scene.player.teleport(new V(0, 1.7, -2), 0);
 });
@@ -24,7 +24,7 @@ await page.screenshot({ path: `${outDir}/02_ship_console_closeup.png` });
 
 // 3. Ship interior — airlock.
 await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   const V = scene.player.rig.position.constructor;
   scene.player.teleport(new V(0, 1.7, 2), Math.PI);
 });
@@ -76,7 +76,7 @@ await page.waitForTimeout(2500);
 await page.screenshot({ path: `${outDir}/07_kethra_spawn.png` });
 
 await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   const V = scene.player.rig.position.constructor;
   scene.player.teleport(new V(-16, 2.2, -2.2), 0.3);
 });
@@ -84,7 +84,7 @@ await page.waitForTimeout(500);
 await page.screenshot({ path: `${outDir}/08_kethra_grove.png` });
 
 await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   const V = scene.player.rig.position.constructor;
   scene.player.teleport(new V(0, 1.4, -15.5), Math.PI);
 });

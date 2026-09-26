@@ -51,10 +51,10 @@ await page.addStyleTag({ content: `
 ` });
 
 await page.evaluate(() => {
-  const s = window.__DEBUG__.engine.getCurrentScene();
+  const s = window.__DEBUG__?.engine.getCurrentScene();
   s.player.enabled = false;
   window.__SETVIEW__ = (v) => {
-    const sc = window.__DEBUG__.engine.getCurrentScene();
+    const sc = window.__DEBUG__?.engine.getCurrentScene();
     sc.player.rig.position.set(v.pos[0], 0, v.pos[2]);
     sc.player.rig.rotation.set(0, v.yaw, 0);
     sc.camera.position.set(0, v.pos[1], 0);

@@ -2,57 +2,62 @@
 
 The working checklist for the three briefs (TSA submission, art direction, performance), in
 priority order: non-negotiables, then the double-weight rubric rows, then flow and directions,
-then bonus, then polish. Updated as work lands.
+then bonus, then polish. Updated as work lands; the open items at the bottom carry into BACKLOG.md.
 
 ## 0 · Non-negotiables
-- [ ] **Level 3 exists and is completable** (Vessek Anchorage, per LORE.md and D-4's
-      recommendation). Critical path, stat routes, set piece, fail/retry, reversal.
-- [ ] **An ending** after level 3 that pays off the story, then credits (team ID only + assets).
-- [ ] A full scripted run > 3 minutes, reaching level 3 and the ending, with zero console errors.
-- [ ] WebGL unavailable → a clear message, never a black screen. Context loss → recover.
-- [ ] Everything local: fonts, models, audio (no CDN, no remote fonts). Verify with the network off.
-- [ ] Nothing identifies the team: tab title, metadata, credits, file paths (D-12 remains a
-      team action for the repo account itself).
+- [x] **Level 3 exists and is completable** (Vessek Anchorage): critical path, stat routes, set
+      piece, fail/retry, reversal. `tools/test-vessek-flow.mjs` plays it through real controls.
+- [x] **An ending** after level 3, then credits naming only the team ID and the licensed assets.
+- [~] A full run longer than 3 minutes: every level is covered by a scripted player-path test and
+      the intro alone is 24 s, but no human has timed a first playthrough yet (B-30).
+- [x] WebGL unavailable → a clear message. Context loss → recovers (`tools/test-resilience.mjs`).
+- [x] Everything local: fonts, models, audio; no CDN or remote fonts (the build requests only its
+      own origin; see docs/PLAYTEST_REPORT.md).
+- [~] Nothing identifies the team in the game or its files; the repository account and commit
+      history are still D-12 (a team action).
 
 ## 1 · Creativity & Artisanship (×2)
-- [x] STYLE_AUDIT.md, STYLE_BIBLE.md.
-- [ ] Characters: replace the capsule Aiveth with designed figures; human figures for the
-      Anchorage.
-- [ ] Kethra: the Cistern Heart as a Kindling machine, the Wickmoth as a creature with stained-glass
-      wings, the grove's palette brought back to the art bible (sea-green, not autumn red).
-- [ ] UI rebuilt from the component list: fonts, sentence case, buttons with four states, one
-      caption style, toasts moved off the view centre, no pill.
-- [ ] Signature transition (the scan line) replacing the double fade.
-- [ ] Title with real art and one idle motion.
+- [x] STYLE_AUDIT.md, STYLE_BIBLE.md, DESIGN_NOTES.md.
+- [x] Designed characters for the Aiveth and the Anchorage.
+- [x] Kethra: the Cistern Heart, the Wickmoth, the lantern bloom, the stele; the palette.
+- [x] UI rebuilt from one component set; sentence case; no pills; toasts off the view centre.
+- [x] Signature transition (the scan line).
+- [x] Title with the logo treatment and one idle motion.
 
 ## 2 · Technical Skill (×2)
-- [ ] Controls defined once (`src/content/controls.ts`) and read by the player, the controls
+- [x] Controls defined once (`src/content/controls.ts`) and read by the player, the Controls
       screen and the generated how-to-play doc.
-- [ ] Level 3 as data-driven content (dialogue trees, puzzle definition, lore) like level 2.
-- [ ] Perf: throttled measurements, PERF_AUDIT, a Low tier that looks designed, hidden-tab stop,
-      battery cap, context loss.
+- [x] Level 3 as data (dialogue trees, puzzle definition, lore) like level 2.
+- [x] Perf: throttled measurements, PERF_AUDIT, tiers side by side, hidden-tab audio, battery cap,
+      context loss.
+- [ ] The Wren at 30 fps on a 6x-throttled CPU (B-28).
 
 ## 3 · Overall Appeal (×2)
-- [ ] Pause menu (Esc): resume, settings, controls, restart level, quit to title.
-- [ ] Settings: master, music and effects volume; reduced motion; text size; quality as
-      Performance / Balanced / Quality; all persisted and safe with storage blocked.
-- [ ] Game feel: coyote time, jump buffer, landing response; one sound per interaction class;
+- [x] Pause menu with resume, settings, controls, restart level, quit to title.
+- [x] Settings: master, music, effects; reduced motion; text size; sensitivity; quality as
+      Auto / Performance / Balanced / Quality; persisted and safe with storage blocked.
+- [x] Game feel: coyote time, jump buffer, landing response; a sound per interaction class;
       generative music per place; HUD numbers animate.
-- [ ] Fail states are fast, kind and clear (the Anchorage frost clock; falls on Kethra).
+- [x] Fail states are fast, kind and clear (the frost clock; falls on Kethra).
+- [x] Keyboard-only play.
 
 ## 4 · Storyline & Flow
-- [ ] Level transitions carry context (arrival cards with place and purpose).
-- [ ] The reversal (the Heart is a relay) lands in level 3; the ending restates the through-line.
+- [x] Arrival and completion cards for each level.
+- [x] The reversal (the Heart is a relay) lands in level 3; the ending restates the through-line.
 
 ## 5 · Game Directions
-- [ ] In-game controls screen, CONTROLS_AND_HOW_TO_PLAY.md and bindings agree word for word.
+- [x] In-game Controls screen, CONTROLS_AND_HOW_TO_PLAY.md and the bindings agree word for word.
 
 ## 6 · Bonus
-- [ ] Name the unusual feature and make sure the mechanics carry the message (see AUDIT.md).
+- [x] Named in docs/AUDIT.md: glow-speech characters, the breaker puzzle's kind answer, stats that
+      change what you can see, the Ship's Library.
 
 ## 7 · Documents
-- [ ] AUDIT.md, CHANGELOG_FOR_TEAM.md, UI_CHANGELOG_FOR_TEAM.md, DESIGN_NOTES.md,
-      AI_AND_ASSET_LOG.md, ASSET_LICENSE_LOG.md, CONTROLS_AND_HOW_TO_PLAY.md,
-      STORYBOARD_CHECK.md, DEMO_VIDEO_SHOTLIST.md, INTERVIEW_PREP.md, PLAYTEST_REPORT.md,
-      PERF_AUDIT.md, PERF_LOG.md, PERF_REPORT.md, PERF_CHANGELOG_FOR_TEAM.md,
-      TESTING_ON_A_REAL_CHROMEBOOK.md, docs/screens/after/, docs/perf/.
+- [x] AUDIT, CHANGELOG_FOR_TEAM, UI_CHANGELOG_FOR_TEAM, DESIGN_NOTES, AI_AND_ASSET_LOG,
+      ASSET_LICENSE_LOG, CONTROLS_AND_HOW_TO_PLAY, STORYBOARD_CHECK, DEMO_VIDEO_SHOTLIST,
+      INTERVIEW_PREP, PLAYTEST_REPORT, PERF_AUDIT, PERF_LOG, PERF_REPORT,
+      PERF_CHANGELOG_FOR_TEAM, TESTING_ON_A_REAL_CHROMEBOOK, screens/before and after, perf/.
+
+## Open (carried into BACKLOG.md)
+- B-28 the Wren's draw calls; B-29 real Safari and Chromebook; B-30 a timed human playthrough;
+  D-12 names in the repository; D-17 the title; D-7 the course plot's typed answers.

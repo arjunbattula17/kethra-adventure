@@ -23,15 +23,15 @@ page.on('pageerror', (e) => console.log('PAGEERROR', e.message.slice(0, 200)));
 await page.goto(baseUrl + '?skipIntro=1' + (scene === 'kethra' ? '&unlockKethra=1' : '&newGame=1'), { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 60000, polling: 500 });
 // Boot-race guard: flow.start()'s setScene must resolve before anything else drives the flow.
-await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene(), undefined, { timeout: 120000, polling: 500 });
+await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 120000, polling: 500 });
 
 if (scene === 'kethra') {
   await page.evaluate(() => window.__DEBUG__.flow['travelToPlanet']?.('kethra'));
-  await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind !== 'ShipInteriorScene', undefined, { timeout: 180000, polling: 500 });
+  await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.kind !== 'ShipInteriorScene', undefined, { timeout: 180000, polling: 500 });
   await page.waitForTimeout(3000);
 } else if (scene === 'reveal') {
   await page.evaluate(() => window.__DEBUG__.flow['transitionToGalaxyReveal']?.());
-  await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship, undefined, { timeout: 180000, polling: 500 });
+  await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship, undefined, { timeout: 180000, polling: 500 });
   await page.waitForTimeout(1500);
 } else {
   await page.waitForTimeout(1500);

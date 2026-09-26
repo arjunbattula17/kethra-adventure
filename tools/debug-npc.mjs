@@ -13,7 +13,7 @@ await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'kethra'
 await page.waitForTimeout(3000);
 
 const info = await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   const inter = scene.interaction;
   const count = inter ? inter['interactables']?.length : 'NO_INTERACTION';
   const player = scene.player;
@@ -32,14 +32,14 @@ const info = await page.evaluate(() => {
 console.log(JSON.stringify(info, null, 2));
 
 await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   const V = scene.player.rig.position.constructor;
   scene.player.teleport(new V(3, 2, 5.5), 0);
 });
 await page.waitForTimeout(500);
 
 const info2 = await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   const camPos = new scene.player.camera.position.constructor();
   scene.camera.getWorldPosition(camPos);
   return { rigPos: scene.player.rig.position.toArray(), camWorldPos: camPos.toArray() };
@@ -57,7 +57,7 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(500);
 
 await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   const V = scene.player.rig.position.constructor;
   scene.player.teleport(new V(-3, 2, 4.5), 0);
 });

@@ -1,5 +1,8 @@
 # State of Play — Session 0 (2026-09-24)
 
+> Superseded on 2026-09-25 by docs/AUDIT.md, which scores the game after level 3, the ending and
+> the art and performance passes. Kept as the "before" picture.
+
 **Headline:** the game fits the TSA theme unusually well (a deep-space RPG where progress comes
 from puzzles, dialogue and stats, with no combat anywhere), and it runs in a browser at 60 fps
 on real hardware. The biggest problem is structural: **there are two levels, and the rules
@@ -50,7 +53,7 @@ Engine: three.js (WebGL) + TypeScript, built with Vite into a static site. Deplo
 | Theme central to mechanic and story | **Strong, with gaps** | Deep space, puzzles, stats, dialogue, no combat. Gaps: risk 4 above |
 | At least three levels, >3 min play, first three strongest | **Fail** | Two levels. Play time through both is well over three minutes. |
 | In-game teaching + controls screen from menu | **Partial** | A five-step tutorial teaches every control in the first minute. No menu and no controls screen. |
-| Originality and licensing logged | **Partial → fixed today** | Credits existed per folder; now consolidated in ASSET_LICENSES.md. CC BY attribution still needs an in-game credits screen. |
+| Originality and licensing logged | **Partial → fixed today** | Credits existed per folder; now consolidated in docs/ASSET_LICENSE_LOG.md. CC BY attribution still needs an in-game credits screen. |
 | Stability, no external runtime calls | **Pass, one bug fixed today** | All assets are local. Fixed: a blocked `localStorage` threw at boot and left a black screen (private modes, managed Chromebooks); now covered by the smoke test. |
 | No team or school names | **At risk** | Fixed today: a machine user path in `tools/interior-round.workflow.mjs`. Open: repo owner and commit author (risk 6). |
 

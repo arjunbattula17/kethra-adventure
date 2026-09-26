@@ -20,12 +20,12 @@ const check = (name, ok, detail = '') => {
   if (!ok) failed++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  -- ' + detail : ''}`);
 };
-const sceneKind = () => page.evaluate(() => window.__DEBUG__.engine.getCurrentScene()?.kind);
-const waitScene = (kind) => page.waitForFunction((k) => window.__DEBUG__.engine.getCurrentScene()?.kind === k, kind, { timeout: 240000, polling: 500 });
+const sceneKind = () => page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.kind);
+const waitScene = (kind) => page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k, kind, { timeout: 240000, polling: 500 });
 const state = () => page.evaluate(() => JSON.parse(JSON.stringify(window.__DEBUG__.gameState.data)));
 async function teleport(x, y, z) {
   await page.evaluate(({ x, y, z }) => {
-    const s = window.__DEBUG__.engine.getCurrentScene();
+    const s = window.__DEBUG__?.engine.getCurrentScene();
     s.player.teleport(new s.player.rig.position.constructor(x, y, z), 0);
   }, { x, y, z });
   await page.waitForTimeout(400);

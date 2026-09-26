@@ -41,7 +41,7 @@ const kind = { ship: 'ShipInteriorScene', kethra: 'KethraScene', intro: 'IntroSc
 await page.goto(BASE + query, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 240000, polling: 250 });
 if (SCENE === 'kethra') await page.evaluate(() => window.__DEBUG__.flow.travelToPlanet('kethra'));
-await page.waitForFunction((k) => window.__DEBUG__.engine.getCurrentScene()?.kind === k, kind, { timeout: 240000, polling: 250 });
+await page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k, kind, { timeout: 240000, polling: 250 });
 await page.waitForTimeout(SCENE === 'intro' ? 9000 : 3000);
 
 for (const [name, pos, look] of VIEWS[SCENE]) {

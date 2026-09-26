@@ -25,7 +25,7 @@ await page.waitForFunction(() => {
 await page.waitForTimeout(4000);
 
 const data = await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene().scene;
+  const scene = window.__DEBUG__?.engine.getCurrentScene().scene;
   const meshes = [];
   const roots = [];
   scene.updateMatrixWorld(true);

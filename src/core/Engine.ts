@@ -111,6 +111,11 @@ export class Engine {
   private capTo30 = false;
   private lastDrawAt = 0;
   private contextLost = false;
+  /** Set when the runtime governor stepped the tier down mid-play. Mid-play it leaves shadows and
+   * anti-aliasing as they were (toggling them recompiles every shader, a multi-second freeze), so
+   * the full preset for the new tier is applied at the next scene change, behind the cover. */
+  private fullPresetPending = false;
+  private toldAboutDowngrade = false;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -234,6 +239,8 @@ export class Engine {
         this.renderScale = steps[Math.min(steps.indexOf(this.renderScale) + 1, steps.length - 1)];
       }
       this.applyTier(this.tier, true);
+      this.fullPresetPending = true;
+      this.noteDowngrade();
       this.lastDowngradeAt = now;
       this.recentFrameMs.length = 0;
     }
@@ -273,6 +280,8 @@ export class Engine {
         this.current.dispose();
         this.current = null;
       }
+      // A safe moment: the screen is covered and the new scene's shaders are about to compile anyway.
+      if (this.fullPresetPending) this.applyFullPreset(this.tier);
       const scene = await factory();
       // WebGLRenderer compiles (and on some drivers, links) each material's shader program lazily
       // on its first real draw call — not at material-creation time — so without the compile in
@@ -358,6 +367,15 @@ export class Engine {
     // An explicit choice also clears any render-scale relief the automatic path had applied —
     // the player asked for this tier's real resolution.
     this.renderScale = 1;
+    this.applyFullPreset(tier);
+  }
+
+  /**
+   * A tier's whole preset, shadows and anti-aliasing included. Only ever called where a shader
+   * recompile can't be seen: a manual choice in the menu, or behind a scene transition's cover.
+   */
+  private applyFullPreset(tier: QualityTier): void {
+    this.fullPresetPending = false;
     this.tier = tier;
     // Crossing the MSAA boundary (low <-> the AA'd tiers) needs the composer rebuilt, or a
     // machine that guessed 'low' and was manually raised would silently run High without
@@ -374,6 +392,54 @@ export class Engine {
       this.postFx.setSize(window.innerWidth, window.innerHeight);
     }
     this.applyTier(tier);
+  }
+
+  /**
+   * The start-up benchmark (docs/PERF_REPORT.md, "Auto-detect"): a handful of hidden frames of the
+   * real scene, drawn and timed behind the loading cover, with gl.finish() so GPU time counts too.
+   * The hardware guess from the GPU name and core count is only a guess; this measures. If the
+   * median frame misses the budget, the tier steps down before the player sees a single frame.
+   * Skipped when the player chose a tier themselves.
+   */
+  benchmarkScene(scene: GameScene): QualityTier {
+    if (this.manualOverride) return this.tier;
+    const gl = this.renderer.getContext();
+    this.postFx.setActive(scene.scene, scene.camera);
+    this.postFx.setAOSupported(scene.usesAO !== false);
+    const times: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      const t = performance.now();
+      this.postFx.render();
+      gl.finish();
+      // The first frames still carry first-use driver work (measured: enough to push a desktop RTX
+      // 4060 over the line); judge only the last eight.
+      if (i >= 4) times.push(performance.now() - t);
+    }
+    times.sort((a, b) => a - b);
+    const median = times[Math.floor(times.length / 2)];
+    // Step down only for a machine that clearly can't hold the tier: under ~30 fps goes to
+    // Performance, under ~45 fps from Quality goes to Balanced. The runtime governor handles the rest.
+    const target: QualityTier = median > 33 ? 'low' : median > 22 && this.tier === 'high' ? 'medium' : this.tier;
+    if (TIER_ORDER.indexOf(target) < TIER_ORDER.indexOf(this.tier)) {
+      this.applyFullPreset(target);
+      this.noteDowngrade();
+    }
+    if (this.current) {
+      this.postFx.setActive(this.current.scene, this.current.camera);
+      this.postFx.setAOSupported(this.current.usesAO !== false);
+    }
+    this.lastBenchmarkMs = +median.toFixed(1);
+    return this.tier;
+  }
+
+  /** Median frame time from the last start-up benchmark, for the settings panel and the tools. */
+  lastBenchmarkMs: number | null = null;
+
+  /** Told once per session, in the plainest words: what changed and where to change it back. */
+  private noteDowngrade(): void {
+    if (this.toldAboutDowngrade) return;
+    this.toldAboutDowngrade = true;
+    window.setTimeout(() => UIManager.toast('Graphics set to Performance to keep this computer smooth. Change it in Settings (O).'), 4000);
   }
 
   setShadowsEnabled(enabled: boolean): void {

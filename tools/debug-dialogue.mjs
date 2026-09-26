@@ -13,7 +13,7 @@ await page.waitForTimeout(2500);
 
 async function teleport(x, y, z) {
   await page.evaluate(({ x, y, z }) => {
-    const scene = window.__DEBUG__.engine.getCurrentScene();
+    const scene = window.__DEBUG__?.engine.getCurrentScene();
     const V = scene.player.rig.position.constructor;
     scene.player.teleport(new V(x, y, z), 0);
   }, { x, y, z });
@@ -35,7 +35,7 @@ console.log('panel visible after Escape:', await page.evaluate(() => !!document.
 console.log('PanelManager.isOpen:', await page.evaluate(() => document.getElementById('ui-root')?.querySelector('.panel-overlay')?.classList.contains('visible')));
 
 await teleport(-3, 2, 4.5);
-console.log('player pos after teleport:', await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().player.rig.position.toArray()));
+console.log('player pos after teleport:', await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene().player.rig.position.toArray()));
 
 await page.keyboard.down('KeyE');
 await page.waitForTimeout(120);

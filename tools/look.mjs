@@ -53,7 +53,7 @@ await page.waitForTimeout(4000);
 await page.evaluate(() => document.getElementById('ui-root')?.style.setProperty('visibility', 'hidden'));
 for (const [name, x, y, z, yaw, pitch] of SHOTS[SCENE]) {
   await page.evaluate(({ x, y, z, yaw, pitch }) => {
-    const s = window.__DEBUG__.engine.getCurrentScene();
+    const s = window.__DEBUG__?.engine.getCurrentScene();
     s.player.teleport(new s.player.rig.position.constructor(x, y, z), yaw);
     s.player.pitch = pitch;
   }, { x, y, z, yaw, pitch });

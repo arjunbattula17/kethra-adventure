@@ -1,0 +1,9 @@
+
+final/desktop: CPU 1x, unthrottled Mbps, tier auto
+title 867 ms (0.52 MB), intro playable 33377 ms, ship 42918 ms, total 24.61 MB
+intro       60 fps  p50 16.7  p95 16.8  max 16.8  hitches>50ms 0  calls 31  tier medium  heap 26.7 MB  longtasks 0
+ship        60 fps  p50 16.7  p95 16.8  max 16.8  hitches>50ms 0  calls 480  tier medium  heap 27 MB  longtasks 0
+kethra      60 fps  p50 16.7  p95 16.8  max 16.8  hitches>50ms 0  calls 314  tier medium  heap 39.7 MB  longtasks 0
+vessek      60 fps  p50 16.7  p95 16.8  max 16.8  hitches>50ms 0  calls 209  tier medium  heap 95.2 MB  longtasks 0
+heap after first ship 27 MB, after loops 54.3 -> 78.9 MB (loop-to-loop 45.3%)
+console errors: 0

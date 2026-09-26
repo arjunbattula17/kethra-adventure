@@ -20,7 +20,7 @@ await page.waitForFunction(() => {
 await page.waitForTimeout(3500);
 
 const out = await page.evaluate(({ px, pz, pyaw, ppitch, pixels, W, H }) => {
-  const sc = window.__DEBUG__.engine.getCurrentScene();
+  const sc = window.__DEBUG__?.engine.getCurrentScene();
   sc.player.enabled = false;
   sc.player.rig.position.set(px, 0, pz);
   sc.player.rig.rotation.set(0, pyaw, 0);

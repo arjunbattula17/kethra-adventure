@@ -3,6 +3,32 @@
 Newest session first. Each entry: what changed (with its DECISIONS bucket), what was verified,
 and what's next.
 
+## 2026-09-25 (second session): three briefs
+**Changed**
+- **ADD: level 3, Vessek Anchorage** (D-4): Varro and Dace, the rehearsal pulse, the breaker
+  puzzle with a kind instant retry, the ledger reversal, stat routes for all six skills.
+- **ADD: the ending of part one** and credits (D-24).
+- **UPGRADE: art direction** (D-20, D-21): style audit and bible, designed characters, Kethra's
+  set pieces and palette, one UI component set, the scan-line transition, pause menu, settings.
+- **UPGRADE: game feel**: coyote time, jump buffer, landing response, a sound per interaction
+  class, generative music per place; skill points can finally be spent.
+- **UPGRADE: performance** (D-22): point-light budget; the no-WebGL screen, context-loss
+  recovery, hidden-tab audio, low-battery 30 fps cap.
+- **ADD: keyboard-only play** (D-23).
+
+**Verified**
+- Build clean. Smoke 6/6. Tutorial flow 36/36. Kethra flow 18/18. Vessek flow 29/29.
+  Resilience 8/8 (no WebGL, context loss, storage blocked, hidden tab).
+- Browser matrix: Chromium, Edge, Firefox and WebKit reach every level with no console errors;
+  WebKit's 3D view is black when sound runs (pre-existing; B-29).
+- Throttled profile (6x CPU, Performance tier): intro reachable in ~23 s from a cold browser
+  (was ~67 s); Kethra ~48 fps, Vessek ~50 fps, the Wren ~23 fps (B-28). docs/PERF_REPORT.md.
+
+**Next three backlog items**
+1. B-28: the Wren at 30 fps on slow CPUs.
+2. B-29: real Safari and a real Chromebook.
+3. B-7: stats solve a puzzle on level 1 too.
+
 ## 2026-09-25
 **Changed**
 - **Fix: travel to Kethra.** Level 2 had been unreachable in normal play since Aug 22. The map's

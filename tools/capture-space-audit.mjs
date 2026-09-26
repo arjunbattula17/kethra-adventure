@@ -18,13 +18,13 @@ await page.goto(baseUrl + '?skipIntro=1&tier=high', { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 15000 });
 await page.waitForTimeout(400);
 await page.evaluate(() => { void window.__DEBUG__.flow['transitionToGalaxyReveal']?.(); });
-await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship, { timeout: 45000 });
+await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship, { timeout: 45000 });
 await page.waitForTimeout(2500);
 
 // Freeze the cinematic: replace update() with one that only advances the shader uniforms the
 // still frames need (cloud time, atmosphere camera position), leaving the camera under our control.
 await page.evaluate(() => {
-  const s = window.__DEBUG__.engine.getCurrentScene();
+  const s = window.__DEBUG__?.engine.getCurrentScene();
   s.update = function (dt, elapsed) {
     for (const inst of this.planetInstances) inst.update(elapsed, dt);
   };

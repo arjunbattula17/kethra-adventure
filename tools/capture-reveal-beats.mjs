@@ -25,11 +25,11 @@ await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { tim
 // __DEBUG__ is exposed before flow.start()'s own boot setScene resolves (which can run tens of
 // seconds under software rendering). Transitioning while that call is still in flight lets the
 // boot scene land AFTER the reveal and silently clobber it — wait for boot to actually finish.
-await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene(), undefined, { timeout: 120000 });
+await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 120000 });
 await page.waitForTimeout(500);
 await page.evaluate(() => window.__DEBUG__.flow['transitionToGalaxyReveal']?.());
 await page.waitForFunction(
-  () => !!window.__DEBUG__.engine.getCurrentScene()?.ship,
+  () => !!window.__DEBUG__?.engine.getCurrentScene()?.ship,
   undefined,
   { timeout: 60000 },
 );
@@ -49,7 +49,7 @@ const beats = [
 ];
 for (const b of beats) {
   await page.waitForFunction(
-    (at) => (window.__DEBUG__.engine.getCurrentScene()?.revealElapsed ?? 0) >= at,
+    (at) => (window.__DEBUG__?.engine.getCurrentScene()?.revealElapsed ?? 0) >= at,
     b.at,
     { timeout: 120000, polling: 100 },
   );

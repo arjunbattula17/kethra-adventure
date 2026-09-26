@@ -45,7 +45,7 @@ const PRESETS = {
       { timeout: 60000 },
     );
     await page.evaluate(() => {
-      const s = window.__DEBUG__.engine.getCurrentScene();
+      const s = window.__DEBUG__?.engine.getCurrentScene();
       s.player.enabled = true;
       s.player.rig.position.set(0, 0, 5);
       s.player.rig.rotation.set(0, 0.6, 0);
@@ -80,7 +80,7 @@ const PRESETS = {
     await gotoReady(page);
     // __DEBUG__ is exposed before flow.start()'s own boot setScene resolves; transitioning while
     // that call is still in flight lets the boot scene land AFTER the reveal and clobber it.
-    await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene(), undefined, { timeout: 120000, polling: 500 });
+    await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 120000, polling: 500 });
     await page.evaluate(() => window.__DEBUG__.flow['transitionToGalaxyReveal']?.());
     // transitionToGalaxyReveal() is async and doesn't resolve until its own fade-to-black, scene
     // init (real GLTF loading for the kitbashed ship hull), and fade-from-black are all done, so a
@@ -89,7 +89,7 @@ const PRESETS = {
     // to catch. Anchor to the ship actually existing, then take a short fixed settle from there.
     await page.waitForFunction(
       () => {
-        const s = window.__DEBUG__.engine.getCurrentScene();
+        const s = window.__DEBUG__?.engine.getCurrentScene();
         return !!s?.ship;
       },
       undefined,
@@ -120,7 +120,7 @@ async function setShipView(page, pos, yaw, pitch, fov) {
   );
   await page.evaluate(
     ({ pos, yaw, pitch, fov }) => {
-      const s = window.__DEBUG__.engine.getCurrentScene();
+      const s = window.__DEBUG__?.engine.getCurrentScene();
       s.player.enabled = false;
       s.player.rig.position.set(pos[0], 0, pos[2]);
       s.player.rig.rotation.set(0, yaw, 0);

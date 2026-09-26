@@ -59,7 +59,7 @@ const waitForCard = (title, timeout) => until(async () => (await cardTitle()) ==
 async function setPlayer(x, z, yaw) {
   await page.evaluate(
     ([px, pz, pyaw]) => {
-      const { player } = window.__DEBUG__.engine.getCurrentScene();
+      const { player } = window.__DEBUG__?.engine.getCurrentScene();
       player.rig.position.set(px, 1.7, pz);
       player.velocityY = 0;
       player.yaw = pyaw;
@@ -87,7 +87,7 @@ await page.evaluate(() => window.__DEBUG__.engine.setManualQualityTier('low'));
 // 1. Nothing starts on its own. The first thing the player ever sees is the tutorial.
 check('tutorial reaches its first step', await until(async () => (await cardTitle()) !== null, 120000));
 check('tutorial card is the first thing shown', (await cardTitle()) === 'Take the Helm', (await cardTitle()) ?? 'no card');
-check('first game does not auto-start on load', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
+check('first game does not auto-start on load', !(await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship)));
 // This browser profile has never finished the opening, so the whole-tutorial skip must not be
 // offered (the cold-open caption skip hint has its own label and is gone by the time the first
 // card is up).
@@ -119,7 +119,7 @@ check('console reads as offline before the tutorial unlocks it', (lockedPrompt ?
 await page.keyboard.press('KeyE');
 const toastShown = await until(async () => !!(await page.$('.toast')), 10000);
 const toast = await page.$eval('.toast', (el) => el.textContent).catch(() => null);
-check('early E on the console does not start the first game', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
+check('early E on the console does not start the first game', !(await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship)));
 check('early E explains why, rather than doing nothing', toastShown && (toast ?? '').includes('still rebooting'), toast ?? 'no toast');
 await shot('03_console_locked');
 // Back to spawn facing the console: the look step left the camera pointing off to one side, and
@@ -185,7 +185,7 @@ await page.keyboard.press('KeyE');
 // seated. Verify the seat is actually reached — position, seated eye height, and level yaw —
 // while the interior is still the current scene.
 check('pressing E seats the player in the pilot chair first', await until(async () => await page.evaluate(() => {
-  const s = window.__DEBUG__.engine.getCurrentScene();
+  const s = window.__DEBUG__?.engine.getCurrentScene();
   if (!s?.player) return false;
   const p = s.player.rig.position;
   return Math.abs(p.x) < 0.05 && Math.abs(p.z - -4.06) < 0.08 && Math.abs(s.camera.position.y - 1.24) < 0.04 && Math.abs(s.player.yaw % (Math.PI * 2)) < 0.05;
@@ -193,12 +193,12 @@ check('pressing E seats the player in the pilot chair first', await until(async 
 await shot('08_seated_at_console');
 // The boot handover fades to black and swaps in the galaxy reveal — its GLB/texture loads can
 // take a while under software rendering, so the wait is generous.
-check('booting the console leads into the galaxy reveal', await until(async () => !!(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)), 120000));
+check('booting the console leads into the galaxy reveal', await until(async () => !!(await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship)), 120000));
 await shot('09_reveal');
 
 // The tutorial has to leave nothing behind — DOM, body class, or scene objects.
 const leftovers = await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene().scene;
+  const scene = window.__DEBUG__?.engine.getCurrentScene().scene;
   return {
     dom: !!document.querySelector('.tut-root'),
     bodyClass: document.body.classList.contains('tutorial-active'),
@@ -210,10 +210,10 @@ check('tutorial cleans itself up at the handover', !Object.values(leftovers).som
 
 // 8. The reveal plays out, offers its continue prompt, and hands back to the ship interior with
 //    the post-reveal progression flags set.
-check('the reveal reaches its continue prompt', await until(async () => await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene()?.readyForContinue === true), 180000));
+check('the reveal reaches its continue prompt', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.readyForContinue === true), 180000));
 await shot('10_reveal_done');
 await page.keyboard.press('Enter');
-check('continuing returns to the ship interior', await until(async () => await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.player), 120000));
+check('continuing returns to the ship interior', await until(async () => await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.player), 120000));
 
 // 8b. The course-plot math puzzle gates the calibration now. Enter one WRONG figure to prove
 //     the computer teaches rather than tells, then work the real plot: 60-12=48 Mkm,
@@ -237,7 +237,7 @@ check('the full plot calibrates the chart', await until(async () =>
   await page.evaluate(() => document.querySelector('.plot-status')?.classList.contains('good') && document.querySelector('.plot-status')?.textContent?.includes('CALIBRATED')), 10000));
 await shot('11b_course_plot_solved');
 check('the puzzle closes itself and control returns', await until(async () =>
-  await page.evaluate(() => !document.querySelector('#course-plot-panel') && window.__DEBUG__.engine.getCurrentScene()?.player?.enabled === true), 30000));
+  await page.evaluate(() => !document.querySelector('#course-plot-panel') && window.__DEBUG__?.engine.getCurrentScene()?.player?.enabled === true), 30000));
 
 const postFlags = await page.evaluate(() => ({
   flags: window.__DEBUG__.gameState.data.flags,
@@ -253,7 +253,7 @@ await page.goto(baseUrl + '/?skipIntro=1&newGame=1', { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__DEBUG__?.engine?.getCurrentScene?.(), undefined, { timeout: 180000, polling: 500 });
 await page.waitForTimeout(3000);
 check('a returning player gets no tutorial', !(await page.$('.tut-card')) && !(await page.evaluate(() => !!window.__DEBUG__.flow.tutorial)));
-check('a returning player gets no auto-started reveal either', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
+check('a returning player gets no auto-started reveal either', !(await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship)));
 
 // 10. A returning player who starts a NEW game gets the tutorial-skip offer — this profile earned
 //     it by reaching the handover earlier in this very run — and Enter jumps the whole tutorial,
@@ -272,7 +272,7 @@ check('a returning player is offered the tutorial skip', await until(async () =>
 await shot('12_skip_offer');
 await page.waitForTimeout(1500); // the skip arms one second after the first card
 await page.keyboard.press('Enter');
-check('Enter skips the tutorial into the galaxy reveal', await until(async () => !!(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)), 180000));
+check('Enter skips the tutorial into the galaxy reveal', await until(async () => !!(await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship)), 180000));
 check('the skipped tutorial cleans itself up too', !(await page.$('.tut-root')) && !(await page.evaluate(() => document.body.classList.contains('tutorial-active'))));
 await shot('13_skipped_into_reveal');
 

@@ -103,8 +103,9 @@ Scale (1366×768 baseline; the text-size setting multiplies all of it by 1.15 or
   game's verb. Total motion 560 ms; the load itself happens behind it with a real progress bar.
   Used for every scene change and nothing else. Reduced motion replaces the sweep with a 120 ms
   cut.
-- **Camera shake** is reserved for three moments: the white sky in the intro, the Anchorage
-  pulse, and the Cistern Heart waking. Nothing else shakes.
+- **Camera shake** is reserved for two moments: the Anchorage pulse and the Cistern Heart waking.
+  The intro's white sky swells light instead of shaking, because the player isn't holding the
+  camera yet. Nothing else shakes.
 
 ## Sound
 
@@ -138,11 +139,11 @@ Every screen is built from these, and nothing else:
    eyebrow, and a close hint on the panel's own footer (not the screen corner).
 3. **Dialogue box**: a panel anchored to the lower third, speaker name in `h2` amber, body in
    Atkinson, options as secondary buttons with the stat tag as a key cap.
-4. **HUD frame**: the objective strip (top-left) and the key strip (bottom-right). Both are Hull
-   frames that never move.
-5. **Toast**: a log line in the lower-left, over the key strip's column and away from the view
-   centre, with a coloured left bar that says whose news it is (sea-green for discovery, amber for
-   "you can act", warning for failure).
+4. **HUD frame**: the objective strip (top-left, with any meter stacked under it) and the key strip
+   (bottom-right: level with an XP bar, then Tab, O, Esc). Both are Hull frames that never move.
+5. **Toast**: a log line in the lower-left, away from the view centre, with a small square status
+   pip that says whose news it is (sea-green for discovery, amber for "you can act", warning for
+   failure) and a border tinted to match. No side stripes.
 6. **Key cap**: Rajdhani on a 2 px-radius Hull cap with an amber hairline.
 7. **Progress bar**: 4 px track in Steel, fill in amber (action) or sea-green (learning).
 8. **Caption**: the intro's style for every caption in the game: Atkinson 20 px over a Void

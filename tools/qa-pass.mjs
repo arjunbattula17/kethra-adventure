@@ -22,7 +22,7 @@ await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 30000
 await page.waitForSelector('.tut-card.visible', { timeout: 300000 }).catch(() => null);
 const openingCard = await page.$eval('.tut-card.visible .tut-title', (el) => el.textContent).catch(() => null);
 console.log('Opening step shown:', openingCard ?? 'NONE — tutorial did not start');
-console.log('First game did NOT auto-start:', !(await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene()?.ship)));
+console.log('First game did NOT auto-start:', !(await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship)));
 await page.screenshot({ path: `${outDir}/qa_natural_opening.png` });
 
 console.log('=== Edge case: rapid Escape spam with nothing open ===');
@@ -53,7 +53,7 @@ await page.waitForTimeout(200);
 console.log('=== Edge case: try locked galaxy destination ===');
 await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'orrun'));
 await page.waitForTimeout(300);
-const stillSameScene = await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene());
+const stillSameScene = await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene());
 console.log('Scene still valid after locked-planet travel attempt:', stillSameScene);
 
 console.log('=== Edge case: open journal before logs_available ===');

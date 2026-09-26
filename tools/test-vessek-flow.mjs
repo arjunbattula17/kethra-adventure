@@ -21,13 +21,13 @@ const check = (name, ok, detail = '') => {
   if (!ok) failed++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  -- ' + detail : ''}`);
 };
-const kind = () => page.evaluate(() => window.__DEBUG__.engine.getCurrentScene()?.kind);
-const waitScene = (k) => page.waitForFunction((k) => window.__DEBUG__.engine.getCurrentScene()?.kind === k, k, { timeout: 240000, polling: 500 });
+const kind = () => page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.kind);
+const waitScene = (k) => page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k, k, { timeout: 240000, polling: 500 });
 const state = () => page.evaluate(() => JSON.parse(JSON.stringify(window.__DEBUG__.gameState.data)));
 const flag = async (f) => (await state()).flags.includes(f);
 async function teleport(x, y, z, yaw = 0) {
   await page.evaluate(({ x, y, z, yaw }) => {
-    const s = window.__DEBUG__.engine.getCurrentScene();
+    const s = window.__DEBUG__?.engine.getCurrentScene();
     s.player.teleport(new s.player.rig.position.constructor(x, y, z), yaw);
   }, { x, y, z, yaw });
   await page.waitForTimeout(500);
@@ -96,7 +96,7 @@ check('asking for more than 6 units trips the bus', (await page.textContent('.br
 await page.evaluate(() => { window.__DEBUG__.engine.getCurrentScene().frost.remaining = 0.2; });
 await page.waitForTimeout(800);
 check('frost-out gives an immediate retry', (await page.textContent('.breaker-msg'))?.includes('one more try'));
-check('frost clock refilled', (await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().frost.remaining)) > 100);
+check('frost clock refilled', (await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene().frost.remaining)) > 100);
 await clickBreaker('Dock lights');
 await clickBreaker('Lantern Bay hall lamps');
 await clickBreaker('Hydroponics heaters');

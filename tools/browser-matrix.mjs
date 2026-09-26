@@ -78,8 +78,8 @@ for (const [name, launch] of ENGINES) {
         // A level that draws nothing but the UI would still "reach" the scene; the brightness of the
         // frame is what shows the 3D view actually rendered.
         row[`${level}Brightness`] = await brightness(page);
-        if (row[`${level}Brightness`] < 12) row.errors.push(`${level}: 3D view looks black (brightness ${row[`${level}Brightness`]})`);
-        await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().onDepart?.());
+        if (row[`${level}Brightness`] < 20) row.errors.push(`${level}: 3D view looks black (brightness ${row[`${level}Brightness`]})`);
+        await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene().onDepart?.());
         await scene('ShipInteriorScene');
       }
       row.steps.result = 'reached every level';

@@ -64,4 +64,4 @@ file; if this file is wrong, change it here first (as an UPGRADE in DECISIONS.md
 1. Does its palette sit in the dominant tone, with amber only where attention belongs?
 2. Is its texture density inside its tier (run `tools/texture-audit.mjs`)?
 3. Is it in the same style as the scene it joins?
-4. Is its source logged in ASSET_LICENSES.md?
+4. Is its source logged in docs/ASSET_LICENSE_LOG.md?

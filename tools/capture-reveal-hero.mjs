@@ -16,7 +16,7 @@ await page.evaluate(() => window.__DEBUG__.flow['transitionToGalaxyReveal']?.())
 // short fixed settle from THAT point instead, so the shot is always the intended early close-up.
 await page.waitForFunction(
   () => {
-    const s = window.__DEBUG__.engine.getCurrentScene();
+    const s = window.__DEBUG__?.engine.getCurrentScene();
     return !!s?.ship;
   },
   undefined,

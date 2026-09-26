@@ -11,7 +11,7 @@ await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'kethra'
 await page.waitForTimeout(3500);
 
 await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   const V = scene.player.rig.position.constructor;
   scene.player.teleport(new V(0, 2, 18), 0);
 });

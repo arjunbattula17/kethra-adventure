@@ -41,7 +41,7 @@ await page.waitForTimeout(3000);
 const perSec = ((noImageWarnings - warnStart) / ((Date.now() - t0) / 1000)).toFixed(1);
 
 const out = await page.evaluate(() => {
-  const sc = window.__DEBUG__.engine.getCurrentScene();
+  const sc = window.__DEBUG__?.engine.getCurrentScene();
   const SLOTS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap'];
   const broken = [];
   let slotsChecked = 0;

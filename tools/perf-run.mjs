@@ -22,7 +22,9 @@ const OUT = `docs/perf/${LABEL}`;
 mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({
-  args: ['--use-gl=angle', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--enable-precise-memory-info'],
+  // --expose-gc lets each heap reading follow a full garbage collection, so heap numbers show what
+  // is actually kept alive rather than whenever the collector last happened to run.
+  args: ['--use-gl=angle', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--enable-precise-memory-info', '--js-flags=--expose-gc'],
 });
 const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1 });
 const page = await context.newPage();
@@ -101,6 +103,7 @@ async function sampleFrames(seconds) {
       requestAnimationFrame(tick);
     });
     info.autoReset = true;
+    window.gc?.();
     deltas.shift();
     const sorted = [...deltas].sort((a, b) => a - b);
     const q = (p) => +sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))].toFixed(1);
@@ -115,6 +118,7 @@ async function sampleFrames(seconds) {
       drawCallsPerFrame: Math.round(calls / frames),
       trianglesPerFrame: Math.round(tris / frames),
       tier: engine.getQualityTier(),
+      benchmarkMs: engine.lastBenchmarkMs ?? null,
       geometries: info.memory.geometries,
       textures: info.memory.textures,
       heapMB: performance.memory ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1) : null,
@@ -184,7 +188,7 @@ for (const level of LEVELS) {
     results.scenes[level] = await sampleFrames(8);
     results.scenes[level].longTasks = await longTasksSince(mark);
   }
-  await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().onDepart?.());
+  await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene().onDepart?.());
   await waitScene('ShipInteriorScene');
   await page.waitForTimeout(3000);
 }

@@ -11,7 +11,7 @@ await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 10000
 await page.waitForTimeout(1000);
 
 const before = await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   return { yaw: scene.player.yaw, pitch: scene.player.pitch, pointerLocked: window.__DEBUG__.InputManager?.pointerLocked };
 });
 console.log('before:', JSON.stringify(before));
@@ -55,7 +55,7 @@ await page.mouse.move(800, 300, { steps: 10 });
 await page.waitForTimeout(300);
 
 const after = await page.evaluate(() => {
-  const scene = window.__DEBUG__.engine.getCurrentScene();
+  const scene = window.__DEBUG__?.engine.getCurrentScene();
   return { yaw: scene.player.yaw, pitch: scene.player.pitch };
 });
 console.log('after mouse move:', JSON.stringify(after));

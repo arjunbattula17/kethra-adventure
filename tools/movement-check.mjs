@@ -39,12 +39,12 @@ const yawTo = (dx, dz) => Math.atan2(-dx, -dz);
 
 async function walk(x, z, dx, dz, ms) {
   await page.evaluate(([x, z, yaw]) => {
-    const sc = window.__DEBUG__.engine.getCurrentScene();
+    const sc = window.__DEBUG__?.engine.getCurrentScene();
     const V = sc.player.rig.position.constructor;
     sc.player.teleport(new V(x, 2, z), yaw);
   }, [x, z, yawTo(dx, dz)]);
   const read = () => page.evaluate(() => {
-    const p = window.__DEBUG__.engine.getCurrentScene().player.rig.position;
+    const p = window.__DEBUG__?.engine.getCurrentScene().player.rig.position;
     return [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)];
   });
   await page.waitForTimeout(500);

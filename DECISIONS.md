@@ -39,7 +39,7 @@ engineering 2 re-routes power around a dead panel; traversal 2 reaches a vantage
 reveals the answer). Every stat opens something by the end of level 3. This follows the pattern
 the team already built on Kethra, extended rather than replaced.
 
-### D-4 · ADD · A third level: Vessek Anchorage — *Proposed, team decision*
+### D-4 · ADD · A third level: Vessek Anchorage — *Built 2026-09-25 (option A), team to approve*
 The rules require three levels, and judges play through level 3. **Option A (recommended):
 Vessek Anchorage.** A ring of stranded ships; a social level where persuasion and insight shine,
 Harbormaster Varro bargains for the Wren's core, and the set piece is a white sky hitting the
@@ -55,7 +55,7 @@ freighter model and the planet maps), and by browsers (audio can't play before t
 click or key). A title screen with *Continue / New Game / Controls / Credits / Settings*, in the
 existing panel style.
 
-### D-6 · ADD · Level select unlocked by progress — *Proposed*
+### D-6 · ADD · Level select unlocked by progress — *Proposed (pause menu's "Restart this level" covers part of it)*
 Judges reload. Saves already persist (localStorage, now safe when storage is blocked). A level
 select on the title screen lets a judge jump back to any level they've reached.
 
@@ -132,3 +132,30 @@ ART_BIBLE.md, so it's an upgrade in place, not a new style.
 Repairing the Deep Scanner after Kethra resolves the ring of ships at Vessek on the chart (no
 landing charts yet), so level 2 no longer ends in a dead end. It anticipates D-4's recommended
 third level; if the team picks Orrun instead, it's one planet id in GameFlow and one string.
+
+### D-20 · UPGRADE · Art direction written down and applied to every screen — *Done 2026-09-25*
+docs/STYLE_AUDIT.md lists what read as unfinished; docs/STYLE_BIBLE.md is the contract that
+fixed it: one visual idea ("every living thing announces itself with its own light"), seven named
+colours with one job each, a second typeface (Atkinson Hyperlegible) for reading, sentence case,
+one component set, the scan-line transition. It extends ART_BIBLE.md rather than replacing it.
+
+### D-21 · UPGRADE · Designed characters and set pieces replace primitive stand-ins — *Done, reversible*
+The Aiveth were capsules and the Cistern Heart was an octahedron: the worst thing on screen
+(STYLE_AUDIT.md). Now low-poly figures built in code (`src/characters/Figure.ts`) whose glow shows
+mood, a stained-glass Wickmoth, the Heart as a Kindling machine, and Kethra's foliage tinted into
+the art bible's palette. The team's models and layout are unchanged.
+
+### D-22 · UPGRADE · Point-light budget for a faster first load — *Done, reversible (one constant)*
+The Wren's 41 point lights were compiled into every shader. Keeping the 16 strongest cut a
+fresh-browser boot roughly in half with the room within ~2/255 per pixel of before (docs/PERF_LOG.md).
+`POINT_LIGHT_BUDGET` in `src/ship/ShipInteriorScene.ts` restores all of them if the team prefers.
+
+### D-23 · ADD · Pause menu, fuller settings, keyboard-only play — *Done*
+Esc pauses (resume, settings, controls, restart level, quit). Settings add master/music/effects
+volume, reduced motion, text size and mouse sensitivity. The arrow keys now turn (A/D still step
+sideways) so the whole game plays without a mouse; every key comes from `src/content/controls.ts`.
+
+### D-24 · ADD · The ending of part one — *Done, wording is the team's*
+Repairing comms with the Anchorage's alloy offers the transmission of the ledger; the ending shows
+the Wren's light leaving for home, names Isilthe as next, and rolls credits (team ID and every
+licensed asset only).

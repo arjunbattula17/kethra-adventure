@@ -276,6 +276,14 @@ export class GameFlow {
       await this.engine.prepareScene(scene);
       UIManager.setLoadingProgress(0.85, 'Warming up the graphics card');
       this.engine.prewarmScene(scene);
+      UIManager.setLoadingProgress(0.95, 'Checking what this computer can draw');
+      // If the tier drops, the ship's shaders change: draw it once more under the cover.
+      const before = this.engine.getQualityTier();
+      const after = this.engine.benchmarkScene(scene);
+      if (after !== before) {
+        scene.adaptToTier(after);
+        this.engine.prewarmScene(scene);
+      }
       UIManager.setLoadingProgress(1, '');
       this.pendingShip = Promise.resolve(scene);
     } catch {

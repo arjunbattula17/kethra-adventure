@@ -25,7 +25,7 @@ async function record(name, fn) {
 
 async function teleport(page, x, y, z) {
   await page.evaluate(({ x, y, z }) => {
-    const scene = window.__DEBUG__.engine.getCurrentScene();
+    const scene = window.__DEBUG__?.engine.getCurrentScene();
     const V = scene.player.rig.position.constructor;
     scene.player.teleport(new V(x, y, z), 0);
   }, { x, y, z });

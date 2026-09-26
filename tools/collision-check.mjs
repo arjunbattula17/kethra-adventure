@@ -42,7 +42,7 @@ try {
 await page.waitForTimeout(4000);
 
 const out = await page.evaluate((baseline) => {
-  const sc = window.__DEBUG__.engine.getCurrentScene();
+  const sc = window.__DEBUG__?.engine.getCurrentScene();
   let boxes = sc.player.colliders.map((c) => c.box);
   if (baseline !== null) boxes = boxes.slice(0, baseline);
   const R = 0.35, H = 1.8, STEP_OVER = 0.25, MAX_STEP_UP = 0.45;

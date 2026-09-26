@@ -112,3 +112,58 @@ panel beside them. Set Course is how the player travels.
   course-plot puzzle uses, so the two can't disagree.
 - *"What bug did this fix?"* Travel had silently stopped working in August. We found it by writing
   a test that plays the level the way a player does.
+
+## Level 3: Vessek Anchorage (`src/planets/vessek/`)
+**What:** the Lantern Bay, town hall of a ring of stranded ships. Talk to Harbormaster Varro, and
+a "rehearsal" white sky knocks the power out; bring it back before the food freezes, then read
+the ledger that shows the pulse came early after you relit Kethra's Heart.
+- *"How does the breaker puzzle work?"* `BreakerPuzzle.ts`: six circuits, a bus that carries 6
+  units. The heaters need the pumps, everything needs the regulator, and two circuits switch
+  themselves back on. The heaters and scrubbers need exactly 6, so the answer is to switch *off*
+  the dock lights and the harbormaster's own hall lamps first. Each breaker's label is a note from
+  a different crew: reading the room solves it.
+- *"What happens if you run out of time?"* The seedlings frost, Dace's backup warmers buy another
+  try, and the breakers reset at once. Failing costs seconds, never progress.
+- *"Where do the stats matter?"* Engineering shows the load on each breaker; perception notices
+  which circuits came back on by themselves; traversal gets you through Dace's duct for extra
+  time; persuasion, insight or engineering open better bargains with Varro; archaeology reads the
+  Kindling plate under the grate.
+
+## Characters (`src/characters/Figure.ts`)
+**What:** every person in the game is built in code from simple shapes with few sides and flat
+shading, so they match the low-poly model kits. They breathe, sway, and turn their heads to
+follow you.
+- *"Why do the Aiveth glow?"* LORE.md says the Aiveth speak partly in light. Their veins are an
+  emissive texture; the Warden's glow starts dim ("wary") and brightens as she trusts you.
+- *"Why not download character models?"* The free models that fit were either creatures or needed
+  animation rigs; building them in code kept one style and one licence (our own).
+
+## The style bible and the scan line (`docs/STYLE_BIBLE.md`, `src/style.css`, `UIManager.ts`)
+**What:** one written rulebook for colour, type, motion and sound, and one transition used for
+every scene change: an amber line sweeps down the screen like the Wren's scanner.
+- *"Why is amber used so little?"* It's reserved for "you can act on this": the main button, the
+  E key, the focus ring. Sea-green means "you learned something". A colour always means one thing.
+- *"Why that body font?"* Atkinson Hyperlegible was designed by the Braille Institute so letters
+  that look alike (I, l, 1) can't be confused, which helps on a laptop at arm's length.
+
+## Sound (`src/audio/AudioSystem.ts`)
+**What:** every sound is made in code with the Web Audio API: no audio files. UI sounds are soft
+tones in one musical scale (A minor pentatonic), so they're always in key with the music, which
+is generated live: a slow chord plus notes picked at random, different for each place.
+- *"Why generate the music?"* No files to download or license, it never loops audibly, and each
+  place can have its own mood from a few numbers (the `BEDS` table).
+
+## Pause, settings, keyboard-only (`src/ui/PauseMenu.ts`, `SettingsPanel.ts`, `src/content/controls.ts`)
+- *"How does Esc pause when the browser uses Esc to release the mouse?"* The browser swallows that
+  Esc, so the game listens for the mouse being released instead (`InputManager.onUserUnlock`).
+- *"Can you play without a mouse?"* Yes: the arrow keys turn, number keys pick dialogue options,
+  Enter presses the focused button, Tab moves between buttons in menus.
+- *"Where do the controls come from?"* One table, `controls.ts`, read by the player code, the
+  Controls screen and the how-to-play document, so they can never disagree.
+
+## The first load and the light budget (`ShipInteriorScene.applyLightBudget`)
+- *"Why did the first load get faster?"* The graphics card has to compile a small program
+  (a shader) for every material, and three.js writes every light into every shader. The Wren had
+  41 lights. We kept the 16 that light the most of the room; the screenshots differ by about
+  2 out of 255 brightness levels per pixel, and a fresh browser reaches the game about twice as
+  fast (docs/PERF_LOG.md has the numbers).

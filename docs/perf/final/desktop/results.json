@@ -1,0 +1,198 @@
+{
+  "label": "final/desktop",
+  "cpuThrottle": 1,
+  "networkMbps": 0,
+  "tier": "auto",
+  "viewport": "1366x768@1x",
+  "load": {
+    "titleVisibleMs": 777,
+    "titleBytesMB": 0.52,
+    "introPlayableMs": 32765,
+    "introFromNewGameMs": 31777,
+    "introBytesMB": 9.57,
+    "shipPlayableMs": 42316,
+    "kethraTransitionMs": 13518,
+    "vessekTransitionMs": 16865
+  },
+  "scenes": {
+    "intro": {
+      "frames": 360,
+      "fps": 60,
+      "p50": 16.7,
+      "p95": 16.8,
+      "p99": 16.8,
+      "max": 16.8,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 31,
+      "trianglesPerFrame": 47662,
+      "tier": "high",
+      "benchmarkMs": 21.6,
+      "geometries": 511,
+      "textures": 245,
+      "heapMB": 26.8,
+      "longTasks": {
+        "count": 0,
+        "totalMs": 0,
+        "top": []
+      }
+    },
+    "ship": {
+      "frames": 481,
+      "fps": 60,
+      "p50": 16.7,
+      "p95": 16.8,
+      "p99": 16.8,
+      "max": 16.8,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 941,
+      "trianglesPerFrame": 250955,
+      "tier": "high",
+      "benchmarkMs": 21.6,
+      "geometries": 528,
+      "textures": 267,
+      "heapMB": 27.1,
+      "longTasks": {
+        "count": 0,
+        "totalMs": 0,
+        "top": []
+      }
+    },
+    "kethraLoad": {
+      "longTasks": {
+        "count": 3,
+        "totalMs": 11616,
+        "top": [
+          8527,
+          3018,
+          71
+        ]
+      }
+    },
+    "kethra": {
+      "frames": 480,
+      "fps": 60,
+      "p50": 16.7,
+      "p95": 16.8,
+      "p99": 16.8,
+      "max": 16.8,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 611,
+      "trianglesPerFrame": 1241898,
+      "tier": "high",
+      "benchmarkMs": 21.6,
+      "geometries": 233,
+      "textures": 69,
+      "heapMB": 43.5,
+      "longTasks": {
+        "count": 0,
+        "totalMs": 0,
+        "top": []
+      }
+    },
+    "vessekLoad": {
+      "longTasks": {
+        "count": 4,
+        "totalMs": 14020,
+        "top": [
+          11380,
+          2281,
+          237,
+          122
+        ]
+      }
+    },
+    "vessek": {
+      "frames": 480,
+      "fps": 60,
+      "p50": 16.7,
+      "p95": 16.8,
+      "p99": 16.8,
+      "max": 16.8,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 405,
+      "trianglesPerFrame": 151506,
+      "tier": "high",
+      "benchmarkMs": 21.6,
+      "geometries": 245,
+      "textures": 84,
+      "heapMB": 95.4,
+      "longTasks": {
+        "count": 0,
+        "totalMs": 0,
+        "top": []
+      }
+    }
+  },
+  "heap": {
+    "afterFirstShipMB": 27.1,
+    "afterLoopMB": 51.9,
+    "growthPct": 91.5,
+    "afterEachLoopMB": [
+      54.6,
+      52.1
+    ],
+    "loopToLoopGrowthPct": -4.6
+  },
+  "bytes": {
+    "totalMB": 24.61,
+    "byTypeMB": {
+      "Document": 0,
+      "Script": 0.34,
+      "Stylesheet": 0.01,
+      "Font": 0.08,
+      "Image": 2.8,
+      "Fetch": 21.38
+    }
+  },
+  "largestAssets": [
+    {
+      "url": "models/ship/freighter.glb",
+      "MB": 2.93
+    },
+    {
+      "url": "textures/space/starfield.jpg",
+      "MB": 1.31
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_02_ORM.jpg",
+      "MB": 1.04
+    },
+    {
+      "url": "models/quaternius-nature/Textures/Leaves.png",
+      "MB": 0.89
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_03_ORM.jpg",
+      "MB": 0.84
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_5.bin",
+      "MB": 0.77
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_3.bin",
+      "MB": 0.74
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_4.bin",
+      "MB": 0.72
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_1.bin",
+      "MB": 0.7
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_01_ORM.jpg",
+      "MB": 0.68
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_2.bin",
+      "MB": 0.67
+    },
+    {
+      "url": "models/quaternius/Textures/T_PaddedWall_BaseColor.jpg",
+      "MB": 0.51
+    }
+  ],
+  "consoleErrors": []
+}

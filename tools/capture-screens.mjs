@@ -34,7 +34,7 @@ const waitScene = (page, kind) =>
   page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k, kind, { timeout: 240000, polling: 500 });
 async function teleport(page, x, y, z, yaw = 0) {
   await page.evaluate(({ x, y, z, yaw }) => {
-    const s = window.__DEBUG__.engine.getCurrentScene();
+    const s = window.__DEBUG__?.engine.getCurrentScene();
     s.player.teleport(new s.player.rig.position.constructor(x, y, z), yaw);
   }, { x, y, z, yaw });
   await page.waitForTimeout(500);
@@ -136,11 +136,11 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
   await page.evaluate(() => window.__DEBUG__.flow.transitionToGalaxyReveal());
   await page.waitForTimeout(700);
   await shot(page, 'transition-fade');
-  await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.ship, undefined, { timeout: 240000, polling: 500 });
+  await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.ship, undefined, { timeout: 240000, polling: 500 });
   await page.waitForTimeout(9000);
   await shot(page, 'galaxy-reveal');
   // Drive to the end of the reveal, then the course plot opens over the console.
-  await page.waitForFunction(() => document.querySelector('.reveal-continue, .galaxy-continue, [data-reveal-continue]') || window.__DEBUG__.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 120000, polling: 500 }).catch(() => {});
+  await page.waitForFunction(() => document.querySelector('.reveal-continue, .galaxy-continue, [data-reveal-continue]') || window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 120000, polling: 500 }).catch(() => {});
   await page.evaluate(() => window.__DEBUG__.flow.finishReveal());
   await waitScene(page, 'ShipInteriorScene');
   await page.waitForTimeout(4000);

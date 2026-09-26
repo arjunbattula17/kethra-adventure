@@ -10,7 +10,7 @@ await page.waitForTimeout(1000);
 
 const ys = [];
 const readY = async () => {
-  const y = await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().player.rig.position.y);
+  const y = await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene().player.rig.position.y);
   ys.push(Number(y.toFixed(3)));
 };
 

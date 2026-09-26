@@ -1,18 +1,69 @@
 [
   {
-    "browser": "webkit",
+    "browser": "chromium",
     "steps": {
-      "title": 857,
-      "intro": 17957,
-      "ship": 50598,
-      "kethra": 59403,
-      "vessek": 93712,
+      "title": 844,
+      "intro": 33568,
+      "ship": 40623,
+      "kethra": 56291,
+      "vessek": 78716,
       "result": "reached every level"
     },
     "errors": [],
+    "version": "151.0.7922.34",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 (0x00002882) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "kethraBrightness": 46.3,
+    "vessekBrightness": 48.2
+  },
+  {
+    "browser": "edge",
+    "steps": {
+      "title": 790,
+      "intro": 32475,
+      "ship": 39527,
+      "kethra": 54855,
+      "vessek": 81079,
+      "result": "reached every level"
+    },
+    "errors": [],
+    "version": "153.0.4234.48",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 (0x00002882) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "kethraBrightness": 46.2,
+    "vessekBrightness": 48.1
+  },
+  {
+    "browser": "firefox",
+    "steps": {
+      "title": 3712,
+      "intro": 31222,
+      "ship": 38324,
+      "kethra": 54474,
+      "vessek": 75050,
+      "result": "reached every level"
+    },
+    "errors": [],
+    "version": "153.0",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+    "kethraBrightness": 46.3,
+    "vessekBrightness": 49.8
+  },
+  {
+    "browser": "webkit",
+    "steps": {
+      "title": 905,
+      "intro": 40281,
+      "ship": 72924,
+      "kethra": 90236,
+      "vessek": 124035,
+      "result": "reached every level"
+    },
+    "errors": [
+      "kethra: 3D view looks black (brightness 13.7)",
+      "vessek: 3D view looks black (brightness 12.1)"
+    ],
     "version": "26.5",
     "gpu": "Apple GPU",
-    "kethraBrightness": 13.6,
-    "vessekBrightness": 12
+    "kethraBrightness": 13.7,
+    "vessekBrightness": 12.1
   }
 ]

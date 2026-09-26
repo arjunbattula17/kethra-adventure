@@ -51,7 +51,7 @@ showed you the answer, and your skills let you see it.
 - **Accessibility:** the colour puzzle gets a second channel (each colour also has a distinct
   glyph shape; BACKLOG B-11).
 
-### Level 3 — Vessek Anchorage *(proposed, D-4)*
+### Level 3 — Vessek Anchorage *(built 2026-09-25, D-4)*
 - **Place:** a ring of stranded ships lashed to a Kindling ring-station, home to about 300
   people.
 - **People:** Harbormaster Ilse Varro, who wants the Wren's hyperdrive core.

@@ -1,0 +1,238 @@
+{
+  "label": "final/chromebook-sim",
+  "cpuThrottle": 6,
+  "networkMbps": 10,
+  "tier": "auto",
+  "viewport": "1366x768@1x",
+  "load": {
+    "titleVisibleMs": 1696,
+    "titleBytesMB": 0.52,
+    "introPlayableMs": 59412,
+    "introFromNewGameMs": 57477,
+    "introBytesMB": 9.57,
+    "shipPlayableMs": 69165,
+    "kethraTransitionMs": 23581,
+    "vessekTransitionMs": 21827
+  },
+  "scenes": {
+    "intro": {
+      "frames": 360,
+      "fps": 60,
+      "p50": 16.7,
+      "p95": 16.7,
+      "p99": 16.8,
+      "max": 16.8,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 18,
+      "trianglesPerFrame": 47641,
+      "tier": "low",
+      "benchmarkMs": 167.9,
+      "geometries": 511,
+      "textures": 228,
+      "heapMB": 27.2,
+      "longTasks": {
+        "count": 1,
+        "totalMs": 71,
+        "top": [
+          71
+        ]
+      }
+    },
+    "ship": {
+      "frames": 123,
+      "fps": 15.3,
+      "p50": 66.7,
+      "p95": 100,
+      "p99": 116.6,
+      "max": 116.7,
+      "hitchesOver50ms": 83,
+      "drawCallsPerFrame": 656,
+      "trianglesPerFrame": 144267,
+      "tier": "low",
+      "benchmarkMs": 167.9,
+      "geometries": 521,
+      "textures": 233,
+      "heapMB": 27.3,
+      "longTasks": {
+        "count": 94,
+        "totalMs": 6900,
+        "top": [
+          117,
+          106,
+          106,
+          105,
+          100,
+          99,
+          99,
+          98,
+          96,
+          95
+        ]
+      }
+    },
+    "kethraLoad": {
+      "longTasks": {
+        "count": 16,
+        "totalMs": 11616,
+        "top": [
+          7569,
+          1779,
+          930,
+          385,
+          115,
+          112,
+          107,
+          91,
+          84,
+          80
+        ]
+      }
+    },
+    "kethra": {
+      "frames": 458,
+      "fps": 57.1,
+      "p50": 16.7,
+      "p95": 16.8,
+      "p99": 33.4,
+      "max": 50,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 158,
+      "trianglesPerFrame": 310715,
+      "tier": "low",
+      "benchmarkMs": 167.9,
+      "geometries": 233,
+      "textures": 50,
+      "heapMB": 39.8,
+      "longTasks": {
+        "count": 2,
+        "totalMs": 124,
+        "top": [
+          73,
+          51
+        ]
+      }
+    },
+    "vessekLoad": {
+      "longTasks": {
+        "count": 33,
+        "totalMs": 15694,
+        "top": [
+          9702,
+          3042,
+          245,
+          224,
+          213,
+          160,
+          154,
+          136,
+          131,
+          115
+        ]
+      }
+    },
+    "vessek": {
+      "frames": 256,
+      "fps": 31.9,
+      "p50": 33.3,
+      "p95": 66.6,
+      "p99": 66.7,
+      "max": 66.7,
+      "hitchesOver50ms": 21,
+      "drawCallsPerFrame": 253,
+      "trianglesPerFrame": 104835,
+      "tier": "low",
+      "benchmarkMs": 167.9,
+      "geometries": 243,
+      "textures": 72,
+      "heapMB": 81.6,
+      "longTasks": {
+        "count": 25,
+        "totalMs": 1457,
+        "top": [
+          70,
+          68,
+          68,
+          67,
+          67,
+          66,
+          64,
+          63,
+          63,
+          62
+        ]
+      }
+    }
+  },
+  "heap": {
+    "afterFirstShipMB": 27.3,
+    "afterLoopMB": 51.8,
+    "growthPct": 89.7,
+    "afterEachLoopMB": [
+      51.3,
+      56.1
+    ],
+    "loopToLoopGrowthPct": 9.4
+  },
+  "bytes": {
+    "totalMB": 29.04,
+    "byTypeMB": {
+      "Document": 0,
+      "Stylesheet": 0.01,
+      "Script": 0.34,
+      "Font": 0.08,
+      "Image": 2.8,
+      "Fetch": 25.81
+    }
+  },
+  "largestAssets": [
+    {
+      "url": "models/ship/freighter.glb",
+      "MB": 2.93
+    },
+    {
+      "url": "textures/space/starfield.jpg",
+      "MB": 1.31
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_02_ORM.jpg",
+      "MB": 1.04
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_02_ORM.jpg",
+      "MB": 1.04
+    },
+    {
+      "url": "models/quaternius-nature/Textures/Leaves.png",
+      "MB": 0.89
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_03_ORM.jpg",
+      "MB": 0.84
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_03_ORM.jpg",
+      "MB": 0.84
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_5.bin",
+      "MB": 0.77
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_3.bin",
+      "MB": 0.74
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_4.bin",
+      "MB": 0.72
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_1.bin",
+      "MB": 0.7
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_01_ORM.jpg",
+      "MB": 0.68
+    }
+  ],
+  "consoleErrors": []
+}

@@ -34,7 +34,7 @@ await page.waitForTimeout(3500);
 await page.addStyleTag({ content: `body > *:not(#app){display:none!important}#app > *:not(canvas){display:none!important}` });
 const setupErr = await page.evaluate(() => {
   try {
-  const s = window.__DEBUG__.engine.getCurrentScene();
+  const s = window.__DEBUG__?.engine.getCurrentScene();
   s.player.enabled = false;
   // Pin the animation clock. Engine.start()'s loop drives every scene animation from
   // clock.getDelta()/getElapsedTime(), so without this each screenshot lands at whatever elapsed
@@ -45,7 +45,7 @@ const setupErr = await page.evaluate(() => {
   engine.timer.getDelta = () => 0;
   engine.timer.getElapsed = () => 12;
   window.__SETVIEW__ = (x, z, yaw, pitch) => {
-    const sc = window.__DEBUG__.engine.getCurrentScene();
+    const sc = window.__DEBUG__?.engine.getCurrentScene();
     sc.player.rig.position.set(x, 0, z);
     sc.player.rig.rotation.set(0, yaw, 0);
     sc.camera.position.set(0, 1.7, 0);

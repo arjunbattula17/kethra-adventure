@@ -1,0 +1,6 @@
+chromium  151.0.7922.34  reached every level  errors: 0  kethra 46.3 vessek 48.2  gpu: ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 (0x00002882) Direct3D11 vs_5_0 ps_5_0, D3D11)
+edge      153.0.4234.48  reached every level  errors: 0  kethra 46.2 vessek 48.1  gpu: ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 (0x00002882) Direct3D11 vs_5_0 ps_5_0, D3D11)
+firefox   153.0  reached every level  errors: 0  kethra 46.3 vessek 49.8  gpu: ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar
+webkit    26.5  reached every level  errors: 2  kethra 13.7 vessek 12.1  gpu: Apple GPU
+   kethra: 3D view looks black (brightness 13.7)
+   vessek: 3D view looks black (brightness 12.1)

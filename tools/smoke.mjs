@@ -47,11 +47,11 @@ for (const c of CASES) {
       await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 180000, polling: 250 });
     }
     if (c.go && c.name !== 'title') {
-      await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 180000, polling: 250 });
+      await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 180000, polling: 250 });
       await c.go(page);
     }
     await page.waitForFunction(
-      (kind) => { const s = window.__DEBUG__.engine.getCurrentScene(); return s?.kind === kind || (kind === 'GalaxyRevealScene' && !!s?.ship && !s.player); },
+      (kind) => { const s = window.__DEBUG__?.engine.getCurrentScene(); return s?.kind === kind || (kind === 'GalaxyRevealScene' && !!s?.ship && !s.player); },
       c.kind,
       { timeout: 180000, polling: 250 },
     );

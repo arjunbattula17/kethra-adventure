@@ -41,7 +41,7 @@ try {
 await page.waitForTimeout(4000);
 
 const out = await page.evaluate(async () => {
-  const sc = window.__DEBUG__.engine.getCurrentScene();
+  const sc = window.__DEBUG__?.engine.getCurrentScene();
   const V = sc.player.rig.position.constructor;
   const B3 = sc.player.colliders[0].box.constructor;
   const res = [];
