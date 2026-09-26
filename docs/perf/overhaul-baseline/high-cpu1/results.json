@@ -1,0 +1,194 @@
+{
+  "label": "overhaul-baseline/high-cpu1",
+  "cpuThrottle": 1,
+  "networkMbps": 0,
+  "tier": "high",
+  "viewport": "1366x768@1x",
+  "load": {
+    "titleVisibleMs": 709,
+    "titleBytesMB": 0.52,
+    "introPlayableMs": 16282,
+    "introFromNewGameMs": 15375,
+    "introBytesMB": 9.57,
+    "shipPlayableMs": 25831,
+    "kethraTransitionMs": 6260,
+    "vessekTransitionMs": 8018
+  },
+  "scenes": {
+    "intro": {
+      "frames": 360,
+      "fps": 60,
+      "p50": 16.7,
+      "p95": 16.7,
+      "p99": 16.8,
+      "max": 16.8,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 31,
+      "trianglesPerFrame": 47660,
+      "tier": "high",
+      "benchmarkMs": null,
+      "geometries": 511,
+      "textures": 245,
+      "heapMB": 26.6,
+      "longTasks": {
+        "count": 0,
+        "totalMs": 0,
+        "top": []
+      }
+    },
+    "ship": {
+      "frames": 480,
+      "fps": 60,
+      "p50": 16.7,
+      "p95": 16.7,
+      "p99": 16.8,
+      "max": 16.8,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 942,
+      "trianglesPerFrame": 251068,
+      "tier": "high",
+      "benchmarkMs": null,
+      "geometries": 528,
+      "textures": 267,
+      "heapMB": 27.1,
+      "longTasks": {
+        "count": 0,
+        "totalMs": 0,
+        "top": []
+      }
+    },
+    "kethraLoad": {
+      "longTasks": {
+        "count": 1,
+        "totalMs": 4149,
+        "top": [
+          4149
+        ]
+      }
+    },
+    "kethra": {
+      "frames": 480,
+      "fps": 60,
+      "p50": 16.7,
+      "p95": 16.7,
+      "p99": 16.8,
+      "max": 16.8,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 611,
+      "trianglesPerFrame": 1241898,
+      "tier": "high",
+      "benchmarkMs": null,
+      "geometries": 233,
+      "textures": 69,
+      "heapMB": 41.1,
+      "longTasks": {
+        "count": 0,
+        "totalMs": 0,
+        "top": []
+      }
+    },
+    "vessekLoad": {
+      "longTasks": {
+        "count": 2,
+        "totalMs": 5818,
+        "top": [
+          5625,
+          193
+        ]
+      }
+    },
+    "vessek": {
+      "frames": 480,
+      "fps": 60,
+      "p50": 16.7,
+      "p95": 16.7,
+      "p99": 16.8,
+      "max": 16.8,
+      "hitchesOver50ms": 0,
+      "drawCallsPerFrame": 405,
+      "trianglesPerFrame": 151506,
+      "tier": "high",
+      "benchmarkMs": null,
+      "geometries": 245,
+      "textures": 84,
+      "heapMB": 53.3,
+      "longTasks": {
+        "count": 0,
+        "totalMs": 0,
+        "top": []
+      }
+    }
+  },
+  "heap": {
+    "afterFirstShipMB": 27.1,
+    "afterLoopMB": 52,
+    "growthPct": 91.9,
+    "afterEachLoopMB": [
+      51.4,
+      52.3
+    ],
+    "loopToLoopGrowthPct": 1.8
+  },
+  "bytes": {
+    "totalMB": 24.61,
+    "byTypeMB": {
+      "Document": 0,
+      "Script": 0.34,
+      "Stylesheet": 0.01,
+      "Font": 0.08,
+      "Image": 2.8,
+      "Fetch": 21.38
+    }
+  },
+  "largestAssets": [
+    {
+      "url": "models/ship/freighter.glb",
+      "MB": 2.93
+    },
+    {
+      "url": "textures/space/starfield.jpg",
+      "MB": 1.31
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_02_ORM.jpg",
+      "MB": 1.04
+    },
+    {
+      "url": "models/quaternius-nature/Textures/Leaves.png",
+      "MB": 0.89
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_03_ORM.jpg",
+      "MB": 0.84
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_5.bin",
+      "MB": 0.77
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_3.bin",
+      "MB": 0.74
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_4.bin",
+      "MB": 0.72
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_1.bin",
+      "MB": 0.7
+    },
+    {
+      "url": "models/quaternius/Textures/T_Trim_01_ORM.jpg",
+      "MB": 0.68
+    },
+    {
+      "url": "models/quaternius-nature/glTF/TwistedTree_2.bin",
+      "MB": 0.67
+    },
+    {
+      "url": "models/quaternius/Textures/T_PaddedWall_BaseColor.jpg",
+      "MB": 0.51
+    }
+  ],
+  "consoleErrors": []
+}
