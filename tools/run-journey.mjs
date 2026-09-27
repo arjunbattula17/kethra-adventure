@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const BASE = process.argv[2] ?? 'http://localhost:4180/kethra-adventure/';
-const TESTS = ['test-intercept-sim', 'smoke', 'test-tutorial-flow', 'test-mg1-flow', 'test-cruise-flow', 'test-dialogue-esc', 'test-kethra-flow', 'test-vessek-flow'];
+const TESTS = ['test-intercept-sim', 'test-canopy-layout', 'smoke', 'test-tutorial-flow', 'test-mg1-flow', 'test-cruise-flow', 'test-mg2-flow', 'test-dialogue-esc', 'test-kethra-flow', 'test-vessek-flow'];
 
 const results = [];
 for (const name of TESTS) {

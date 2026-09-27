@@ -20,7 +20,9 @@ import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
 import { buildSun } from './sun';
 import type { Sun } from './sun';
-import { buildCanopyLights, buildCloudLayer, buildPassingRocks, buildPlume, buildShockRing, buildSkiff, Streaks } from './cruise/pieces';
+import { buildCanopyLights, buildCloudLayer, buildPassingRocks, buildPlume, buildShockRing, Streaks } from './cruise/pieces';
+import { buildSkiff } from './skiff';
+import type { Skiff } from './skiff';
 
 export interface CruiseOptions {
   destination: 'kethra' | 'vessek';
@@ -105,7 +107,7 @@ export class CruiseScene implements GameScene {
   private rocks!: THREE.InstancedMesh;
   private streaks = new Streaks();
   private course!: THREE.Line;
-  private skiff: ReturnType<typeof buildSkiff> | null = null;
+  private skiff: Skiff | null = null;
   private clouds: ReturnType<typeof buildCloudLayer> | null = null;
   private canopy: THREE.Group | null = null;
   private engineLight!: THREE.PointLight;

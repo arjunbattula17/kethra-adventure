@@ -20,6 +20,24 @@ export const STRINGS = {
   'reveal.caption.stranded': 'You are stranded, alone, in a galaxy no chart has ever mapped.',
   'reveal.caption.truth': 'Somewhere out there is the truth — and a way home.',
 
+  // MG2 Canopy (src/planets/kethra/canopy). ORION speaks through the skiff.
+  'mg2.objective': 'Bring the skiff down through the canopy to the landing terrace.',
+  'mg2.eyebrow': 'Descent · layer {n} of 5',
+  'mg2.hull': 'Hull',
+  'mg2.key.steer': 'Steer',
+  'mg2.key.lamp': 'Mouse aims the lamp',
+  'mg2.key.brake': 'Brake',
+  'mg2.orion.start': 'ORION: Lamp’s yours. The canopy’s asleep: wake what you need.',
+  'mg2.orion.pods': 'ORION: No lantern below. Only what you light is there.',
+  'mg2.orion.sway': 'ORION: Those limbs are moving. Wait for the gap.',
+  'mg2.orion.moth': 'ORION: Something big under us, and it’s lighting the way.',
+  'mg2.orion.drop': 'ORION: Landing lights. Narrow drop. Slow and straight.',
+  'mg2.orion.climb': 'ORION: Hull’s complaining. Climbing back to where it was clear.',
+  'mg2.orion.down': 'ORION: Down. Welcome to Kethra.',
+  'mg2.stat.traversal': 'Traversal 2: the skiff answers faster.',
+  'mg2.stat.perception': 'Perception 2: pods stay lit longer.',
+  'mg2.stat.engineering': 'Engineering 2: a wider lamp.',
+
   // First light (src/ship/FirstLight.ts).
   'firstlight.orion.plot': 'ORION: Plot holds. {cells} cells.',
   'firstlight.hold': 'Hold to fire the drive',

@@ -57,7 +57,10 @@ check('the day counter shows during the transit', await until(() => /^Day \d+$/.
 await page.waitForSelector('.hold-skip', { timeout: 10000 });
 await holdSpace(1100);
 check('holding to skip lands on the arrival title', await until(() => document.querySelector('.cruise-title.visible')?.getAttribute('aria-label') === 'Kethra', 5000));
-check('and then on Kethra', await until(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'KethraScene' && !window.__DEBUG__.flow.isTransitioning(), 120000));
+// Beat 6: "Control passes to the player: MG2 starts with no cut." (tools/test-mg2-flow.mjs flies it.)
+check('the first arrival hands the skiff to the player: MG2 begins', await until(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'CanopyScene' && window.__DEBUG__.engine.getCurrentScene().state().phase === 'fly', 120000));
+await page.evaluate(() => window.__DEBUG__.miniGame()?.win());
+check('and then on Kethra', await until(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'KethraScene' && !window.__DEBUG__.flow.isTransitioning(), 240000));
 
 // A later trip: the short departure (no throttle), then the cruise again.
 await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().onDepart?.());

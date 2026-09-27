@@ -119,8 +119,15 @@ s = await state();
 check('carving deciphered (map survey flag set)', s.flags.includes('kethra_kindling_record'));
 check('re-reading the carving grants no more insight', s.attributes.insight === insight);
 
-// 8. Home, and the crystals go into the ship.
-await teleport(0, 2, 18);
+// 8. Home, and the crystals go into the ship. The skiff on the landing terrace is the way back
+//    (docs/DESIGN.md §4, slot 2): stand beside it, facing it.
+await teleport(1.4, 2, 18.4);
+await page.evaluate(() => {
+  const s = window.__DEBUG__.engine.getCurrentScene();
+  s.player.yaw = Math.atan2(-(3 - 1.4), -(19.6 - 18.4));
+  s.player.pitch = -0.35;
+});
+await page.waitForTimeout(400);
 await pressE();
 await waitScene('ShipInteriorScene');
 await page.waitForTimeout(1500);

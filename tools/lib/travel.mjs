@@ -16,5 +16,11 @@ export async function completeTrip(page, kind) {
   await page.keyboard.down('Space');
   await page.waitForTimeout(1100);
   await page.keyboard.up('Space');
-  await page.waitForFunction((k) => window.__DEBUG__.engine.getCurrentScene()?.kind === k && !window.__DEBUG__.flow.isTransitioning(), kind, { timeout: 240000, polling: 250 });
+  // The first arrival at Kethra comes down through the canopy (MG2): land it with the harness's win,
+  // tools/test-mg2-flow.mjs flies it for real.
+  await page.waitForFunction((k) => {
+    const s = window.__DEBUG__.engine.getCurrentScene();
+    if (s?.kind === 'CanopyScene' && s.state().phase === 'fly') window.__DEBUG__.miniGame()?.win();
+    return s?.kind === k && !window.__DEBUG__.flow.isTransitioning();
+  }, kind, { timeout: 240000, polling: 250 });
 }

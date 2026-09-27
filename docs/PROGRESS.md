@@ -5,7 +5,7 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
-**2026-09-27: M2 done; starting M3.** Milestone check-ins are OFF, so work continues milestone
+**2026-09-27: M3 done; starting M4.** Milestone check-ins are OFF, so work continues milestone
 to milestone without stopping.
 
 ## Milestones
@@ -30,7 +30,14 @@ to milestone without stopping.
   - [x] The match cut out through the viewport into the cruise, prepared underneath, no spinner (Engine.setScene `quiet`, GameScene.onEnter)
   - [x] The cruise (src/galaxy/CruiseScene.ts): plumes and shockwaves, the locked-off departure through the belt, the chase with star streaks and FOV 50°→62°, the transit with the day counter and the sun turning around the hull, Kethra's night side and the grade into night green, the skiff's entry through cloud to the canopy, the kinetic title; hold to skip lands on the arrival
   - [x] The fade-and-loading-bar trip deleted from the player's path (enterPlanet stays for the debug jumps and "Restart this level"); later departures take the short version
-- [ ] M3 MG2 Canopy ← next
+- [x] **M3 MG2 Canopy**
+  - [x] The descent (src/planets/kethra/canopy): five layers per the ramp (the swinging lantern over a wide gap, pods, swaying limbs, the Wickmoth crossing below, the narrow drop to the landing lights); WASD steer with inertia, Shift brakes, the mouse aims the lamp (keyboard-only: it follows the heading, wider); pods the lamp touches wake and light the limbs around them
+  - [x] Scrapes: sparks at the contact, a heavy-spring kick, a hull pip lost, the bough marked; three climb back to the last layer passed
+  - [x] Depth cues: the lamp's pool on the layer below, a blob shadow in it, haze thickening with depth, pods near and far; limbs are capsule colliders; the camera pulls in rather than pass through one
+  - [x] Touchdown: gear squash, a dust ring, the establishing shot, the Aiveth lanterns turning to the skiff; Kethra builds under that held shot
+  - [x] Stats: traversal 2 less inertia, perception 2 pods lit longer, engineering 2 a wider lamp; +1 traversal
+  - [x] The skiff (src/galaxy/skiff.ts) parks on the landing terrace as the return pad, replacing the cylinder-and-torus
+- [ ] M4 MG3 Hush and Kethra's floor ← next
 - [ ] M2 First light and the cruise
 - [ ] M3 MG2 Canopy
 - [ ] M4 MG3 Hush and Kethra's floor
@@ -67,6 +74,8 @@ to milestone without stopping.
 | 23 | P3 | The cruise's Kethra entry (cloud sprites, canopy lights, a wedge skiff) is interim until MG2 takes over the arrival; Vessek's cruise holds on the planet until its docking (M5) | CruiseScene, cruise/pieces.ts | M3, M5 |
 | 24 | P3 | Kethra's night side reads strong rather than "faint" (DESIGN §5, beat 4): the night map's bioluminescence is bright | planetShader night term | M7 art pass |
 | 25 | P3 | After the cruise the arrival card repeats the planet's name the kinetic title just gave | GameFlow.cruiseTo | M6 (the card's redesign) |
+| 26 | P3 | MG2's foliage reads as stylized blobs where it's lit; the limbs are plain tapered cylinders | canopy/CanopyScene.ts | M7 art pass |
+| 27 | P3 | A naive autopilot steering straight at each gap scraped 11 times in one descent (132 s): the short limbs hugging each gap leave about 2 m of margin | canopy/layout.ts | Playtest; widen the hugging ring if players find it punishing |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -88,6 +97,8 @@ to milestone without stopping.
 | 2026-09-27 | A scene prepared ahead starts its timelines and input in `onEnter`, not `init` | The cruise is prepared during First light; its init had started its captions, title and hold-to-skip under the throttle hold (holding Space for the drive skipped the cruise) |
 | 2026-09-27 | Trips keep the "Level N" arrival card after the cruise until M6 | TSA's three levels are named on arrival; the cruise's title carries only the name |
 | 2026-09-27 | The Wren's full power follows `first_light`, or `left_wren` for the debug jumps that leave without it | First light is now the first departure |
+| 2026-09-27 | MG2 is its own scene, prepared under the cruise and handed the skiff at the cruise's last shot; Kethra builds under MG2's establishing shot | A long build mid-descent would freeze play. MG2 plays on the first arrival only |
+| 2026-09-27 | The kinetic title "Kethra" plays at the cruise's handoff; after touchdown the level's arrival card | One title per arrival; the card keeps the level number (issue 25) |
 
 ## QA log
 | Date | What | Result |
@@ -110,6 +121,8 @@ to milestone without stopping.
 | 2026-09-27 | First light and the cruise: `tools/test-cruise-flow.mjs` | 15/15: the throttle offered with its hold hint on emergency power; a half hold spools back and fails nothing; four ignitions bring full power; the cut lands in the cruise with no loading screen; the day counter; hold to skip lands on the arrival title, then Kethra; back aboard at full power; the next trip skips the throttle |
 | 2026-09-27 | `npm run journey` (eight tests; the Kethra, Vessek and dialogue flows now fly their trips through First light and the cruise via tools/lib/travel.mjs) | 8/8 |
 | 2026-09-27 | M2 screenshots, 1920×1080 Low + High (docs/screenshots/m2, 22 JPEGs): First light's four moments and seven cruise beats | Zero console errors |
+| 2026-09-27 | MG2 layout: `tools/test-canopy-layout.mjs` | 27/27: every gap open, every layer 83–97% floor elsewhere, the sway layer's gap open 71% of the time and closed the rest, pods on every layer, each next gap reachable in the descent, the final drop narrowest and over the pad, every climb-back point clear |
+| 2026-09-27 | MG2 flown: `tools/test-mg2-flow.mjs` | 16/16: strafe, brake (0.9 vs 2.4 m/s), the lamp waking pods, a real bough scrape costing a pip, three scrapes climbing back with the hull restored, a full descent flown to touchdown by steering at each gap, Kethra with the skiff parked, +1 traversal, a later arrival skipping MG2, engineering 2 widening the lamp |
 | 2026-09-27 | A black frame on High in the cruise | UnrealBloom smearing a NaN from the plumes' shader (MSAA sampled a varying past its clamp; `pow` of a negative). Fixed by clamping in the fragment shader, here and in the three other new shaders that did the same |
 
 ## Performance

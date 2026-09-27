@@ -1512,6 +1512,23 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 }
 .cruise-title.visible { opacity: 1; }
 
+/* MG2 Canopy (src/planets/kethra/canopy): the descent's plate, top right; the hull as three pips. */
+.canopy-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: min(320px, 34vw);
+  padding: 14px 18px 12px;
+  background-color: var(--panel-bg);
+  color: var(--ink);
+  font-size: calc(14px * var(--text-scale));
+  pointer-events: none;
+}
+.canopy-hull { display: flex; align-items: center; gap: 6px; margin: 8px 0 4px; }
+.canopy-hull .label { font-size: calc(12px * var(--text-scale)); color: var(--ink-dim); margin-right: 6px; }
+.canopy-pip { width: 14px; height: 8px; box-shadow: inset 0 0 0 1px var(--accent-dim); }
+.canopy-pip.on { background: var(--accent); box-shadow: none; }
+
 /* MG1 Intercept (src/galaxy/intercept): the plot's plate, top right, and numerals pinned to points
    in the system. Numbers are tabular so a changing figure never shifts its neighbours. */
 .intercept-panel {
@@ -1572,7 +1589,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
    ============================================================================================= */
 :root { --chamfer: 12px; --chamfer-sm: 6px; }
 @property --edge { syntax: '<color>'; inherits: false; initial-value: rgba(93, 102, 111, 0.45); }
-.panel, .hud-frame, .toast, .chapter-card, .look-prompt-inner, #interact-prompt, .map-panel, .tut-card, .intercept-panel,
+.panel, .hud-frame, .toast, .chapter-card, .look-prompt-inner, #interact-prompt, .map-panel, .tut-card, .intercept-panel, .canopy-panel,
 .btn, .dialogue-option, .map-btn, .title-btn, .breaker, .rite-node, .keycap {
   --c: var(--chamfer);
   clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
@@ -1586,7 +1603,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
   background-position: top left, bottom right;
   background-repeat: no-repeat;
 }
-.panel, .intercept-panel { --edge-tl: var(--accent); }
+.panel, .intercept-panel, .canopy-panel { --edge-tl: var(--accent); }
 .hud-frame, .toast, #interact-prompt, .look-prompt-inner { --c: 8px; }
 .btn, .dialogue-option, .map-btn, .title-btn, .breaker, .rite-node { --c: var(--chamfer-sm); }
 .keycap { --c: 3px; --edge: var(--accent-dim); }

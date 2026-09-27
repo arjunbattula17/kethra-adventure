@@ -558,10 +558,19 @@ export class GameFlow {
    */
   private async cruiseTo(planetId: string): Promise<void> {
     const ship = this.shipScene;
+    // The first arrival at Kethra comes down through the canopy: MG2 (DESIGN §4, slot 2).
+    const flyCanopy = planetId === 'kethra' && !gameState.hasFlag('canopy_flown');
     let level: GameScene & { onDepart: (() => void) | null };
     let CruiseScene: typeof import('../galaxy/CruiseScene').CruiseScene;
+    let canopy: import('../planets/kethra/canopy/CanopyScene').CanopyScene | null = null;
     try {
-      [level, { CruiseScene }] = await Promise.all([this.loadLevel(planetId), import('../galaxy/CruiseScene')]);
+      let canopyModule: typeof import('../planets/kethra/canopy/CanopyScene') | null;
+      [level, { CruiseScene }, canopyModule] = await Promise.all([
+        this.loadLevel(planetId),
+        import('../galaxy/CruiseScene'),
+        flyCanopy ? import('../planets/kethra/canopy/CanopyScene') : Promise.resolve(null),
+      ]);
+      if (canopyModule) canopy = new canopyModule.CanopyScene();
     } catch {
       UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
       throw new Error(`level ${planetId} failed to load`);
@@ -574,8 +583,16 @@ export class GameFlow {
     gameState.setFlag('left_wren');
     await this.engine.setScene(() => cruise, { prepared: true, quiet: true });
     this.shipScene = null;
-    cruise.prepareArrival = () => this.engine.prepareScene(level);
+    cruise.prepareArrival = () => this.engine.prepareScene(canopy ?? level);
     await new Promise<void>((resolve) => (cruise.onArrive = resolve));
+    if (canopy) {
+      await this.engine.setScene(() => canopy, { prepared: true, quiet: true });
+      await new Promise<void>((resolve) => (canopy.onComplete = resolve));
+      // Kethra's long first build lands on the held establishing shot, not mid-descent.
+      await this.engine.prepareScene(level);
+      gameState.setFlag('canopy_flown');
+      gameState.addAttributeXp('traversal', 1);
+    }
     await UIManager.fadeToBlack();
     level.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
     this.levelSnapshot = { planetId, json: gameState.toJSON() };

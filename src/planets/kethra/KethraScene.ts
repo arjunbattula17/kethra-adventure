@@ -24,6 +24,10 @@ import { Figure } from '../../characters/Figure';
 import { getPointSprite } from '../../galaxy/spaceDressing';
 import { buildWickmoth, buildCisternHeart, buildLanternBloom, buildShrineStele, tintByLuminance, CANOPY_TINTS } from './grove';
 import type { Wickmoth, CisternHeart, LanternBloom } from './grove';
+import { buildSkiff } from '../../galaxy/skiff';
+
+/** Where the skiff is parked on the landing terrace, beside the arrival point. */
+const SKIFF_AT = { x: 3, z: 19.6 };
 
 const DIM_CANOPY_COLOR = new THREE.Color(0x274a3a);
 const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
@@ -795,29 +799,20 @@ export class KethraScene implements GameScene {
     });
   }
 
+  /**
+   * The Wren's skiff, parked on the landing terrace: it brought the player down through the canopy
+   * (MG2) and it is the way back up. It replaced a cylinder-and-torus pad.
+   */
   private buildReturnPad(): void {
-    const padMat = new THREE.MeshStandardMaterial({ color: 0x555f6a, emissive: 0x2a7fd9, emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.4 });
-    applyPbr(padMat, 'metal_plate', [2, 2]);
-    const padGroup = new THREE.Group();
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.15, 20), padMat);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.06, 8, 24), padMat);
-    rim.rotation.x = Math.PI / 2;
-    rim.position.y = 0.08;
-    const centerMat = new THREE.MeshStandardMaterial({ color: 0x2a7fd9, emissive: 0x4fa9ff, emissiveIntensity: 1.0, roughness: 0.3 });
-    const center = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 20), centerMat);
-    center.position.y = 0.1;
-    padGroup.add(pad, rim, center);
-    // The landing terrace's walking surface is at 0.38 and the pad's tallest part reached only 0.24,
-    // so the whole thing sat inside the terrace: the player arrived on an invisible pad and got a
-    // "Return to Ship" prompt with nothing under their feet. Sitting it on the surface leaves the
-    // main disc 0.075 proud and the rim 0.14 — both under the 0.25 step-over threshold, so it stays
-    // walkable rather than becoming an obstacle.
-    padGroup.position.set(0, 0.38, 18);
-    this.scene.add(padGroup);
+    const skiff = buildSkiff();
+    // Gear pads rest on the terrace's walking surface (0.38); they sit 0.46 below the hull origin.
+    skiff.group.position.set(SKIFF_AT.x, 0.38 + 0.46, SKIFF_AT.z);
+    skiff.group.rotation.y = -0.6;
+    this.scene.add(skiff.group);
     this.interaction.register({
-      object: padGroup,
+      object: skiff.group,
       label: 'Return to Ship',
-      range: 2.6,
+      range: 3.2,
       onInteract: () => this.onDepart?.(),
     });
   }
@@ -1045,6 +1040,8 @@ export class KethraScene implements GameScene {
     }
     // The Heart's basin and plinth: one box, since the basin is a ring the player shouldn't wade into.
     boxes.push(makeCollider(0, -18.2, 2.45, 2.45, 2.2));
+    // The parked skiff.
+    boxes.push(makeCollider(SKIFF_AT.x, SKIFF_AT.z, 1.5, 1.5, 1.2));
     // The creature drifts on its own path every frame (see update()), so a box baked from where it
     // happens to be at load would block empty air a second later.
     boxes.push(...buildKethraColliders(this.scene, { floorMeshes: this.floorMeshes, animated: [this.creature] }));
