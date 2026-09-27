@@ -1,7 +1,9 @@
-import { FLASH_LIMIT_PER_SECOND } from './tokens';
+import { bus } from '../core/EventBus';
+import { AMBIENT_DUCK, DUR, FLASH_LIMIT_PER_SECOND } from './tokens';
 import { clocks, markEngineTick, MotionScope, reducedState } from './core';
+import { damp } from './spring';
 
-export { DUR, EXIT_FACTOR, STAGGER, SPRING, REDUCED_MAX, BEZIER } from './tokens';
+export { DUR, EXIT_FACTOR, STAGGER, SPRING, REDUCED_MAX, BEZIER, AMBIENT_DUCK } from './tokens';
 export type { DurToken, BezierToken, SpringToken, SpringConfig } from './tokens';
 export { ease, cubicBezier, cssBezier } from './ease';
 export type { EaseFn } from './ease';
@@ -16,12 +18,49 @@ const flashTimes: number[] = [];
 /** Frames the debug harness asked to step while frozen. */
 let pendingSteps = 0;
 
+const holds = new Set<string>();
+let duckUntil = -1;
+let ambient = 1;
+let ambientTime = 0;
+
+/**
+ * The Conductor (docs/DESIGN.md §3): at any moment one primary motion leads.
+ * - A cinematic beat holds it. The HUD steps out and keeps still (the page gets `conducting`, and
+ *   HUD news waits for the beat to end: listen for `motion:conducting`).
+ * - A hero moment ducks it. Ambient world motion (planet spin, a drifting belt, moths, motes) eases
+ *   down to AMBIENT_DUCK and back once the moment has passed. Scenes opt in by driving those idles
+ *   from `motion.ambient` and `motion.ambientTime`.
+ */
+const conductor = {
+  /** Starts a cinematic beat under `key`; beats can overlap, and the HUD returns when the last ends. */
+  hold(key: string): void {
+    if (holds.has(key)) return;
+    holds.add(key);
+    if (holds.size > 1) return;
+    document.body.classList.add('conducting');
+    bus.emit('motion:conducting', true);
+  },
+  release(key: string): void {
+    if (!holds.delete(key) || holds.size) return;
+    document.body.classList.remove('conducting');
+    bus.emit('motion:conducting', false);
+  },
+  get holding(): boolean {
+    return holds.size > 0;
+  },
+  /** A hero moment of `seconds` (game time): ambient motion ducks for it. */
+  duck(seconds: number): void {
+    duckUntil = Math.max(duckUntil, clocks.game.time + seconds);
+  },
+};
+
 /**
  * The one entry point. The engine calls tick() once per display frame; everything that moves reads
  * the game or ui clock through a MotionScope.
  */
 export const motion = {
   clocks,
+  conductor,
   /** Scope for UI that lives for the whole session (HUD, toasts, cards). */
   ui: new MotionScope('ui'),
 
@@ -59,8 +98,23 @@ export const motion = {
         gameDt = (1 / 60) * this.timeScale;
       }
     }
-    if (gameDt > 0) clocks.game.advance(gameDt);
+    if (gameDt > 0) {
+      clocks.game.advance(gameDt);
+      // Settles in about DUR.large each way.
+      ambient = damp(ambient, clocks.game.time < duckUntil ? AMBIENT_DUCK : 1, 3 / DUR.large, gameDt);
+      ambientTime += gameDt * ambient;
+    }
     return gameDt;
+  },
+
+  /** 1, or less under a hero moment: multiply ambient world motion's dt by it. */
+  get ambient(): number {
+    return ambient;
+  },
+
+  /** Game time as ambient motion sees it: slows under a hero moment. Drive idle sines from this. */
+  get ambientTime(): number {
+    return ambientTime;
   },
 
   /** Game time in seconds: stops while paused, so sine-driven idles never jump on resume. */

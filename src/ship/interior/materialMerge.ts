@@ -152,6 +152,7 @@ export function atlasCanvasMaterials(meshes: THREE.Mesh[], animated: Set<THREE.M
         if (places[i].page === p) blitPadded(g, c, places[i].x, places[i].y);
       });
       const tex = new THREE.CanvasTexture(canvas);
+      tex.userData.atlas = true;
       tex.colorSpace = first.map!.colorSpace;
       tex.anisotropy = Math.max(...group.map((m) => (m.material as Mat).map!.anisotropy));
       pages.push(tex);

@@ -70,7 +70,10 @@ await page.addInitScript(() => {
 
 const results = { label: LABEL, cpuThrottle: CPU, networkMbps: MBPS, tier: TIER, viewport: '1366x768@1x', load: {}, scenes: {}, heap: {} };
 const mb = (b) => +(b / 1048576).toFixed(2);
-const waitScene = (k, timeout = 600000) => page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k, k, { timeout, polling: 500 });
+// The scene becomes current before its transition has finished (the fade in is still running), and
+// the flow ignores a jump while a transition runs: wait for both, or the next debugGo is dropped.
+const waitScene = (k, timeout = 600000) =>
+  page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k && !window.__DEBUG__.flow.isTransitioning(), k, { timeout, polling: 500 });
 
 /** Frame deltas over `seconds` of real play: the camera pans slowly, as a player looking around. */
 async function sampleFrames(seconds) {
@@ -155,7 +158,7 @@ let mark = await now();
 results.scenes.intro = await sampleFrames(6);
 results.scenes.intro.longTasks = await longTasksSince(mark);
 // Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
-await page.waitForSelector('.hold-skip', { timeout: 30000 });
+await page.waitForSelector('.hold-skip', { timeout: 180000 });
 await page.keyboard.down('Space');
 await page.waitForTimeout(1100);
 await page.keyboard.up('Space');

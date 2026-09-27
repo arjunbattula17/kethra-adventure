@@ -54,5 +54,8 @@ export interface SpringConfig {
 /** Under reduced motion no transition runs longer than this, and moves become cross-fades. */
 export const REDUCED_MAX = 0.15;
 
+/** The Conductor's duck: under a hero moment, ambient world motion runs at this fraction. */
+export const AMBIENT_DUCK = 0.25;
+
 /** Full-screen flashes allowed per rolling second, in every mode. */
 export const FLASH_LIMIT_PER_SECOND = 3;

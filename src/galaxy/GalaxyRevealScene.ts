@@ -11,24 +11,9 @@ import { buildPlanetInstance, type PlanetInstance } from './planetShader';
 import { getPointSprite } from './spaceDressing';
 import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
+import { buildSun } from './sun';
+import type { Sun } from './sun';
 import { GRADES } from '../core/GradeGlowPass';
-
-function buildGlowTexture(): THREE.Texture {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, 'rgba(255,235,190,0.9)');
-  gradient.addColorStop(0.35, 'rgba(255,219,153,0.45)');
-  gradient.addColorStop(1, 'rgba(255,219,153,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
 
 /** A belt of real rock, not a flat annulus of grey squares. Individual instanced chunks near the
  * camera plus a dust haze of points further out: the pre-fix version used one big PointsMaterial
@@ -137,11 +122,9 @@ export class GalaxyRevealScene implements GameScene {
   /** Everything that moves in this scene; disposed with it. */
   private fx = new MotionScope('game');
   private ship!: THREE.Group;
-  private sun!: THREE.Mesh;
+  private sun!: Sun;
   private planetMeshes: THREE.Object3D[] = [];
   private planetInstances: PlanetInstance[] = [];
-  private coronaInner!: THREE.Sprite;
-  private coronaOuter!: THREE.Sprite;
   private asteroidField!: THREE.Group;
   private pingSprite!: THREE.Sprite;
   private pingElapsed = -1;
@@ -180,64 +163,21 @@ export class GalaxyRevealScene implements GameScene {
     const ambient = new THREE.AmbientLight(0x445577, 0.3);
     this.scene.add(ambient);
 
-    // A real photospheric surface (granulation and active regions, from Solar System Scope via
-    // tools/prep-planet-textures.mjs) with limb darkening toward the edge. The flat
-    // MeshBasicMaterial disc this replaces had a hard aliased rim and read as a paper cutout.
-    this.sun = new THREE.Mesh(
-      new THREE.SphereGeometry(9, 48, 32),
-      new THREE.ShaderMaterial({
-        uniforms: {
-          uMap: { value: new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/planets/sun.jpg`) },
-          uTime: { value: 0 },
-        },
-        vertexShader: /* glsl */ `
-          varying vec2 vUv;
-          varying vec3 vNormal;
-          varying vec3 vViewDir;
-          void main() {
-            vUv = uv;
-            vNormal = normalize(mat3(modelMatrix) * normal);
-            vec4 worldPos = modelMatrix * vec4(position, 1.0);
-            vViewDir = normalize(cameraPosition - worldPos.xyz);
-            gl_Position = projectionMatrix * viewMatrix * worldPos;
-          }
-        `,
-        fragmentShader: /* glsl */ `
-          precision highp float;
-          uniform sampler2D uMap;
-          uniform float uTime;
-          varying vec2 vUv;
-          varying vec3 vNormal;
-          varying vec3 vViewDir;
-          void main() {
-            // Slow drift so the granulation isn't a frozen photograph.
-            vec3 base = texture2D(uMap, vec2(vUv.x + uTime * 0.004, vUv.y)).rgb;
-            // Limb darkening: a real star is dimmer and redder at its edge because the line of
-            // sight there exits the photosphere at a shallower depth.
-            float mu = clamp(dot(normalize(vNormal), normalize(vViewDir)), 0.0, 1.0);
-            float limb = 0.42 + 0.58 * pow(mu, 0.55);
-            vec3 color = base * limb;
-            color.b *= mix(0.72, 1.0, mu);
-            gl_FragColor = vec4(color * 1.35, 1.0);
-            #include <tonemapping_fragment>
-            #include <colorspace_fragment>
-          }
-        `,
-      }),
-    );
-    this.sun.position.set(0, 0, -140);
-    this.scene.add(this.sun);
+    this.sun = buildSun({ radius: 9 });
+    this.sun.group.position.set(0, 0, -140);
+    this.scene.add(this.sun.group);
+    const sunPos = this.sun.group.position;
 
     const sunLight = new THREE.PointLight(0xffe3ab, 5.5, 500, 1.4);
-    sunLight.position.copy(this.sun.position);
+    sunLight.position.copy(sunPos);
     this.scene.add(sunLight);
 
     // The sun as a *directional* key on the ship. The point light above carries the belt and the
     // near-sun space; at the ship's distance its decay leaves almost nothing, which is why the
     // hull used to read as an unlit silhouette. A directional light is the correct model for a
     // star 140 units away, and one light is far cheaper than turning the point light's decay off.
-    const sunKey = new THREE.DirectionalLight(0xffe0b8, 3.2);
-    sunKey.position.copy(this.sun.position);
+    const sunKey = this.sun.light;
+    sunKey.position.copy(sunPos);
     sunKey.target.position.set(0, 0, 0);
     this.scene.add(sunKey);
     this.scene.add(sunKey.target);
@@ -252,35 +192,8 @@ export class GalaxyRevealScene implements GameScene {
     shipRim.position.set(-4, 2, 5);
     this.scene.add(shipRim);
 
-    this.coronaInner = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: buildGlowTexture(),
-        color: 0xffffff,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
-    );
-    this.coronaInner.scale.set(46, 46, 1);
-    this.coronaInner.position.copy(this.sun.position);
-    this.scene.add(this.coronaInner);
-
-    this.coronaOuter = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: buildGlowTexture(),
-        color: 0xffb870,
-        transparent: true,
-        opacity: 0.55,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
-    );
-    this.coronaOuter.scale.set(110, 110, 1);
-    this.coronaOuter.position.copy(this.sun.position);
-    this.scene.add(this.coronaOuter);
-
     this.asteroidField = buildAsteroidField(420, 1400, 26, 42);
-    this.asteroidField.position.copy(this.sun.position);
+    this.asteroidField.position.copy(sunPos);
     this.scene.add(this.asteroidField);
 
     this.pingSprite = new THREE.Sprite(
@@ -304,9 +217,9 @@ export class GalaxyRevealScene implements GameScene {
       const position = new THREE.Vector3(
         Math.cos(angle) * p.orbitRadius,
         Math.sin(angle * 0.4) * 8,
-        this.sun.position.z + Math.sin(angle) * p.orbitRadius,
+        sunPos.z + Math.sin(angle) * p.orbitRadius,
       );
-      const instance = buildPlanetInstance(p, position, this.sun.position, this.camera);
+      const instance = buildPlanetInstance(p, position, sunPos, this.camera);
       instance.group.userData.planetId = p.id;
       this.scene.add(instance.group);
       this.planetMeshes.push(instance.group);
@@ -326,7 +239,7 @@ export class GalaxyRevealScene implements GameScene {
 
   private playReveal(): void {
     UIManager.showLetterbox(true);
-    const sunPos = this.sun.position;
+    const sunPos = this.sun.group.position;
     const start = this.camera.position.clone();
     const startLook = this.ship.position.clone().add(new THREE.Vector3(2, 0, 0));
     // One continuous move through the old keyframes (hero pass on the sunlit flank, the pull
@@ -392,16 +305,7 @@ export class GalaxyRevealScene implements GameScene {
     this.ship.rotation.y = Math.sin(this.elapsedTotal * 0.15) * 0.05;
     this.ship.updateMatrixWorld();
 
-    (this.sun.material as THREE.ShaderMaterial).uniforms.uTime.value = this.elapsedTotal;
-
-    // Sun corona shimmer — slow independent pulses so it doesn't read as a static painted circle.
-    const innerPulse = 1 + Math.sin(this.elapsedTotal * 0.6) * 0.05;
-    this.coronaInner.scale.set(46 * innerPulse, 46 * innerPulse, 1);
-    (this.coronaInner.material as THREE.SpriteMaterial).opacity = 0.88 + Math.sin(this.elapsedTotal * 0.6 + 1.4) * 0.12;
-    const outerPulse = 1 + Math.sin(this.elapsedTotal * 0.35 + 0.6) * 0.04;
-    this.coronaOuter.scale.set(110 * outerPulse, 110 * outerPulse, 1);
-    (this.coronaOuter.material as THREE.SpriteMaterial).opacity = 0.5 + Math.sin(this.elapsedTotal * 0.4 + 2) * 0.15;
-    (this.coronaOuter.material as THREE.SpriteMaterial).rotation += dt * 0.04;
+    this.sun.update(this.camera, dt);
 
     // Asteroid belt drifts as one piece around the sun instead of sitting frozen.
     this.asteroidField.rotation.y += dt * 0.02;

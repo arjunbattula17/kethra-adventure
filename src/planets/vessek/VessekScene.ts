@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { displayFontsReady } from '../../core/loadFonts';
-import { damp, dampVec3 } from '../../motion';
+import { damp, dampVec3, motion } from '../../motion';
 import type { GameScene } from '../../core/Engine';
 import { PlayerController } from '../../player/PlayerController';
 import { InteractionSystem } from '../../player/InteractionSystem';
@@ -798,6 +798,9 @@ export class VessekScene implements GameScene {
   private startPulse(): void {
     gameState.setFlag('vessek_pulse');
     this.player.enabled = false;
+    // A cinematic beat: the HUD steps out and the ring's idle motion ducks until control returns.
+    motion.conductor.hold('vessek-pulse');
+    motion.conductor.duck(6.2);
     const lampOrder: LampGroup[] = ['grow', 'dock', 'lamps', 'gallery'];
     this.timelineClock = 0;
     this.timeline = [
@@ -810,6 +813,7 @@ export class VessekScene implements GameScene {
       {
         at: 6.2,
         run: () => {
+          motion.conductor.release('vessek-pulse');
           this.player.enabled = true;
           this.drawBoard();
           gameState.setObjective(this.currentObjective());
@@ -872,6 +876,7 @@ export class VessekScene implements GameScene {
     gameState.addAttributeXp('engineering', 1);
     this.setEmergency(0.3);
     this.drawBoard();
+    motion.conductor.duck(4.2);
     // The heaters and scrubbers hold; then the reserve cells come up and the rest of the ring
     // relights deck by deck, the pulse in reverse.
     this.timelineClock = 0;
@@ -941,8 +946,9 @@ export class VessekScene implements GameScene {
     this.sky.update(this.camera);
     this.varro.update(dt, elapsed, this.eye);
     this.dace.update(dt, elapsed, this.eye);
-    this.planet?.update(elapsed, dt);
-    if (this.planet) this.planet.group.rotation.y += dt * 0.004;
+    const ambientDt = dt * motion.ambient;
+    this.planet?.update(motion.ambientTime, ambientDt);
+    if (this.planet) this.planet.group.rotation.y += ambientDt * 0.004;
 
     if (this.timeline.length) {
       this.timelineClock += dt;
@@ -965,7 +971,7 @@ export class VessekScene implements GameScene {
         if (l.mat) l.mat.emissiveIntensity = 1.6 * l.level * stutter;
       } else {
         // Out of sync by design: every ship's grid is a little different (LORE.md, Places).
-        const hum = l.level > 0.5 ? 1 + Math.sin(elapsed * (2 + l.phase % 3) + l.phase) * 0.04 : 1;
+        const hum = l.level > 0.5 ? 1 + Math.sin(motion.ambientTime * (2 + l.phase % 3) + l.phase) * 0.04 : 1;
         l.light.intensity = l.base * l.level * hum;
         if (l.mat) l.mat.emissiveIntensity = 1.6 * l.level;
       }
@@ -997,6 +1003,7 @@ export class VessekScene implements GameScene {
   }
 
   dispose(): void {
+    motion.conductor.release('vessek-pulse');
     for (const u of this.unsub) u();
     this.stopAmbient?.();
     this.stopMusic?.();

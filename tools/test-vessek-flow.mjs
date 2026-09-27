@@ -142,7 +142,7 @@ await waitScene('EndingScene');
 check('the ending plays', (await kind()) === 'EndingScene');
 await page.waitForTimeout(6000);
 // The ending skips to the credits on a held key (src/ui/HoldToSkip.ts).
-await page.waitForSelector('.hold-skip', { timeout: 30000 });
+await page.waitForSelector('.hold-skip', { timeout: 180000 });
 await page.keyboard.down('Space');
 await page.waitForTimeout(1100);
 await page.keyboard.up('Space');

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { displayFontsReady } from '../../core/loadFonts';
 import { GRADES } from '../../core/GradeGlowPass';
-import { MotionScope } from '../../motion';
+import { MotionScope, motion } from '../../motion';
 import type { GameScene } from '../../core/Engine';
 import { PlayerController } from '../../player/PlayerController';
 import { InteractionSystem } from '../../player/InteractionSystem';
@@ -406,6 +406,7 @@ export class KethraScene implements GameScene {
 
     this.puzzle.onSolved = () => {
       this.setCanopyBright(true);
+      motion.conductor.duck(3);
       bus.emit('player:shake', 0.35);
       this.fx.after(1.6, () => {
         AudioSystem.playLevelEnd();
@@ -1067,12 +1068,14 @@ export class KethraScene implements GameScene {
     this.archivist?.update(dt, elapsed, eye);
 
     const dormant = gameState.hasFlag('kethra_grove_dimmed') || gameState.hasFlag('kethra_mechanism_solved');
-    this.wickmoth.update(dt, elapsed, dormant);
-    this.bloom.update(dt, elapsed);
+    // The grove's own life steps down while the Heart wakes (the Conductor, docs/DESIGN.md §3).
+    const ambientDt = dt * motion.ambient;
+    this.wickmoth.update(ambientDt, motion.ambientTime, dormant);
+    this.bloom.update(ambientDt, motion.ambientTime);
     this.heart.update(dt, elapsed);
 
     const motes = this.scene.getObjectByName('motes') as THREE.Points | undefined;
-    if (motes) motes.rotation.y += dt * 0.01;
+    if (motes) motes.rotation.y += ambientDt * 0.01;
   }
 
   onResize(width: number, height: number): void {

@@ -75,8 +75,10 @@ check('a new game opens on the intro cinematic', await until(async () =>
   await page.evaluate(() => window.__DEBUG__?.engine?.getCurrentScene?.()?.kind === 'IntroScene'), 180000));
 await shot('00_intro');
 await page.waitForTimeout(600);
-// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
-await page.waitForSelector('.hold-skip', { timeout: 30000 });
+// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up. The intro offers it
+// only when its clock starts, after the interior has built under the loading screen: about 30 s
+// under the software rasteriser, so this waits as long as the intro's own arrival does.
+await page.waitForSelector('.hold-skip', { timeout: 180000 });
 await page.keyboard.down('Space');
 await page.waitForTimeout(1100);
 await page.keyboard.up('Space');
@@ -266,8 +268,10 @@ await page.goto(baseUrl + '/?newGame=1', { waitUntil: 'load' });
 // The intro cinematic plays for returning players too (and stays skippable for everyone).
 await until(async () => await page.evaluate(() => window.__DEBUG__?.engine?.getCurrentScene?.()?.kind === 'IntroScene'), 180000);
 await page.waitForTimeout(600);
-// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
-await page.waitForSelector('.hold-skip', { timeout: 30000 });
+// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up. The intro offers it
+// only when its clock starts, after the interior has built under the loading screen: about 30 s
+// under the software rasteriser, so this waits as long as the intro's own arrival does.
+await page.waitForSelector('.hold-skip', { timeout: 180000 });
 await page.keyboard.down('Space');
 await page.waitForTimeout(1100);
 await page.keyboard.up('Space');

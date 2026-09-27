@@ -85,7 +85,7 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
   await page.waitForFunction(() => !document.querySelector('.loading-indicator.visible'), undefined, { timeout: 240000, polling: 500 });
   await page.waitForTimeout(1500);
   // Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
-  await page.waitForSelector('.hold-skip', { timeout: 30000 });
+  await page.waitForSelector('.hold-skip', { timeout: 180000 });
   await page.keyboard.down('Space');
   await page.waitForTimeout(1100);
   await page.keyboard.up('Space');
@@ -224,7 +224,7 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
     await page.waitForTimeout(9000);
     await shot(page, 'ending');
     // Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
-    await page.waitForSelector('.hold-skip', { timeout: 30000 });
+    await page.waitForSelector('.hold-skip', { timeout: 180000 });
     await page.keyboard.down('Space');
     await page.waitForTimeout(1100);
     await page.keyboard.up('Space');

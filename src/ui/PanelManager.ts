@@ -57,28 +57,50 @@ class PanelManagerImpl {
     }
     this.clearTimer?.cancel();
     this.clearTimer = null;
-    this.content.innerHTML = '';
-    this.content.appendChild(panelHtml);
+    if (replacing) this.morphTo(panelHtml);
+    else {
+      this.content.innerHTML = '';
+      this.content.appendChild(panelHtml);
+      motion.ui.animate(panelHtml, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { dur: 'medium' });
+    }
     this.overlay.classList.add('visible');
     this.isOpen = true;
     this.activeId = id ?? null;
     this.openCallback = onClose ?? null;
     this.escapeInterceptor = onEscape ?? null;
-    // A fresh panel rises into place; one replacing another only cross-fades, so switching
-    // between panels doesn't bounce the frame.
-    motion.ui.animate(
-      panelHtml,
-      replacing ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
-      { dur: replacing ? 'small' : 'medium' },
-    );
     InputManager.exitPointerLock();
     if (!replacing) this.onOpenChange(true);
   }
 
   /** Swap the panel's content in place (a new page of the same panel): no entrance replayed. */
   setContent(panelHtml: HTMLElement): void {
+    this.morphTo(panelHtml);
+  }
+
+  /**
+   * A fresh panel rises into place. A panel replacing another, or a new page of the same one,
+   * morphs instead (docs/DESIGN.md §2, Defaults audit): the frame grows or shrinks from the old
+   * size to the new while the new content fades up, so the panel never leaves and re-enters.
+   */
+  private morphTo(next: HTMLElement): void {
+    const from = (this.content.firstElementChild as HTMLElement | null)?.getBoundingClientRect();
     this.content.innerHTML = '';
-    this.content.appendChild(panelHtml);
+    this.content.appendChild(next);
+    for (const child of next.children) motion.ui.animate(child, [{ opacity: 0 }, { opacity: 1 }], { dur: 'small', delay: DUR.micro, fill: 'backwards' });
+    if (!from?.width) return;
+    const to = next.getBoundingClientRect();
+    if (Math.abs(from.width - to.width) < 1 && Math.abs(from.height - to.height) < 1) return;
+    next.style.overflow = 'hidden';
+    const a = motion.ui.animate(
+      next,
+      [
+        { width: `${from.width}px`, height: `${from.height}px` },
+        { width: `${to.width}px`, height: `${to.height}px` },
+      ],
+      { dur: 'small', ease: 'standard' },
+    );
+    const done = () => next.style.removeProperty('overflow');
+    a.finished.then(done, done);
   }
 
   /**

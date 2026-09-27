@@ -102,6 +102,11 @@ class UIManagerImpl {
       AudioSystem.playCollect();
     });
     bus.on('attribute:changed', () => this.refreshStatusBar());
+    // News that arrived during a cinematic beat, delivered once the HUD is back.
+    bus.on('motion:conducting', (on: boolean) => {
+      if (on) return;
+      for (const [message, kind] of this.heldToasts.splice(0)) this.toast(message, kind);
+    });
     bus.on('flag:set', (flag: string) => {
       if (flag === 'left_wren') this.statusBar.classList.add('retired');
     });
@@ -226,6 +231,10 @@ class UIManagerImpl {
   }
 
   toast(message: string, kind: ToastKind = 'info'): void {
+    if (motion.conductor.holding) {
+      this.heldToasts.push([message, kind]);
+      return;
+    }
     const t = el('div', `toast ${kind}`);
     t.textContent = message;
     this.toastStack.appendChild(t);
@@ -236,6 +245,8 @@ class UIManagerImpl {
     const hold = 2.6 + message.split(' ').length * 0.18;
     motion.ui.after(hold, () => this.dismissToast(t));
   }
+
+  private heldToasts: [string, ToastKind][] = [];
 
   private dismissToast(t: HTMLElement): void {
     if (t.classList.contains('leaving') || !t.isConnected) return;
@@ -295,6 +306,8 @@ class UIManagerImpl {
     const title = el('div', 'chapter-title');
     this.cardEl.append(eyebrow, title);
     playKineticTitle(title, card.title);
+    // An arrival title is a hero moment: the world's idle motion steps down under it.
+    motion.conductor.duck(2);
     for (const line of card.lines ?? []) {
       const p = el('div', 'chapter-line');
       p.textContent = line;
@@ -334,6 +347,8 @@ class UIManagerImpl {
     this.letterboxTop.classList.toggle('visible', show);
     this.letterboxBottom.classList.toggle('visible', show);
     this.letterboxActive = show;
+    if (show) motion.conductor.hold('letterbox');
+    else motion.conductor.release('letterbox');
     this.refreshLookPrompt();
   }
 

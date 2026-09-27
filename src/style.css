@@ -943,7 +943,8 @@ button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; backgroun
 /* Chapter card: level arrival and level complete. Upper third, clear of the play centre. */
 .chapter-card {
   position: absolute;
-  top: 14vh;
+  /* Clear of a three-line objective in the top-left at 1280×720, where 14vh alone reached its corner. */
+  top: max(14vh, 140px);
   left: 50%;
   transform: translate(-50%, -8px);
   width: min(560px, 90vw);
@@ -1607,3 +1608,10 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .hud-frame, #status-bar { transition: opacity var(--dur-medium) var(--ease-decelerate); }
 .hud-frame.quiet, #status-bar.quiet { opacity: 0.35; }
 #status-bar.retired .hud-keys { display: none; }
+
+/* The Conductor (src/motion/index.ts): during a cinematic beat the HUD steps out and keeps still,
+   so the one motion that matters leads. HUD news waits in UIManager until the beat ends. */
+.hud-left, #toast-stack { transition: opacity var(--dur-medium) var(--ease-decelerate); }
+body.conducting .hud-left,
+body.conducting #status-bar,
+body.conducting #toast-stack { opacity: 0; transition: opacity var(--dur-small) var(--ease-accelerate); }

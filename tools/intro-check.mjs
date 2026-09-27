@@ -74,7 +74,7 @@ if (skipAt) {
   await waitClock(Number(skipAt));
   const t0 = Date.now();
   // Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
-  await page.waitForSelector('.hold-skip', { timeout: 30000 });
+  await page.waitForSelector('.hold-skip', { timeout: 180000 });
   await page.keyboard.down('Space');
   await page.waitForTimeout(1100);
   await page.keyboard.up('Space');

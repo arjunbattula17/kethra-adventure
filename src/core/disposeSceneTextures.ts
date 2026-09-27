@@ -88,6 +88,9 @@ export function downscaleCanvasTextures(scene: THREE.Scene, maxSize: number): vo
         const image = tex?.image;
         if (!tex || typeof HTMLCanvasElement === 'undefined' || !(image instanceof HTMLCanvasElement)) continue;
         if (image.width <= maxSize && image.height <= maxSize) continue;
+        // An atlas page is large only because it packs many small canvases, each already within
+        // budget (src/ship/interior/materialMerge.ts): halving it would halve all of them.
+        if (tex.userData.atlas) continue;
         // Canvases are shared across textures (a map and its emissiveMap, repeated decals) —
         // shrink each source canvas once and point every user at the same replacement.
         let small = shrunk.get(image);

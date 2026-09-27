@@ -13,7 +13,7 @@ import { mulberry32 } from '../core/rng';
  */
 
 /** Approximate linear RGB of a black body at `kelvin` (Tanner Helland's fit, normalised). */
-function blackbody(kelvin: number, out: THREE.Color): THREE.Color {
+export function blackbody(kelvin: number, out: THREE.Color): THREE.Color {
   const t = kelvin / 100;
   let r: number;
   let g: number;
