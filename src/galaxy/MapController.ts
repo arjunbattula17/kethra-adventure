@@ -509,7 +509,7 @@ class MapControllerImpl {
       ellipse(range);
       ctx.stroke();
       ctx.restore();
-      this.label(t('map.legend.range').toUpperCase(), cx, cy - range * scale * ORBIT_SQUASH - 8 * dpr, 10, 'rgba(217,164,65,0.7)');
+      this.label(t('map.legend.range'), cx, cy - range * scale * ORBIT_SQUASH - 8 * dpr, 10, 'rgba(217,164,65,0.7)');
     }
 
     // Orbits.
@@ -662,7 +662,7 @@ class MapControllerImpl {
       ctx.stroke();
     }
 
-    if (selected) this.drawBrackets(pos.x, pos.y, radius * 1.55, dpr, time);
+    if (selected) this.drawBrackets(pos.x, pos.y, radius * 1.55, dpr);
     else if (hovered) {
       ctx.strokeStyle = 'rgba(217,164,65,0.55)';
       ctx.lineWidth = 1.2 * dpr;
@@ -671,16 +671,16 @@ class MapControllerImpl {
       ctx.stroke();
     }
 
-    const name = unlocked ? p.name.toUpperCase() : t('map.contact.unresolved').toUpperCase();
-    this.label(name, pos.x, pos.y + radius + 18 * dpr, unlocked ? 14 : 11, selected ? '#ffe9c2' : unlocked ? INK : INK_DIM, 0.12);
+    const name = unlocked ? p.name : t('map.contact.unresolved');
+    this.label(name, pos.x, pos.y + radius + 18 * dpr, unlocked ? 15 : 12, selected ? '#ffe9c2' : unlocked ? INK : INK_DIM, 0.02);
 
     this.hitTargets.push({ x: pos.x, y: pos.y, r: Math.max(radius * 2, 30 * dpr), id: p.id, onClick: () => this.selectWorld(p.id) });
   }
 
-  /** Four amber corner ticks around the selection, breathing slightly. */
-  private drawBrackets(x: number, y: number, r: number, dpr: number, time: number): void {
+  /** Four amber corner ticks around the selection. Still: nothing idles (docs/DESIGN.md §2). */
+  private drawBrackets(x: number, y: number, r: number, dpr: number): void {
     const ctx = this.ctx;
-    const s = r * (1 + 0.04 * Math.sin(time * 3));
+    const s = r;
     const len = s * 0.4;
     ctx.save();
     ctx.strokeStyle = AMBER;
@@ -813,7 +813,7 @@ class MapControllerImpl {
         }
         ctx.restore();
       } else if (slab.labelKey && slab.labelKey in STRINGS) {
-        this.label(t(slab.labelKey as StringKey).toUpperCase(), tl.x + sw / 2, tl.y + 14 * dpr, 10, 'rgba(200,235,215,0.5)', 0.18);
+        this.label(t(slab.labelKey as StringKey), tl.x + sw / 2, tl.y + 14 * dpr, 11, 'rgba(200,235,215,0.55)', 0.02);
       }
     }
 
@@ -834,7 +834,7 @@ class MapControllerImpl {
       ctx.globalAlpha = discovered ? 1 : 0.4;
       this.drawPoiGlyph(p.x, p.y, r, poi.kind, POI_COLOR[poi.kind]);
       ctx.restore();
-      if (selected) this.drawBrackets(p.x, p.y, r * 2, dpr, time);
+      if (selected) this.drawBrackets(p.x, p.y, r * 2, dpr);
       if (discovered || hovered || selected) {
         labels.push({ text: discovered ? poi.label : t('map.poi.unexplored'), x: p.x, y: p.y, r, color: discovered ? INK : INK_DIM, priority: hovered || selected });
       }
@@ -948,7 +948,7 @@ class MapControllerImpl {
     this.ctx.fillRect(0, 0, w, h);
   }
 
-  private label(text: string, x: number, y: number, px: number, color: string, tracking = 0.06): void {
+  private label(text: string, x: number, y: number, px: number, color: string, tracking = 0.02): void {
     const ctx = this.ctx;
     const dpr = window.devicePixelRatio;
     ctx.save();

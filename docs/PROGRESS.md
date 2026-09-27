@@ -5,15 +5,20 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
-**2026-09-26: Phases 0–2 done. Stopped at the design checkpoint** (it's ON in the brief). Waiting
-on the decisions in docs/DESIGN.md §10. Nothing in `src/` has changed on this branch yet.
+**2026-09-27: design approved; building M0.** Milestone check-ins are OFF, so work continues
+milestone to milestone without stopping.
 
 ## Milestones
 - [x] Phase 0: brief saved, branch, baseline (screens, perf, journey test)
 - [x] Phase 1: audit (docs/AUDIT.md, Part A)
 - [x] Phase 2: design (docs/DESIGN.md)
-- [ ] **Checkpoint: design approved** ← here
-- [ ] M0 Foundations (motion, flow machine, debug harness, grade profiles, space kit, code-built Wren, UI kit, fonts, P1 fixes, Wren draw calls 1–5)
+- [x] Checkpoint: design approved 2026-09-27, all recommendations taken
+- [ ] **M0 Foundations** ← here
+  - [x] Vessek soft-lock fixed on master (ea28978) and merged; regression test tools/test-dialogue-esc.mjs
+  - [x] Motion module (src/motion), flow state machine, ?debug harness, per-scene grades + LiteGlow, space sky, code-built Wren (freighter removed), world fonts, panel lifecycle and bug fixes (131f3a3)
+  - [ ] UI kit pass: chamfered plates, sentence-case labels, hold-to-skip, kinetic title, tabular counts, HUD steps back
+  - [ ] Wren draw calls, steps 1–5 (docs/DESIGN.md §7)
+  - [ ] Journey runner + perf re-measure; M0 screenshots; M0 commit (motion, flow machine, debug harness, grade profiles, space kit, code-built Wren, UI kit, fonts, P1 fixes, Wren draw calls 1–5)
 - [ ] M1 Level 1: the reveal and MG1 Intercept
 - [ ] M2 First light and the cruise
 - [ ] M3 MG2 Canopy
@@ -26,20 +31,21 @@ on the decisions in docs/DESIGN.md §10. Nothing in `src/` has changed on this b
 ## Open issues
 | # | Sev | Issue | Where | Plan |
 |---|---|---|---|---|
-| 1 | **P1** | Soft-lock: Esc on Varro's closing line means the pulse never fires (reproduced through real input) | VessekScene.ts:731-735, DialogueSystem.ts:133-136 | M0 (and master, if approved) |
-| 2 | P1 | New game double-click starts the flow twice; `GameFlow.start` has no guard | TitleScreen.ts:49-70 | M0 flow machine |
-| 3 | P1 | Breaker board can call `onSolved` twice | BreakerPuzzle.ts:141-160 | M0 (panel replaced in M5) |
-| 4 | P2 | Stale timers call `PanelManager.close()` on whatever panel is open | CoursePlot.ts:185, BreakerPuzzle.ts:157 | M0 MotionScope |
-| 5 | P2 | Replaced panels leak their rAF loops | PanelManager.ts:45-55 | M0 |
-| 6 | P2 | Alarm-beacon sweeps frozen by the merge pass | lighting.ts:530-541 | M0 |
+| 1 | ~~P1~~ | **Fixed (ea28978)**: Esc on Varro's closing line meant the pulse never fired | DialogueSystem.ts | Regression test fails before and passes after |
+| 2 | ~~P1~~ | **Fixed (131f3a3)**: double start from the title | flow machine + title guard | |
+| 3 | ~~P1~~ | **Fixed (131f3a3)**: breaker double solve | BreakerPuzzle.ts | |
+| 4 | ~~P2~~ | **Fixed (131f3a3)**: stale timers closing the wrong panel (`close(id)`) | PanelManager.ts | |
+| 5 | ~~P2~~ | **Fixed (131f3a3)**: replaced panels now close properly | PanelManager.ts | |
+| 6 | ~~P2~~ | **Fixed (131f3a3)**: beacon sweeps registered noMerge | lighting.ts | |
 | 7 | P2 | The Wren over budget at Low (30 fps, p95 49.9 ms, 614 calls at 6× CPU) | ship/interior/* | M0 steps 1–5, atlas later |
-| 8 | P2 | Space scenes lifted to grey by the global grade (sky RGB 20–35 vs Void 7,8,10) | PostProcessing.ts:69-70 | M0 grade profiles |
-| 9 | P2 | In-world text uses OS fonts missing on ChromeOS; Rajdhani counters jitter (no tabular figures) | *Textures.ts, style.css | M0 fonts |
-| 10 | P2 | Reduced motion ignored by cinematic camera moves and FOV zooms | IntroScene, GalaxyRevealScene, GameFlow glides | M0 motion |
-| 11 | P3 | GalaxyRevealScene frees nothing on dispose; Kethra's 1600 ms timer survives dispose | GalaxyRevealScene.ts:526, KethraScene.ts:401 | M0 lifecycle |
+| 8 | ~~P2~~ | **Fixed (131f3a3)**: per-scene grades; space grade has no toe lift | GradeGlowPass.ts | |
+| 9 | ~~P2~~ | **Fixed (131f3a3)**: world text on bundled faces; counters on Atkinson tabular | *Textures.ts, style.css | |
+| 10 | P2 | Reduced motion: glides and FOV now handled; the intro dolly and the white-sky swell still ignore it | IntroScene | M6 (intro rebuild) |
+| 11 | ~~P3~~ | **Fixed (131f3a3)**: reveal frees its resources; Kethra's timer is scene-owned | | |
 | 12 | P3 | Floor textures uploaded twice; Low canvas downscale barely applies | floorTextures.ts:21-47, disposeSceneTextures.ts:60 | M0 |
 | 13 | P3 | Kethra pillars appear to float ~0.42 m; the Heart's amber vane may overhang the slab (from code, unverified in engine) | KethraScene.ts:569-573, grove.ts:326 | M4 |
-| 14 | P3 | The reveal shows the Wren's engines lit before they're repaired (continuity) | GalaxyRevealScene.ts:498-502 | M1 |
+| 14 | ~~P3~~ | **Fixed (131f3a3)**: the reveal's engine embers removed; the ports glow emergency amber | | |
+| 15 | P3 | The reveal still frames the Wren large against a poster-style system; corona is a big soft blur | GalaxyRevealScene.ts | M1 (reveal rebuilt as MG1's opening) |
 
 ## Decisions log
 | Date | Decision | Why |

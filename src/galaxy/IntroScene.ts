@@ -3,6 +3,7 @@ import type { GameScene } from '../core/Engine';
 import { getActiveEngine } from '../core/EngineRegistry';
 import { displayFontsReady } from '../core/loadFonts';
 import { UIManager } from '../ui/UIManager';
+import { HoldToSkip } from '../ui/HoldToSkip';
 import { AudioSystem } from '../audio/AudioSystem';
 import { getSharedEnvironment } from '../core/Environment';
 import { t, wordCount } from '../content/strings';
@@ -227,7 +228,6 @@ export class IntroScene implements GameScene {
 
   private textLayer!: HTMLDivElement;
   private lineEls: HTMLDivElement[] = [];
-  private skipEl!: HTMLDivElement;
   /** One-shot beats, fired in order by an index pointer so the per-frame check allocates nothing. */
   private cues: { at: number; run: () => void }[] = [];
   private nextCue = 0;
@@ -240,15 +240,10 @@ export class IntroScene implements GameScene {
   private finished = false;
   private stopAmbient: (() => void) | null = null;
 
-  // Skip counts from the moment the clock starts; before that the scene is still behind the
-  // loading overlay while GameFlow prepares the interior, and a skip there would start a second
+  // Hold to skip, offered from the moment the clock starts; before that the scene is still behind
+  // the loading overlay while GameFlow prepares the interior, and a skip there would start a second
   // interior build.
-  private keyHandler = (e: KeyboardEvent) => {
-    if (this.started && (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter')) this.finish();
-  };
-  private clickHandler = () => {
-    if (this.started) this.finish();
-  };
+  private skip = new HoldToSkip({ onSkip: () => this.finish() });
 
   async init(): Promise<void> {
     UIManager.setLookPromptEnabled(false);
@@ -307,8 +302,6 @@ export class IntroScene implements GameScene {
     this.buildCues();
     this.placeCamera(0);
 
-    window.addEventListener('keydown', this.keyHandler);
-    window.addEventListener('click', this.clickHandler);
   }
 
   /** Sparse near dust the camera trucks through: the parallax layer between it and the hull. */
@@ -389,16 +382,7 @@ export class IntroScene implements GameScene {
       layer.appendChild(line);
       this.lineEls.push(line);
     }
-    const skip = document.createElement('div');
-    // Shown once the clock starts (see update): before that, skip is deliberately ignored.
-    skip.className = 'tut-skip';
-    const kbd = document.createElement('kbd');
-    kbd.textContent = t('intro.skip.key');
-    skip.append(kbd, document.createTextNode(t('intro.skip')));
-    this.skipEl = skip;
-
-    const root = document.getElementById('ui-root')!;
-    root.append(layer, skip);
+    document.getElementById('ui-root')!.append(layer);
     this.textLayer = layer;
   }
 
@@ -432,7 +416,7 @@ export class IntroScene implements GameScene {
       this.steadyTime = dt < 0.05 ? this.steadyTime + dt : 0;
       if (this.steadyTime < 0.33 && now - this.settleStartedAt < TIMELINE.settleCapMs) return;
       this.started = true;
-      this.skipEl.classList.add('visible');
+      this.skip.show();
     }
 
     this.elapsed += dt;
@@ -527,7 +511,7 @@ export class IntroScene implements GameScene {
     if (this.finished) return;
     this.finished = true;
     this.textLayer.classList.add('skipped');
-    this.skipEl.classList.remove('visible');
+    this.skip.dispose();
     this.stopAmbient?.();
     // The letterbox deliberately stays up: the tutorial's cold open re-uses it immediately, and a
     // retract/re-extend across the handover would read as a glitch.
@@ -540,11 +524,9 @@ export class IntroScene implements GameScene {
   }
 
   dispose(): void {
-    window.removeEventListener('keydown', this.keyHandler);
-    window.removeEventListener('click', this.clickHandler);
+    this.skip.dispose();
     this.stopAmbient?.();
     this.textLayer?.remove();
-    this.skipEl?.remove();
     this.finished = true;
   }
 }

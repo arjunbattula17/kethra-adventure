@@ -6,6 +6,10 @@ import { t } from '../content/strings';
 import type { StringKey } from '../content/strings';
 import { AudioSystem } from '../audio/AudioSystem';
 import { motion, DUR, EXIT_FACTOR } from '../motion';
+import { playKineticTitle } from './KineticTitle';
+
+/** Seconds of no change before a HUD frame steps back to 35% (docs/DESIGN.md §2). */
+const HUD_QUIET_AFTER = 6;
 
 const LOADING_LORE: StringKey[] = ['loading.lore.1', 'loading.lore.2', 'loading.lore.3', 'loading.lore.4', 'loading.lore.5', 'loading.lore.6'];
 
@@ -98,6 +102,9 @@ class UIManagerImpl {
       AudioSystem.playCollect();
     });
     bus.on('attribute:changed', () => this.refreshStatusBar());
+    bus.on('flag:set', (flag: string) => {
+      if (flag === 'left_wren') this.statusBar.classList.add('retired');
+    });
     bus.on('xp:changed', () => this.refreshStatusBar());
     bus.on('state:loaded', () => {
       this.setObjective(gameState.data.objective);
@@ -154,6 +161,13 @@ class UIManagerImpl {
     }
     const points = gameState.data.unspentPoints;
     (this.statusBar.querySelector('.hud-points') as HTMLElement).textContent = points > 0 ? `+${points} point${points > 1 ? 's' : ''}` : '';
+    // The key strip teaches the three keys during level 1; once the player has left the Wren it
+    // retires (the pause menu's Controls keeps them). Unspent points keep the strip awake.
+    this.statusBar.classList.toggle('retired', gameState.hasFlag('left_wren'));
+    if (points > 0) {
+      this.quietTimers.status?.cancel();
+      this.statusBar.classList.remove('quiet');
+    } else this.wake(this.statusBar, 'status');
     const target = level + Math.min(0.999, xp / (level * 100));
     const levelEl = this.statusBar.querySelector('.hud-level-n') as HTMLElement;
     const fill = this.statusBar.querySelector('.xp .bar-fill') as HTMLElement;
@@ -181,10 +195,19 @@ class UIManagerImpl {
   }
   private xpTween: { cancel(): void } | null = null;
 
+  /** Brings a HUD frame forward, and lets it step back again after a quiet spell. */
+  private wake(frame: HTMLElement, key: 'objective' | 'status'): void {
+    frame.classList.remove('quiet');
+    this.quietTimers[key]?.cancel();
+    this.quietTimers[key] = motion.ui.after(HUD_QUIET_AFTER, () => frame.classList.add('quiet'));
+  }
+  private quietTimers: Partial<Record<'objective' | 'status', { cancel(): void }>> = {};
+
   setObjective(text: string): void {
     const target = document.getElementById('objective-text');
     if (!target || target.textContent === text) return;
     target.textContent = text;
+    this.wake(this.objectiveTracker, 'objective');
     // A changed objective gets a brief amber edge so the eye finds it, then settles.
     this.objectiveTracker.classList.remove('updated');
     void this.objectiveTracker.offsetWidth;
@@ -270,8 +293,8 @@ class UIManagerImpl {
     const eyebrow = el('div', 'eyebrow');
     eyebrow.textContent = card.eyebrow;
     const title = el('div', 'chapter-title');
-    title.textContent = card.title;
     this.cardEl.append(eyebrow, title);
+    playKineticTitle(title, card.title);
     for (const line of card.lines ?? []) {
       const p = el('div', 'chapter-line');
       p.textContent = line;

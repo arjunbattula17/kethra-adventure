@@ -75,7 +75,11 @@ check('a new game opens on the intro cinematic', await until(async () =>
   await page.evaluate(() => window.__DEBUG__?.engine?.getCurrentScene?.()?.kind === 'IntroScene'), 180000));
 await shot('00_intro');
 await page.waitForTimeout(600);
-await page.keyboard.press('Space');
+// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
+await page.waitForSelector('.hold-skip', { timeout: 30000 });
+await page.keyboard.down('Space');
+await page.waitForTimeout(1100);
+await page.keyboard.up('Space');
 // Options are waitForFunction's THIRD parameter — passing them second silently makes them the
 // page function's argument and leaves the default 30s timeout in force, which the boot warm-up
 // frame (a single long task under software rendering) then blows through. Interval polling for
@@ -262,7 +266,11 @@ await page.goto(baseUrl + '/?newGame=1', { waitUntil: 'load' });
 // The intro cinematic plays for returning players too (and stays skippable for everyone).
 await until(async () => await page.evaluate(() => window.__DEBUG__?.engine?.getCurrentScene?.()?.kind === 'IntroScene'), 180000);
 await page.waitForTimeout(600);
-await page.keyboard.press('Space');
+// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
+await page.waitForSelector('.hold-skip', { timeout: 30000 });
+await page.keyboard.down('Space');
+await page.waitForTimeout(1100);
+await page.keyboard.up('Space');
 await page.waitForFunction(() => window.__DEBUG__?.flow?.tutorial != null, undefined, { timeout: 180000, polling: 500 });
 check('a returning new game reaches the tutorial again', await until(async () => (await cardTitle()) === 'Take the helm', 120000));
 check('a returning player is offered the tutorial skip', await until(async () => {

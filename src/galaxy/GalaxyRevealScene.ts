@@ -3,6 +3,7 @@ import type { GameScene } from '../core/Engine';
 import { CameraPath, MotionScope, ease } from '../motion';
 import { disposeSceneFully } from '../core/disposeSceneTextures';
 import { UIManager } from '../ui/UIManager';
+import { HoldToSkip } from '../ui/HoldToSkip';
 import { getSharedEnvironment } from '../core/Environment';
 import { PLANETS } from './planetData';
 import { buildShipHull } from './shipHull';
@@ -148,7 +149,7 @@ export class GalaxyRevealScene implements GameScene {
   private readyForContinue = false;
   onContinue: (() => void) | null = null;
   private continueHandler = (e: KeyboardEvent) => {
-    if (this.readyForContinue && (e.code === 'Enter' || e.code === 'Space')) this.triggerContinue();
+    if (this.readyForContinue && !e.repeat && (e.code === 'Enter' || e.code === 'Space')) this.triggerContinue();
   };
   private clickHandler = () => {
     if (this.readyForContinue) this.triggerContinue();
@@ -337,10 +338,10 @@ export class GalaxyRevealScene implements GameScene {
       { position: new THREE.Vector3(38, 48, 158), target: new THREE.Vector3(12, -8, sunPos.z * 0.58), fov: 58 },
     ]);
     const MOVE = 14.4;
-    this.fx.tween({ duration: MOVE, ease: ease.standard, update: (e) => path.apply(this.camera, e) });
+    const move = this.fx.tween({ duration: MOVE, ease: ease.standard, update: (e) => path.apply(this.camera, e) });
     // Beats on the same game clock as the camera, so a slow frame can't put a caption ahead of
     // the shot it belongs to.
-    this.fx.timeline([
+    const beats = this.fx.timeline([
       { at: 1.2, run: () => UIManager.showCaption('You are stranded, alone, in a galaxy no chart has ever mapped.', 4200) },
       { at: 8.2, run: () => UIManager.showCaption('Somewhere out there is the truth — and a way home.', 4200) },
       { at: 8.2, run: () => this.triggerSensorPing(), beat: 'reveal:ping' },
@@ -349,11 +350,21 @@ export class GalaxyRevealScene implements GameScene {
         state: true,
         run: () => {
           this.readyForContinue = true;
+          this.skip.dispose();
           UIManager.showCaption('Click or press Enter to continue', 999999);
         },
       },
     ]);
+    // Hold to skip: the camera lands on its last frame and the continue prompt comes up.
+    this.skip = new HoldToSkip({
+      onSkip: () => {
+        move.finish();
+        beats.skip();
+      },
+    });
+    this.skip.show();
   }
+  private skip: HoldToSkip = new HoldToSkip({ onSkip: () => {} });
 
   private triggerSensorPing(): void {
     this.pingElapsed = 0;
@@ -419,6 +430,7 @@ export class GalaxyRevealScene implements GameScene {
 
   dispose(): void {
     this.fx.dispose();
+    this.skip.dispose();
     window.removeEventListener('keydown', this.continueHandler);
     window.removeEventListener('click', this.clickHandler);
     UIManager.showLetterbox(false);

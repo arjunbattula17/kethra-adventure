@@ -13,8 +13,8 @@ export const STRINGS = {
   'intro.line.event': 'Then the sky went white. The Wren went dark.',
   'intro.line.status': 'Emergency power only. No engines, no charts, no familiar stars.',
   'intro.line.goal': 'Get the Wren flying. Find the way home.',
-  'intro.skip': 'Skip',
-  'intro.skip.key': 'Space',
+  'skip.hold': 'Hold to skip',
+  'skip.key': 'Space',
 
   // Shown under the spinner while a scene loads. One per load, in order.
   'loading.lore.1': 'Anchorage rule: when the sky goes white, shut everything down.',

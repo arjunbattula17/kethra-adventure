@@ -695,6 +695,7 @@ function buildWorkbench(k: Kit, ctx: InteriorCtx, wallX: number, z: number, sign
   const shadeX = bx + inward * 0.04;
   place(k, cyl(0.05, 0.12, 0.12, 12), k.m.steelDark, shadeX, topY + 0.38, lz, 0, 0, inward * 0.3);
   const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffd9a0, emissiveIntensity: 1.6, roughness: 0.4 });
+  ctx.animatedMaterials.add(bulbMat);
   place(k, cyl(0.055, 0.055, 0.012, 12), bulbMat, shadeX + inward * 0.02, topY + 0.32, lz, 0, 0, inward * 0.3);
 
   const lamp = new THREE.PointLight(0xffd9a0, 1.9, 3.2, 2);
@@ -980,7 +981,7 @@ function buildValveStation(k: Kit, wallX: number, y: number, z: number, sign: 1 
 }
 
 /** Small cool readout in a bolted housing — a cyan accent bolted to a big flat wall area. */
-function buildReadoutPanel(k: Kit, ctx: InteriorCtx, wallX: number, y: number, z: number, sign: 1 | -1, seed: number): void {
+function buildReadoutPanel(k: Kit, wallX: number, y: number, z: number, sign: 1 | -1, seed: number): void {
   const inward = -sign;
   const ry = faceRy(sign);
   const face: Face = sign > 0 ? 'nx' : 'px';
@@ -1001,9 +1002,8 @@ function buildReadoutPanel(k: Kit, ctx: InteriorCtx, wallX: number, y: number, z
 
   // Trimmed from 0.5 for round 5 — the measured p95 sits above the reference, and two of these
   // full-white-emissive screens were a large share of the frame's brightest-quartile pixels.
-  ctx.animated.push((elapsed) => {
-    mat.emissiveIntensity = 0.4 + Math.sin(elapsed * 1.6 + seed) * 0.06;
-  });
+  // Steady: the idle pulse it used to run said nothing.
+  mat.emissiveIntensity = 0.4;
 }
 
 /** Three-pipe conduit run along a side wall, with clamps, couplings, brackets and elbow drops. */
@@ -1389,8 +1389,8 @@ export async function buildDetailProps(ctx: InteriorCtx): Promise<void> {
 
   buildValveStation(k, -WALL_X, 1.95, -3.9, -1);
   buildValveStation(k, WALL_X, 2.05, 3.15, 1);
-  buildReadoutPanel(k, ctx, -WALL_X, 2.35, -2.4, -1, 1);
-  buildReadoutPanel(k, ctx, WALL_X, 2.2, 0.35, 1, 4);
+  buildReadoutPanel(k, -WALL_X, 2.35, -2.4, -1, 1);
+  buildReadoutPanel(k, WALL_X, 2.2, 0.35, 1, 4);
   buildWallShelf(k, -WALL_X, 1.55, 3.45, -1);
   buildWallShelf(k, WALL_X, 1.5, -3.05, 1);
 

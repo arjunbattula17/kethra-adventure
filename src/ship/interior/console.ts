@@ -26,7 +26,7 @@ import {
   type PlateVariant,
 } from './consoleTextures';
 import type { InteriorCtx } from './ctx';
-import { ROOM_W, protectSubtree } from './ctx';
+import { ROOM_W, addInteractionProxy } from './ctx';
 
 const DESK_Z = (-3.6 * 4) / 3;
 /** Room-facing surface of the side walls — measured, see docs/interior-room-contract.md. */
@@ -461,7 +461,7 @@ export function buildConsole(ctx: InteriorCtx): void {
       else UIManager.toast('Navigation offline — awaiting system reboot.');
     },
   });
-  protectSubtree(ctx, deskGroup);
+  addInteractionProxy(ctx, deskGroup);
 
   // The monitor bank is what the tutorial actually points the player at, so it needs to be its own
   // aim target rather than part of the desk. A box the size of the screen grid stands in for the
@@ -829,8 +829,9 @@ function buildDeckSurface(ctx: InteriorCtx, kit: Kit, parent: THREE.Group): void
   const handle = mesh(deck, new THREE.TorusGeometry(0.028, 0.007, 6, 12), kit.bone, -1.28, 0.075, 0.06);
   handle.rotation.y = Math.PI / 2;
 
+  // Steady light: an idle pulse told the player nothing (docs/DESIGN.md §2, defaults audit).
+  mapMat.emissiveIntensity = 1.72;
   ctx.animated.push((elapsed) => {
-    mapMat.emissiveIntensity = 1.72 + Math.sin(elapsed * 1.3) * 0.1;
     sweep.position.x = Math.sin(elapsed * 0.42) * 1.02;
   });
 }
@@ -932,11 +933,8 @@ function buildMonitorBank(ctx: InteriorCtx, kit: Kit): THREE.Group {
     mesh(g, chamferBox(0.06, 0.05, 0.05, 0.01), kit.steel, -0.75 + i * 0.5, 1.02, -0.56);
   }
 
-  ctx.animated.push((elapsed) => {
-    for (let i = 0; i < faces.length; i++) {
-      faces[i].emissiveIntensity = 1.18 + Math.sin(elapsed * (1.1 + i * 0.17) + i) * 0.07;
-    }
-  });
+  // Held at the level their old idle pulse centred on.
+  for (const face of faces) face.emissiveIntensity = 1.18;
 
   return g;
 }
@@ -1374,7 +1372,7 @@ function buildJournalTerminal(ctx: InteriorCtx, kit: Kit): THREE.Group {
     enabled: () => gameState.hasFlag('logs_available'),
     onInteract: () => bus.emit('ui:open_journal'),
   });
-  protectSubtree(ctx, g);
+  addInteractionProxy(ctx, g);
 
   return g;
 }
@@ -1461,8 +1459,7 @@ function buildRepairStation(ctx: InteriorCtx, kit: Kit): THREE.Group[] {
     enabled: () => gameState.hasFlag('damage_assessed'),
     onInteract: () => bus.emit('ui:open_repair'),
   });
-  protectSubtree(ctx, g);
-  protectSubtree(ctx, box);
+  addInteractionProxy(ctx, g);
 
   return [g, box];
 }

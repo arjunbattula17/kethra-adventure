@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { batchSprites } from './spriteBatch';
 import type { InteriorCtx } from './ctx';
 import {
   buildRadialGlowTexture,
@@ -419,7 +420,10 @@ export function buildLighting(ctx: InteriorCtx): void {
     const graze = wallGlow(side, z, 3.29 + dY - 0.5, len + 0.5, 1.15, grazeMat);
     graze.renderOrder = 2;
 
-    if (flicker) flickerTargets.push({ mat: lensMat, graze: grazeMat, baseE: lensMat.emissiveIntensity, baseO: grazeMat.opacity });
+    if (flicker) {
+      flickerTargets.push({ mat: lensMat, graze: grazeMat, baseE: lensMat.emissiveIntensity, baseO: grazeMat.opacity });
+      ctx.animatedMaterials.add(lensMat).add(grazeMat);
+    }
   };
   // -0.4*4/3 = -0.533 ran the 2.1-long strip through z[-1.58,0.52], straight into the ceiling rib at
   // x[-5.40,5.40] y[4.10,4.40] z[-0.16,0.16]. -1.35 ends the strip at z=-0.30, clear of it.
@@ -561,11 +565,13 @@ export function buildLighting(ctx: InteriorCtx): void {
     ctx.scene.add(bolts);
   }
 
+  // 16 glow sprites, one material: one billboard batch instead of 16 draw calls.
+  batchSprites(ctx.scene, spriteWarm);
+
   // 9. Animation.
 
   const pendantBase = pendantLights.map((l) => l.intensity);
-  const coolBase = coolLights.map((l) => l.intensity);
-  const coolPoolBase = glowCoolPool.opacity;
+  ctx.animatedMaterials.add(glowAlarmPool).add(glowAlarmBar).add(matAlarmLens);
   const alarmPoolBase = glowAlarmPool.opacity;
   const alarmBarBase = glowAlarmBar.opacity;
   const alarmDomeBase = matAlarmLens.emissiveIntensity;
@@ -574,11 +580,6 @@ export function buildLighting(ctx: InteriorCtx): void {
     // Mains ripple: a couple of percent, just enough that the practicals aren't dead static.
     const ripple = 1 + Math.sin(elapsed * 7.3) * 0.018 + Math.sin(elapsed * 2.1) * 0.022;
     for (let i = 0; i < pendantLights.length; i++) pendantLights[i].intensity = pendantBase[i] * ripple;
-
-    // Screens breathe slower and deeper than the warm side, matching the console glow's cadence.
-    const coolPulse = 1 + Math.sin(elapsed * 2.2) * 0.12;
-    for (let i = 0; i < coolLights.length; i++) coolLights[i].intensity = coolBase[i] * coolPulse;
-    glowCoolPool.opacity = coolPoolBase * coolPulse;
 
     // One bad ballast on the starboard strip tube — localised, not a room-wide strobe.
     const noise = Math.sin(elapsed * 13.7) * 0.5 + Math.sin(elapsed * 31.3) * 0.3 + Math.sin(elapsed * 7.1) * 0.2;

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { GameScene } from '../core/Engine';
 import { UIManager } from '../ui/UIManager';
+import { HoldToSkip } from '../ui/HoldToSkip';
 import { motion } from '../motion';
 import { AudioSystem } from '../audio/AudioSystem';
 import { getSharedEnvironment } from '../core/Environment';
@@ -64,13 +65,8 @@ export class EndingScene implements GameScene {
   private creditsEl: HTMLDivElement | null = null;
   private stopMusic: (() => void) | null = null;
   private finished = false;
-  private keyHandler = (e: KeyboardEvent) => {
-    if (e.repeat || this.elapsed <= 1) return;
-    if ((e.code === 'Space' || e.code === 'Enter') && !this.creditsEl) this.showCredits();
-  };
-  private clickHandler = () => {
-    if (!this.creditsEl && this.elapsed > 1) this.showCredits();
-  };
+  /** Hold to skip straight to the credits (offered after the first second). */
+  private skip = new HoldToSkip({ onSkip: () => this.showCredits() });
 
   async init(): Promise<void> {
     UIManager.setLookPromptEnabled(false);
@@ -129,8 +125,6 @@ export class EndingScene implements GameScene {
       { at: CREDITS_AT, run: () => this.showCredits() },
     ].sort((a, b) => a.at - b.at);
     this.stopMusic = AudioSystem.startMusic('ending');
-    window.addEventListener('keydown', this.keyHandler);
-    window.addEventListener('click', this.clickHandler);
   }
 
   private buildText(): void {
@@ -170,6 +164,7 @@ export class EndingScene implements GameScene {
 
   private showCredits(): void {
     if (this.creditsEl || this.finished) return;
+    this.skip.dispose();
     this.textLayer.classList.add('skipped');
     const el = document.createElement('div');
     el.className = 'credits-roll';
@@ -223,6 +218,7 @@ export class EndingScene implements GameScene {
     this.elapsed += dt;
     while (this.cues.length && this.cues[0].at <= this.elapsed) this.cues.shift()!.run();
     this.sky.update(this.camera);
+    if (this.elapsed > 1 && !this.creditsEl) this.skip.show();
     if (this.ship) {
       this.ship.rotation.y += dt * 0.02;
       this.ship.position.y = Math.sin(this.elapsed * 0.4) * 0.08;
@@ -254,8 +250,7 @@ export class EndingScene implements GameScene {
   }
 
   dispose(): void {
-    window.removeEventListener('keydown', this.keyHandler);
-    window.removeEventListener('click', this.clickHandler);
+    this.skip.dispose();
     document.body.classList.remove('ending-open');
     this.stopMusic?.();
     this.textLayer?.remove();

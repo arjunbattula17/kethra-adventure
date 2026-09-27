@@ -296,6 +296,7 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   // One pane runs its own material so it can drop out independently -- a tired panel on a worn
   // ship, the localised and motivated kind of wear the brief asks for over a uniform tint.
   const flickerPaneMat = makeScreenMat();
+  ctx.animatedMaterials.add(flickerPaneMat);
 
   // --- chassis ----------------------------------------------------------------------------------
   const rig = new THREE.Group();
@@ -821,8 +822,6 @@ export function buildSuspendedDisplay(ctx: InteriorCtx): void {
   const flickerRng = mulberry32(0x5d19);
   ctx.animated.push((elapsed, dt) => {
     sweep.rotation.z = -elapsed * 0.85;
-    sweepMat.opacity = 0.4 + Math.sin(elapsed * 1.7) * 0.09;
-    screenMat.emissiveIntensity = 0.92 + Math.sin(elapsed * 1.4) * 0.05;
 
     // Tired panel: mostly matches its siblings, drops out for a fraction of a second now and then.
     flickerT -= dt;

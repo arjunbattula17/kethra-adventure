@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { displayFontsReady } from '../core/loadFonts';
 import type { GameScene } from '../core/Engine';
 import { PlayerController } from '../player/PlayerController';
@@ -24,6 +25,8 @@ import { buildLighting } from './interior/lighting';
 import { batchStaticGeometry } from './interior/batchStaticGeometry';
 import { mulberry32 } from '../core/rng';
 import { buildInteriorColliders } from './interior/collision';
+
+const _ledColour = new THREE.Color();
 
 /** A repeatable pseudo-random number in [0, 1) for an integer slot. */
 function hash01(n: number): number {
@@ -89,6 +92,7 @@ export class ShipInteriorScene implements GameScene {
       statusLights: this.statusLights,
       animated: this.animated,
       noMerge: this.noMerge,
+      animatedMaterials: new Set(),
       setStarfield: (points) => {
         this.starfield = points;
       },
@@ -128,9 +132,13 @@ export class ShipInteriorScene implements GameScene {
     // as unbatched, unmerged individual draw calls, with each piece's load/parse/GPU-upload landing
     // as a hitch on whatever frame happened to be running when it resolved.
     await Promise.all([buildWalls(ctx), buildAirlock(ctx), buildDetailProps(ctx)]);
+    // The steady levels the old per-frame pulse used to force these to (it centred on them).
+    for (const light of this.consoleGlow) light.intensity = 1.5;
+    for (const mat of this.floorLedMats) mat.emissiveIntensity = 0.9;
     // Read colliders off the props *before* batching: the merge pass collapses every mesh sharing a
     // material into one geometry, so afterwards a per-mesh bounding box would span the whole room.
     const propColliders = buildInteriorColliders(ctx);
+    this.instanceStatusLights();
     batchStaticGeometry(ctx);
 
     this.scene.add(this.player.rig);
@@ -198,6 +206,42 @@ export class ShipInteriorScene implements GameScene {
     }
   }
 
+  /**
+   * The room's blinking status LEDs, about 78 of them across eleven modules, each built as its own
+   * mesh with its own material (so the blink loop could drive it): one draw call apiece. Here they
+   * become one merged, unlit mesh (an LED is its own light) with a colour per vertex; a blink
+   * rewrites only that LED's vertex range, and only when it flips.
+   */
+  private instanceStatusLights(): void {
+    if (!this.statusLights.length) return;
+    const parts: THREE.BufferGeometry[] = [];
+    let offset = 0;
+    for (const s of this.statusLights) {
+      s.mesh.updateWorldMatrix(true, false);
+      let g = s.mesh.geometry.clone();
+      if (g.index) g = g.toNonIndexed();
+      for (const name of Object.keys(g.attributes)) if (name !== 'position') g.deleteAttribute(name);
+      g.applyMatrix4(s.mesh.matrixWorld);
+      const count = g.getAttribute('position').count;
+      g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+      parts.push(g);
+      const base = s.material.emissive.clone();
+      this.blinkers.push({ start: offset, count, base, phase: s.phase, onIntensity: s.onIntensity, on: null });
+      offset += count;
+      s.mesh.removeFromParent();
+    }
+    const geo = mergeGeometries(parts, false)!;
+    for (const g of parts) g.dispose();
+    this.ledColours = geo.getAttribute('color') as THREE.BufferAttribute;
+    const sheet = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
+    sheet.name = 'status-leds';
+    this.noMerge.add(sheet);
+    this.scene.add(sheet);
+    this.statusLights.length = 0;
+  }
+  private blinkers: { start: number; count: number; base: THREE.Color; phase: number; onIntensity: number; on: boolean | null }[] = [];
+  private ledColours: THREE.BufferAttribute | null = null;
+
   private roomColliders(): THREE.Box3[] {
     const inset = 0.4;
     return [
@@ -218,13 +262,7 @@ export class ShipInteriorScene implements GameScene {
   update(dt: number, elapsed: number): void {
     this.player.update(dt);
     this.interaction.update(this.camera);
-    for (const light of this.consoleGlow) {
-      light.intensity = 1.5 + Math.sin(elapsed * 2.2) * 0.25;
-    }
     if (this.starfield) this.starfield.rotation.y += dt * 0.0015;
-    for (const mat of this.floorLedMats) {
-      mat.emissiveIntensity = 0.9 + Math.sin(elapsed * 0.8) * 0.15;
-    }
     if (this.emergencyLight) {
       // A spike in roughly one of every eight 1/6 s slots: decided per slot of time, not per frame,
       // so it flickers at the same rate at 30 Hz and 144 Hz. Seeded, so frame diffs stay stable.
@@ -232,10 +270,16 @@ export class ShipInteriorScene implements GameScene {
       const spike = hash01(slot + this.flickerSeed) < 0.12 ? 0.4 : 0;
       this.emergencyLight.intensity = 1.1 + Math.sin(elapsed * 3.1) * 0.2 + spike;
     }
-    for (const status of this.statusLights) {
-      const on = Math.sin(elapsed * 5 + status.phase) > 0.4;
-      status.material.emissiveIntensity = on ? status.onIntensity : 0.15;
+    let flipped = false;
+    for (const b of this.blinkers) {
+      const on = Math.sin(elapsed * 5 + b.phase) > 0.4;
+      if (on === b.on) continue;
+      b.on = on;
+      _ledColour.copy(b.base).multiplyScalar(on ? b.onIntensity : 0.15);
+      for (let v = b.start; v < b.start + b.count; v++) this.ledColours!.setXYZ(v, _ledColour.r, _ledColour.g, _ledColour.b);
+      flipped = true;
     }
+    if (flipped) this.ledColours!.needsUpdate = true;
     for (const tick of this.animated) tick(elapsed, dt);
     this.onTick?.(dt, elapsed);
   }

@@ -154,7 +154,11 @@ await page.waitForTimeout(3000);
 let mark = await now();
 results.scenes.intro = await sampleFrames(6);
 results.scenes.intro.longTasks = await longTasksSince(mark);
-await page.keyboard.press('Space');
+// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
+await page.waitForSelector('.hold-skip', { timeout: 30000 });
+await page.keyboard.down('Space');
+await page.waitForTimeout(1100);
+await page.keyboard.up('Space');
 await waitScene('ShipInteriorScene');
 results.load.shipPlayableMs = Date.now() - t0;
 await page.waitForTimeout(4000);

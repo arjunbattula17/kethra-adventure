@@ -371,12 +371,7 @@ export async function buildWalls(ctx: InteriorCtx): Promise<void> {
         placard.rotation.set(0, yaw, 0);
         placard.renderOrder = 1;
         ctx.scene.add(placard);
-        // Derived from the bay rather than drawn at random: one placard has nothing to be out
-        // of phase with, and a random phase only made the room animate differently every load.
-        const pulsePhase = bay.z * 0.9;
-        ctx.animated.push((elapsed) => {
-          placardMat.emissiveIntensity = 0.55 * (0.85 + 0.15 * Math.sin(elapsed * 1.1 + pulsePhase));
-        });
+        placardMat.emissiveIntensity = 0.51;
       } else {
         addWallDecal(ctx, stencilTex, 1.3, 0.42, new THREE.Vector3(fx, 2.5, bay.z), yaw, 0.8);
       }

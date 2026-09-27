@@ -84,7 +84,11 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
   await waitScene(page, 'IntroScene');
   await page.waitForFunction(() => !document.querySelector('.loading-indicator.visible'), undefined, { timeout: 240000, polling: 500 });
   await page.waitForTimeout(1500);
-  await page.keyboard.press('Space');
+  // Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
+  await page.waitForSelector('.hold-skip', { timeout: 30000 });
+  await page.keyboard.down('Space');
+  await page.waitForTimeout(1100);
+  await page.keyboard.up('Space');
   await waitScene(page, 'ShipInteriorScene');
   await page.waitForTimeout(3500);
   await shot(page, 'tutorial-first-step');
@@ -219,7 +223,11 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
     await waitScene(page, 'EndingScene');
     await page.waitForTimeout(9000);
     await shot(page, 'ending');
-    await page.keyboard.press('Space');
+    // Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
+    await page.waitForSelector('.hold-skip', { timeout: 30000 });
+    await page.keyboard.down('Space');
+    await page.waitForTimeout(1100);
+    await page.keyboard.up('Space');
     await page.waitForTimeout(1500);
     await shot(page, 'credits');
   }

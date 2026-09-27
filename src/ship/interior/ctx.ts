@@ -42,20 +42,37 @@ export interface InteriorCtx {
    * by merging and does not need registration here.
    */
   noMerge: Set<THREE.Object3D>;
+  /**
+   * Materials whose properties change after the build (a flickering tube, the alarm beacons, a
+   * dropping-out panel). The merge pass shares identical materials between meshes; one of these
+   * must never be merged into another, or both would start animating.
+   */
+  animatedMaterials: Set<THREE.Material>;
   setStarfield(points: THREE.Points): void;
   setEmergencyLight(light: THREE.PointLight): void;
 }
 
 /**
- * Registers every mesh in `object`'s subtree as unmergeable. Use for anything registered with
- * `ctx.interaction` — InteractionSystem raycasts recursively into the registered object, so pulling
- * its descendant meshes out into a scene-level merged batch would make it un-aimable-at (crosshair
- * hit-testing would find nothing there, falling back to the coarser proximity-only check).
+ * Keeps an interaction group aim-able while letting its meshes join the static batches.
+ * InteractionSystem raycasts recursively into the registered object; once batching moves the
+ * group's meshes into scene-level merges there would be nothing left to hit. So an invisible box
+ * the size of the group, parented to it, becomes the hit target: the raycaster ignores visibility,
+ * an invisible material draws nothing, and buildInteriorColliders skips MeshBasicMaterial. The
+ * group itself stays registered, so the proximity fallback still measures from its origin.
+ *
+ * It used to keep the whole subtree out of batching instead: about 230 meshes (the desk, the
+ * journal terminal, the repair station), each its own draw call, and a per-frame recursive
+ * raycast through all of them.
  */
-export function protectSubtree(ctx: InteriorCtx, object: THREE.Object3D): void {
-  object.traverse((child) => {
-    if ((child as THREE.Mesh).isMesh) ctx.noMerge.add(child);
-  });
+export function addInteractionProxy(ctx: InteriorCtx, group: THREE.Object3D, pad = 0.02): void {
+  group.updateWorldMatrix(true, true);
+  const local = new THREE.Box3().setFromObject(group).applyMatrix4(group.matrixWorld.clone().invert());
+  const size = local.getSize(new THREE.Vector3()).addScalar(pad * 2);
+  const proxy = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), new THREE.MeshBasicMaterial({ visible: false }));
+  proxy.name = `${group.name || 'interactable'}-aim-proxy`;
+  local.getCenter(proxy.position);
+  group.add(proxy);
+  ctx.noMerge.add(proxy);
 }
 
 export function addGrimeOverlay(

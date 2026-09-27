@@ -55,7 +55,11 @@ for (const [name, launch] of ENGINES) {
       await page.waitForFunction(() => !document.querySelector('.loading-indicator.visible'), undefined, { timeout: 900000, polling: 500 });
       row.steps.intro = Date.now() - t0;
       await page.waitForTimeout(2000);
-      await page.keyboard.press('Space');
+      // Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
+      await page.waitForSelector('.hold-skip', { timeout: 30000 });
+      await page.keyboard.down('Space');
+      await page.waitForTimeout(1100);
+      await page.keyboard.up('Space');
       await scene('ShipInteriorScene');
       // Finish the opening the way a returning player's skip does, so the tutorial's cards and
       // cold-open captions aren't left over the levels this run visits.

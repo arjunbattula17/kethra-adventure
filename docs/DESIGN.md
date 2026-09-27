@@ -5,8 +5,15 @@ existing look (docs/STYLE_BIBLE.md, ART_BIBLE.md) and canon (LORE.md) rather tha
 The root DESIGN.md is the TSA design and still describes the story; this file describes the
 overhaul. Scores are [opinion] unless a number cites a file.
 
-**Status: waiting at the design checkpoint.** Nothing below is built yet. §10 lists the decisions
-that need a yes before building starts.
+**Status: approved 2026-09-27** ("go with your recommendations"). Every §10 decision takes the
+recommended option:
+- the journey mapping and the three mini-games as proposed;
+- the code-built Wren replaces the CC BY freighter; the planet maps and the OFL fonts stay,
+  credited; everything new is CC0 or made in code;
+- the canon additions;
+- mini-games tuned to 90–150 s, plus a chapter select;
+- the soft-lock hotfixed on master (ea28978, merged here);
+- the overhaul merges to master only when the whole journey passes.
 
 ---
 

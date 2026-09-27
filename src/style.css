@@ -89,15 +89,15 @@ html, body {
    a different typeface from everything around them. */
 button, input, select, textarea { font: inherit; color: inherit; }
 
+/* One small label per panel at most, in sentence case: no tracked capitals (docs/DESIGN.md §2). */
 .eyebrow {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: calc(12px * var(--text-scale));
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: calc(13px * var(--text-scale));
+  letter-spacing: 0.01em;
   color: var(--ink-dim);
 }
 .eyebrow .hud-icon { color: var(--accent); }
@@ -214,7 +214,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 #objective-tracker .eyebrow { margin-bottom: 4px; color: var(--accent); }
 #objective-tracker.updated { animation: objective-updated 1.6s var(--ease-decelerate); }
-@keyframes objective-updated { 0%, 40% { border-color: var(--accent); } 100% { border-color: var(--line); } }
+@keyframes objective-updated { 0%, 40% { --edge: var(--accent); } 100% { --edge: var(--line); } }
 
 /* The meter under the objective (the Anchorage's frost clock). */
 .hud-meter {
@@ -268,11 +268,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   line-height: 1.4;
 }
 .toast::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 1px; background: var(--steel); transform: translateY(-1px); }
-.toast.learn { border-color: rgba(92, 209, 176, 0.45); }
+.toast.learn { --edge: rgba(92, 209, 176, 0.45); }
 .toast.learn::before { background: var(--grove); }
-.toast.act { border-color: rgba(217, 164, 65, 0.5); }
+.toast.act { --edge: rgba(217, 164, 65, 0.5); }
 .toast.act::before { background: var(--accent); }
-.toast.fail { border-color: rgba(208, 106, 92, 0.5); }
+.toast.fail { --edge: rgba(208, 106, 92, 0.5); }
 .toast.fail::before { background: var(--warn); }
 
 /* Letterbox bars */
@@ -555,7 +555,7 @@ details.advanced[open] summary { color: var(--ink); }
 .journal-entry.corrupted { border-color: rgba(160,85,85,0.3); }
 .journal-entry.corrupted:hover { border-color: var(--corrupt-dim); }
 .journal-entry .title { font-size: calc(13px * var(--text-scale)); font-weight: 600; margin-bottom: 3px; }
-.journal-entry .meta { font-size: calc(10px * var(--text-scale)); color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.journal-entry .meta { font-size: calc(12px * var(--text-scale)); color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .journal-detail { flex: 1.4; padding: 4px 16px; border-left: 1px solid var(--panel-border); font-size: calc(14px * var(--text-scale)); line-height: 1.7; overflow-y: auto; }
 .journal-detail .corrupt-text { color: var(--corrupt); font-style: italic; }
 
@@ -606,11 +606,10 @@ details.advanced[open] summary { color: var(--ink); }
   pointer-events: none;
 }
 .map-crumb {
-  font-family: var(--font-display);
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-weight: 700;
   font-size: calc(12px * var(--text-scale));
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--ink-dim);
   margin-bottom: 2px;
 }
@@ -620,7 +619,7 @@ details.advanced[open] summary { color: var(--ink); }
   font-family: var(--font-display);
   font-size: clamp(22px, 2.4vh, 30px);
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.02em;
   color: var(--accent);
   text-shadow: 0 2px 10px rgba(0,0,0,0.8);
 }
@@ -731,8 +730,7 @@ details.advanced[open] summary { color: var(--ink); }
   font-family: var(--font-display);
   font-weight: 700;
   font-size: calc(11px * var(--text-scale));
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 .map-status.ok { background: rgba(124,191,124,0.14); color: var(--success); border: 1px solid rgba(124,191,124,0.35); }
 .map-status.here { background: rgba(124,201,224,0.14); color: #7cc9e0; border: 1px solid rgba(124,201,224,0.35); }
@@ -749,8 +747,8 @@ details.advanced[open] summary { color: var(--ink); }
   border-bottom: 1px solid var(--surface-border);
   font-size: calc(13px * var(--text-scale));
 }
-.map-data dt { color: var(--ink-dim); font-family: var(--font-display); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: calc(11.5px * var(--text-scale)); align-self: center; }
-.map-data dd { margin: 0; color: var(--ink); text-align: right; }
+.map-data dt { color: var(--ink-dim); font-size: calc(13px * var(--text-scale)); align-self: center; }
+.map-data dd { margin: 0; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
 .map-actions { display: grid; gap: 8px; margin-top: auto; }
 .map-btn {
   padding: 11px 14px;
@@ -773,8 +771,7 @@ details.advanced[open] summary { color: var(--ink); }
   font-family: var(--font-display);
   font-weight: 700;
   font-size: calc(11.5px * var(--text-scale));
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--accent);
   margin-bottom: 4px;
 }
@@ -824,20 +821,7 @@ details.advanced[open] summary { color: var(--ink); }
 .repair-row .status.ready .hud-icon { color: var(--accent); }
 .repair-row .bar-track { width: 140px; height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin: 0 12px; }
 .repair-row .bar-fill { height: 100%; background: var(--accent); }
-.repair-row button {
-  padding: 5px 12px;
-  font-size: calc(11px * var(--text-scale));
-  background: var(--accent);
-  color: #1a1408;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.15s ease, transform 0.1s ease;
-}
-.repair-row button:hover:not(:disabled) { background: #ecc06a; }
-.repair-row button:active:not(:disabled) { transform: translateY(1px); }
-.repair-row button:disabled { background: rgba(255,255,255,0.06); color: var(--ink-dim); border-color: var(--surface-border); cursor: not-allowed; }
+.repair-row .btn { padding: 6px 12px; font-size: calc(13px * var(--text-scale)); }
 
 /* Sequence puzzle panel (the Cistern Heart mechanism on Kethra) */
 #power-puzzle-panel { width: 640px; }
@@ -942,7 +926,7 @@ button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; backgroun
   transition: opacity 220ms var(--ease-decelerate);
 }
 .loading-indicator.visible { opacity: 1; pointer-events: auto; }
-.loading-title { font-family: var(--font-display); font-weight: 700; font-size: calc(14px * var(--text-scale)); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-dim); }
+.loading-title { font-family: var(--font-display); font-weight: 700; font-size: calc(18px * var(--text-scale)); letter-spacing: 0.01em; color: var(--ink-dim); }
 .loading-bar { width: min(360px, 70vw); height: 4px; background: rgba(93, 102, 111, 0.45); border-radius: 1px; overflow: hidden; }
 .loading-fill { height: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(0.02); transition: transform 300ms var(--ease-decelerate); }
 .loading-text { min-height: 1.4em; font-size: calc(13px * var(--text-scale)); color: var(--ink-dim); }
@@ -1054,7 +1038,9 @@ body.reduced-motion .title-planet { animation: none; }
 body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
   animation-duration: 1ms !important;
   animation-iteration-count: 1 !important;
+  animation-delay: 0ms !important;
   transition-duration: 1ms !important;
+  transition-delay: 0ms !important;
 }
 
 /* ---------------------------------------------------------------------------------------------
@@ -1459,7 +1445,7 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
 .credit-line { margin: 0 0 12px; font-size: calc(14px * var(--text-scale)); line-height: 1.55; color: var(--ink); }
 
 /* The ending's credits (EndingScene). */
-body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox-bar) { visibility: hidden; }
+body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox-bar):not(.hold-skip) { visibility: hidden; }
 .credits-roll {
   position: fixed;
   inset: 0;
@@ -1544,3 +1530,80 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
   cursor: pointer;
 }
 .debug-menu button:hover, .debug-menu button:focus-visible { border-color: var(--accent); outline: none; }
+
+/* =============================================================================================
+   The plate (docs/DESIGN.md §2, "How the UI derives from the world"): every framed surface takes
+   the Wren's hull-plate cut, 45° chamfers at top-left and bottom-right. The edge is a hairline
+   (--edge) drawn inside the cut; panels tip their top-left chamfer in amber, like the painted
+   plate numbers aboard. clip-path would cut an outline, so focus is an inner ring instead.
+   Kept last in the file so it wins over the older per-component borders above.
+   ============================================================================================= */
+:root { --chamfer: 12px; --chamfer-sm: 6px; }
+@property --edge { syntax: '<color>'; inherits: false; initial-value: rgba(93, 102, 111, 0.45); }
+.panel, .hud-frame, .toast, .chapter-card, .look-prompt-inner, #interact-prompt, .map-panel, .tut-card,
+.btn, .dialogue-option, .map-btn, .title-btn, .breaker, .rite-node, .keycap {
+  --c: var(--chamfer);
+  clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px var(--edge, var(--line));
+  background-image:
+    linear-gradient(135deg, transparent calc(50% - 0.75px), var(--edge-tl, var(--edge, var(--line))) calc(50% - 0.75px), var(--edge-tl, var(--edge, var(--line))) calc(50% + 0.75px), transparent calc(50% + 0.75px)),
+    linear-gradient(135deg, transparent calc(50% - 0.75px), var(--edge, var(--line)) calc(50% - 0.75px), var(--edge, var(--line)) calc(50% + 0.75px), transparent calc(50% + 0.75px));
+  background-size: var(--c) var(--c), var(--c) var(--c);
+  background-position: top left, bottom right;
+  background-repeat: no-repeat;
+}
+.panel { --edge-tl: var(--accent); }
+.hud-frame, .toast, #interact-prompt, .look-prompt-inner { --c: 8px; }
+.btn, .dialogue-option, .map-btn, .title-btn, .breaker, .rite-node { --c: var(--chamfer-sm); }
+.keycap { --c: 3px; --edge: var(--accent-dim); }
+.tut-card { --edge: rgba(217, 164, 65, 0.5); }
+
+/* Interactive states on the plate: hover lifts and turns the edge amber; press springs; focus is an
+   inner amber ring; disabled drops to Steel. */
+.btn, .dialogue-option, .map-btn, .title-btn, .rite-node {
+  transition: transform var(--dur-micro) var(--ease-decelerate), --edge var(--dur-micro) var(--ease-decelerate), background-color var(--dur-micro) var(--ease-decelerate), color var(--dur-micro) var(--ease-decelerate);
+}
+.btn:hover:not(:disabled), .dialogue-option:hover:not(.locked), .map-btn:hover:not(:disabled), .title-btn:hover, .rite-node:hover { --edge: var(--accent); }
+.btn:active:not(:disabled), .dialogue-option:active:not(.locked), .map-btn:active:not(:disabled), .title-btn:active, .rite-node:active {
+  transform: scale(0.97);
+  transition: transform var(--dur-spring-press) var(--ease-spring-press);
+}
+.btn:focus-visible, .dialogue-option:focus-visible, .map-btn:focus-visible, .title-btn:focus-visible, .rite-node:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.btn.primary, .map-btn.primary, .title-btn.primary { --edge: var(--accent); }
+.btn.primary:focus-visible, .map-btn.primary:focus-visible, .title-btn.primary:focus-visible { box-shadow: inset 0 0 0 2px var(--void), inset 0 0 0 3px var(--accent); }
+.btn:disabled { --edge: var(--line); }
+
+/* Hold to skip (src/ui/HoldToSkip.ts): bottom-right, on top of the letterbox. The line fills while
+   held and drains if released. */
+.hold-skip {
+  position: absolute;
+  right: 26px;
+  bottom: 24px;
+  z-index: 21;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 2px;
+  row-gap: 6px;
+  font-size: calc(13px * var(--text-scale));
+  color: var(--ink-dim);
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+}
+.hold-skip.holding { color: var(--ink); }
+.hold-skip-track { grid-column: 1 / -1; height: 2px; background: rgba(93, 102, 111, 0.45); overflow: hidden; }
+.hold-skip-fill { height: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(0); }
+
+/* Kinetic title letters (src/ui/KineticTitle.ts). */
+.kt-letter { display: inline-block; white-space: pre; }
+
+/* The HUD steps back when nothing is happening (docs/DESIGN.md §2). */
+.hud-frame, #status-bar { transition: opacity var(--dur-medium) var(--ease-decelerate); }
+.hud-frame.quiet, #status-bar.quiet { opacity: 0.35; }
+#status-bar.retired .hud-keys { display: none; }

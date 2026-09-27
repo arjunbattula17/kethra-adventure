@@ -532,6 +532,8 @@ export class GameFlow {
       throw new Error(`level ${planetId} failed to load`);
     }
     scene.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
+    // The first departure retires the HUD's key strip (UIManager.refreshStatusBar).
+    gameState.setFlag('left_wren');
     this.levelSnapshot = { planetId, json: gameState.toJSON() };
     UIManager.setLoadingProgress(0.45, `Building ${level.title}`);
     await this.engine.setScene(() => scene);

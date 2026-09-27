@@ -141,7 +141,11 @@ await page.click('button:has-text("Transmit")');
 await waitScene('EndingScene');
 check('the ending plays', (await kind()) === 'EndingScene');
 await page.waitForTimeout(6000);
-await page.keyboard.press('Space');
+// The ending skips to the credits on a held key (src/ui/HoldToSkip.ts).
+await page.waitForSelector('.hold-skip', { timeout: 30000 });
+await page.keyboard.down('Space');
+await page.waitForTimeout(1100);
+await page.keyboard.up('Space');
 await page.waitForSelector('.credits-roll.visible', { timeout: 15000 });
 const credits = await page.textContent('.credits-roll');
 // The only CC BY asset left is the planet maps (docs/ASSET_LICENSE_LOG.md): its attribution must roll.

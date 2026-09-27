@@ -26,7 +26,11 @@ await page.waitForSelector('.title-btn');
 await page.getByRole('button', { name: 'New game' }).click();
 await scene('IntroScene');
 await page.waitForFunction(() => !document.querySelector('.loading-indicator.visible'), undefined, { timeout: 900000, polling: 500 });
-await page.keyboard.press('Space');
+// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up.
+await page.waitForSelector('.hold-skip', { timeout: 30000 });
+await page.keyboard.down('Space');
+await page.waitForTimeout(1100);
+await page.keyboard.up('Space');
 await scene('ShipInteriorScene');
 await page.evaluate(() => {
   const g = window.__DEBUG__.gameState;
