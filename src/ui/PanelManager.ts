@@ -1,4 +1,5 @@
 import { InputManager } from '../core/InputManager';
+import { motion, DUR, EXIT_FACTOR } from '../motion';
 
 export type PanelCloseHandler = () => void;
 
@@ -7,6 +8,8 @@ class PanelManagerImpl {
   private content: HTMLDivElement;
   private openCallback: PanelCloseHandler | null = null;
   private escapeInterceptor: (() => void) | null = null;
+  /** Clears the content once a closing panel has finished animating out. */
+  private clearTimer: { cancel(): void } | null = null;
   isOpen = false;
   onOpenChange: (open: boolean) => void = () => {};
   /** Identifies which panel is currently open (e.g. 'character', 'settings') so a global toggle
@@ -41,8 +44,19 @@ class PanelManagerImpl {
    * (e.g. planet map -> solar system map) where Escape should navigate back a level rather
    * than exit entirely. The interceptor is responsible for calling close() itself when the
    * back-navigation reaches the top level.
+   *
+   * Opening over another panel closes that one first, so its own close handler runs (its render
+   * loop stops, a conversation ends properly) instead of being silently dropped.
    */
   open(panelHtml: HTMLElement, onClose?: PanelCloseHandler, onEscape?: () => void, id?: string): void {
+    const replacing = this.isOpen;
+    if (replacing) {
+      const previous = this.openCallback;
+      this.openCallback = null;
+      previous?.();
+    }
+    this.clearTimer?.cancel();
+    this.clearTimer = null;
     this.content.innerHTML = '';
     this.content.appendChild(panelHtml);
     this.overlay.classList.add('visible');
@@ -50,27 +64,47 @@ class PanelManagerImpl {
     this.activeId = id ?? null;
     this.openCallback = onClose ?? null;
     this.escapeInterceptor = onEscape ?? null;
+    // A fresh panel rises into place; one replacing another only cross-fades, so switching
+    // between panels doesn't bounce the frame.
+    motion.ui.animate(
+      panelHtml,
+      replacing ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
+      { dur: replacing ? 'small' : 'medium' },
+    );
     InputManager.exitPointerLock();
-    this.onOpenChange(true);
+    if (!replacing) this.onOpenChange(true);
   }
 
-  /** Swap the panel's content without closing/reopening (no pointer-lock or state churn). */
+  /** Swap the panel's content in place (a new page of the same panel): no entrance replayed. */
   setContent(panelHtml: HTMLElement): void {
     this.content.innerHTML = '';
     this.content.appendChild(panelHtml);
   }
 
-  close(): void {
+  /**
+   * Closes the open panel. With an id, only that panel: a timer set by one panel can't close
+   * whatever the player opened on top of it since. The state changes at once (the game resumes);
+   * the panel's picture animates out and is removed after.
+   */
+  close(id?: string): void {
     if (!this.isOpen) return;
+    if (id !== undefined && this.activeId !== id) return;
+    const callback = this.openCallback;
     this.overlay.classList.remove('visible');
     this.isOpen = false;
     this.activeId = null;
     this.escapeInterceptor = null;
-    this.onOpenChange(false);
-    this.openCallback?.();
     this.openCallback = null;
-    this.content.innerHTML = '';
-    if (this.relockPointerOnClose) InputManager.requestPointerLock();
+    const leaving = this.content.firstElementChild;
+    if (leaving) motion.ui.animate(leaving, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(4px)' }], { dur: 'medium', exit: true, fill: 'forwards' });
+    this.clearTimer = motion.ui.after(DUR.medium * EXIT_FACTOR, () => {
+      if (!this.isOpen) this.content.innerHTML = '';
+      this.clearTimer = null;
+    });
+    this.onOpenChange(false);
+    callback?.();
+    // The callback may have opened the next panel; only hand the mouse back if nothing did.
+    if (!this.isOpen && this.relockPointerOnClose) InputManager.requestPointerLock();
   }
 }
 

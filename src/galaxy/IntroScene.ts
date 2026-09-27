@@ -8,7 +8,11 @@ import { getSharedEnvironment } from '../core/Environment';
 import { t, wordCount } from '../content/strings';
 import type { StringKey } from '../content/strings';
 import { buildShipHull } from './shipHull';
-import { buildStarfield, getPointSprite } from './spaceDressing';
+import type { ShipHull } from './shipHull';
+import { getPointSprite } from './spaceDressing';
+import { buildSpaceSky } from './spaceSky';
+import type { SpaceSky } from './spaceSky';
+import { GRADES } from '../core/GradeGlowPass';
 
 /**
  * The opening cinematic, "Cold Start": the moment the Wren died, and the moment it came back.
@@ -71,16 +75,16 @@ const LEVEL = {
   envStart: 0.08,
   envEnd: 0.35,
   window: 0.9,
-  // The four big aft hex panels (mat13) are large flat planes; above ~0.15 they outshine the
-  // viewports and pull the eye to the stern instead of the crew section.
+  // The stern's hex heat-shield tiles; kept faint so they never outshine the crew section's ports.
   sternPanels: 0.07,
-  crewGlow: 12,
+  crewGlow: 4,
   /** Stern ignition light at a pulse peak of 1 (ENGINE_PULSES scales it). */
   engineLight: 32,
   /** Engines idling before the white sky, as a fraction of a cough's peak. */
   engineRunning: 0.55,
-  beacon: 2.2,
-  sky: 0.38,
+  beacon: 1.4,
+  /** The shared space sky's brightness before the white sky (it's already dark by design). */
+  sky: 0.8,
   /** The white sky's peak: sky, and an ambient term for "light from everywhere at once". */
   whiteSkyBackground: 2.6,
   whiteSkyAmbient: 3.2,
@@ -91,8 +95,6 @@ const LEVEL = {
 /** Wave front travel along the hull's X axis, in ship units (viewports span about -4.0..2.3). */
 const WAVE_FROM_X = 3.0;
 const WAVE_TO_X = -4.8;
-/** The engine-ring material also covers trim near the nose; only the bells aft of this X glow. */
-const ENGINE_BELLS_MAX_X = -3.0;
 
 /** Engine-ring sputter: [offset from engineAttempt (s), peak]. Each pulse lasts ENGINE_PULSE s. */
 const ENGINE_PULSES: ReadonlyArray<readonly [number, number]> = [
@@ -118,7 +120,8 @@ const LOOK_PATH = [
   [0.9, 0.25, 1.4],
 ] as const;
 
-const CREW_GLOW_OFFSET = new THREE.Vector3(1.6, 1.2, 2.2);
+// Just outside the port-side windows: the crew section's light spilling out, not a lamp on the roof.
+const CREW_GLOW_OFFSET = new THREE.Vector3(2.6, 0.2, 1.4);
 // Just aft and to the camera side of the engine bells, so engine light reaches the stern
 // structure the camera can actually see (the bells themselves face away from every shot).
 const ENGINE_LIGHT_OFFSET = new THREE.Vector3(-4.4, 0.3, 1.8);
@@ -156,17 +159,16 @@ function runningAmount(t: number): number {
 }
 
 /**
- * Masks a hull material's emissive by position along the ship, on the GPU. The viewports and the
- * engine rings are each ONE mesh spanning the hull, so a bow-to-stern wave can't be done by
+ * Masks a hull material's emissive by position along the ship, on the GPU. The windows and the
+ * engine throats are each ONE merged mesh spanning the hull, so a bow-to-stern wave can't be done by
  * staggering materials; this does it per pixel instead. `uFront`: points aft of it stay dark, with
- * a brief surge just behind it; `uStutter` flickers only that leading band; `uMaxX` clips the lit
- * region's bow end. Both users share one program (same cache key), compiled in the warm-up frame.
+ * a brief surge just behind it; `uStutter` flickers only that leading band. Both users share one
+ * program (same cache key), compiled in the warm-up frame.
  */
 function addShipSpaceMask(mat: THREE.MeshStandardMaterial, worldToShip: THREE.IUniform<THREE.Matrix4>) {
   const uniforms = {
     uFront: { value: WAVE_FROM_X },
     uStutter: { value: 1 },
-    uMaxX: { value: 100 },
   };
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uWorldToShip = worldToShip;
@@ -175,7 +177,7 @@ function addShipSpaceMask(mat: THREE.MeshStandardMaterial, worldToShip: THREE.IU
       .replace('#include <common>', '#include <common>\nuniform mat4 uWorldToShip;\nvarying float vShipX;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvShipX = (uWorldToShip * modelMatrix * vec4(transformed, 1.0)).x;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uFront;\nuniform float uStutter;\nuniform float uMaxX;\nvarying float vShipX;')
+      .replace('#include <common>', '#include <common>\nuniform float uFront;\nuniform float uStutter;\nvarying float vShipX;')
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
@@ -183,7 +185,7 @@ function addShipSpaceMask(mat: THREE.MeshStandardMaterial, worldToShip: THREE.IU
         float lit = smoothstep(-0.25, 0.25, behind);
         float leading = 1.0 - smoothstep(0.0, 1.1, behind);
         float surge = 1.0 + 0.9 * exp(-behind * behind * 6.0);
-        totalEmissiveRadiance *= lit * mix(1.0, uStutter, leading) * surge * step(vShipX, uMaxX);`,
+        totalEmissiveRadiance *= lit * mix(1.0, uStutter, leading) * surge;`,
       );
   };
   mat.customProgramCacheKey = () => 'intro-ship-space-mask';
@@ -197,7 +199,9 @@ function toCurve(points: ReadonlyArray<readonly [number, number, number]>): THRE
 export class IntroScene implements GameScene {
   readonly kind = 'IntroScene';
   readonly usesAO = false;
+  readonly grade = GRADES.space;
   scene = new THREE.Scene();
+  private sky!: SpaceSky;
   camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 2000);
   onDone: (() => void) | null = null;
 
@@ -231,7 +235,7 @@ export class IntroScene implements GameScene {
   /** Scene clock; only advances once frames are steady (see update()). */
   private elapsed = 0;
   private started = false;
-  private steadyFrames = 0;
+  private steadyTime = 0;
   private settleStartedAt = 0;
   private finished = false;
   private stopAmbient: (() => void) | null = null;
@@ -260,17 +264,12 @@ export class IntroScene implements GameScene {
     // beacon blink as a visible hitch. Here it lands behind the loading overlay instead.
     AudioSystem.prepare();
 
-    // Everything the first frame shows is awaited here, so the sky's decode, equirect-to-cube
-    // conversion and upload land in Engine.setScene's warm-up frame behind the loading overlay
-    // rather than mid-sequence (the old async load hitched the intro at 5.4s).
-    const [hull, sky] = await Promise.all([buildShipHull(), this.loadSky(lowTier), displayFontsReady()]);
-    if (sky) {
-      this.scene.background = sky;
-      // Dim enough that the sky's milky band stops reading as grey haze, bright enough that the
-      // dead hull still separates from it as a silhouette.
-      this.scene.backgroundIntensity = LEVEL.sky;
-    }
-    this.scene.add(buildStarfield(1400, 600, 0.7));
+    // Everything the first frame shows is awaited here, so uploads land in Engine.setScene's
+    // warm-up frame behind the loading overlay rather than mid-sequence.
+    const [hull] = await Promise.all([buildShipHull(), displayFontsReady()]);
+    this.sky = buildSpaceSky({ seed: 0x1a7 });
+    this.sky.setBrightness(LEVEL.sky);
+    this.scene.add(this.sky.group);
     this.scene.add(this.buildDust(lowTier ? 90 : 220));
 
     this.ship = hull.group;
@@ -278,7 +277,7 @@ export class IntroScene implements GameScene {
     this.ship.rotation.set(0.1, 0, 0.06);
     this.scene.add(this.ship);
     this.ship.updateMatrixWorld(true);
-    this.collectHullMaterials();
+    this.collectHullMaterials(hull.parts);
 
     this.rim = new THREE.DirectionalLight(0x8fb4ff, 0);
     this.rim.position.set(-6, 3, -10);
@@ -312,31 +311,7 @@ export class IntroScene implements GameScene {
     window.addEventListener('click', this.clickHandler);
   }
 
-  private async loadSky(lowTier: boolean): Promise<THREE.Texture | null> {
-    let texture: THREE.Texture;
-    try {
-      texture = await new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}textures/space/starfield.jpg`);
-    } catch {
-      return null; // the flat void colour set above still frames the ship
-    }
-    if (lowTier) {
-      // Low tier: a 2048x1024 copy. Once converted to a cubemap the 4096 source costs ~4x the
-      // VRAM for detail a shared-memory integrated GPU spends on nothing else in this shot.
-      const image = texture.image as HTMLImageElement;
-      const canvas = document.createElement('canvas');
-      canvas.width = 2048;
-      canvas.height = 1024;
-      canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
-      texture.dispose();
-      texture = new THREE.CanvasTexture(canvas);
-    }
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
-  }
-
-  /** Sparse near dust the camera trucks through: the parallax layer between it and the hull. Same
-   * material configuration as buildStarfield's, so it shares that shader program. */
+  /** Sparse near dust the camera trucks through: the parallax layer between it and the hull. */
   private buildDust(count: number): THREE.Points {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
@@ -365,35 +340,31 @@ export class IntroScene implements GameScene {
   }
 
   /** Index what the timeline drives. The ship starts running: lights on, engines idling. */
-  private collectHullMaterials(): void {
-    this.ship.traverse((obj) => {
-      const mesh = obj as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const mat = mesh.material as THREE.MeshStandardMaterial;
-      if (obj.name === 'nav-light-port' || obj.name === 'nav-light-starboard') {
-        // At this scene's closing distance the full-size beacons read as coloured balls.
-        obj.scale.setScalar(NAV_LIGHT_SCALE);
-        if (obj.name === 'nav-light-port') this.navPort = mat;
-        else this.navStarboard = mat;
-        mat.emissiveIntensity = 0;
-      } else if (mat.name === 'mat4') {
-        mat.emissive.setHex(WINDOW_RUNNING_COLOR);
-        mat.emissiveIntensity = LEVEL.window;
-        const mask = addShipSpaceMask(mat, this.worldToShip);
-        mask.uFront.value = WAVE_TO_X; // fully lit
-        this.windowMats.push(mat);
-        this.windowMasks.push(mask);
-      } else if (mat.name === 'mat1') {
-        mat.emissiveIntensity = 0;
-        const mask = addShipSpaceMask(mat, this.worldToShip);
-        mask.uFront.value = -100;
-        mask.uMaxX.value = ENGINE_BELLS_MAX_X;
-        this.engineMats.push(mat);
-      } else {
-        if (mat.name === 'mat13') this.sternPanelMats.push(mat);
-        mat.emissiveIntensity = 0;
-      }
-    });
+  private collectHullMaterials(parts: ShipHull['parts']): void {
+    for (const name of ['nav-light-port', 'nav-light-starboard']) {
+      // At this scene's closing distance the full-size beacons read as coloured balls.
+      this.ship.getObjectByName(name)?.scale.setScalar(NAV_LIGHT_SCALE);
+    }
+    this.navPort = parts.navPort;
+    this.navStarboard = parts.navStarboard;
+    this.navPort.emissiveIntensity = 0;
+    this.navStarboard.emissiveIntensity = 0;
+
+    const windows = parts.windows;
+    windows.emissive.setHex(WINDOW_RUNNING_COLOR);
+    windows.emissiveIntensity = LEVEL.window;
+    const windowMask = addShipSpaceMask(windows, this.worldToShip);
+    windowMask.uFront.value = WAVE_TO_X; // fully lit
+    this.windowMats.push(windows);
+    this.windowMasks.push(windowMask);
+
+    parts.engines.emissiveIntensity = 0;
+    const engineMask = addShipSpaceMask(parts.engines, this.worldToShip);
+    engineMask.uFront.value = -100;
+    this.engineMats.push(parts.engines);
+
+    parts.stern.emissiveIntensity = 0;
+    this.sternPanelMats.push(parts.stern);
   }
 
   /** The exposition lines, pre-built so the update path only toggles classes. Each word is its
@@ -451,13 +422,15 @@ export class IntroScene implements GameScene {
   update(dt: number): void {
     // Settle gate: the interior builds behind this scene, and its synchronous kit parsing blocks
     // the main thread for ~2-2.5s right as the intro starts. The clock waits on the opening shot
-    // (a quiet wide frame, where a stalled frame is invisible) until 20 steady frames in a row
-    // arrive or the wall-clock cap passes, so the choreography starts on smooth frames.
+    // (a quiet wide frame, where a stalled frame is invisible) until a third of a second of steady
+    // frames arrives or the wall-clock cap passes, so the choreography starts on smooth frames.
+    // Steady means no frame over 50 ms, measured in time rather than frames: counting 20 frames
+    // under 25 ms never passed at the low-battery 30 fps cap and meant 0.14 s at 144 Hz.
     if (!this.started) {
       const now = performance.now();
       if (this.settleStartedAt === 0) this.settleStartedAt = now;
-      this.steadyFrames = dt < 0.025 ? this.steadyFrames + 1 : 0;
-      if (this.steadyFrames < 20 && now - this.settleStartedAt < TIMELINE.settleCapMs) return;
+      this.steadyTime = dt < 0.05 ? this.steadyTime + dt : 0;
+      if (this.steadyTime < 0.33 && now - this.settleStartedAt < TIMELINE.settleCapMs) return;
       this.started = true;
       this.skipEl.classList.add('visible');
     }
@@ -477,7 +450,7 @@ export class IntroScene implements GameScene {
     this.fill.intensity = LEVEL.fill * wake;
     this.scene.environmentIntensity = LEVEL.envStart + (LEVEL.envEnd - LEVEL.envStart) * wake;
     this.ambient.intensity = LEVEL.ambient + (LEVEL.whiteSkyAmbient - LEVEL.ambient) * white;
-    this.scene.backgroundIntensity = LEVEL.sky + (LEVEL.whiteSkyBackground - LEVEL.sky) * white;
+    this.sky.setBrightness(LEVEL.sky + (LEVEL.whiteSkyBackground - LEVEL.sky) * white);
     this.whiteShell.material.opacity = LEVEL.whiteSkyShell * white;
     this.whiteShell.visible = white > 0;
     this.whiteShell.position.copy(this.camera.position);
@@ -547,6 +520,7 @@ export class IntroScene implements GameScene {
     this.lookCurve.getPointAt(u, this.scratchLook).add(this.ship.position);
     this.camera.position.copy(this.scratchPos);
     this.camera.lookAt(this.scratchLook);
+    this.sky.update(this.camera);
   }
 
   private finish(): void {

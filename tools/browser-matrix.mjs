@@ -69,7 +69,7 @@ for (const [name, launch] of ENGINES) {
         for (const p of ['kethra', 'vessek']) if (!g.data.planetsUnlocked.includes(p)) g.data.planetsUnlocked.push(p);
       });
       for (const [level, kind] of [['kethra', 'KethraScene'], ['vessek', 'VessekScene']]) {
-        await page.evaluate((l) => window.__DEBUG__.flow.travelToPlanet(l), level);
+        await page.evaluate((l) => window.__DEBUG__.flow.debugGo(l), level);
         await scene(kind);
         await page.waitForTimeout(2500);
         row.steps[level] = Date.now() - t0;

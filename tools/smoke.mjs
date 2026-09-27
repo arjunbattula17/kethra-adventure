@@ -16,8 +16,8 @@ const CASES = [
   { name: 'title', query: '', kind: 'IntroScene', go: async (p) => { await p.waitForSelector('.title-btn', { timeout: 30000 }); await p.getByRole('button', { name: 'New game' }).click(); } },
   { name: 'intro', query: '?newGame=1&tier=low', kind: 'IntroScene' },
   { name: 'ship', query: '?skipIntro=1&newGame=1&tier=low', kind: 'ShipInteriorScene' },
-  { name: 'reveal', query: '?skipIntro=1&newGame=1&tier=low', kind: 'GalaxyRevealScene', go: (p) => p.evaluate(() => window.__DEBUG__.flow.transitionToGalaxyReveal()) },
-  { name: 'kethra', query: '?skipIntro=1&unlockKethra=1&newGame=1&tier=low', kind: 'KethraScene', go: (p) => p.evaluate(() => window.__DEBUG__.flow.travelToPlanet('kethra')) },
+  { name: 'reveal', query: '?skipIntro=1&newGame=1&tier=low', kind: 'GalaxyRevealScene', go: (p) => p.evaluate(() => window.__DEBUG__.flow.debugGo('reveal')) },
+  { name: 'kethra', query: '?skipIntro=1&unlockKethra=1&newGame=1&tier=low', kind: 'KethraScene', go: (p) => p.evaluate(() => window.__DEBUG__.flow.debugGo('kethra')) },
   { name: 'storage-blocked', query: '?newGame=1&tier=low', kind: 'IntroScene', blockStorage: true },
 ];
 
@@ -51,7 +51,7 @@ for (const c of CASES) {
       await c.go(page);
     }
     await page.waitForFunction(
-      (kind) => { const s = window.__DEBUG__?.engine.getCurrentScene(); return s?.kind === kind || (kind === 'GalaxyRevealScene' && !!s?.ship && !s.player); },
+      (kind) => window.__DEBUG__?.engine.getCurrentScene()?.kind === kind,
       c.kind,
       { timeout: 180000, polling: 250 },
     );

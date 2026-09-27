@@ -176,7 +176,7 @@ for (const level of LEVELS) {
   const kind = level === 'kethra' ? 'KethraScene' : 'VessekScene';
   const tt = Date.now();
   mark = await now();
-  await page.evaluate((l) => window.__DEBUG__.flow.travelToPlanet(l), level);
+  await page.evaluate((l) => window.__DEBUG__.flow.debugGo(l), level);
   await waitScene(kind);
   await page.waitForTimeout(500);
   // First visits are what a judge sees; second visits only check for leaks.

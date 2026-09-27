@@ -1,10 +1,14 @@
 import * as THREE from 'three';
 import type { GameScene } from '../core/Engine';
-import { UIManager, reducedMotion } from '../ui/UIManager';
+import { UIManager } from '../ui/UIManager';
+import { motion } from '../motion';
 import { AudioSystem } from '../audio/AudioSystem';
 import { getSharedEnvironment } from '../core/Environment';
 import { buildShipHull } from './shipHull';
-import { buildStarfield, getPointSprite } from './spaceDressing';
+import { getPointSprite } from './spaceDressing';
+import { buildSpaceSky } from './spaceSky';
+import type { SpaceSky } from './spaceSky';
+import { GRADES } from '../core/GradeGlowPass';
 import { t } from '../content/strings';
 import type { StringKey } from '../content/strings';
 
@@ -27,7 +31,6 @@ const CREDITS_AT = 28;
 
 const CREDIT_KEYS: StringKey[] = [
   'credits.original',
-  'credits.freighter',
   'credits.planets',
   'credits.kits',
   'credits.textures',
@@ -44,7 +47,9 @@ function glowSprite(color: number, size: number): THREE.Sprite {
 export class EndingScene implements GameScene {
   readonly kind = 'EndingScene';
   readonly usesAO = false;
+  readonly grade = GRADES.space;
   scene = new THREE.Scene();
+  private sky!: SpaceSky;
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 3000);
   onDone: (() => void) | null = null;
 
@@ -60,6 +65,7 @@ export class EndingScene implements GameScene {
   private stopMusic: (() => void) | null = null;
   private finished = false;
   private keyHandler = (e: KeyboardEvent) => {
+    if (e.repeat || this.elapsed <= 1) return;
     if ((e.code === 'Space' || e.code === 'Enter') && !this.creditsEl) this.showCredits();
   };
   private clickHandler = () => {
@@ -74,13 +80,16 @@ export class EndingScene implements GameScene {
     this.scene.background = new THREE.Color(0x010208);
     this.scene.environment = getSharedEnvironment();
     this.scene.environmentIntensity = 0.6;
-    this.scene.add(buildStarfield(2200, 900, 1.1));
+    this.sky = buildSpaceSky({ seed: 0xe4d });
+    this.scene.add(this.sky.group);
 
     try {
       const hull = await buildShipHull();
       this.ship = hull.group;
       this.ship.rotation.set(0.12, -0.5, 0.05);
       this.scene.add(this.ship);
+      // Awake now: every port and the canopy lit, where the opening had them dark.
+      hull.parts.windows.emissiveIntensity = 1.4;
       // Lit and awake now: the crew glow in every port, where the opening had it dark.
       const glow = new THREE.PointLight(0xffc27a, 3, 16);
       glow.position.set(1, 1.2, 0);
@@ -213,13 +222,14 @@ export class EndingScene implements GameScene {
   update(dt: number): void {
     this.elapsed += dt;
     while (this.cues.length && this.cues[0].at <= this.elapsed) this.cues.shift()!.run();
+    this.sky.update(this.camera);
     if (this.ship) {
       this.ship.rotation.y += dt * 0.02;
       this.ship.position.y = Math.sin(this.elapsed * 0.4) * 0.08;
     }
     // A slow pull back and up over the whole sequence: the ship gets small against where the light
     // is going. Reduced motion holds the frame.
-    if (!reducedMotion()) {
+    if (!motion.reduced) {
       const k = Math.min(1, this.elapsed / CREDITS_AT);
       const e = k * k * (3 - 2 * k);
       this.camera.position.set(4 + e * 10, 1.8 + e * 7, 13 + e * 26);

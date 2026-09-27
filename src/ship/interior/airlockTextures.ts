@@ -404,13 +404,13 @@ export function buildAirlockScreenTexture(variant: 'pressure' | 'cycle'): THREE.
   }
 
   g.fillStyle = CYAN;
-  g.font = 'bold 13px monospace';
+  g.font = 'bold 13px "Atkinson Hyperlegible", sans-serif';
   g.fillText(variant === 'pressure' ? 'HATCH A / PRESS' : 'CYCLE CONTROL', 10, 20);
   g.fillStyle = 'rgba(79,216,240,0.4)';
   g.fillRect(8, 26, W - 16, 1);
 
   if (variant === 'pressure') {
-    g.font = '11px monospace';
+    g.font = '11px "Atkinson Hyperlegible", sans-serif';
     const rows = ['INNER  101.2 kPa', 'LOCK   101.1 kPa', 'OUTER    0.0 kPa', 'O2 %     20.9', 'SEAL     NOMINAL'];
     rows.forEach((r, i) => {
       g.fillStyle = i === 4 ? '#8ef0b0' : CYAN;
@@ -442,7 +442,7 @@ export function buildAirlockScreenTexture(variant: 'pressure' | 'cycle'): THREE.
       g.lineTo(cx + Math.cos(a) * 44, cy + Math.sin(a) * 44);
       g.stroke();
     }
-    g.font = '11px monospace';
+    g.font = '11px "Atkinson Hyperlegible", sans-serif';
     const rows = ['SEQ  READY', 'DOGS 8/8', 'EQUAL  OK', 'PURGE  ---'];
     rows.forEach((r, i) => {
       g.fillStyle = i === 3 ? 'rgba(79,216,240,0.45)' : CYAN;
@@ -478,11 +478,11 @@ export function buildAirlockPlacardTexture(main: string, sub: string, accent = '
   g.strokeRect(20, 10, W - 40, H - 20);
 
   g.fillStyle = '#ddd6c6';
-  g.font = 'bold 52px "Arial Narrow", Impact, sans-serif';
+  g.font = 'bold 52px Rajdhani, sans-serif';
   g.textBaseline = 'middle';
   g.fillText(main, 36, H * 0.4);
   g.fillStyle = 'rgba(200,206,214,0.7)';
-  g.font = '20px monospace';
+  g.font = '20px "Atkinson Hyperlegible", sans-serif';
   g.fillText(sub, 38, H * 0.75);
 
   for (const [bx, by] of [[10, 12], [W - 10, 12], [10, H - 12], [W - 10, H - 12]] as const) {
@@ -837,11 +837,11 @@ export function buildDeckStencilTexture(): THREE.CanvasTexture {
 
   // Bay stencil, split so the wear reads across letterforms rather than as one grey wash.
   g.fillStyle = YELLOW;
-  g.font = 'bold 104px "Arial Narrow", Impact, sans-serif';
+  g.font = 'bold 104px Rajdhani, sans-serif';
   g.textBaseline = 'middle';
   g.fillText('AIRLOCK 04', 96, 168);
   g.fillStyle = '#ded8c8';
-  g.font = 'bold 62px "Arial Narrow", Impact, sans-serif';
+  g.font = 'bold 62px Rajdhani, sans-serif';
   g.fillText('KEEP CLEAR OF HATCH SWING', 100, 262);
 
   // Caution triangle on the right.

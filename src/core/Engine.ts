@@ -3,8 +3,10 @@ import { InputManager } from './InputManager';
 import { initSharedEnvironment, rebuildSharedEnvironment } from './Environment';
 import { PostProcessing } from './PostProcessing';
 import type { QualityTier } from './PostProcessing';
+import type { GradeProfile } from './GradeGlowPass';
 import { UIManager } from '../ui/UIManager';
 import { setKitTextureMaxSize } from './textureCache';
+import { motion } from '../motion';
 
 // Per-tier renderer settings. shadowMap.enabled and pixelRatio are both free to toggle at
 // runtime (no GL context loss, no re-construction) — only the WebGLRenderer's own creation-time
@@ -65,6 +67,8 @@ export interface GameScene {
    * shadow pass was ~1,100 of its ~2,470 draw calls, re-drawing an identical depth map. A scene
    * that opts in and later animates a caster must arm renderer.shadowMap.needsUpdate itself. */
   staticShadows?: boolean;
+  /** This scene's colour grade (GradeGlowPass.ts, GRADES). Defaults to the interior's. */
+  grade?: GradeProfile;
 }
 
 export class Engine {
@@ -293,6 +297,7 @@ export class Engine {
       this.current = scene;
       this.postFx.setActive(scene.scene, scene.camera);
       this.postFx.setAOSupported(scene.usesAO !== false);
+      this.postFx.setGrade(scene.grade);
       this.renderer.shadowMap.autoUpdate = scene.staticShadows !== true;
       // One paint for the new scene's maps; consumed by the first render when autoUpdate is off.
       this.renderer.shadowMap.needsUpdate = true;
@@ -322,11 +327,13 @@ export class Engine {
   prewarmScene(scene: GameScene): void {
     this.postFx.setActive(scene.scene, scene.camera);
     this.postFx.setAOSupported(scene.usesAO !== false);
+    this.postFx.setGrade(scene.grade);
     this.renderer.shadowMap.needsUpdate = true;
     this.postFx.render();
     if (this.current) {
       this.postFx.setActive(this.current.scene, this.current.camera);
       this.postFx.setAOSupported(this.current.usesAO !== false);
+      this.postFx.setGrade(this.current.grade);
     }
     this.holdGovernor();
   }
@@ -388,6 +395,7 @@ export class Engine {
       if (this.current) {
         this.postFx.setActive(this.current.scene, this.current.camera);
         this.postFx.setAOSupported(this.current.usesAO !== false);
+        this.postFx.setGrade(this.current.grade);
       }
       this.postFx.setSize(window.innerWidth, window.innerHeight);
     }
@@ -467,12 +475,14 @@ export class Engine {
       if (this.capTo30 && now - this.lastDrawAt < 31) return;
       this.lastDrawAt = now;
       this.timer.update(now);
-      const dt = Math.min(this.timer.getDelta(), 0.1);
-      const elapsed = this.timer.getElapsed();
+      const realDt = Math.min(this.timer.getDelta(), 0.1);
+      // One clock for everything that moves (src/motion). The game clock stops while paused, so
+      // `elapsed` no longer runs on behind a panel and makes sine-driven idles jump on resume.
+      const dt = motion.tick(realDt, this.paused || this.contextLost);
       if (!this.paused && this.current && !this.contextLost) {
-        this.current.update(dt, elapsed);
+        this.current.update(dt, motion.gameTime);
         this.postFx.render();
-        this.recordFrameForQuality(dt * 1000);
+        this.recordFrameForQuality(realDt * 1000);
       }
       InputManager.endFrame();
     };

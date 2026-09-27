@@ -139,11 +139,11 @@ export function buildCratePanelTexture(label: string, tone: 'steel' | 'bone' | '
 
   // Contents stencil + barcode block.
   ctx.fillStyle = 'rgba(222,217,205,0.82)';
-  ctx.font = 'bold 30px monospace';
+  ctx.font = 'bold 30px Rajdhani, sans-serif';
   ctx.textBaseline = 'middle';
   stencilText(ctx, label, w / 2, 84, 3);
 
-  ctx.font = 'bold 13px monospace';
+  ctx.font = 'bold 13px Rajdhani, sans-serif';
   ctx.fillStyle = 'rgba(222,217,205,0.5)';
   stencilText(ctx, 'CONTENTS SEALED', w / 2, 112, 2);
 
@@ -234,7 +234,7 @@ export function buildLockerDoorTexture(label: string): THREE.CanvasTexture {
   ctx.lineWidth = 2;
   ctx.strokeRect(52, 214, w - 104, 54);
   ctx.fillStyle = 'rgba(222,217,205,0.85)';
-  ctx.font = 'bold 26px monospace';
+  ctx.font = 'bold 26px Rajdhani, sans-serif';
   ctx.textBaseline = 'middle';
   stencilText(ctx, label, w / 2, 241, 4);
 
@@ -284,7 +284,7 @@ function paintCanisterLabelTexture(kind: 'o2' | 'fuel' | 'coolant'): THREE.Canva
   ctx.globalAlpha = 1;
 
   ctx.fillStyle = 'rgba(226,222,212,0.85)';
-  ctx.font = 'bold 17px monospace';
+  ctx.font = 'bold 17px Rajdhani, sans-serif';
   ctx.textBaseline = 'middle';
   stencilText(ctx, text, w * 0.32, h / 2, 2);
 
@@ -347,7 +347,7 @@ export function buildReadoutTexture(seed = 0): THREE.CanvasTexture {
   ctx.stroke();
 
   ctx.fillStyle = 'rgba(168,240,255,0.75)';
-  ctx.font = 'bold 12px monospace';
+  ctx.font = 'bold 12px Rajdhani, sans-serif';
   ctx.textBaseline = 'middle';
   stencilText(ctx, 'SYS NOMINAL', w * 0.72, 92, 1);
   stencilText(ctx, `CH-0${(seed % 8) + 1}`, w * 0.72, 110, 1);
@@ -470,7 +470,7 @@ export function buildRackUnitTexture(label: string): THREE.CanvasTexture {
   }
 
   ctx.fillStyle = 'rgba(216,212,202,0.7)';
-  ctx.font = 'bold 12px monospace';
+  ctx.font = 'bold 12px Rajdhani, sans-serif';
   ctx.textBaseline = 'middle';
   stencilText(ctx, label, 42, 44, 1);
 

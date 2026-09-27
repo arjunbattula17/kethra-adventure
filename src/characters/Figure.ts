@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { damp } from '../motion';
 
 /**
  * Stylized low-poly characters, built in code so they match the Quaternius kits' faceted,
@@ -385,11 +386,11 @@ export class Figure {
       const dist = Math.hypot(_look.x, _look.z);
       if (dist < 7 && _look.z > -1) targetYaw = THREE.MathUtils.clamp(Math.atan2(_look.x, _look.z), -1.0, 1.0);
     }
-    this.headYaw += (targetYaw - this.headYaw) * Math.min(1, dt * 3);
+    this.headYaw = damp(this.headYaw, targetYaw, 3, dt);
     this.headPivot.rotation.y = this.headYaw;
 
     if (this.glowMats.length || this.glowLight) {
-      this.glowLevel += (this.glowTarget - this.glowLevel) * Math.min(1, dt * 1.5);
+      this.glowLevel = damp(this.glowLevel, this.glowTarget, 1.5, dt);
       const pulse = 0.85 + Math.sin(t * 1.1) * 0.15;
       for (const m of this.glowMats) m.emissiveIntensity = this.baseGlow * this.glowLevel * pulse + 0.05;
       if (this.glowLight) this.glowLight.intensity = (this.spec.kind === 'aiveth' ? 0.8 : 0.6) * this.glowLevel * pulse;

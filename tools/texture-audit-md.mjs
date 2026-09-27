@@ -36,7 +36,6 @@ function tierOf(scene, row) {
 
 // Hand-written findings for the textures that needed a decision, keyed by a source substring.
 const NOTES = [
-  ['starfield.jpg', 'Sky equirect. At 11 px/degree it is already softer than the 23 px/degree a 1080p frame shows; kept at 4096 on high (the point starfields carry the sharp stars), 2048 on low.'],
   ['textures/planets/', 'Over-resolved: planets peak at 20-70 px radius on screen during the reveal (sun 84 px), which needs ~440 px of equirect width. Halved; 2x headroom left for 4K.'],
   ['clouds.jpg', 'Over-resolved for the same footprint reason as the planet maps. Halved.'],
   ['_ring.png', 'Over-resolved for the rings\' on-screen size. Halved.'],

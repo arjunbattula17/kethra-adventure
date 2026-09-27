@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { damp } from '../../motion';
 
 /**
  * Kethra's set pieces as designed objects, replacing the primitive stand-ins (a glowing sphere for
@@ -204,7 +205,7 @@ export function buildWickmoth(): Wickmoth {
     root,
     update(dt, elapsed, dormant) {
       t += dt;
-      settle += ((dormant ? 1 : 0) - settle) * Math.min(1, dt * 0.8);
+      settle = damp(settle, dormant ? 1 : 0, 0.8, dt);
       // Awake: slow, heavy flaps and a lazy patrol across the approach. Dormant: perched, wings
       // folded up in a tent, breathing.
       const flap = Math.sin(t * 4.2);
@@ -415,7 +416,7 @@ export function buildCisternHeart(stone: THREE.Material): CisternHeart {
     },
     update(dt, elapsed) {
       wakeClock += dt;
-      awake += (awakeTarget - awake) * Math.min(1, dt * 0.9);
+      awake = damp(awake, awakeTarget, 0.9, dt);
       coreGroup.rotation.y += dt * (0.25 + awake * 0.6);
       coreGroup.position.y = 1.75 + Math.sin(elapsed * 0.9) * 0.06 + awake * 0.25;
       coreMat.emissiveIntensity = 0.35 + awake * 2.2 + Math.sin(elapsed * 2) * 0.1 * awake;
@@ -499,7 +500,7 @@ export function buildLanternBloom(): LanternBloom {
       openTarget = closed ? 0 : 1;
     },
     update(dt, elapsed) {
-      open += (openTarget - open) * Math.min(1, dt * 2.5);
+      open = damp(open, openTarget, 2.5, dt);
       for (const p of petals) p.rotation.x = THREE.MathUtils.lerp(0.05, -0.9, open) ;
       const breathe = 1 + Math.sin(elapsed * 1.3) * 0.08;
       petalMat.emissiveIntensity = (0.15 + open * 0.95) * breathe;

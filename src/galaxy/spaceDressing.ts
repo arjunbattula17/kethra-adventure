@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 
-// Shared dressing for the two space cinematics (the opening intro and the galaxy reveal): the
-// soft point sprite and the procedural star fields both scenes hang their sky on. Extracted from
-// GalaxyRevealScene.ts when the intro was added so neither scene owns the other's helpers.
+// Shared dressing for the space scenes: the soft point sprite used by dust, trails and glows.
+// The sky itself is spaceSky.ts.
 
 /** Soft round sprite shared by star fields, asteroid dust and the engine trail. Without a map,
  * THREE.PointsMaterial draws hard-edged SQUARES — which is exactly what the pre-fix renders
@@ -25,36 +24,4 @@ export function getPointSprite(): THREE.Texture {
   ctx.fillRect(0, 0, size, size);
   pointSprite = new THREE.CanvasTexture(canvas);
   return pointSprite;
-}
-
-export function buildStarfield(count: number, spread: number, size: number): THREE.Points {
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const tint = new THREE.Color();
-  for (let i = 0; i < count; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * spread;
-    positions[i * 3 + 1] = (Math.random() - 0.5) * spread;
-    positions[i * 3 + 2] = (Math.random() - 0.5) * spread;
-    const warmth = Math.random();
-    tint.setHSL(warmth > 0.8 ? 0.08 : warmth < 0.15 ? 0.6 : 0.12, 0.25, 0.75 + Math.random() * 0.25);
-    // Most stars should be faint. A uniform brightness reads as a scattering of identical dots
-    // rather than a sky with depth in it, so each star gets a random dimming weighted toward dim.
-    const brightness = 0.25 + Math.pow(Math.random(), 2.2) * 0.75;
-    colors[i * 3] = tint.r * brightness;
-    colors[i * 3 + 1] = tint.g * brightness;
-    colors[i * 3 + 2] = tint.b * brightness;
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const mat = new THREE.PointsMaterial({
-    vertexColors: true,
-    size,
-    map: getPointSprite(),
-    sizeAttenuation: true,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  return new THREE.Points(geo, mat);
 }

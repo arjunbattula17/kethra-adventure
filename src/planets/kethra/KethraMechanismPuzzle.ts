@@ -1,6 +1,7 @@
 import { gameState } from '../../core/GameState';
 import { UIManager } from '../../ui/UIManager';
 import { PanelManager } from '../../ui/PanelManager';
+import { registerMiniGame } from '../../debug/hooks';
 import { KETHRA_TRUE_SEQUENCE, KETHRA_RITUAL_SEQUENCE } from './kethraLore';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { drawRiteGlyph, RITE } from './grove';
@@ -43,6 +44,7 @@ const PALETTE = Array.from(new Set([...KETHRA_TRUE_SEQUENCE, 'crimson', 'violet'
 
 export class KethraMechanismPuzzle {
   private inputIndex = 0;
+  private unregisterDebug: () => void = () => {};
   onSolved: () => void = () => {};
 
   open(): void {
@@ -121,7 +123,20 @@ export class KethraMechanismPuzzle {
     panel.appendChild(hint);
 
     if (PanelManager.isOpen && PanelManager.activeId === 'rite') PanelManager.setContent(panel);
-    else PanelManager.open(panel, () => window.removeEventListener('keydown', this.keys), undefined, 'rite');
+    else {
+      PanelManager.open(panel, () => {
+        window.removeEventListener('keydown', this.keys);
+        this.unregisterDebug();
+      }, undefined, 'rite');
+      // Debug harness (F2/F3): sing the true order, or a wrong colour.
+      this.unregisterDebug = registerMiniGame({
+        name: 'Rite of Three Breaths',
+        win: () => {
+          while (PanelManager.activeId === 'rite' && this.inputIndex < KETHRA_TRUE_SEQUENCE.length) this.handleInput(KETHRA_TRUE_SEQUENCE[this.inputIndex]);
+        },
+        fail: () => this.handleInput(PALETTE.find((c) => c !== KETHRA_TRUE_SEQUENCE[this.inputIndex]) ?? PALETTE[0]),
+      });
+    }
     window.removeEventListener('keydown', this.keys);
     window.addEventListener('keydown', this.keys);
     (nodesEl.firstChild as HTMLButtonElement).focus({ preventScroll: true });
@@ -163,7 +178,7 @@ export class KethraMechanismPuzzle {
 
   private solve(): void {
     window.removeEventListener('keydown', this.keys);
-    PanelManager.close();
+    PanelManager.close('rite');
     gameState.setFlag('kethra_mechanism_solved');
     gameState.addResource('resonant_crystal', 3);
     gameState.addAttributeXp('archaeology', 2);

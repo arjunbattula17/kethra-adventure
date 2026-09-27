@@ -33,11 +33,11 @@ await page.evaluate(() => {
   for (const p of ['kethra', 'vessek']) if (!g.data.planetsUnlocked.includes(p)) g.data.planetsUnlocked.push(p);
 });
 for (const [l, k] of [['kethra', 'KethraScene'], ['vessek', 'VessekScene']]) {
-  await page.evaluate((l) => window.__DEBUG__.flow.travelToPlanet(l), l);
+  await page.evaluate((l) => window.__DEBUG__.flow.debugGo(l), l);
   await scene(k);
   await page.waitForTimeout(2000);
 }
-await page.evaluate(() => window.__DEBUG__.flow.playEnding());
+await page.evaluate(() => window.__DEBUG__.flow.debugGo('ending'));
 await scene('EndingScene');
 await page.waitForTimeout(3000);
 console.log(`requests to anything but ${origin}: ${external.length}${external.length ? '\n  ' + external.join('\n  ') : ''}`);

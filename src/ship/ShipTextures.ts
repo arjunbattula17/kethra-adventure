@@ -87,10 +87,10 @@ function buildNavScreen(ctx: CanvasRenderingContext2D, w: number, h: number): vo
   ctx.strokeRect(146, 20, 8 * 14 + 8, h - 34);
 
   ctx.fillStyle = 'rgba(217,164,65,0.85)';
-  ctx.font = 'bold 12px monospace';
+  ctx.font = 'bold 12px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('NAV // OFFLINE', 150, 22);
   ctx.fillStyle = 'rgba(120,220,235,0.5)';
-  ctx.font = '9px monospace';
+  ctx.font = '9px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('SCN 04.1', 150, 36);
 
   ctx.fillStyle = 'rgba(0,0,0,0.12)';
@@ -102,7 +102,7 @@ function buildStatusScreen(ctx: CanvasRenderingContext2D, w: number, h: number):
   ctx.fillRect(0, 0, w, h);
 
   ctx.fillStyle = 'rgba(255,159,66,0.85)';
-  ctx.font = 'bold 20px monospace';
+  ctx.font = 'bold 20px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('LOGIN REQUIRED', 18, 32);
 
   ctx.strokeStyle = 'rgba(255,159,66,0.35)';
@@ -116,15 +116,15 @@ function buildStatusScreen(ctx: CanvasRenderingContext2D, w: number, h: number):
     ['PWR', '84%'],
     ['O2', '100%'],
   ];
-  ctx.font = '14px monospace';
+  ctx.font = '14px "Atkinson Hyperlegible", sans-serif';
   readouts.forEach(([label, value], i) => {
     const x = 18 + i * 180;
     ctx.fillStyle = 'rgba(255,201,140,0.6)';
     ctx.fillText(label, x, 70);
     ctx.fillStyle = 'rgba(255,159,66,0.95)';
-    ctx.font = 'bold 22px monospace';
+    ctx.font = 'bold 22px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText(value, x, 96);
-    ctx.font = '14px monospace';
+    ctx.font = '14px "Atkinson Hyperlegible", sans-serif';
 
     // Small horizontal gauge under each readout, filled proportional to its percentage.
     const pct = parseInt(value, 10) / 100;
@@ -135,7 +135,7 @@ function buildStatusScreen(ctx: CanvasRenderingContext2D, w: number, h: number):
   });
 
   ctx.fillStyle = 'rgba(255,159,66,0.4)';
-  ctx.font = '9px monospace';
+  ctx.font = '9px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('ARK LTD // ORION INTERFACES', w - 210, h - 8);
 
   ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -159,10 +159,10 @@ function buildCommsScreen(ctx: CanvasRenderingContext2D, w: number, h: number): 
   ctx.stroke();
 
   ctx.fillStyle = 'rgba(217,164,65,0.85)';
-  ctx.font = 'bold 13px monospace';
+  ctx.font = 'bold 13px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('COMMS LINK // ACTIVE', 20, 22);
   ctx.fillStyle = 'rgba(120,220,235,0.5)';
-  ctx.font = '9px monospace';
+  ctx.font = '9px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('FREQ 118.2 MHZ', 20, 36);
 
   // Signal-strength bar cluster.
@@ -175,9 +175,9 @@ function buildCommsScreen(ctx: CanvasRenderingContext2D, w: number, h: number): 
   ctx.lineWidth = 1;
   ctx.strokeRect(w - 170, 46, 150, h - 66);
   ctx.fillStyle = 'rgba(217,164,65,0.7)';
-  ctx.font = '9px monospace';
+  ctx.font = '9px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('CHANNEL', w - 164, 60);
-  ctx.font = 'bold 16px monospace';
+  ctx.font = 'bold 16px "Atkinson Hyperlegible", sans-serif';
   ctx.fillStyle = 'rgba(120,220,235,0.85)';
   ctx.fillText('CH-07', w - 164, 82);
 
@@ -263,10 +263,10 @@ export function buildRadarPanelTexture(): THREE.CanvasTexture {
   }
 
   ctx.fillStyle = 'rgba(120,220,235,0.85)';
-  ctx.font = 'bold 13px monospace';
+  ctx.font = 'bold 13px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('SECTOR SCAN', 10, 18);
   ctx.fillStyle = 'rgba(217,164,65,0.6)';
-  ctx.font = '9px monospace';
+  ctx.font = '9px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('RANGE 40KM', 10, size - 10);
 
   ctx.fillStyle = 'rgba(0,0,0,0.1)';
@@ -297,13 +297,13 @@ export function buildStencilPlacardTexture(id: string, sublabel?: string): THREE
   ctx.strokeRect(2, 2, w - 4, h - 4);
 
   ctx.fillStyle = 'rgba(214,208,196,0.88)';
-  ctx.font = 'bold 40px monospace';
+  ctx.font = 'bold 40px "Atkinson Hyperlegible", sans-serif';
   ctx.textBaseline = 'middle';
   const idY = sublabel ? h * 0.4 : h * 0.5;
   drawLetterSpaced(ctx, id, w / 2, idY, 4);
 
   if (sublabel) {
-    ctx.font = 'bold 16px monospace';
+    ctx.font = 'bold 16px "Atkinson Hyperlegible", sans-serif';
     ctx.fillStyle = 'rgba(214,208,196,0.65)';
     drawLetterSpaced(ctx, sublabel, w / 2, h * 0.72, 3);
   }
@@ -418,11 +418,11 @@ export function buildLargeDeckNumberTexture(text: string, sublabel?: string): TH
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const fontSize = text.length <= 1 ? Math.floor(w * 0.85) : Math.floor(w * 0.6);
-  ctx.font = `bold ${fontSize}px monospace`;
+  ctx.font = `bold ${fontSize}px "Atkinson Hyperlegible", sans-serif`;
   ctx.fillText(text, w / 2, h * 0.42);
 
   if (sublabel) {
-    ctx.font = 'bold 26px monospace';
+    ctx.font = 'bold 26px "Atkinson Hyperlegible", sans-serif';
     ctx.fillStyle = 'rgba(214,208,196,0.55)';
     drawLetterSpaced(ctx, sublabel, w / 2, h * 0.78, 5);
   }
@@ -462,7 +462,7 @@ export function buildFloorStencilTexture(label: string): THREE.CanvasTexture {
   ctx.strokeRect(14, 14, size - 28, size - 28);
 
   ctx.fillStyle = 'rgba(214,208,196,0.55)';
-  ctx.font = 'bold 44px monospace';
+  ctx.font = 'bold 44px "Atkinson Hyperlegible", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, size / 2, size / 2);

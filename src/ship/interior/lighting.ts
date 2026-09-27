@@ -537,6 +537,8 @@ export function buildLighting(ctx: InteriorCtx): void {
     sweep.renderOrder = 3;
     sweepGroup.add(sweep);
     ctx.scene.add(sweepGroup);
+    // Its group spins every frame; merged into a static batch it would freeze in place.
+    ctx.noMerge.add(sweep);
 
     beaconSweeps.push(sweepGroup);
 

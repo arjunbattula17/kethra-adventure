@@ -3,87 +3,9 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-
-// The scene lighting rig runs hot for the ACES filmic curve baked into the renderer (Engine.ts,
-// not ours to edit) plus a room-wide IBL ambient (ShipInteriorScene.ts's environmentIntensity,
-// also not ours to edit) that puts a non-trivial floor under every surface regardless of the
-// local light rig — measured medians and p95s sat 0.05-0.24 above the matching reference crop
-// across nearly every view, with crushed-black regions running 10-30x the reference. Four moves
-// compensate: a flat exposure trim for the broad "too bright" baseline; a highlight shoulder so
-// hot practicals/bloom settle below the tonemap's plateau instead of riding it; a gamma>1 shadow
-// compression that pulls the ambient floor down *proportionally harder than it pulls down the
-// highlights* (x^1.15 shrinks a small x by a bigger fraction than a large x); and a narrow toe
-// that lifts only genuinely crushed near-zero pixels so they keep a sliver of material detail —
-// the brief's whole-fix shape: lift the shadow floor's readability without milkifying it, pull
-// the highlights down separately.
-const gradeShader = {
-  uniforms: { tDiffuse: { value: null } },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    varying vec2 vUv;
-    void main() {
-      vec4 color = texture2D(tDiffuse, vUv);
-      vec3 c = color.rgb;
-
-      // Flat exposure trim compensating for the fixed renderer exposure + ambient IBL running hot.
-      c *= 0.85;
-
-      // Highlight shoulder: soft-knee compression above the knee luma. Round 4/5 history: earlier
-      // knee/coeff pairs asymptoted at ~0.85-0.92, which is *below* the 0.90 "hot" bucket the
-      // exposure check counts — no pixel anywhere could ever read as hot regardless of source
-      // brightness. Round 6: measured p95 on console/displays/ceiling/starfieldWindow — the views
-      // whose reference crop is dominated by an actual emissive source (screens, pendant tube) —
-      // sat 0.10-0.23 *below* the reference, while median on those same views ran flat/low too.
-      // Raised the knee and loosened the coefficient so a genuinely bright source can clear 0.9
-      // and read as a real highlight instead of a soft grey; broad mid-lit surfaces (walls, floor)
-      // sit well under the new 0.48 knee so they pass through unchanged.
-      // Round 7: tried raising the knee/loosening the coefficient further to give
-      // ceiling/console/displays/starfieldWindow more highlight headroom, but A/B verified against
-      // repeated renders it moved those p95s by less than this measurement's own run-to-run noise
-      // (~0.01, from the alarm-beacon pulse's animation phase at capture time) while risking
-      // reopening floor/walls, which the lighting.ts trims below just fixed cleanly. Left as-is —
-      // the gamma+split-tone passes below already re-compress most of what a looser knee would add.
-      float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-      float knee = 0.48;
-      if (luma > knee) {
-        float excess = luma - knee;
-        float compressed = knee + excess / (1.0 + excess * 1.15);
-        c *= compressed / max(luma, 1e-4);
-      }
-
-      // Gamma shadow compression — see note above: pulls the ambient-lit floor down without
-      // crushing it to pure black, since gamma > 1 never reaches 0 unless the input already is.
-      c = pow(clamp(c, 0.0, 1.0), vec3(1.15));
-
-      // Shadow toe: lift only genuinely crushed (near-zero) pixels a few percent so they keep a
-      // sliver of readable detail — narrow and small so it doesn't milkify the rest of the range.
-      float shadowWeight = 1.0 - smoothstep(0.0, 0.04, luma);
-      c += 0.035 * shadowWeight;
-
-      // Warm highlights, cool shadows split-tone.
-      float luma2 = dot(c, vec3(0.2126, 0.7152, 0.0722));
-      vec3 warm = vec3(1.06, 1.0, 0.9);
-      vec3 cool = vec3(0.92, 0.96, 1.05);
-      c *= mix(cool, warm, smoothstep(0.15, 0.85, luma2));
-
-      // Vignette — softened so frame corners don't add to the crushed-black count.
-      vec2 centered = vUv - 0.5;
-      float vig = 1.0 - smoothstep(0.35, 0.85, length(centered) * 1.15);
-      c *= mix(0.85, 1.0, vig);
-
-      gl_FragColor = vec4(clamp(c, 0.0, 1.0), color.a);
-    }
-  `,
-};
+import { GradeGlowPass, GRADES } from './GradeGlowPass';
+import type { GradeProfile } from './GradeGlowPass';
 
 export type QualityTier = 'high' | 'medium' | 'low';
 
@@ -92,6 +14,9 @@ export class PostProcessing {
   private renderPass: RenderPass;
   private aoPass: GTAOPass;
   private bloomPass: UnrealBloomPass;
+  private gradePass = new GradeGlowPass();
+  private tier: QualityTier = 'high';
+  private bloomRequested = true;
   // Whether the *current scene* can benefit from AO at all, independent of the quality tier and of
   // the settings menu's own toggle. Both of those choose whether to pay for AO; this decides
   // whether AO is even meaningful here. See GameScene.usesAO.
@@ -170,7 +95,7 @@ export class PostProcessing {
     this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.18, 0.94);
     this.composer.addPass(this.bloomPass);
 
-    this.composer.addPass(new ShaderPass(gradeShader));
+    this.composer.addPass(this.gradePass);
     this.composer.addPass(new OutputPass());
   }
 
@@ -208,9 +133,22 @@ export class PostProcessing {
   // note above), so it's the first thing to drop; bloom is comparatively cheap but still real
   // cost on a genuinely weak device, so 'low' drops both.
   setQuality(tier: QualityTier): void {
+    this.tier = tier;
     this.aoRequested = tier === 'high';
     this.aoPass.enabled = this.aoRequested && this.aoSupported;
-    this.bloomPass.enabled = tier !== 'low';
+    this.bloomRequested = true;
+    this.applyGlow();
+  }
+
+  /** Glow on every tier (docs/DESIGN.md §7): UnrealBloom on High, the grade pass's cheap glow below. */
+  private applyGlow(): void {
+    this.bloomPass.enabled = this.bloomRequested && this.tier === 'high';
+    this.gradePass.glowEnabled = this.bloomRequested && this.tier !== 'high';
+  }
+
+  /** The current scene's colour grade. */
+  setGrade(profile: GradeProfile | undefined): void {
+    this.gradePass.setGrade(profile ?? GRADES.interior);
   }
 
   setAOSupported(supported: boolean): void {
@@ -227,7 +165,8 @@ export class PostProcessing {
   }
 
   setBloomEnabled(enabled: boolean): void {
-    this.bloomPass.enabled = enabled;
+    this.bloomRequested = enabled;
+    this.applyGlow();
   }
 
   render(): void {

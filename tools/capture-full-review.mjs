@@ -71,7 +71,7 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
 
 // 7-9. Kethra environment — travel there and grab a few wide shots.
-await page.evaluate(() => window.__DEBUG__.flow['travelToPlanet']?.('kethra'));
+await page.evaluate(() => window.__DEBUG__.flow.debugGo('kethra'));
 await page.waitForTimeout(2500);
 await page.screenshot({ path: `${outDir}/07_kethra_spawn.png` });
 

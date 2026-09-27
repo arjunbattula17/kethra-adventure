@@ -1,4 +1,5 @@
 import { PanelManager } from '../ui/PanelManager';
+import { registerMiniGame } from '../debug/hooks';
 import { AudioSystem } from '../audio/AudioSystem';
 import { NAV } from '../content/tuning';
 import { PLANETS } from '../galaxy/planetData';
@@ -76,6 +77,7 @@ export class CoursePlot {
   private stepIndex = 0;
   private entry = '';
   private solved = false;
+  private unregisterDebug: () => void = () => {};
   private root!: HTMLDivElement;
   private status!: HTMLDivElement;
   private chart!: HTMLCanvasElement;
@@ -132,11 +134,15 @@ export class CoursePlot {
 
     PanelManager.open(
       panel,
-      () => cancelAnimationFrame(this.rafId),
+      () => {
+        cancelAnimationFrame(this.rafId);
+        this.unregisterDebug();
+      },
       () => {
         // Escape must not skip the first game: it is the route out of the opening.
         if (!this.solved) this.setStatus('Plot incomplete — the computer needs all three figures.', 'warn');
       },
+      'course-plot',
     );
 
     const dpr = window.devicePixelRatio;
@@ -152,6 +158,21 @@ export class CoursePlot {
       this.drawChart();
     };
     loop();
+    // Debug harness (F2/F3): key in every right answer, or a wrong one.
+    this.unregisterDebug = registerMiniGame({
+      name: 'Course plot',
+      win: () => {
+        while (!this.solved) {
+          this.entry = String(STEPS[this.stepIndex].answer);
+          this.submit();
+        }
+      },
+      fail: () => {
+        if (this.solved) return;
+        this.entry = String(STEPS[this.stepIndex].answer + 1);
+        this.submit();
+      },
+    });
     this.refresh();
     this.setStatus('Work each figure out, key it in, and press ENTER.', '');
   }
@@ -183,7 +204,7 @@ export class CoursePlot {
         this.setStatus(`CHART CALIBRATED — burn committed: ${DISTANCE} Mkm, ${DAYS} days, ${CELLS} cells. Kethra is in range.`, 'good');
         this.refresh();
         window.setTimeout(() => {
-          PanelManager.close();
+          PanelManager.close('course-plot');
           this.onSolved();
         }, 3200);
       } else {
@@ -304,7 +325,7 @@ export class CoursePlot {
       ctx.moveTo(shipX + 6 * dpr, cy);
       ctx.lineTo(kethraX - 10 * dpr, cy);
       ctx.stroke();
-      ctx.font = `${9 * dpr}px ui-sans-serif, system-ui`;
+      ctx.font = `${9 * dpr}px "Atkinson Hyperlegible", sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#d9a441';
       ctx.fillText(`${DISTANCE} Mkm`, (shipX + kethraX) / 2, cy - 8 * dpr);
@@ -321,7 +342,7 @@ export class CoursePlot {
         ctx.lineTo(tx, cy + 4 * dpr);
         ctx.stroke();
       }
-      ctx.font = `${9 * dpr}px ui-sans-serif, system-ui`;
+      ctx.font = `${9 * dpr}px "Atkinson Hyperlegible", sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#7cc9e0';
       ctx.fillText(`${DAYS} days`, (shipX + kethraX) / 2, cy + 16 * dpr);
@@ -333,7 +354,7 @@ export class CoursePlot {
         ctx.fillStyle = '#7cbf7c';
         ctx.fillRect(shipX - 14 * dpr + c * 7 * dpr, cy + 24 * dpr, 4 * dpr, 8 * dpr);
       }
-      ctx.font = `${8.5 * dpr}px ui-sans-serif, system-ui`;
+      ctx.font = `${8.5 * dpr}px "Atkinson Hyperlegible", sans-serif`;
       ctx.textAlign = 'left';
       ctx.fillStyle = '#7cbf7c';
       ctx.fillText(`${CELLS} cells`, shipX + 16 * dpr, cy + 31 * dpr);
@@ -382,7 +403,7 @@ export class CoursePlot {
       ctx.arc(kethraX, cy, 4.5 * dpr, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.font = `${9 * dpr}px ui-sans-serif, system-ui`;
+    ctx.font = `${9 * dpr}px "Atkinson Hyperlegible", sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillStyle = this.solved ? '#7cbf7c' : 'rgba(234,226,208,0.7)';
     ctx.fillText('KETHRA', kethraX, cy - kr - 5 * dpr);

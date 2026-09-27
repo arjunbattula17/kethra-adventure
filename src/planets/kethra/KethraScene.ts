@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { displayFontsReady } from '../../core/loadFonts';
+import { GRADES } from '../../core/GradeGlowPass';
+import { MotionScope } from '../../motion';
 import type { GameScene } from '../../core/Engine';
 import { PlayerController } from '../../player/PlayerController';
 import { InteractionSystem } from '../../player/InteractionSystem';
@@ -310,6 +313,8 @@ function buildRuneTexture(seed: number): THREE.CanvasTexture {
 }
 
 export class KethraScene implements GameScene {
+  /** Timers and tweens owned by this scene: disposed with it, so none fires into the next one. */
+  private fx = new MotionScope('game');
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 800);
   player: PlayerController;
@@ -321,6 +326,7 @@ export class KethraScene implements GameScene {
    * "all targets reachable" claim had only ever been checked against a dev build.
    */
   readonly kind = 'KethraScene';
+  readonly grade = GRADES.kethra;
 
   onDepart: (() => void) | null = null;
 
@@ -346,6 +352,9 @@ export class KethraScene implements GameScene {
   }
 
   async init(): Promise<void> {
+    // Signage and screens are drawn onto canvases in the game's own faces: wait for them, or the
+    // textures bake the fallback font for the whole visit.
+    await displayFontsReady();
     // Same grove every visit: see resetGroveRandom in kit.ts for why the scatter is seeded.
     resetGroveRandom();
     UIManager.setLookPromptEnabled(true);
@@ -398,14 +407,14 @@ export class KethraScene implements GameScene {
     this.puzzle.onSolved = () => {
       this.setCanopyBright(true);
       bus.emit('player:shake', 0.35);
-      window.setTimeout(() => {
+      this.fx.after(1.6, () => {
         AudioSystem.playLevelEnd();
         UIManager.showChapterCard({
           eyebrow: 'Level 2 complete',
           title: 'The Heart wakes',
           lines: ['Light and water climb the terraces again.', '+3 resonant crystal: enough to repair the Wren’s navigation and Deep Scanner.'],
         });
-      }, 1600);
+      });
     };
     if (gameState.hasFlag('kethra_mechanism_solved')) this.setCanopyBright(true);
 
@@ -1072,6 +1081,7 @@ export class KethraScene implements GameScene {
   }
 
   dispose(): void {
+    this.fx.dispose();
     for (const u of this.unsub) u();
     this.stopAmbient?.();
     this.stopMusic?.();

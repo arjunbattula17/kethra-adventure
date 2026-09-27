@@ -41,6 +41,36 @@ export function disposeSceneTextures(scene: THREE.Scene): void {
 }
 
 /**
+ * Frees everything a scene holds on the GPU: geometry, materials, every texture (file-backed ones
+ * too, including shader uniforms and the background) and shadow maps. For scenes that own what they
+ * load, such as the space cinematics. Safe even for something shared: three re-uploads a disposed
+ * texture or recompiles a disposed material on its next use, so the only cost is that upload.
+ */
+export function disposeSceneFully(scene: THREE.Scene): void {
+  const textures = new Set<THREE.Texture>();
+  const materials = new Set<THREE.Material>();
+  scene.traverse((obj) => {
+    const light = obj as THREE.Light & { shadow?: THREE.LightShadow };
+    if (light.isLight && light.shadow) light.shadow.dispose();
+    const mesh = obj as THREE.Mesh;
+    if (mesh.geometry) mesh.geometry.dispose();
+    const material = mesh.material;
+    for (const mat of Array.isArray(material) ? material : material ? [material] : []) materials.add(mat);
+  });
+  for (const mat of materials) {
+    for (const slot of MAP_SLOTS) {
+      const tex = (mat as unknown as Record<string, THREE.Texture | undefined>)[slot];
+      if (tex?.isTexture) textures.add(tex);
+    }
+    const uniforms = (mat as THREE.ShaderMaterial).uniforms;
+    if (uniforms) for (const u of Object.values(uniforms)) if ((u.value as THREE.Texture)?.isTexture) textures.add(u.value);
+    mat.dispose();
+  }
+  if ((scene.background as THREE.Texture)?.isTexture) textures.add(scene.background as THREE.Texture);
+  for (const tex of textures) tex.dispose();
+}
+
+/**
  * Halves oversized procedural canvas textures in place, for the low quality tier — the same
  * budget the texture cache applies to the kits' file textures (2048 -> 1024), extended to the
  * generated population, which is the interior's remaining ~170MB. Redrawing the canvas at half

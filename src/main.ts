@@ -1,4 +1,11 @@
 import './style.css';
+import { applyCssTokens } from './motion/css';
+import { startUiClock } from './motion/core';
+
+// Motion tokens reach CSS before anything paints, and the ui clock runs from the first frame.
+// (Both modules are free of three.js, so this page stays small where WebGL turns out to be missing.)
+applyCssTokens();
+startUiClock();
 
 /**
  * Entry point. Checks the one thing the game can't run without before loading any of it: some

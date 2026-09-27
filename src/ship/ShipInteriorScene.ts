@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { displayFontsReady } from '../core/loadFonts';
 import type { GameScene } from '../core/Engine';
 import { PlayerController } from '../player/PlayerController';
 import { InteractionSystem } from '../player/InteractionSystem';
@@ -23,6 +24,12 @@ import { buildLighting } from './interior/lighting';
 import { batchStaticGeometry } from './interior/batchStaticGeometry';
 import { mulberry32 } from '../core/rng';
 import { buildInteriorColliders } from './interior/collision';
+
+/** A repeatable pseudo-random number in [0, 1) for an integer slot. */
+function hash01(n: number): number {
+  const x = Math.sin(n * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
 
 /** Point lights kept in the room at the default tiers; see applyLightBudget. */
 const POINT_LIGHT_BUDGET = 16;
@@ -66,7 +73,7 @@ export class ShipInteriorScene implements GameScene {
   private stopMusic: (() => void) | null = null;
   // Seeded: the emergency light's random spike was the last thing making two runs of the same build
   // render differently, which is what a frame diff has to be able to rule out.
-  private flickerRng = mulberry32(0x3e07);
+  private flickerSeed = mulberry32(0x3e07)() * 1000;
 
   constructor() {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 1.7, 4));
@@ -92,6 +99,9 @@ export class ShipInteriorScene implements GameScene {
   }
 
   async init(): Promise<void> {
+    // Signage and screens are drawn onto canvases in the game's own faces: wait for them, or the
+    // textures bake the fallback font for the whole visit.
+    await displayFontsReady();
     UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x03040a);
     this.scene.environment = getSharedEnvironment();
@@ -216,7 +226,11 @@ export class ShipInteriorScene implements GameScene {
       mat.emissiveIntensity = 0.9 + Math.sin(elapsed * 0.8) * 0.15;
     }
     if (this.emergencyLight) {
-      this.emergencyLight.intensity = 1.1 + Math.sin(elapsed * 3.1) * 0.2 + (this.flickerRng() < 0.02 ? 0.4 : 0);
+      // A spike in roughly one of every eight 1/6 s slots: decided per slot of time, not per frame,
+      // so it flickers at the same rate at 30 Hz and 144 Hz. Seeded, so frame diffs stay stable.
+      const slot = Math.floor(elapsed * 6);
+      const spike = hash01(slot + this.flickerSeed) < 0.12 ? 0.4 : 0;
+      this.emergencyLight.intensity = 1.1 + Math.sin(elapsed * 3.1) * 0.2 + spike;
     }
     for (const status of this.statusLights) {
       const on = Math.sin(elapsed * 5 + status.phase) > 0.4;

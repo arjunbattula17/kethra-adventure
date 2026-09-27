@@ -638,7 +638,7 @@ export function buildDeskMapTexture(): THREE.CanvasTexture {
     [w * 0.3, h * 0.29, 'WP-2'],
     [w * 0.44, h * 0.2, 'WP-3'],
   ];
-  ctx.font = '11px monospace';
+  ctx.font = '11px "Atkinson Hyperlegible", sans-serif';
   for (const [x, y, label] of waypoints) {
     ctx.strokeStyle = 'rgba(168,240,255,0.9)';
     ctx.lineWidth = 1.6;
@@ -666,7 +666,7 @@ export function buildDeskMapTexture(): THREE.CanvasTexture {
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = 'rgba(255,150,120,0.85)';
-  ctx.font = 'bold 12px monospace';
+  ctx.font = 'bold 12px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('DEBRIS / NO-BURN', w * 0.75, h * 0.24);
 
   // Left telemetry column.
@@ -683,10 +683,10 @@ export function buildDeskMapTexture(): THREE.CanvasTexture {
   ctx.strokeRect(16, 16, 190, 104);
   rows.forEach(([k, v], i) => {
     ctx.fillStyle = 'rgba(216,166,58,0.85)';
-    ctx.font = '11px monospace';
+    ctx.font = '11px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText(k, 26, 38 + i * 22);
     ctx.fillStyle = 'rgba(168,240,255,0.95)';
-    ctx.font = 'bold 13px monospace';
+    ctx.font = 'bold 13px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText(v, 78, 38 + i * 22);
   });
 
@@ -697,7 +697,7 @@ export function buildDeskMapTexture(): THREE.CanvasTexture {
     ctx.fillRect(w - 250 + i * 10, h - 22 - bh, 6, bh);
   }
   ctx.fillStyle = 'rgba(120,220,235,0.55)';
-  ctx.font = '10px monospace';
+  ctx.font = '10px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('MASS SPECTRUM // BAND C', w - 250, h - 76);
 
   // Ruler along the bottom edge.
@@ -715,7 +715,7 @@ export function buildDeskMapTexture(): THREE.CanvasTexture {
   }
 
   ctx.fillStyle = 'rgba(216,166,58,0.9)';
-  ctx.font = 'bold 14px monospace';
+  ctx.font = 'bold 14px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('NAV PLOT // ORION APPROACH', 24, h - 22);
 
   // Smeared fingerprints and a wiped-clean arc — the glass is a surface people touch.
@@ -813,18 +813,18 @@ export function buildControlFaceTexture(label: string, accent: 'amber' | 'cyan' 
     ctx.lineWidth = 2;
     ctx.strokeRect(x, 26, 194, 50);
     ctx.fillStyle = `rgba(${accentRgb},0.9)`;
-    ctx.font = 'bold 22px monospace';
+    ctx.font = 'bold 22px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText(i === 0 ? '084.2' : '  ON', x + 14, 60);
     ctx.fillStyle = 'rgba(216,166,58,0.6)';
-    ctx.font = '9px monospace';
+    ctx.font = '9px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText(i === 0 ? 'THRUST TRIM' : 'INTERLOCK', x + 108, 44);
   }
 
   ctx.fillStyle = 'rgba(214,208,196,0.62)';
-  ctx.font = 'bold 13px monospace';
+  ctx.font = 'bold 13px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText(label, 24, h - 16);
   ctx.fillStyle = 'rgba(214,208,196,0.28)';
-  ctx.font = '10px monospace';
+  ctx.font = '10px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText('ARK LTD', w - 84, h - 16);
 
   const tex = finish(canvas, false);
@@ -979,7 +979,7 @@ export function buildSecondaryScreenTexture(variant: 'sys' | 'diag'): THREE.Canv
 
   if (variant === 'sys') {
     ctx.fillStyle = 'rgba(216,166,58,0.9)';
-    ctx.font = 'bold 23px monospace';
+    ctx.font = 'bold 23px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText('SUBSYSTEM LOAD', 26, 40);
     const rows: [string, string][] = [
       ['LIFE SUP', 'life'], ['REACTOR', 'reactor'], ['THRUST', 'thrust'],
@@ -990,7 +990,7 @@ export function buildSecondaryScreenTexture(variant: 'sys' | 'diag'): THREE.Canv
       const rgb = '120,220,235';
       drawSysIcon(ctx, icon, 34, y + 14, 15, rgb);
       ctx.fillStyle = `rgba(${rgb},0.65)`;
-      ctx.font = '19px monospace';
+      ctx.font = '19px "Atkinson Hyperlegible", sans-serif';
       ctx.fillText(n, 60, y + 20);
       const pct = 0.25 + rand() * 0.72;
       ctx.strokeStyle = 'rgba(79,216,240,0.35)';
@@ -999,12 +999,12 @@ export function buildSecondaryScreenTexture(variant: 'sys' | 'diag'): THREE.Canv
       ctx.fillStyle = pct > 0.85 ? 'rgba(224,85,47,0.85)' : 'rgba(79,216,240,0.75)';
       ctx.fillRect(198, y, 352 * pct, 23);
       ctx.fillStyle = 'rgba(168,240,255,0.85)';
-      ctx.font = '17px monospace';
+      ctx.font = '17px "Atkinson Hyperlegible", sans-serif';
       ctx.fillText(`${Math.round(pct * 100)}%`, 562, y + 19);
     });
   } else {
     ctx.fillStyle = 'rgba(216,166,58,0.9)';
-    ctx.font = 'bold 23px monospace';
+    ctx.font = 'bold 23px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText('HULL DIAGNOSTIC', 26, 40);
     // Top-down wireframe hull with two flagged sections.
     ctx.save();
@@ -1035,7 +1035,7 @@ export function buildSecondaryScreenTexture(variant: 'sys' | 'diag'): THREE.Canv
     ctx.fillRect(28, -38, 46, 31);
     ctx.restore();
     ctx.fillStyle = 'rgba(255,150,120,0.9)';
-    ctx.font = '17px monospace';
+    ctx.font = '17px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText('SEC 4-B  BREACH', 26, h - 52);
     ctx.fillStyle = 'rgba(216,166,58,0.8)';
     ctx.fillText('SEC 2-C  STRESS', 26, h - 24);

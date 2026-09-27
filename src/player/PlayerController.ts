@@ -3,6 +3,7 @@ import { InputManager } from '../core/InputManager';
 import { PLAYER } from '../content/tuning';
 import { BINDINGS } from '../content/controls';
 import type { BindingId } from '../content/controls';
+import { motion, damp } from '../motion';
 
 const held = (id: BindingId) => BINDINGS[id].codes.some((c) => InputManager.isDown(c));
 const pressed = (id: BindingId) => BINDINGS[id].codes.some((c) => InputManager.wasJustPressed(c));
@@ -60,13 +61,15 @@ export class PlayerController {
   onLand: ((strength: number) => void) | null = null;
   /** Multiplies mouse-look speed; set from the settings menu. */
   static sensitivity = 1;
-  /** Off in reduced-motion mode: no head bob, no landing dip, no lean, no camera shake. */
-  static motion = true;
   private lastBobHalfCycle = 0;
   private sinceGrounded = 0;
   private jumpBufferedFor = 0;
   private landDip = 0;
   private lean = 0;
+  /** 0 standing, 1 crouched: eased, so the view lowers instead of snapping. */
+  private crouchAmount = 0;
+  /** Advances with time, not frames, so shake jitters at the same rate at 30 Hz and 144 Hz. */
+  private shakePhase = 0;
 
   constructor(camera: THREE.PerspectiveCamera, startPos = new THREE.Vector3(0, 1.7, 0)) {
     this.camera = camera;
@@ -254,23 +257,27 @@ export class PlayerController {
         this.onFootstep?.();
       }
     }
-    const motion = PlayerController.motion ? 1 : 0;
-    const bobY = moving && this.onGround ? Math.sin(this.headBobTime) * 0.035 * motion : 0;
-    const bobX = moving && this.onGround ? Math.cos(this.headBobTime * 0.5) * 0.02 * motion : 0;
-    this.landDip = Math.max(0, this.landDip - this.landDip * Math.min(1, dt * LAND_RECOVER));
+    // Reduced motion: no head bob, no landing dip, no lean, no camera shake.
+    const amount = motion.reduced ? 0 : 1;
+    const bobY = moving && this.onGround ? Math.sin(this.headBobTime) * 0.035 * amount : 0;
+    const bobX = moving && this.onGround ? Math.cos(this.headBobTime * 0.5) * 0.02 * amount : 0;
+    this.landDip = damp(this.landDip, 0, LAND_RECOVER, dt);
     // A slight roll into strafes, so sideways movement has weight.
-    this.lean += (-moveX * (moving ? 0.012 : 0) * motion - this.lean) * Math.min(1, dt * 8);
+    this.lean = damp(this.lean, -moveX * (moving ? 0.012 : 0) * amount, 8, dt);
+    this.crouchAmount = damp(this.crouchAmount, this.crouching ? 1 : 0, 14, dt);
 
     let shakeX = 0;
     let shakeY = 0;
     if (this.cameraShakeTrauma > 0) {
-      const shake = this.cameraShakeTrauma * this.cameraShakeTrauma * motion;
-      shakeX = (Math.random() - 0.5) * shake * 0.3;
-      shakeY = (Math.random() - 0.5) * shake * 0.3;
+      const shake = this.cameraShakeTrauma * this.cameraShakeTrauma * amount;
+      this.shakePhase += dt * 24;
+      const p = this.shakePhase;
+      shakeX = ((Math.sin(p) + 0.5 * Math.sin(p * 2.37 + 1.3)) / 1.5) * shake * 0.15;
+      shakeY = ((Math.sin(p * 1.13 + 2.1) + 0.5 * Math.sin(p * 2.71 + 0.4)) / 1.5) * shake * 0.15;
       this.cameraShakeTrauma = Math.max(0, this.cameraShakeTrauma - dt * 1.6);
     }
 
-    this.camera.position.set(bobX + shakeX, EYE_HEIGHT + bobY + shakeY - this.landDip * motion - EYE_HEIGHT * (this.crouching ? 0.35 : 0), 0);
+    this.camera.position.set(bobX + shakeX, EYE_HEIGHT + bobY + shakeY - this.landDip * amount - EYE_HEIGHT * 0.35 * this.crouchAmount, 0);
     this.camera.rotation.z = this.lean;
   }
 

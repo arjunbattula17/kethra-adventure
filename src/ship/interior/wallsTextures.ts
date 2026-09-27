@@ -746,7 +746,7 @@ export function buildStencilTextTexture(text: string, px = 74): THREE.CanvasText
   const h = 192;
   const [el, ctx] = canvas2d(w, h);
   ctx.clearRect(0, 0, w, h);
-  ctx.font = `bold ${px}px monospace`;
+  ctx.font = `bold ${px}px Rajdhani, sans-serif`;
   ctx.textAlign = 'start';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(214,208,196,0.62)';

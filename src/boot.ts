@@ -17,7 +17,14 @@ import { setActiveEngine } from './core/EngineRegistry';
 import { TitleScreen } from './ui/TitleScreen';
 import { PauseMenu } from './ui/PauseMenu';
 import { t } from './content/strings';
+import { mulberry32 } from './core/rng';
+import { motion } from './motion';
 
+
+const params = new URLSearchParams(location.search);
+// ?seed=N makes every random stream repeatable (the debug harness and the capture tools use it).
+const seedParam = params.get('seed');
+if (seedParam !== null) Math.random = mulberry32(Number(seedParam) || 1);
 
 loadFonts();
 const appEl = document.getElementById('app')!;
@@ -47,10 +54,9 @@ MapController.init();
 CharacterPanel.init();
 SettingsPanel.init();
 
-const params = new URLSearchParams(location.search);
 // The test and capture tools boot with these flags and skip the title screen; so does New Game
 // from the title itself, which reboots with ?newGame=1 when a save is loaded.
-const bootFlags = ['newGame', 'skipIntro', 'skipTutorial', 'unlockKethra', 'unlockVessek'].some((k) => params.has(k));
+const bootFlags = ['newGame', 'skipIntro', 'skipTutorial', 'unlockKethra', 'unlockVessek', 'jump'].some((k) => params.has(k));
 // load() returns false on unreadable JSON. It used to be called for its side effect and the success
 // toast shown regardless, so a corrupt save told the player their journey had been restored and
 // then dropped them into a fresh game. The toast now waits for the player to press Continue.
@@ -100,7 +106,11 @@ PauseMenu.init({
 });
 if (bootFlags) {
   if (savedJourney === 'loaded') UIManager.toast(t('toast.continue'));
-  flow.start();
+  // ?jump=<state> goes straight on to a state once the boot has settled (the debug harness's F1).
+  const jump = params.get('jump');
+  void flow.start().then(() => {
+    if (jump === 'tutorial' || jump === 'plot' || jump === 'kethra' || jump === 'vessek' || jump === 'ending') void flow.debugGo(jump);
+  });
 } else {
   document.body.classList.add('title-open');
   TitleScreen.show({
@@ -125,4 +135,6 @@ document.addEventListener('visibilitychange', () => AudioSystem.setSuspended(doc
 // Switching away mid-play pauses, so the player comes back to a menu rather than a moving game.
 window.addEventListener('blur', () => PauseMenu.request());
 
-(window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'] };
+// A read-only probe for the test tools (tools/*.mjs). The interactive harness only loads with ?debug.
+(window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'], motion };
+if (params.has('debug')) void import('./debug/DebugHarness').then(({ startDebugHarness }) => startDebugHarness(engine, flow));

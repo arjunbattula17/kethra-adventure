@@ -26,7 +26,7 @@ await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { tim
 await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 120000, polling: 500 });
 
 if (scene === 'kethra') {
-  await page.evaluate(() => window.__DEBUG__.flow['travelToPlanet']?.('kethra'));
+  await page.evaluate(() => window.__DEBUG__.flow.debugGo('kethra'));
   await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.kind !== 'ShipInteriorScene', undefined, { timeout: 180000, polling: 500 });
   await page.waitForTimeout(3000);
 } else if (scene === 'reveal') {

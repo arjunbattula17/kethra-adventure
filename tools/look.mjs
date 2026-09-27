@@ -46,7 +46,7 @@ await page.goto(`${BASE}?skipIntro=1&unlockKethra=1&newGame=1&tier=high${flags}`
 await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 240000, polling: 500 });
 const kind = { kethra: 'KethraScene', vessek: 'VessekScene', ship: 'ShipInteriorScene' }[SCENE];
 if (SCENE !== 'ship') {
-  await page.evaluate((s) => window.__DEBUG__.flow.travelToPlanet(s), SCENE);
+  await page.evaluate((s) => window.__DEBUG__.flow.debugGo(s), SCENE);
   await page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k, kind, { timeout: 240000, polling: 500 });
 }
 await page.waitForTimeout(4000);

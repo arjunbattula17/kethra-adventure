@@ -55,9 +55,9 @@ for (const sc of SCENES) {
   await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 240000, polling: 250 });
   if (sc.go === 'transitionToGalaxyReveal') {
     await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 240000, polling: 250 });
-    await page.evaluate(() => window.__DEBUG__.flow.transitionToGalaxyReveal());
+    await page.evaluate(() => window.__DEBUG__.flow.debugGo('reveal'));
   } else if (sc.go === 'kethra') {
-    await page.evaluate(() => window.__DEBUG__.flow.travelToPlanet('kethra'));
+    await page.evaluate(() => window.__DEBUG__.flow.debugGo('kethra'));
   }
   await page.waitForFunction(
     (kind) => {

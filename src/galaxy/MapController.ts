@@ -1,4 +1,5 @@
 import { bus } from '../core/EventBus';
+import { motion } from '../motion';
 import { gameState } from '../core/GameState';
 import { PanelManager } from '../ui/PanelManager';
 import { UIManager } from '../ui/UIManager';
@@ -125,7 +126,7 @@ class MapControllerImpl {
 
   private render(): void {
     const wrap = document.createElement('div');
-    wrap.className = 'map-panel map-fade-in';
+    wrap.className = 'map-panel';
 
     const chart = document.createElement('div');
     chart.className = 'map-chart';
@@ -156,16 +157,24 @@ class MapControllerImpl {
 
     wrap.append(chart, sidebar);
 
-    PanelManager.open(
-      wrap,
-      () => {
-        cancelAnimationFrame(this.rafId);
-        this.resizeObserver?.disconnect();
-        this.setActivePlayer(true);
-        window.removeEventListener('keydown', this.keys);
-      },
-      () => this.handleEscape(),
-    );
+    // Switching between the solar chart and a surface chart is a new page of the same panel:
+    // swap it in place with a short cross-fade. Only a real close runs the close handler.
+    if (PanelManager.isOpen && PanelManager.activeId === 'map') {
+      PanelManager.setContent(wrap);
+      motion.ui.animate(wrap, [{ opacity: 0 }, { opacity: 1 }], { dur: 'small' });
+    } else {
+      PanelManager.open(
+        wrap,
+        () => {
+          cancelAnimationFrame(this.rafId);
+          this.resizeObserver?.disconnect();
+          this.setActivePlayer(true);
+          window.removeEventListener('keydown', this.keys);
+        },
+        () => this.handleEscape(),
+        'map',
+      );
+    }
 
     window.removeEventListener('keydown', this.keys);
     window.addEventListener('keydown', this.keys);

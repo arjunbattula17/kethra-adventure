@@ -496,7 +496,7 @@ function paintOpenBayTexture(): THREE.CanvasTexture {
   c.fillStyle = 'rgba(178,170,146,0.75)';
   c.fillRect(140, 236, 82, 62);
   c.fillStyle = 'rgba(40,38,34,0.65)';
-  c.font = '9px monospace';
+  c.font = '9px "Atkinson Hyperlegible", sans-serif';
   for (let i = 0; i < 6; i++) c.fillText('▪ 4A-0' + (i + 1) + ' BUS', 145, 250 + i * 9);
 
   return finish(c);
@@ -962,7 +962,7 @@ export function buildLedBankTexture(seed: number): THREE.CanvasTexture {
   }
 
   c.fillStyle = 'rgba(190,198,210,0.55)';
-  c.font = 'bold 15px monospace';
+  c.font = 'bold 15px "Atkinson Hyperlegible", sans-serif';
   c.textAlign = 'center';
   c.fillText('BUS 4-A', w / 2, 20);
   c.fillText('RCS PWR', w / 2, h - 12);
@@ -998,7 +998,7 @@ export function buildSillReadoutTexture(seed: number): THREE.CanvasTexture {
   c.fillStyle = 'rgba(79,216,240,0.22)';
   c.fillRect(0, 0, w, 22);
   c.fillStyle = 'rgba(190,240,255,0.9)';
-  c.font = 'bold 14px monospace';
+  c.font = 'bold 14px "Atkinson Hyperlegible", sans-serif';
   c.textAlign = 'left';
   const labels = ['NAV TRIM', 'HULL TEMP', 'ATT REF', 'DRIFT'];
   c.fillText(labels[seed % labels.length], 8, 16);
@@ -1028,7 +1028,7 @@ export function buildSillReadoutTexture(seed: number): THREE.CanvasTexture {
   c.stroke();
 
   // Text rows under the trace.
-  c.font = '11px monospace';
+  c.font = '11px "Atkinson Hyperlegible", sans-serif';
   for (let i = 0; i < 3; i++) {
     c.fillStyle = `rgba(150,220,240,${0.35 + rnd() * 0.35})`;
     c.fillText(`${(rnd() * 999).toFixed(0).padStart(3, '0')}·${(rnd() * 99).toFixed(0)}  OK`, 270, 118 + i * 13);
@@ -1072,7 +1072,7 @@ export function buildBreakerPanelTexture(seed: number): THREE.CanvasTexture {
   }
 
   c.fillStyle = 'rgba(200,208,218,0.55)';
-  c.font = 'bold 15px monospace';
+  c.font = 'bold 15px "Atkinson Hyperlegible", sans-serif';
   c.textAlign = 'center';
   c.fillText('PANEL ' + (seed % 8 + 1), w / 2, 20);
 
@@ -1122,7 +1122,7 @@ export function buildBreakerPanelTexture(seed: number): THREE.CanvasTexture {
     c.translate(150, y - 2);
     c.rotate((rnd() - 0.5) * 0.05);
     c.fillStyle = 'rgba(224,220,206,0.7)';
-    c.font = '12px monospace';
+    c.font = '12px "Atkinson Hyperlegible", sans-serif';
     c.textAlign = 'left';
     c.fillText(circuitTags[(seed + r * 3) % circuitTags.length] + '-' + (r + 1), -60, 0);
     c.restore();
@@ -1197,10 +1197,10 @@ export function buildHandTagTexture(line1: string, line2: string): THREE.CanvasT
   c.fill();
 
   c.fillStyle = 'rgba(30,22,10,0.82)';
-  c.font = 'bold 20px monospace';
+  c.font = 'bold 20px "Atkinson Hyperlegible", sans-serif';
   c.textAlign = 'center';
   c.fillText(line1, 2, -cardH / 2 + 34);
-  c.font = '13px monospace';
+  c.font = '13px "Atkinson Hyperlegible", sans-serif';
   c.fillStyle = 'rgba(30,22,10,0.7)';
   c.fillText(line2, -2, -cardH / 2 + 56);
 

@@ -74,7 +74,7 @@ function label(c: CanvasRenderingContext2D, text: string, x: number, y: number, 
   c.save();
   c.globalAlpha = alpha;
   c.fillStyle = color;
-  c.font = `bold ${size}px "Courier New", monospace`;
+  c.font = `bold ${size}px "Atkinson Hyperlegible", sans-serif`;
   c.fillText(text, x, y);
   c.restore();
 }
@@ -245,7 +245,7 @@ function drawReticle(c: CanvasRenderingContext2D, cx: number, cy: number, R: num
 
   // Bearing numerals around the outside.
   c.save();
-  c.font = 'bold 15px "Courier New", monospace';
+  c.font = 'bold 15px "Atkinson Hyperlegible", sans-serif';
   c.textAlign = 'center';
   c.globalAlpha = 0.7;
   c.fillStyle = CYAN;
@@ -446,7 +446,7 @@ function drawRightColumn(c: CanvasRenderingContext2D): void {
   }
   c.restore();
   c.save();
-  c.font = 'bold 12px "Courier New", monospace';
+  c.font = 'bold 12px "Atkinson Hyperlegible", sans-serif';
   for (let r = 0; r < 6; r++) {
     for (let col = 0; col < 4; col++) {
       const hot = r === 2 && col === 1;
@@ -844,7 +844,7 @@ export function buildFrameLabelTexture(text: string): THREE.CanvasTexture {
   c.fillRect(0, h - 4, w, 4);
   c.save();
   c.textAlign = 'center';
-  c.font = 'bold 26px "Courier New", monospace';
+  c.font = 'bold 26px "Atkinson Hyperlegible", sans-serif';
   c.fillStyle = '#c9c2b4';
   c.fillText(text, w / 2, 42);
   c.restore();

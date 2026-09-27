@@ -54,7 +54,7 @@ const PRESETS = {
   },
   'kethra-spawn': async (page) => {
     await gotoReady(page, '?skipIntro=1&unlockKethra=1');
-    await page.evaluate(() => window.__DEBUG__.flow['travelToPlanet']?.('kethra'));
+    await page.evaluate(() => window.__DEBUG__.flow.debugGo('kethra'));
     await page.waitForTimeout(2500);
   },
   'character-panel': async (page) => {

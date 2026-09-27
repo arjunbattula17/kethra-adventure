@@ -40,11 +40,8 @@ lossless PNG with no alpha channel in use — several were 4-6MB apiece for no v
 quality-85 JPEG. Re-encoded to `.jpg`; `src/planets/kethra/kit.ts`'s URL modifier redirects the
 glTFs' original bare `.png` filename requests to the `.jpg` siblings.
 
-`ship/freighter.glb` is **"Colored Freighter" by Jacques Fourie**, licensed
-[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), sourced via the Google Poly archive
-mirror at [poly.pizza](https://poly.pizza). Geometry as shipped (47k triangles); its eleven
-flat colour-slot materials are reassigned PBR roles at load time in `src/galaxy/shipHull.ts`
-(the glTF's UVs are a palette atlas, so texture maps can't be applied through them).
+The Wren's hull is built in code (`src/galaxy/shipHull.ts`). It replaced "Colored Freighter" by
+Jacques Fourie (CC BY 3.0) on 2026-09-27; that model is no longer in the build.
 
 The former `planets/` NASA VTAD glbs were replaced by shader planets driven by the prepared
 equirect maps in `public/textures/planets/` — see `public/textures/CREDITS.md` and

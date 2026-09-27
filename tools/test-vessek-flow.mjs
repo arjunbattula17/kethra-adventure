@@ -144,7 +144,8 @@ await page.waitForTimeout(6000);
 await page.keyboard.press('Space');
 await page.waitForSelector('.credits-roll.visible', { timeout: 15000 });
 const credits = await page.textContent('.credits-roll');
-check('credits name the team slot and CC BY assets', credits.includes('team #') && credits.includes('CC BY 3.0') && credits.includes('CC BY 4.0'));
+// The only CC BY asset left is the planet maps (docs/ASSET_LICENSE_LOG.md): its attribution must roll.
+check('credits name the team slot and the CC BY planet maps', credits.includes('team #') && credits.includes('CC BY 4.0') && /solar system scope/i.test(credits));
 await page.screenshot({ path: 'renders/test-vessek-credits.png' });
 // Focus lands on "Keep exploring": Enter is the keyboard-only path.
 check('credits focus the first action', await page.evaluate(() => document.activeElement?.textContent === 'Keep exploring'));

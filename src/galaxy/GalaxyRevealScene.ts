@@ -1,12 +1,16 @@
 import * as THREE from 'three';
 import type { GameScene } from '../core/Engine';
-import { CinematicSequencer } from '../player/CameraController';
+import { CameraPath, MotionScope, ease } from '../motion';
+import { disposeSceneFully } from '../core/disposeSceneTextures';
 import { UIManager } from '../ui/UIManager';
 import { getSharedEnvironment } from '../core/Environment';
 import { PLANETS } from './planetData';
 import { buildShipHull } from './shipHull';
 import { buildPlanetInstance, type PlanetInstance } from './planetShader';
-import { buildStarfield, getPointSprite } from './spaceDressing';
+import { getPointSprite } from './spaceDressing';
+import { buildSpaceSky } from './spaceSky';
+import type { SpaceSky } from './spaceSky';
+import { GRADES } from '../core/GradeGlowPass';
 
 function buildGlowTexture(): THREE.Texture {
   const size = 256;
@@ -119,94 +123,18 @@ function buildRingTexture(): THREE.Texture {
   return texture;
 }
 
-/** A small pool of additive-blended embers that stream backward from the ship's engines,
- * faded out by lerping vertex color toward black (invisible under additive blending) rather
- * than a per-particle alpha, since PointsMaterial has no per-vertex opacity attribute. */
-class EngineTrail {
-  points: THREE.Points;
-  private readonly count: number;
-  private readonly life = 1.3;
-  private readonly positions: Float32Array;
-  private readonly colors: Float32Array;
-  private readonly velocities: Float32Array;
-  private readonly ages: Float32Array;
-  private cursor = 0;
-  private spawnAccumulator = 0;
-  private readonly baseColor = new THREE.Color(0xffb870);
-
-  constructor(count: number) {
-    this.count = count;
-    this.positions = new Float32Array(count * 3);
-    this.colors = new Float32Array(count * 3);
-    this.velocities = new Float32Array(count * 3);
-    this.ages = new Float32Array(count).fill(Infinity);
-
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
-    const mat = new THREE.PointsMaterial({
-      size: 0.4,
-      map: getPointSprite(),
-      vertexColors: true,
-      transparent: true,
-      opacity: 1,
-      depthWrite: false,
-      sizeAttenuation: true,
-      blending: THREE.AdditiveBlending,
-    });
-    this.points = new THREE.Points(geo, mat);
-  }
-
-  private spawnOne(origin: THREE.Vector3, dir: THREE.Vector3): void {
-    const i = this.cursor;
-    this.cursor = (this.cursor + 1) % this.count;
-    const jitter = 0.08;
-    this.positions[i * 3] = origin.x + (Math.random() - 0.5) * jitter;
-    this.positions[i * 3 + 1] = origin.y + (Math.random() - 0.5) * jitter;
-    this.positions[i * 3 + 2] = origin.z + (Math.random() - 0.5) * jitter;
-    const speed = 0.9 + Math.random() * 0.6;
-    this.velocities[i * 3] = dir.x * speed + (Math.random() - 0.5) * 0.15;
-    this.velocities[i * 3 + 1] = dir.y * speed + (Math.random() - 0.5) * 0.15;
-    this.velocities[i * 3 + 2] = dir.z * speed + (Math.random() - 0.5) * 0.15;
-    this.ages[i] = 0;
-    this.colors[i * 3] = this.baseColor.r;
-    this.colors[i * 3 + 1] = this.baseColor.g;
-    this.colors[i * 3 + 2] = this.baseColor.b;
-  }
-
-  spawnBurst(origins: THREE.Vector3[], dir: THREE.Vector3, dt: number): void {
-    this.spawnAccumulator += dt * origins.length * 26;
-    while (this.spawnAccumulator >= 1) {
-      this.spawnAccumulator -= 1;
-      const origin = origins[Math.floor(Math.random() * origins.length)];
-      this.spawnOne(origin, dir);
-    }
-  }
-
-  update(dt: number): void {
-    for (let i = 0; i < this.count; i++) {
-      if (this.ages[i] >= this.life) continue;
-      this.ages[i] += dt;
-      const t = Math.min(1, this.ages[i] / this.life);
-      this.positions[i * 3] += this.velocities[i * 3] * dt;
-      this.positions[i * 3 + 1] += this.velocities[i * 3 + 1] * dt;
-      this.positions[i * 3 + 2] += this.velocities[i * 3 + 2] * dt;
-      this.colors[i * 3] = this.baseColor.r * (1 - t);
-      this.colors[i * 3 + 1] = this.baseColor.g * (1 - t);
-      this.colors[i * 3 + 2] = this.baseColor.b * (1 - t);
-    }
-    (this.points.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-    (this.points.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
-  }
-}
-
 export class GalaxyRevealScene implements GameScene {
   // Nothing in open space occludes anything; GTAO only paints half-resolution blocky artefacts
   // across the sky here (see Engine.GameScene.usesAO).
+  /** Stable identity for the harnesses in tools/ (constructor names are mangled in production). */
+  readonly kind = 'GalaxyRevealScene';
   readonly usesAO = false;
+  readonly grade = GRADES.space;
   scene = new THREE.Scene();
+  private sky!: SpaceSky;
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 4000);
-  private sequencer: CinematicSequencer;
+  /** Everything that moves in this scene; disposed with it. */
+  private fx = new MotionScope('game');
   private ship!: THREE.Group;
   private sun!: THREE.Mesh;
   private planetMeshes: THREE.Object3D[] = [];
@@ -214,15 +142,9 @@ export class GalaxyRevealScene implements GameScene {
   private coronaInner!: THREE.Sprite;
   private coronaOuter!: THREE.Sprite;
   private asteroidField!: THREE.Group;
-  private engineTrail: EngineTrail;
-  private engineLocalPositions: THREE.Vector3[] = [];
   private pingSprite!: THREE.Sprite;
   private pingElapsed = -1;
   private elapsedTotal = 0;
-  // Cinematic beats (captions, sensor ping) fire off this dt-accumulated clock, not real
-  // setTimeout wall-clock time -- see revealTimers below for why.
-  private revealElapsed = 0;
-  private revealTimers: Array<{ at: number; fn: () => void; fired: boolean }> = [];
   private readyForContinue = false;
   onContinue: (() => void) | null = null;
   private continueHandler = (e: KeyboardEvent) => {
@@ -232,11 +154,6 @@ export class GalaxyRevealScene implements GameScene {
     if (this.readyForContinue) this.triggerContinue();
   };
 
-  constructor() {
-    this.sequencer = new CinematicSequencer(this.camera);
-    this.engineTrail = new EngineTrail(160);
-  }
-
   async init(): Promise<void> {
     UIManager.setLookPromptEnabled(false);
     this.scene.background = new THREE.Color(0x02030a);
@@ -245,23 +162,8 @@ export class GalaxyRevealScene implements GameScene {
     // environment reads as flat black), low enough that space still reads as vacuum-dark.
     this.scene.environmentIntensity = 0.3;
 
-    // Generated 4096x2048 equirect sky (tools/prep-starfield.mjs) behind the procedural
-    // point-star fields below — a flat color reads as empty space, this reads as a sky. It
-    // replaced the NASA starmap's 1024x512 print-resolution JPEG, whose compression blotches
-    // were the single largest source of "the space background looks blurry".
-    new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/space/starfield.jpg`, (texture) => {
-      texture.mapping = THREE.EquirectangularReflectionMapping;
-      texture.colorSpace = THREE.SRGBColorSpace;
-      this.scene.background = texture;
-      // The shared post-process grade (PostProcessing.ts) was tuned entirely against the ship
-      // interior's lit surfaces, and its shadow-toe lift/gamma compression flattens a mostly-
-      // near-black sky into a duller grey than the texture's own galactic band actually is.
-      // backgroundIntensity boosts just the background draw, independent of that shared pipeline.
-      this.scene.backgroundIntensity = 1.5;
-    });
-
-    this.scene.add(buildStarfield(2400, 500, 1.1));
-    this.scene.add(buildStarfield(1800, 900, 0.5));
+    this.sky = buildSpaceSky();
+    this.scene.add(this.sky.group);
 
     // Kit pieces load async — everything below this line may assume this.ship exists, and nothing
     // above it touches the ship, so awaiting here up front is enough to keep playReveal()'s camera
@@ -269,9 +171,10 @@ export class GalaxyRevealScene implements GameScene {
     // also awaits this whole init() before the scene becomes current and update() starts running.
     const hull = await buildShipHull();
     this.ship = hull.group;
-    this.engineLocalPositions = hull.engineLocalPositions;
+    // Emergency power since the white sky: the ports glow the ship's own amber, low.
+    hull.parts.windows.emissive.setHex(0xffb45a);
+    hull.parts.windows.emissiveIntensity = 0.55;
     this.scene.add(this.ship);
-    this.scene.add(this.engineTrail.points);
 
     const ambient = new THREE.AmbientLight(0x445577, 0.3);
     this.scene.add(ambient);
@@ -423,29 +326,33 @@ export class GalaxyRevealScene implements GameScene {
   private playReveal(): void {
     UIManager.showLetterbox(true);
     const sunPos = this.sun.position;
-    this.sequencer.play(
-      [
-        // Hero pass along the sunlit flank: nose in frame, engines trailing away, hull catching
-        // the directional key. Stays on the -Z side so the dolly never crosses through the hull.
-        { position: new THREE.Vector3(8.5, 3, -7), lookAt: this.ship.position.clone(), duration: 3.2, hold: 0.4 },
-        { position: new THREE.Vector3(24, 14, 42), lookAt: new THREE.Vector3(-6, 2, sunPos.z * 0.4), duration: 4.5, hold: 0.8, fov: 55 },
-        { position: new THREE.Vector3(38, 48, 158), lookAt: new THREE.Vector3(12, -8, sunPos.z * 0.58), duration: 5.5, hold: 2, fov: 58 },
-      ],
-      () => {
-        this.readyForContinue = true;
-        UIManager.showCaption('Click or press Enter to continue', 999999);
+    const start = this.camera.position.clone();
+    const startLook = this.ship.position.clone().add(new THREE.Vector3(2, 0, 0));
+    // One continuous move through the old keyframes (hero pass on the sunlit flank, the pull
+    // back past the belt, the wide of the whole system), on the camera path that never stops dead.
+    const path = new CameraPath([
+      { position: start, target: startLook, fov: 50 },
+      { position: new THREE.Vector3(8.5, 3, -7), target: this.ship.position.clone(), fov: 50 },
+      { position: new THREE.Vector3(24, 14, 42), target: new THREE.Vector3(-6, 2, sunPos.z * 0.4), fov: 55 },
+      { position: new THREE.Vector3(38, 48, 158), target: new THREE.Vector3(12, -8, sunPos.z * 0.58), fov: 58 },
+    ]);
+    const MOVE = 14.4;
+    this.fx.tween({ duration: MOVE, ease: ease.standard, update: (e) => path.apply(this.camera, e) });
+    // Beats on the same game clock as the camera, so a slow frame can't put a caption ahead of
+    // the shot it belongs to.
+    this.fx.timeline([
+      { at: 1.2, run: () => UIManager.showCaption('You are stranded, alone, in a galaxy no chart has ever mapped.', 4200) },
+      { at: 8.2, run: () => UIManager.showCaption('Somewhere out there is the truth — and a way home.', 4200) },
+      { at: 8.2, run: () => this.triggerSensorPing(), beat: 'reveal:ping' },
+      {
+        at: MOVE + 2,
+        state: true,
+        run: () => {
+          this.readyForContinue = true;
+          UIManager.showCaption('Click or press Enter to continue', 999999);
+        },
       },
-    );
-    // Scheduled off the same dt-accumulated clock the sequencer uses (dt is clamped to 100ms/frame,
-    // see Engine.start()), not real setTimeout wall-clock time -- a real setTimeout can race ahead
-    // of the cinematic on a slow frame (shader-compile stall, GC pause), firing a beat before the
-    // camera has actually reached the moment it's timed for.
-    this.revealElapsed = 0;
-    this.revealTimers = [
-      { at: 1.2, fn: () => UIManager.showCaption('You are stranded, alone, in a galaxy no chart has ever mapped.', 4200), fired: false },
-      { at: 8.2, fn: () => UIManager.showCaption('Somewhere out there is the truth — and a way home.', 4200), fired: false },
-      { at: 8.2, fn: () => this.triggerSensorPing(), fired: false },
-    ];
+    ]);
   }
 
   private triggerSensorPing(): void {
@@ -464,14 +371,7 @@ export class GalaxyRevealScene implements GameScene {
 
   update(dt: number, elapsed: number): void {
     this.elapsedTotal = elapsed;
-    this.revealElapsed += dt;
-    for (const timer of this.revealTimers) {
-      if (!timer.fired && this.revealElapsed >= timer.at) {
-        timer.fired = true;
-        timer.fn();
-      }
-    }
-    this.sequencer.update(dt);
+    this.sky.update(this.camera);
     for (const mesh of this.planetMeshes) {
       mesh.rotation.y += dt * 0.05;
     }
@@ -494,12 +394,6 @@ export class GalaxyRevealScene implements GameScene {
 
     // Asteroid belt drifts as one piece around the sun instead of sitting frozen.
     this.asteroidField.rotation.y += dt * 0.02;
-
-    // Engine trail: embers streaming backward from the ship's thrusters.
-    const engineDir = new THREE.Vector3(-1, 0, 0).applyQuaternion(this.ship.quaternion).normalize();
-    const origins = this.engineLocalPositions.map((p) => this.ship.localToWorld(p.clone()));
-    this.engineTrail.spawnBurst(origins, engineDir, dt);
-    this.engineTrail.update(dt);
 
     // Sensor ping sweep, timed with the second cinematic caption.
     if (this.pingElapsed >= 0) {
@@ -524,9 +418,14 @@ export class GalaxyRevealScene implements GameScene {
   }
 
   dispose(): void {
+    this.fx.dispose();
     window.removeEventListener('keydown', this.continueHandler);
     window.removeEventListener('click', this.clickHandler);
     UIManager.showLetterbox(false);
     UIManager.clearCaption();
+    // This scene owns everything it loaded (sky, sun, planets, sprites): free it all. It used to
+    // free nothing. The hull is the exception: its clones share the cached template's geometry.
+    this.scene.remove(this.ship);
+    disposeSceneFully(this.scene);
   }
 }

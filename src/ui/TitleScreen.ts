@@ -46,7 +46,11 @@ export const TitleScreen = {
 
     const menu = root.querySelector('.title-menu')!;
     PanelManager.relockPointerOnClose = false;
+    // A second click (or Enter) during the 450 ms fade used to queue a second start of the game.
+    let leaving = false;
     const close = (then: () => void) => {
+      if (leaving) return;
+      leaving = true;
       PanelManager.relockPointerOnClose = true;
       root.classList.add('leaving');
       window.setTimeout(() => {

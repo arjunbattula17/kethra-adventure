@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { displayFontsReady } from '../../core/loadFonts';
+import { damp, dampVec3 } from '../../motion';
 import type { GameScene } from '../../core/Engine';
 import { PlayerController } from '../../player/PlayerController';
 import { InteractionSystem } from '../../player/InteractionSystem';
@@ -14,7 +16,9 @@ import { Figure } from '../../characters/Figure';
 import { placeKitPiece, preloadKit } from '../../ship/interior/kit';
 import { groundKitPiece } from '../../ship/interior/walls';
 import { buildShipHull } from '../../galaxy/shipHull';
-import { buildStarfield } from '../../galaxy/spaceDressing';
+import { buildSpaceSky } from '../../galaxy/spaceSky';
+import type { SpaceSky } from '../../galaxy/spaceSky';
+import { GRADES } from '../../core/GradeGlowPass';
 import { buildPlanetInstance } from '../../galaxy/planetShader';
 import type { PlanetInstance } from '../../galaxy/planetShader';
 import { PLANETS } from '../../galaxy/planetData';
@@ -108,6 +112,8 @@ export class VessekScene implements GameScene {
   player: PlayerController;
   interaction = new InteractionSystem();
   readonly kind = 'VessekScene';
+  readonly grade = GRADES.vessek;
+  private sky!: SpaceSky;
   readonly staticShadows = true;
   onDepart: (() => void) | null = null;
   /** Public for the test harness: the level's own puzzle and clock. */
@@ -144,6 +150,9 @@ export class VessekScene implements GameScene {
   }
 
   async init(): Promise<void> {
+    // Signage and screens are drawn onto canvases in the game's own faces: wait for them, or the
+    // textures bake the fallback font for the whole visit.
+    await displayFontsReady();
     UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x020308);
     this.scene.environment = getSharedEnvironment();
@@ -569,8 +578,8 @@ export class VessekScene implements GameScene {
 
   /** The view: the Anchorage's ring curving away, lashed hulls, and Vessek below. */
   private buildOutside(): void {
-    const stars = buildStarfield(2500, 1800, 2.2);
-    this.scene.add(stars);
+    this.sky = buildSpaceSky({ seed: 0x7e55 });
+    this.scene.add(this.sky.group);
     const vessek = PLANETS.find((p) => p.id === 'vessek')!;
     const sun = new THREE.Vector3(2000, 800, -600);
     this.planet = buildPlanetInstance(vessek, new THREE.Vector3(620, -170, -180), sun, this.camera);
@@ -597,22 +606,15 @@ export class VessekScene implements GameScene {
       arc.position.copy(ringCenter);
       this.scene.add(arc);
     }
-    // Lashed hulls around the ring, each with its own mismatched running lights.
-    let hull;
-    try {
-      hull = await buildShipHull();
-    } catch {
-      return;
-    }
-    const tints = [0x9aa1a6, 0x8d7f6b, 0x6f7c85, 0xa3968a, 0x7b8a7f];
-
-    // Eight hulls: each costs about eleven draw calls (one per paint slot), so this is the view's
-    // whole budget on a slow laptop (docs/PERF_LOG.md).
+    // Lashed hulls around the ring, each with its own mismatched running lights. Every one is its
+    // own freighter of the Wren's class (a seeded variant: livery and proportions differ), since
+    // twenty-one ships pulled in over 142 years were never going to match.
     const count = 8;
+    const hulls = await Promise.all(Array.from({ length: count }, (_, i) => buildShipHull({ variant: i + 1 })));
     for (let i = 0; i < count; i++) {
       // Spread around the far side of the ring, where the windows look.
       const angle = Math.PI + 0.75 + i * ((2 * Math.PI - 1.5) / (count - 1)) + (i % 2) * 0.06;
-      const g = hull.group.clone(true);
+      const g = hulls[i].group;
       const x = ringCenter.x + Math.cos(angle) * (R + 5);
       const z = ringCenter.z + Math.sin(angle) * (R + 5);
       g.position.set(x, ringCenter.y + 3 + (i % 3) * 2.5, z);
@@ -623,14 +625,12 @@ export class VessekScene implements GameScene {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
         m.castShadow = false;
-        const mat = (m.material as THREE.MeshStandardMaterial).clone();
-        // Moored for decades: engines cold, so no glowing engine rings. What light they have is
-        // their own grid's, each a different white, washing faintly over the plating.
+        const mat = m.material as THREE.MeshStandardMaterial;
+        // Moored for decades: engines cold. What light they have is their own grid's, each a
+        // different white, washing faintly over the plating.
         mat.emissive.copy(lampColor);
-        mat.emissiveIntensity = mat.name === 'mat21' || mat.name === 'mat15' ? 0.07 : 0.02;
+        mat.emissiveIntensity = mat.name === 'hull-paint' ? 0.07 : 0.02;
         mat.metalness = Math.min(mat.metalness, 0.4);
-        if (mat.name === 'mat21') mat.color.setHex(tints[i % tints.length]);
-        m.material = mat;
         this.hullMats.push(mat);
       });
       this.scene.add(g);
@@ -802,7 +802,7 @@ export class VessekScene implements GameScene {
     this.timelineClock = 0;
     this.timeline = [
       { at: 0.0, run: () => AudioSystem.playTone(55, 2.4, 'sine', 0.12) },
-      { at: 0.4, run: () => UIManager.whiteFlash(900) },
+      { at: 0.4, run: () => UIManager.whiteFlash(0.9) },
       { at: 0.5, run: () => bus.emit('player:shake', 0.5) },
       ...lampOrder.map((g, i) => ({ at: 1.6 + i * 0.7, run: () => { this.setLampGroups([g], 0); AudioSystem.playTone(90 - i * 8, 0.25, 'triangle', 0.06); } })),
       { at: 4.6, run: () => this.setEmergency(1) },
@@ -938,6 +938,7 @@ export class VessekScene implements GameScene {
     this.player.update(dt);
     this.interaction.update(this.camera);
     this.player.camera.getWorldPosition(this.eye);
+    this.sky.update(this.camera);
     this.varro.update(dt, elapsed, this.eye);
     this.dace.update(dt, elapsed, this.eye);
     this.planet?.update(elapsed, dt);
@@ -950,7 +951,7 @@ export class VessekScene implements GameScene {
     // The white sky swells and fades with the pulse.
     const pulsing = gameState.hasFlag('vessek_pulse') && this.timelineClock < 4.6 && !gameState.hasFlag('vessek_power_restored');
     const skyTarget = pulsing ? THREE.MathUtils.clamp(1 - Math.abs(this.timelineClock - 0.9) / 1.4, 0, 1) : 0;
-    this.skyMat.opacity += (skyTarget - this.skyMat.opacity) * Math.min(1, dt * 6);
+    this.skyMat.opacity = damp(this.skyMat.opacity, skyTarget, 6, dt);
     this.whiteSky.visible = this.skyMat.opacity > 0.01;
 
     for (const l of this.lamps) {
@@ -958,7 +959,8 @@ export class VessekScene implements GameScene {
       const diff = l.target - l.level;
       if (Math.abs(diff) > 0.001) {
         l.level += Math.sign(diff) * Math.min(Math.abs(diff), dt * 1.8);
-        const stutter = Math.abs(diff) > 0.05 && Math.sin(elapsed * 40 + l.phase * 13) > 0.3 ? 0.25 : 1;
+        // ~2.4 Hz: slow enough to stay under three flashes a second (docs/DESIGN.md §3, flash guard).
+        const stutter = Math.abs(diff) > 0.05 && Math.sin(elapsed * 15 + l.phase * 13) > 0.3 ? 0.25 : 1;
         l.light.intensity = l.base * l.level * stutter;
         if (l.mat) l.mat.emissiveIntensity = 1.6 * l.level * stutter;
       } else {
@@ -980,8 +982,8 @@ export class VessekScene implements GameScene {
     this.planetLight.intensity = 0.15 + 0.4 * lit;
 
     if (this.relightShips) {
-      for (const s of this.shipLamps) s.mat.color.lerp(s.base, Math.min(1, dt * 1.5));
-      for (const m of this.hullMats) if (m.userData.lit !== undefined) m.emissiveIntensity += (m.userData.lit - m.emissiveIntensity) * Math.min(1, dt * 1.5);
+      for (const s of this.shipLamps) dampVec3(s.mat.color, s.base, 1.5, dt);
+      for (const m of this.hullMats) if (m.userData.lit !== undefined) m.emissiveIntensity = damp(m.emissiveIntensity, m.userData.lit, 1.5, dt);
     }
     const fansOn = !gameState.hasFlag('vessek_pulse') || gameState.hasFlag('vessek_power_restored');
     for (const f of this.fans) f.rotation.y += dt * (fansOn ? 6 : 0);

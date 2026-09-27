@@ -1,5 +1,6 @@
 import { gameState } from '../../core/GameState';
 import { PanelManager } from '../../ui/PanelManager';
+import { registerMiniGame } from '../../debug/hooks';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { BREAKER_NOTES } from './vessekLore';
 
@@ -58,6 +59,7 @@ export class BreakerPuzzle {
   private raf = 0;
   private last = 0;
   private root: HTMLElement | null = null;
+  private unregisterDebug: () => void = () => {};
   onSolved: () => void = () => {};
   /** Ticks the level's frost clock while this panel holds the game paused. */
   tickFrost: (dt: number) => void = () => {};
@@ -89,7 +91,19 @@ export class BreakerPuzzle {
     PanelManager.open(this.root, () => {
       cancelAnimationFrame(this.raf);
       this.root = null;
+      this.unregisterDebug();
     }, undefined, 'breakers');
+    // Debug harness (F2/F3): the known solution, or the frost clock running out.
+    this.unregisterDebug = registerMiniGame({
+      name: 'Breakers',
+      win: () => {
+        for (const id of ['lamps', 'dock'] as CircuitId[]) if (this.on.has(id)) this.toggle(id);
+        for (const id of ['pumps', 'heaters', 'scrubbers'] as CircuitId[]) if (!this.on.has(id)) this.toggle(id);
+      },
+      fail: () => {
+        this.frost.remaining = 0;
+      },
+    });
     this.render();
     this.last = performance.now();
     const loop = (now: number) => {
@@ -152,13 +166,17 @@ export class BreakerPuzzle {
   }
 
   private solve(): void {
+    // The switches stay live for the 900 ms payoff; a toggle in that window must not solve twice.
+    if (this.solved) return;
+    this.solved = true;
     cancelAnimationFrame(this.raf);
     AudioSystem.playSuccess();
     window.setTimeout(() => {
-      PanelManager.close();
+      PanelManager.close('breakers');
       this.onSolved();
     }, 900);
   }
+  private solved = false;
 
   private renderFrost(): void {
     const bar = this.root?.querySelector<HTMLElement>('.frost-fill');

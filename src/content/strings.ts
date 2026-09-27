@@ -89,7 +89,6 @@ export const STRINGS = {
   'controls.note': 'The game teaches each of these the first time you need it.',
 
   // Credits. Required attribution for the CC BY assets (docs/ASSET_LICENSE_LOG.md).
-  'credits.freighter': '"Colored Freighter" by Jacques Fourie, via Poly Pizza (poly.pizza). CC BY 3.0.',
   'credits.planets': 'Planet maps adapted from Solar System Scope textures (solarsystemscope.com), based on NASA imagery. CC BY 4.0.',
   'credits.kits': 'Ship interior and grove models: Modular Sci-Fi MegaKit and Stylized Nature MegaKit by Quaternius (quaternius.com). CC0.',
   'credits.textures': 'Surface textures by Poly Haven (polyhaven.com). CC0.',

@@ -23,7 +23,7 @@ for (const tier of ['low', 'high']) {
   await scene('ShipInteriorScene');
   for (const [name, kind] of [['ship', 'ShipInteriorScene'], ['kethra', 'KethraScene'], ['vessek', 'VessekScene']]) {
     if (name !== 'ship') {
-      await page.evaluate((l) => window.__DEBUG__.flow.travelToPlanet(l), name);
+      await page.evaluate((l) => window.__DEBUG__.flow.debugGo(l), name);
       await scene(kind);
     }
     await page.waitForTimeout(6500);

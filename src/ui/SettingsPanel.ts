@@ -3,6 +3,7 @@ import { getActiveEngine } from '../core/EngineRegistry';
 import { PanelManager } from './PanelManager';
 import { AudioSystem } from '../audio/AudioSystem';
 import { PlayerController } from '../player/PlayerController';
+import { motion } from '../motion';
 
 const SETTINGS_KEY = 'kethra_settings_v2';
 const LEGACY_KEY = 'kethra_settings_v1';
@@ -28,7 +29,8 @@ interface Settings {
 const TIER_DEFAULTS: Record<QualityTier, { shadows: boolean; ao: boolean; bloom: boolean }> = {
   high: { shadows: true, ao: true, bloom: true },
   medium: { shadows: true, ao: false, bloom: true },
-  low: { shadows: false, ao: false, bloom: false },
+  // Low keeps a cheap glow (GradeGlowPass): without it a game about light goes flat.
+  low: { shadows: false, ao: false, bloom: true },
 };
 
 const QUALITY_OPTIONS: { key: QualityTier | null; label: string; hint: string }[] = [
@@ -128,10 +130,9 @@ class SettingsPanelImpl {
     AudioSystem.setVolume('master', s.master);
     AudioSystem.setVolume('music', s.music);
     AudioSystem.setVolume('sfx', s.sfx);
-    document.body.classList.toggle('reduced-motion', s.reducedMotion);
+    motion.setReduced(s.reducedMotion);
     document.body.classList.toggle('text-large', s.textSize === 'large');
     document.body.classList.toggle('text-larger', s.textSize === 'larger');
-    PlayerController.motion = !s.reducedMotion;
     PlayerController.sensitivity = s.sensitivity;
     if (applyTier) this.applyGraphics();
   }
@@ -208,7 +209,7 @@ class SettingsPanelImpl {
     // Accessibility
     const a11y = el('section', 'settings-section');
     a11y.appendChild(el('div', 'eyebrow', 'Comfort and access'));
-    a11y.appendChild(this.switchRow('Reduced motion', s.reducedMotion, (v) => this.change({ reducedMotion: v }), 'No head bob, camera shake or sweeping transitions.'));
+    a11y.appendChild(this.switchRow('Reduced motion', s.reducedMotion, (v) => this.change({ reducedMotion: v }), 'No head bob, camera shake, zooms or sweeping camera moves; transitions become short fades.'));
     const text = el('div', 'settings-row');
     text.appendChild(el('div', 'label', 'Text size'));
     const sizes: TextSize[] = ['default', 'large', 'larger'];

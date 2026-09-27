@@ -96,7 +96,8 @@ class RepairUIImpl {
     hint.innerHTML = '<span class="keycap">Esc</span> close';
     panel.appendChild(hint);
 
-    PanelManager.open(panel);
+    if (PanelManager.isOpen && PanelManager.activeId === 'repair') PanelManager.setContent(panel);
+    else PanelManager.open(panel, undefined, undefined, 'repair');
   }
 }
 

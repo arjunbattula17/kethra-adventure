@@ -17,7 +17,7 @@ await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { tim
 console.log('gameState ready, traveling to kethra...');
 await page.waitForTimeout(1500);
 
-await page.evaluate(() => window.__DEBUG__.flow['travelToPlanet']?.('kethra'));
+await page.evaluate(() => window.__DEBUG__.flow.debugGo('kethra'));
 await page.waitForFunction(
   () => (window.__DEBUG__.engine.getCurrentScene?.()?.kind ?? window.__DEBUG__.engine.getCurrentScene?.()?.constructor.name) === 'KethraScene',
   undefined,
