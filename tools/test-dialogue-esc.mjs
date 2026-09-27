@@ -5,6 +5,7 @@
 //   npm run build && npx vite preview   (in another terminal)
 //   node tools/test-dialogue-esc.mjs [baseUrl]
 import { chromium } from 'playwright';
+import { completeTrip } from './lib/travel.mjs';
 
 const BASE = process.argv[2] || 'http://localhost:4173/kethra-adventure/';
 const browser = await chromium.launch({
@@ -39,7 +40,7 @@ async function press(code) {
 await page.goto(`${BASE}?skipIntro=1&unlockVessek=1&newGame=1&tier=low`, { waitUntil: 'domcontentloaded' });
 await waitScene('ShipInteriorScene');
 await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'vessek'));
-await waitScene('VessekScene');
+await completeTrip(page, 'VessekScene');
 await page.waitForTimeout(3000);
 
 await teleport(-2.6, 0.2, 0.2, 0);

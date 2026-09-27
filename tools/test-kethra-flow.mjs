@@ -5,6 +5,7 @@
 //   npx vite preview   (in another terminal)
 //   node tools/test-kethra-flow.mjs [baseUrl]
 import { chromium } from 'playwright';
+import { completeTrip } from './lib/travel.mjs';
 
 const BASE = process.argv[2] || 'http://localhost:4173/kethra-adventure/';
 const browser = await chromium.launch({
@@ -51,7 +52,7 @@ await page.evaluate(() => window.__DEBUG__.bus.emit('ui:open_galaxy_map'));
 await page.waitForSelector('.map-btn.primary', { timeout: 10000 });
 check('map opens with Kethra selected', (await page.textContent('.map-dossier-name')) === 'Kethra');
 await page.click('.map-btn.primary');
-await waitScene('KethraScene');
+await completeTrip(page, 'KethraScene');
 await page.waitForTimeout(1500);
 check('Set Course lands on Kethra', (await sceneKind()) === 'KethraScene');
 

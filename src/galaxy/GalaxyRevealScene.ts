@@ -143,7 +143,7 @@ export class GalaxyRevealScene implements GameScene {
           uniform vec3 uColor;
           uniform float uFade;
           varying float vRim;
-          void main() { gl_FragColor = vec4(uColor * pow(vRim, 9.0) * 1.6 * uFade, 1.0); }
+          void main() { gl_FragColor = vec4(uColor * pow(max(vRim, 0.0), 9.0) * 1.6 * uFade, 1.0); }
         `,
         transparent: true,
         depthWrite: false,

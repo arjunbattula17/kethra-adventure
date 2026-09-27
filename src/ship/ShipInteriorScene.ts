@@ -27,6 +27,8 @@ import { mulberry32 } from '../core/rng';
 import { buildInteriorColliders } from './interior/collision';
 import { gameState } from '../core/GameState';
 import { ShipPower, powerStageFor } from './interior/power';
+import { buildThrottle } from './interior/throttle';
+import type { Throttle } from './interior/throttle';
 
 const _ledColour = new THREE.Color();
 
@@ -71,8 +73,12 @@ export class ShipInteriorScene implements GameScene {
   private starfield: THREE.Points | null = null;
   private emergencyLight: THREE.PointLight | null = null;
   private readonly ownLight = new Set<object>();
-  /** The Wren's power stage; First light (M2) animates it from here. */
+  /** The Wren's power stage; First light animates it from here. */
   readonly power = new ShipPower();
+  /** The drive throttle and its pod lamps (First light). */
+  throttle!: Throttle;
+  /** The nav chart on the deck, which First light redraws. */
+  deskChart: THREE.CanvasTexture | null = null;
   private statusLights: StatusLight[] = [];
   private animated: ((elapsed: number, dt: number) => void)[] = [];
   private noMerge = new Set<THREE.Object3D>();
@@ -99,6 +105,7 @@ export class ShipInteriorScene implements GameScene {
       noMerge: this.noMerge,
       animatedMaterials: new Set(),
       ownLight: this.ownLight,
+      deskChart: null,
       setStarfield: (points) => {
         this.starfield = points;
       },
@@ -126,6 +133,8 @@ export class ShipInteriorScene implements GameScene {
     buildCeiling(ctx);
     buildStarfieldWindow(ctx);
     buildConsole(ctx);
+    this.deskChart = ctx.deskChart;
+    this.throttle = buildThrottle(ctx);
     buildSuspendedDisplay(ctx);
     buildLighting(ctx);
     // buildWalls/buildAirlock/buildDetailProps each load real glTF kit pieces asynchronously and

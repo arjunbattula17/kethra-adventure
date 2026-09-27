@@ -65,7 +65,8 @@ export function revealHairline(reveal: Reveal): THREE.ShaderMaterial {
         float d = distance(vWorld, uOrigin);
         float shown = 1.0 - smoothstep(uRadius - 4.0, uRadius, d);
         // The bright band rides the shell only while the ping is out.
-        float edge = exp(-pow((d - uRadius) / 1.6, 2.0)) * step(0.5, uRadius) * step(uRadius, 1e4);
+        float band = (d - uRadius) / 1.6;
+        float edge = exp(-band * band) * step(0.5, uRadius) * step(uRadius, 1e4);
         gl_FragColor = vec4(vColor * (shown + edge * 3.0), 1.0);
       }
     `,

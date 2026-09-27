@@ -51,6 +51,8 @@ export interface InteriorCtx {
   /** Lights and materials that keep their own light whatever the ship's power stage (power.ts):
    * alarms, a fault bulb running its own flicker, the view outside. */
   ownLight: Set<object>;
+  /** The nav chart laid into the deck, set by the console build. */
+  deskChart: THREE.CanvasTexture | null;
   setStarfield(points: THREE.Points): void;
   setEmergencyLight(light: THREE.PointLight): void;
 }

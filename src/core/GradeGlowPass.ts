@@ -23,6 +23,20 @@ export interface GradeProfile {
   vignette: number;
 }
 
+/** A grade `t` of the way from `a` to `b`, written into `out`. */
+export function lerpGrade(a: GradeProfile, b: GradeProfile, t: number, out: GradeProfile): GradeProfile {
+  const m = (x: number, y: number) => x + (y - x) * t;
+  out.exposure = m(a.exposure, b.exposure);
+  out.knee = m(a.knee, b.knee);
+  out.shoulder = m(a.shoulder, b.shoulder);
+  out.gamma = m(a.gamma, b.gamma);
+  out.toe = m(a.toe, b.toe);
+  out.cool = [m(a.cool[0], b.cool[0]), m(a.cool[1], b.cool[1]), m(a.cool[2], b.cool[2])];
+  out.warm = [m(a.warm[0], b.warm[0]), m(a.warm[1], b.warm[1]), m(a.warm[2], b.warm[2])];
+  out.vignette = m(a.vignette, b.vignette);
+  return out;
+}
+
 export const GRADES = {
   /** The Wren: the grade the room was tuned against (the original, unchanged). */
   interior: { exposure: 0.85, knee: 0.48, shoulder: 1.15, gamma: 1.15, toe: 0.035, cool: [0.92, 0.96, 1.05], warm: [1.06, 1.0, 0.9], vignette: 0.85 },

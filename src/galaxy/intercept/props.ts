@@ -97,7 +97,7 @@ export function buildBelt(clumps: Clump[], seed = 0xbe17): Belt {
         uniform vec3 uColor;
         uniform float uOpacity;
         varying float vRim;
-        void main() { gl_FragColor = vec4(uColor * (0.12 + 0.5 * pow(vRim, 3.0)) * uOpacity, 1.0); }
+        void main() { gl_FragColor = vec4(uColor * (0.12 + 0.5 * pow(max(vRim, 0.0), 3.0)) * uOpacity, 1.0); }
       `,
       transparent: true,
       depthWrite: false,

@@ -727,6 +727,9 @@ function buildDeckSurface(ctx: InteriorCtx, kit: Kit, parent: THREE.Group): void
     metalness: 0,
   });
   mesh(deck, flatPlane(2.2, 0.4), mapMat, 0, 0.062, -0.13);
+  // First light redraws the course on it, so it keeps its own texture (out of the atlas).
+  ctx.animatedMaterials.add(mapMat);
+  ctx.deskChart = mapMat.map as THREE.CanvasTexture;
   // Same glass treatment as the monitor bank's screens — the deck chart is the single brightest
   // element in frame, so it is the one the "pasted graphic" read shows up on hardest.
   const chartReflection = mesh(deck, flatPlane(2.2, 0.4), kit.screenReflection, 0, 0.0635, -0.13);

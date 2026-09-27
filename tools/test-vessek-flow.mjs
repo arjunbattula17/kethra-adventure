@@ -6,6 +6,7 @@
 //   npx vite preview   (in another terminal)
 //   node tools/test-vessek-flow.mjs [baseUrl]
 import { chromium } from 'playwright';
+import { completeTrip } from './lib/travel.mjs';
 
 const BASE = process.argv[2] || 'http://localhost:4173/kethra-adventure/';
 const browser = await chromium.launch({
@@ -58,7 +59,7 @@ if (vessekHit) await page.mouse.click(vessekHit.x, vessekHit.y);
 await page.waitForTimeout(500);
 check('dossier shows Vessek Anchorage', (await page.textContent('.map-dossier-name'))?.includes('Vessek'));
 await page.click('.map-btn.primary');
-await waitScene('VessekScene');
+await completeTrip(page, 'VessekScene');
 await page.waitForTimeout(2500);
 check('Set Course lands at the Anchorage', (await kind()) === 'VessekScene');
 check('arrival card names level 3', (await page.textContent('.chapter-card').catch(() => ''))?.includes('Level 3'));

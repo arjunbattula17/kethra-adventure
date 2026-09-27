@@ -53,6 +53,9 @@ export interface GameScene {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   init(): void | Promise<void>;
+  /** Called once the scene is current. A scene prepared ahead (prepareScene) runs its init while
+   * another scene is still on screen, so its timelines and input start here, not in init. */
+  onEnter?(): void;
   update(dt: number, elapsed: number): void;
   dispose(): void;
   onResize?(width: number, height: number): void;
@@ -273,12 +276,16 @@ export class Engine {
     performance.measure('scene:compile', 'scene-init-end', 'scene-compile-end');
   }
 
-  async setScene(factory: () => Promise<GameScene> | GameScene, opts: { prepared?: boolean } = {}): Promise<void> {
+  /**
+   * `quiet`: no loading indicator. For a scene prepared under a cinematic that is still on screen
+   * (the cruise builds the level it arrives at), where a spinner would break the shot.
+   */
+  async setScene(factory: () => Promise<GameScene> | GameScene, opts: { prepared?: boolean; quiet?: boolean } = {}): Promise<void> {
     // Asset fetch + shader compile below can run several seconds on a cold cache (first load, or
     // a judge's laptop on unfamiliar wifi) with nothing else on screen — the caller's fade-to-black
     // covers scene transitions, but the very first scene at boot has no fade at all. A spinner here
     // covers both cases, so a slow load reads as "loading" instead of "did this freeze?".
-    UIManager.showLoading();
+    if (!opts.quiet) UIManager.showLoading();
     try {
       if (this.current) {
         this.current.dispose();
@@ -312,10 +319,16 @@ export class Engine {
       performance.mark('scene-warmup-start');
       this.postFx.render();
       performance.measure('scene:warmup', 'scene-warmup-start');
+      scene.onEnter?.();
     } finally {
-      UIManager.hideLoading();
+      if (!opts.quiet) UIManager.hideLoading();
       this.holdGovernor();
     }
+  }
+
+  /** Regrades the frame now, for a scene that moves between grades (the cruise into Kethra's night). */
+  setGrade(profile: GradeProfile): void {
+    this.postFx.setGrade(profile);
   }
 
   /**

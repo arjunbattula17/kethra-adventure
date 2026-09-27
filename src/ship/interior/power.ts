@@ -25,7 +25,7 @@ const LEVELS: Record<PowerStage, Record<Role, number>> = {
 const EMERGENCY_AMBER = new THREE.Color(0xd98a2e);
 
 export function powerStageFor(hasFlag: (flag: string) => boolean): PowerStage {
-  // First light doesn't exist until M2; until then, the first departure stands in for it.
+  // First light is the first departure; the debug harness's jumps leave without it.
   if (hasFlag('first_light') || hasFlag('left_wren')) return 'full';
   if (hasFlag('tutorial_battle_complete')) return 'navigation';
   return 'emergency';
@@ -33,7 +33,20 @@ export function powerStageFor(hasFlag: (flag: string) => boolean): PowerStage {
 
 interface Entry {
   role: Role;
+  /** Where it sits along the ship (world z), for the things First light's wave passes one by one. */
+  z?: number;
   apply(k: number, stage: PowerStage): void;
+}
+
+/** The ship's length as the wave runs it: from the stern (aft, +z) to the helm (fore, -z). */
+export const WAVE_AFT = 7.5;
+export const WAVE_FORE = -5.5;
+
+interface StripWave {
+  uFront: { value: number };
+  uWave: { value: number };
+  uFrom: { value: THREE.Color };
+  uTo: { value: THREE.Color };
 }
 
 const _c = new THREE.Color();
@@ -42,6 +55,7 @@ const luminance = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
 
 export class ShipPower {
   private entries: Entry[] = [];
+  private strips: { mat: THREE.MeshStandardMaterial; base: number; color: THREE.Color; wave: StripWave }[] = [];
   stage: PowerStage = 'full';
 
   /** Reads everything's current value as full power. Call once the room is built and settled. */
@@ -53,9 +67,27 @@ export class ShipPower {
     for (const mat of strips) {
       const base = mat.emissiveIntensity;
       const color = mat.emissive.clone();
+      // The strips are merged into a few meshes, so First light's wave switches them per pixel.
+      const wave: StripWave = { uFront: { value: WAVE_AFT }, uWave: { value: 0 }, uFrom: { value: new THREE.Color() }, uTo: { value: new THREE.Color() } };
+      mat.onBeforeCompile = (shader) => {
+        Object.assign(shader.uniforms, wave);
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nvarying float vPowerZ;')
+          .replace('#include <project_vertex>', '#include <project_vertex>\nvPowerZ = (modelMatrix * vec4(transformed, 1.0)).z;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform float uFront;\nuniform float uWave;\nuniform vec3 uFrom;\nuniform vec3 uTo;\nvarying float vPowerZ;')
+          .replace(
+            '#include <emissivemap_fragment>',
+            '#include <emissivemap_fragment>\nif (uWave > 0.5) totalEmissiveRadiance = mix(uFrom, uTo, smoothstep(uFront - 0.8, uFront + 0.8, vPowerZ));',
+          );
+      };
+      mat.customProgramCacheKey = () => 'ship-power-strip';
+      mat.needsUpdate = true;
+      this.strips.push({ mat, base, color, wave });
       this.entries.push({
         role: 'strip',
         apply: (k, stage) => {
+          wave.uWave.value = 0;
           mat.emissive.copy(stage === 'emergency' ? EMERGENCY_AMBER : color);
           mat.emissiveIntensity = base * k;
         },
@@ -69,8 +101,12 @@ export class ShipPower {
       if (light.isLight) {
         const base = light.intensity;
         let role: Role = 'room';
-        if ((light as THREE.PointLight).isPointLight || (light as THREE.SpotLight).isSpotLight) role = isCool(light.color) ? 'screen' : 'practical';
-        this.entries.push({ role, apply: (k) => (light.intensity = base * k) });
+        let z: number | undefined;
+        if ((light as THREE.PointLight).isPointLight || (light as THREE.SpotLight).isSpotLight) {
+          role = isCool(light.color) ? 'screen' : 'practical';
+          z = light.getWorldPosition(new THREE.Vector3()).z;
+        }
+        this.entries.push({ role, z, apply: (k) => (light.intensity = base * k) });
         return;
       }
       const material = (obj as THREE.Mesh).material;
@@ -118,5 +154,28 @@ export class ShipPower {
     this.stage = stage;
     const levels = LEVELS[stage];
     for (const e of this.entries) e.apply(levels[e.role], stage);
+  }
+
+  /**
+   * First light's power wave, from `from` to `to`, its front at world z `front` travelling from the
+   * stern to the helm (docs/DESIGN.md §5, beat 3). Lights switch as the front passes them, the deck
+   * strips switch per pixel, and surfaces with no one place follow the front's progress.
+   */
+  setWave(front: number, from: PowerStage, to: PowerStage): void {
+    const a = LEVELS[from];
+    const b = LEVELS[to];
+    const progress = THREE.MathUtils.clamp((WAVE_AFT - front) / (WAVE_AFT - WAVE_FORE), 0, 1);
+    for (const e of this.entries) {
+      if (e.role === 'strip') continue;
+      const k = e.z === undefined ? progress : THREE.MathUtils.smoothstep(e.z, front - 1, front + 1);
+      e.apply(THREE.MathUtils.lerp(a[e.role], b[e.role], k), k < 0.5 ? from : to);
+    }
+    for (const s of this.strips) {
+      s.wave.uWave.value = 1;
+      s.wave.uFront.value = front;
+      s.wave.uFrom.value.copy(from === 'emergency' ? EMERGENCY_AMBER : s.color).multiplyScalar(s.base * a.strip);
+      s.wave.uTo.value.copy(to === 'emergency' ? EMERGENCY_AMBER : s.color).multiplyScalar(s.base * b.strip);
+    }
+    this.stage = progress >= 1 ? to : from;
   }
 }

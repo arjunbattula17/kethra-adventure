@@ -11,6 +11,7 @@ import { TutorialSequence } from '../tutorial/TutorialSequence';
 import { CONSOLE_SEAT, DESK_CHART_ANCHOR, MONITOR_ANCHOR } from '../ship/interior/console';
 import { AudioSystem } from '../audio/AudioSystem';
 import type { InterceptResult } from '../galaxy/intercept/InterceptGame';
+import { FirstLight } from '../ship/FirstLight';
 import { ShipLibrary } from '../journal/shipLibrary';
 import { PanelManager } from '../ui/PanelManager';
 import type { GameScene } from './Engine';
@@ -538,7 +539,101 @@ export class GameFlow {
       UIManager.toast('Scanner range insufficient for that destination.');
       return;
     }
-    await this.go(planetId as FlowState, () => this.enterPlanet(planetId));
+    await this.go(planetId as FlowState, () => this.cruiseTo(planetId));
+  }
+
+  private async loadLevel(planetId: string): Promise<GameScene & { onDepart: (() => void) | null }> {
+    if (planetId === 'kethra') {
+      const { KethraScene } = await import('../planets/kethra/KethraScene');
+      return new KethraScene();
+    }
+    const { VessekScene } = await import('../planets/vessek/VessekScene');
+    return new VessekScene();
+  }
+
+  /**
+   * Leaving the Wren for a planet (docs/DESIGN.md §5): the departure from the helm, the cruise, and
+   * the level building underneath the cruise's last beat. This replaced the fade and loading bar.
+   * The level's code and the cruise load while the Wren is still on screen.
+   */
+  private async cruiseTo(planetId: string): Promise<void> {
+    const ship = this.shipScene;
+    let level: GameScene & { onDepart: (() => void) | null };
+    let CruiseScene: typeof import('../galaxy/CruiseScene').CruiseScene;
+    try {
+      [level, { CruiseScene }] = await Promise.all([this.loadLevel(planetId), import('../galaxy/CruiseScene')]);
+    } catch {
+      UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
+      throw new Error(`level ${planetId} failed to load`);
+    }
+    const course = gameState.data.course;
+    const cruise = new CruiseScene({ destination: planetId === 'vessek' ? 'vessek' : 'kethra', days: course?.days ?? 6, cells: course?.cells ?? 4 });
+    const cruiseReady = this.engine.prepareScene(cruise);
+    if (ship) await (gameState.hasFlag('first_light') ? this.departure(ship) : this.firstLight(ship));
+    await cruiseReady;
+    gameState.setFlag('left_wren');
+    await this.engine.setScene(() => cruise, { prepared: true, quiet: true });
+    this.shipScene = null;
+    cruise.prepareArrival = () => this.engine.prepareScene(level);
+    await new Promise<void>((resolve) => (cruise.onArrive = resolve));
+    await UIManager.fadeToBlack();
+    level.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
+    this.levelSnapshot = { planetId, json: gameState.toJSON() };
+    await this.engine.setScene(() => level, { prepared: true });
+    await UIManager.fadeFromBlack();
+    // The level's number and line; the cruise's title gave its name (M6 redesigns this card).
+    const card = LEVELS[planetId];
+    UIManager.showChapterCard({ eyebrow: `Level ${card.number}`, title: card.title, lines: [card.line] });
+    SaveSystem.save();
+  }
+
+  /** Later departures (the short version, DESIGN §5): from the helm, a push into the viewport. */
+  private async departure(ship: ShipInteriorScene): Promise<void> {
+    await this.takeTheHelm(ship);
+    await this.pushIntoViewport(ship);
+  }
+
+  /** The first departure: First light at the helm, then out through the glass. */
+  private async firstLight(ship: ShipInteriorScene): Promise<void> {
+    await this.takeTheHelm(ship);
+    await new FirstLight(ship).play();
+    gameState.setFlag('first_light');
+    await this.pushIntoViewport(ship);
+  }
+
+  /** The cinematic takes over: the HUD steps out, the letterbox rises, the player sits at the helm. */
+  private async takeTheHelm(ship: ShipInteriorScene): Promise<void> {
+    InputManager.exitPointerLock();
+    UIManager.setLookPromptEnabled(false);
+    UIManager.setCrosshairVisible(false);
+    UIManager.setPrompt(null);
+    UIManager.showLetterbox(true);
+    ship.player.enabled = false;
+    await this.sitAtConsole();
+  }
+
+  /** The camera rises and pushes toward the glass above the monitors until space fills the frame. */
+  private async pushIntoViewport(ship: ShipInteriorScene): Promise<void> {
+    const player = ship.player;
+    const camera = ship.camera;
+    const from = { z: player.rig.position.z, eye: camera.position.y, pitch: player.pitch };
+    const to = { z: from.z - 1.1, eye: 1.95, pitch: 0.16 };
+    const DURATION = motion.reduced ? 0.01 : 1.3;
+    await new Promise<void>((resolve) => {
+      let elapsed = 0;
+      ship.onTick = (dt) => {
+        elapsed += dt;
+        const k = ease.accelerate(Math.min(1, elapsed / DURATION));
+        player.rig.position.z = THREE.MathUtils.lerp(from.z, to.z, k);
+        camera.position.y = THREE.MathUtils.lerp(from.eye, to.eye, k);
+        player.pitch = THREE.MathUtils.lerp(from.pitch, to.pitch, k);
+        camera.rotation.set(player.pitch, 0, 0);
+        if (elapsed >= DURATION) {
+          ship.onTick = null;
+          resolve();
+        }
+      };
+    });
   }
 
   private async enterPlanet(planetId: string): Promise<void> {

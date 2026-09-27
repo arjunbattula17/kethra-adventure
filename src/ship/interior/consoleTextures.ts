@@ -553,9 +553,25 @@ export function buildDeskMapTexture(course: PlottedCourse | null): THREE.CanvasT
   const key = course ? `${course.points.map((n) => n.toFixed(2)).join(',')}|${course.days}|${course.cells}` : 'none';
   const cached = deskMapCache.get(key);
   if (cached) return cached;
-  const w = 1024;
-  const h = 320;
-  const [canvas, ctx] = canvas2d(w, h);
+  const [canvas, ctx] = canvas2d(1024, 320);
+  paintDeskMap(ctx, course, 1);
+  const tex = finish(canvas, false);
+  deskMapCache.set(key, tex);
+  return tex;
+}
+
+/** Repaints a desk chart with the course drawn `progress` of the way (First light redraws it). */
+export function repaintDeskMap(tex: THREE.CanvasTexture, course: PlottedCourse | null, progress: number): void {
+  const canvas = tex.image as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  paintDeskMap(ctx, course, progress);
+  tex.needsUpdate = true;
+}
+
+function paintDeskMap(ctx: CanvasRenderingContext2D, course: PlottedCourse | null, progress: number): void {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
   const rand = rng(24601);
 
   const bg = ctx.createLinearGradient(0, 0, 0, h);
@@ -637,8 +653,20 @@ export function buildDeskMapTexture(course: PlottedCourse | null): THREE.CanvasT
   marker(X(0), Y(12), 'WREN', '168,240,255');
   marker(X(5.47), Y(27.04), 'BUOY', '216,166,58');
 
-  const pts: [number, number, number][] = [];
-  if (course) for (let k = 0; k < course.points.length; k += 3) pts.push([course.points[k], course.points[k + 1], course.points[k + 2]]);
+  const full: [number, number, number][] = [];
+  if (course) for (let k = 0; k < course.points.length; k += 3) full.push([course.points[k], course.points[k + 1], course.points[k + 2]]);
+  // Drawn `progress` of the way along its real length.
+  const pts: [number, number, number][] = full.slice(0, 1);
+  let budget = full.slice(1).reduce((n, p, k) => n + Math.hypot(p[0] - full[k][0], p[1] - full[k][1], p[2] - full[k][2]), 0) * progress;
+  for (let k = 1; k < full.length && budget > 0; k++) {
+    const a = full[k - 1];
+    const b = full[k];
+    const seg = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    const f = Math.min(1, budget / seg);
+    pts.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]);
+    budget -= seg;
+  }
+  const arrived = progress >= 0.999;
   if (pts.length > 1) {
     // The course, in the Wren's amber, with a tick every day (8 Mkm along the real 3D path).
     ctx.shadowColor = 'rgba(216,166,58,0.8)';
@@ -662,6 +690,7 @@ export function buildDeskMapTexture(course: PlottedCourse | null): THREE.CanvasT
       carry = (carry + seg) % 8;
     }
     const [ex, , ez] = pts[pts.length - 1];
+    ctx.globalAlpha = arrived ? 1 : 0;
     ctx.shadowColor = 'rgba(92,209,176,0.9)';
     ctx.shadowBlur = 20;
     ctx.fillStyle = 'rgba(150,240,210,0.95)';
@@ -672,6 +701,7 @@ export function buildDeskMapTexture(course: PlottedCourse | null): THREE.CanvasT
     ctx.fillStyle = 'rgba(150,240,210,0.9)';
     ctx.font = 'bold 12px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText('KETHRA · ARRIVAL', X(ez) + 14, Y(ex) - 10);
+    ctx.globalAlpha = 1;
 
     // Elevation inset: the climb over the belt, which top-down can't show.
     const ix = w - 290;
@@ -753,10 +783,6 @@ export function buildDeskMapTexture(course: PlottedCourse | null): THREE.CanvasT
   // Scanlines last so they sit over everything.
   ctx.fillStyle = 'rgba(0,0,0,0.16)';
   for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
-
-  const tex = finish(canvas, false);
-  deskMapCache.set(key, tex);
-  return tex;
 }
 const deskMapCache = new Map<string, THREE.CanvasTexture>();
 

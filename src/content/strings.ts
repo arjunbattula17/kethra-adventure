@@ -20,6 +20,16 @@ export const STRINGS = {
   'reveal.caption.stranded': 'You are stranded, alone, in a galaxy no chart has ever mapped.',
   'reveal.caption.truth': 'Somewhere out there is the truth — and a way home.',
 
+  // First light (src/ship/FirstLight.ts).
+  'firstlight.orion.plot': 'ORION: Plot holds. {cells} cells.',
+  'firstlight.hold': 'Hold to fire the drive',
+
+  // The cruise (src/galaxy/CruiseScene.ts).
+  'cruise.orion.burn': 'ORION: Burn started. {days} days.',
+  'cruise.orion.day3': 'ORION: Day three. Nothing to report. That’s the good kind.',
+  'cruise.day': 'Day {day}',
+  'cruise.title.vessek': 'Vessek Anchorage',
+
   // MG1 Intercept (src/galaxy/intercept). ORION is the Wren's navigation computer.
   'mg1.eyebrow': 'Plot a course · leg {n} of 3',
   'mg1.leg1.title': 'Clear the drift',

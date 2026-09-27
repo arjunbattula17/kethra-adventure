@@ -5,7 +5,7 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
-**2026-09-27: M1 done; starting M2.** Milestone check-ins are OFF, so work continues milestone
+**2026-09-27: M2 done; starting M3.** Milestone check-ins are OFF, so work continues milestone
 to milestone without stopping.
 
 ## Milestones
@@ -25,7 +25,12 @@ to milestone without stopping.
   - [x] The course on the desk chart (real state), the player leaning over it after the win (ca4357a)
   - [x] The keypad plot deleted (ca4357a)
   - [x] The Wren's lighting arc: emergency → navigation → full (power.ts); full stands on `left_wren` until First light exists (M2)
-- [ ] M2 First light and the cruise ← next
+- [x] **M2 First light and the cruise**
+  - [x] First light at the helm: the cabin falls to emergency, the desk chart redraws the course, the throttle offered after a beat of stillness, four held ignitions with a kick each, power travelling stern to helm as light, strip by strip (per-pixel on the merged strips); letting go spools back (src/ship/FirstLight.ts, throttle.ts, power.ts)
+  - [x] The match cut out through the viewport into the cruise, prepared underneath, no spinner (Engine.setScene `quiet`, GameScene.onEnter)
+  - [x] The cruise (src/galaxy/CruiseScene.ts): plumes and shockwaves, the locked-off departure through the belt, the chase with star streaks and FOV 50°→62°, the transit with the day counter and the sun turning around the hull, Kethra's night side and the grade into night green, the skiff's entry through cloud to the canopy, the kinetic title; hold to skip lands on the arrival
+  - [x] The fade-and-loading-bar trip deleted from the player's path (enterPlanet stays for the debug jumps and "Restart this level"); later departures take the short version
+- [ ] M3 MG2 Canopy ← next
 - [ ] M2 First light and the cruise
 - [ ] M3 MG2 Canopy
 - [ ] M4 MG3 Hush and Kethra's floor
@@ -58,6 +63,10 @@ to milestone without stopping.
 | 19 | P2 | Vessek's JS heap went 52 → 79 MB (Low) and 53 → 105 MB (High) with the eight code-built hull variants | shipHull.ts, VessekScene.ts | M5: share geometry across variants or drop the CPU-side arrays after upload |
 | 20 | P3 | The Wren's power stage is set when the room is built; nothing animates between stages yet | ShipInteriorScene, power.ts | M2: First light animates emergency → full as the power wave |
 | 21 | P3 | In MG1 the Kethra and Wren tick numerals can overlap where the two ghosts cross | InterceptGame.drawLabels | M7 art pass: offset labels by side of the line |
+| 22 | P2 | Kethra's first build is one long synchronous task; the cruise starts it at the title so it lands on a held shot, but the frame still stalls there (~4 s at 6× CPU in the baseline profile) | KethraScene.init | M4: build in chunks across frames |
+| 23 | P3 | The cruise's Kethra entry (cloud sprites, canopy lights, a wedge skiff) is interim until MG2 takes over the arrival; Vessek's cruise holds on the planet until its docking (M5) | CruiseScene, cruise/pieces.ts | M3, M5 |
+| 24 | P3 | Kethra's night side reads strong rather than "faint" (DESIGN §5, beat 4): the night map's bioluminescence is bright | planetShader night term | M7 art pass |
+| 25 | P3 | After the cruise the arrival card repeats the planet's name the kinetic title just gave | GameFlow.cruiseTo | M6 (the card's redesign) |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -75,6 +84,10 @@ to milestone without stopping.
 | 2026-09-27 | MG1 leg 3 is two burns (a hop over the belt, then the lead); the belt is a full ring of clumps | At a fixed cruise speed a single straight burn has one intercept day, so "pay the extra day" can't happen in one burn. Details in DESIGN §4 slot 1 |
 | 2026-09-27 | The reveal's system is at plot scale (1 unit = 1 Mkm) and matches the galaxy map's NAV figures | What the ping resolves is exactly what the player plots against; the old poster orrery had the Wren outside Kethra's orbit |
 | 2026-09-27 | The desk chart draws real state: the belt band, Kethra's orbit, the buoy and the player's own course | DESIGN §2 "Screens show real state"; it replaced invented waypoints and telemetry |
+| 2026-09-27 | The level builds when the cruise's title goes up, not while it flies | Its first build is one long task; landing it on a held title is better than a frozen mid-flight shot. The design's "the cruise warms Canopy" returns when M3 exists and M4 chunks the build |
+| 2026-09-27 | A scene prepared ahead starts its timelines and input in `onEnter`, not `init` | The cruise is prepared during First light; its init had started its captions, title and hold-to-skip under the throttle hold (holding Space for the drive skipped the cruise) |
+| 2026-09-27 | Trips keep the "Level N" arrival card after the cruise until M6 | TSA's three levels are named on arrival; the cruise's title carries only the name |
+| 2026-09-27 | The Wren's full power follows `first_light`, or `left_wren` for the debug jumps that leave without it | First light is now the first departure |
 
 ## QA log
 | Date | What | Result |
@@ -94,6 +107,10 @@ to milestone without stopping.
 | 2026-09-27 | `npm run journey` (now seven tests) | 7/7; the tutorial flow is 39/39 with the MG1 and lighting-arc checks |
 | 2026-09-27 | M1 screenshots: 1920×1080 Low + High (docs/screenshots/m1, 32 JPEGs): reveal beats, MG1's legs and win, the desk chart, the three power stages | Zero console errors. Fixed on the way: the reveal's line shader (reversed smoothstep showed the grid before the ping), a ping that washed the screen gold, the sun filling leg 1, near-side belt rocks cluttering leg 3, a white win line, the desk chart seen as a sliver from the seat, interaction prompts over the scripted poses |
 | 2026-09-27 | The reveal + MG1 at 1366×768 (`measure-scene`) | Low (6× CPU) 30 calls, 14k tris, p50 16.7 / p95 24.3 ms; High 40 calls, p50 16.6 / p95 25.9 ms. Budget 80 / 160 |
+| 2026-09-27 | First light and the cruise: `tools/test-cruise-flow.mjs` | 15/15: the throttle offered with its hold hint on emergency power; a half hold spools back and fails nothing; four ignitions bring full power; the cut lands in the cruise with no loading screen; the day counter; hold to skip lands on the arrival title, then Kethra; back aboard at full power; the next trip skips the throttle |
+| 2026-09-27 | `npm run journey` (eight tests; the Kethra, Vessek and dialogue flows now fly their trips through First light and the cruise via tools/lib/travel.mjs) | 8/8 |
+| 2026-09-27 | M2 screenshots, 1920×1080 Low + High (docs/screenshots/m2, 22 JPEGs): First light's four moments and seven cruise beats | Zero console errors |
+| 2026-09-27 | A black frame on High in the cruise | UnrealBloom smearing a NaN from the plumes' shader (MSAA sampled a varying past its clamp; `pow` of a negative). Fixed by clamping in the fragment shader, here and in the three other new shaders that did the same |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;
