@@ -68,10 +68,23 @@ class DialogueSystemImpl {
   }
 
   private end(): void {
+    // Closing the panel runs finish() through its close handler: the same path Esc takes.
+    if (PanelManager.isOpen && PanelManager.activeId === 'dialogue') PanelManager.close();
+    else this.finish();
+  }
+
+  /**
+   * The one way a conversation ends, whether by its last option or by Esc. Esc used to reset the
+   * tree without calling the scene's onClose, so a callback that advances the story (Varro's,
+   * which starts the Anchorage pulse) never ran and level 3 could not continue.
+   */
+  private finish(): void {
+    if (!this.tree) return;
     this.tree = null;
-    PanelManager.close();
-    this.onClose?.();
+    this.choices = [];
+    const onClose = this.onClose;
     this.onClose = null;
+    onClose?.();
   }
 
   private render(): void {
@@ -130,10 +143,7 @@ class DialogueSystemImpl {
     panel.appendChild(options);
 
     if (PanelManager.isOpen && PanelManager.activeId === 'dialogue') PanelManager.setContent(panel);
-    else PanelManager.open(panel, () => {
-      this.tree = null;
-      this.choices = [];
-    }, undefined, 'dialogue');
+    else PanelManager.open(panel, () => this.finish(), undefined, 'dialogue');
     (options.querySelector('.dialogue-option:not(.locked)') as HTMLButtonElement | null)?.focus({ preventScroll: true });
   }
 }
