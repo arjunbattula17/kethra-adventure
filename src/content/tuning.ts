@@ -34,9 +34,9 @@ export const PLAYER = {
 } as const;
 
 /**
- * Navigation figures shared by the course-plot puzzle and the galaxy map, so the two always agree.
- * Orbits are in millions of km (Mkm) and match planetData's orbitRadius values. Changing these
- * changes the course-plot answers (48 Mkm, 6 days, 4 cells).
+ * Navigation figures for the galaxy map. Orbits are in millions of km (Mkm) and match planetData's
+ * orbitRadius values. MG1's model (src/galaxy/intercept/sim.ts) uses the same cruise speed and belt
+ * but keeps its own copies, so its tests can load it into Node alone: change them together.
  */
 export const NAV = {
   /** Where the Wren is parked after the white sky. */

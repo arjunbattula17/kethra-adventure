@@ -300,6 +300,12 @@ light shell that resolves the belt in 3D.
   3. **Over the belt.** The straight route crosses a dense clump that you only see side-on. Orbit
      the camera, pitch the burn over it, and pay the extra day out of the cell budget (four, or
      five with engineering 2).
+     *As built (M1):* at a fixed cruise speed one straight burn has exactly one intercept day, so
+     "the extra day" needs a second burn. Leg 3 is two burns: a one-cell hop that climbs over the
+     belt, then the lead from the top of the hop. The belt is a full ring of clumps, open above and
+     below, so there is no answer in the plane and diving under never arrives (Kethra is above the
+     plane by then). A plain climb costs the fourth cell; a tight 20–30° climb saves it.
+     `tools/test-intercept-sim.mjs` proves each of these.
 - **Fail:** the sim stops at the miss or contact, tracks the camera to it, and labels what went
   wrong and by how much ("Belt contact · day 3"). R rewinds instantly. Failing costs nothing.
 - **Win:** the course line draws itself outward from the Wren (the signature wavefront). The day

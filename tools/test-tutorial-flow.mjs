@@ -214,36 +214,33 @@ const leftovers = await page.evaluate(() => {
 });
 check('tutorial cleans itself up at the handover', !Object.values(leftovers).some(Boolean), JSON.stringify(leftovers));
 
-// 8. The reveal plays out, offers its continue prompt, and hands back to the ship interior with
-//    the post-reveal progression flags set.
-check('the reveal reaches its continue prompt', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.readyForContinue === true), 180000));
-await shot('10_reveal_done');
-await page.keyboard.press('Enter');
-check('continuing returns to the ship interior', await until(async () => await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.player), 120000));
-
-// 8b. The course-plot math puzzle gates the calibration now. Enter one WRONG figure to prove
-//     the computer teaches rather than tells, then work the real plot: 60-12=48 Mkm,
-//     48/8=6 days, (6+2)/2=4 cells.
-check('the course plot opens after the reveal', await until(async () => !!(await page.$('#course-plot-panel')), 30000));
-await shot('11a_course_plot');
-const key = async (k) => page.click(`.plot-key[data-key="${k}"]`);
-const enter = async (digits) => { for (const d of String(digits)) await key(d); await key('ENTER'); };
-await enter(50);
-check('a wrong figure gets a teaching hint, not the answer', await until(async () =>
-  await page.evaluate(() => {
-    const s = document.querySelector('.plot-status');
-    return s?.classList.contains('warn') && !s.textContent.includes('48');
-  }), 8000));
-await enter(48);
-check('the distance locks and the transfer line draws', await until(async () =>
-  await page.evaluate(() => document.querySelector('.plot-step.done')?.textContent?.includes('48')), 8000));
-await enter(6);
-await enter(4);
-check('the full plot calibrates the chart', await until(async () =>
-  await page.evaluate(() => document.querySelector('.plot-status')?.classList.contains('good') && document.querySelector('.plot-status')?.textContent?.includes('CALIBRATED')), 10000));
-await shot('11b_course_plot_solved');
-check('the puzzle closes itself and control returns', await until(async () =>
-  await page.evaluate(() => !document.querySelector('#course-plot-panel') && window.__DEBUG__?.engine.getCurrentScene()?.player?.enabled === true), 30000));
+// 8. The reveal is MG1's opening (docs/DESIGN.md §1): its camera move ends on the navigation plot
+//    and MG1 Intercept begins in the same scene. The controls below are the spec's (§4, slot 1);
+//    tools/test-intercept-sim.mjs proves the legs, tools/test-mg1-flow.mjs plays them through.
+check('the reveal hands over to MG1 in the same scene', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.intercept?.state().phase === 'plot'), 180000));
+await shot('10_mg1_leg1');
+const mg1 = () => page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().intercept.state());
+const aimBefore = (await mg1()).plans[0].azimuth;
+await page.keyboard.down('Shift');
+await page.keyboard.press('ArrowRight');
+await page.keyboard.up('Shift');
+check('Shift + arrow turns the burn', (await mg1()).plans[0].azimuth > aimBefore);
+await page.keyboard.press('BracketRight');
+check('] lengthens the burn by a cell', (await mg1()).plans[0].cells === 2);
+await page.keyboard.press('BracketLeft');
+await page.keyboard.press('Space');
+check('running a plot that misses stops and says by how much', await until(async () => {
+  const s = await mg1();
+  return s.phase === 'result' && s.outcome?.kind === 'miss' && s.outcome.distance > 0;
+}, 15000));
+await shot('11a_mg1_miss');
+await page.keyboard.press('KeyR');
+check('R rewinds to plotting at no cost', (await mg1()).phase === 'plot');
+// The harness's win (F2 in ?debug) flies the reference course for every remaining leg.
+await page.evaluate(() => window.__DEBUG__.miniGame()?.win());
+check('winning MG1 returns to the Wren, leaning over the chart', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene'), 60000));
+check('the plotted course is saved for the desk screen', await page.evaluate(() => (window.__DEBUG__.gameState.data.course?.points.length ?? 0) >= 9));
+check('control returns once the player stands', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.player?.enabled === true), 30000));
 
 const postFlags = await page.evaluate(() => ({
   flags: window.__DEBUG__.gameState.data.flags,

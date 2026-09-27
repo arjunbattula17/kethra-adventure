@@ -8,9 +8,9 @@ import { InputManager } from './InputManager';
 import { bus } from './EventBus';
 import { SaveSystem } from './SaveSystem';
 import { TutorialSequence } from '../tutorial/TutorialSequence';
-import { CONSOLE_SEAT, MONITOR_ANCHOR } from '../ship/interior/console';
+import { CONSOLE_SEAT, DESK_CHART_ANCHOR, MONITOR_ANCHOR } from '../ship/interior/console';
 import { AudioSystem } from '../audio/AudioSystem';
-import { CoursePlot } from '../ship/CoursePlot';
+import type { InterceptResult } from '../galaxy/intercept/InterceptGame';
 import { ShipLibrary } from '../journal/shipLibrary';
 import { PanelManager } from '../ui/PanelManager';
 import type { GameScene } from './Engine';
@@ -138,14 +138,12 @@ export class GameFlow {
    * For the debug harness and the tools in tools/: jump to a state through the same guarded
    * transition the game uses, skipping only the "is this an edge from here" check.
    */
-  debugGo(target: 'tutorial' | 'reveal' | 'plot' | 'wren' | 'kethra' | 'vessek' | 'ending'): Promise<boolean> {
+  debugGo(target: 'tutorial' | 'reveal' | 'wren' | 'kethra' | 'vessek' | 'ending'): Promise<boolean> {
     switch (target) {
       case 'tutorial':
         return this.go('wren', () => this.beginTutorialOnShip(), true);
       case 'reveal':
         return this.go('reveal', () => this.enterReveal(), true);
-      case 'plot':
-        return this.go('wren', () => this.finishReveal(), true);
       case 'wren':
         return this.go('wren', () => this.returnFromPlanet(), true);
       case 'ending':
@@ -394,36 +392,71 @@ export class GameFlow {
       // Same guard as travelToPlanet. The reveal is the only route out of the opening, so skip
       // straight to the state it would have left behind rather than stranding the player.
       await UIManager.fadeFromBlack();
-      void this.completeReveal();
+      void this.completeReveal(null);
       return;
     }
     const reveal = new GalaxyRevealScene();
-    reveal.onContinue = () => void this.completeReveal();
+    reveal.onPlotted = (result) => void this.completeReveal(result);
     await this.engine.setScene(() => reveal);
     await UIManager.fadeFromBlack();
   }
 
-  private completeReveal(): Promise<boolean> {
-    return this.go('wren', () => this.finishReveal());
+  private completeReveal(result: InterceptResult | null): Promise<boolean> {
+    return this.go('wren', () => this.finishReveal(result));
   }
 
-  private async finishReveal(): Promise<void> {
+  /**
+   * MG1 is won: back to the Wren, still in the helm seat the player sat down in to boot navigation,
+   * with the plotted course on the desk screen in front of them (saved first, so the rebuilt
+   * console draws it).
+   */
+  private async finishReveal(result: InterceptResult | null): Promise<void> {
     await UIManager.fadeToBlack();
+    if (result) gameState.data.course = { points: result.course.flatMap((p) => [p.x, p.y, p.z]), days: result.days, cells: result.cells };
     this.shipScene = new ShipInteriorScene();
     await this.engine.setScene(() => this.shipScene!);
-    // Continuity: the player sat down at this console to boot navigation and watched the reveal
-    // from that seat — they come back still in it, facing the screens the scan panel opens over.
     this.poseSeated(this.shipScene);
+    UIManager.setLookPromptEnabled(false);
+    // MG1 showed its own objectives; back aboard, the saved one stands until the next is set.
+    UIManager.setObjective(gameState.data.objective);
     await UIManager.fadeFromBlack();
-
-    // The first game: the reveal showed the system, and this is the navigator's arithmetic to
-    // reach the one world in range. The chart-calibration flags are the SOLVE.
-    const puzzle = new CoursePlot();
-    puzzle.onSolved = () => void this.completeCalibration();
-    puzzle.start();
+    if (result) await this.lookAtChart();
+    await this.completeCalibration();
   }
 
-  /** Runs when the course plot is solved: award the calibration, stand up, hand control back. */
+  /**
+   * Lean over the deck chart, where the course just plotted is drawn, and hold. The chart lies
+   * nearly flat at chest height, so from the seat it is a sliver: rising and leaning in is what
+   * makes it readable.
+   */
+  private async lookAtChart(): Promise<void> {
+    const scene = this.shipScene;
+    if (!scene) return;
+    const player = scene.player;
+    const camera = scene.camera;
+    const lean = { z: DESK_CHART_ANCHOR.z + 0.95, eye: 1.62 };
+    const from = { z: player.rig.position.z, eye: camera.position.y, pitch: player.pitch };
+    const toPitch = Math.atan2(DESK_CHART_ANCHOR.y - lean.eye, Math.abs(DESK_CHART_ANCHOR.z - lean.z));
+    const DURATION = motion.reduced ? 0.01 : 1.4;
+    await new Promise<void>((resolve) => {
+      let elapsed = 0;
+      scene.onTick = (dt) => {
+        elapsed += dt;
+        const k = ease.standard(Math.min(1, elapsed / DURATION));
+        player.rig.position.z = THREE.MathUtils.lerp(from.z, lean.z, k);
+        camera.position.y = THREE.MathUtils.lerp(from.eye, lean.eye, k);
+        player.pitch = THREE.MathUtils.lerp(from.pitch, toPitch, k);
+        camera.rotation.set(player.pitch, 0, 0);
+        if (elapsed >= DURATION) {
+          scene.onTick = null;
+          resolve();
+        }
+      };
+    });
+    await this.wait(2.2);
+  }
+
+  /** The plot is the calibration: award it, stand up, hand control back. */
   private async completeCalibration(): Promise<void> {
     gameState.setFlag('galaxy_revealed');
     if (!gameState.data.planetsUnlocked.includes('kethra')) {
@@ -435,9 +468,13 @@ export class GameFlow {
     // the Doppler-confirmed cruise speed — plus what the reveal's scan itself demonstrated,
     // land in the Ship's Library the moment they earned the calibration.
     ShipLibrary.award(['lib_navigation', 'lib_doppler', 'lib_spectroscopy', 'lib_kepler', 'lib_belts']);
+    // MG1's awards (docs/DESIGN.md §4): the plot used insight and engineering.
+    gameState.addAttributeXp('insight', 1);
+    gameState.addAttributeXp('engineering', 1);
 
     await this.standFromConsole();
     UIManager.setCrosshairVisible(true);
+    UIManager.setLookPromptEnabled(true);
     await this.finishReturnToShip();
   }
 

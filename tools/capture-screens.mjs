@@ -143,12 +143,15 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
   await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.ship, undefined, { timeout: 240000, polling: 500 });
   await page.waitForTimeout(9000);
   await shot(page, 'galaxy-reveal');
-  // Drive to the end of the reveal, then the course plot opens over the console.
-  await page.waitForFunction(() => document.querySelector('.reveal-continue, .galaxy-continue, [data-reveal-continue]') || window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene', undefined, { timeout: 120000, polling: 500 }).catch(() => {});
-  await page.evaluate(() => window.__DEBUG__.flow.debugGo('plot'));
+  // The reveal ends on MG1's plot; win it, and the course lands on the Wren's desk chart.
+  await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.intercept?.state().phase === 'plot', undefined, { timeout: 120000, polling: 500 });
+  await page.waitForTimeout(1500);
+  await shot(page, 'mg1-plot');
+  await page.evaluate(() => window.__DEBUG__.miniGame()?.win());
   await waitScene(page, 'ShipInteriorScene');
-  await page.waitForTimeout(4000);
-  await shot(page, 'course-plot');
+  await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene().player.pitch < -0.38, undefined, { timeout: 60000, polling: 100 });
+  await page.waitForTimeout(500);
+  await shot(page, 'desk-course');
   await page.close();
 }
 

@@ -1,329 +1,267 @@
 import * as THREE from 'three';
 import type { GameScene } from '../core/Engine';
-import { CameraPath, MotionScope, ease } from '../motion';
+import { CameraPath, MotionScope, ease, motion } from '../motion';
 import { disposeSceneFully } from '../core/disposeSceneTextures';
 import { UIManager } from '../ui/UIManager';
 import { HoldToSkip } from '../ui/HoldToSkip';
 import { getSharedEnvironment } from '../core/Environment';
+import { getActiveEngine } from '../core/EngineRegistry';
+import { AudioSystem } from '../audio/AudioSystem';
+import { gameState } from '../core/GameState';
+import { t } from '../content/strings';
 import { PLANETS } from './planetData';
 import { buildShipHull } from './shipHull';
 import { buildPlanetInstance, type PlanetInstance } from './planetShader';
-import { getPointSprite } from './spaceDressing';
 import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
 import { buildSun } from './sun';
 import type { Sun } from './sun';
 import { GRADES } from '../core/GradeGlowPass';
+import * as sim from './intercept/sim';
+import { INK, eclipticGrid, orbitLoop, revealHairline, toV3 } from './intercept/instrument';
+import type { Reveal } from './intercept/instrument';
+import { buildBelt, buildBuoy, buildDrift } from './intercept/props';
+import type { Belt } from './intercept/props';
+import { InterceptGame, LEG1_FOCUS, LEG1_VIEW, orbitPosition } from './intercept/InterceptGame';
+import type { InterceptResult } from './intercept/InterceptGame';
 
-/** A belt of real rock, not a flat annulus of grey squares. Individual instanced chunks near the
- * camera plus a dust haze of points further out: the pre-fix version used one big PointsMaterial
- * for everything, which put unlit grey blocks the size of moons in front of the sun. */
-function buildAsteroidField(
-  chunkCount: number,
-  dustCount: number,
-  innerRadius: number,
-  outerRadius: number,
-): THREE.Group {
-  const group = new THREE.Group();
+/** The Wren's length in plot units: a few pixels in the plot, a hero up close. */
+const WREN_LENGTH = 0.5;
+/** Planets are drawn larger than life at plot scale, or they'd be single pixels. */
+const PLANET_SCALE = 0.33;
+/** The ping's shell: how far it reaches and how long it takes. */
+const PING_REACH = 150;
+const PING_SECONDS = 5.2;
 
-  // Positions are relative to the field's own origin; the caller positions/rotates the returned
-  // object so the whole belt drifts as one piece instead of sitting frozen in place.
-  const place = (radiusJitter: number, thickness: number) => {
-    const angle = Math.random() * Math.PI * 2;
-    const radius = THREE.MathUtils.lerp(innerRadius, outerRadius, Math.random()) + radiusJitter;
-    return new THREE.Vector3(
-      Math.cos(angle) * radius,
-      (Math.random() - 0.5) * thickness,
-      Math.sin(angle) * radius,
-    );
-  };
-
-  // One low-poly icosahedron reused through an InstancedMesh: 400 lit, individually tumbled rocks
-  // for a single draw call. Non-uniform per-instance scale keeps them from reading as clones.
-  const rock = new THREE.InstancedMesh(
-    new THREE.IcosahedronGeometry(1, 0),
-    new THREE.MeshStandardMaterial({ color: 0x8f8679, roughness: 0.9, metalness: 0.05, flatShading: true }),
-    chunkCount,
-  );
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const e = new THREE.Euler();
-  const scale = new THREE.Vector3();
-  for (let i = 0; i < chunkCount; i++) {
-    e.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-    q.setFromEuler(e);
-    const base = 0.12 + Math.pow(Math.random(), 3) * 0.85;
-    scale.set(base, base * (0.55 + Math.random() * 0.6), base * (0.6 + Math.random() * 0.7));
-    m.compose(place(0, 5), q, scale);
-    rock.setMatrixAt(i, m);
-  }
-  rock.instanceMatrix.needsUpdate = true;
-  group.add(rock);
-
-  // Dust: too small and too numerous to be worth geometry, and now soft-sprited so it reads as
-  // haze rather than as pixels.
-  const positions = new Float32Array(dustCount * 3);
-  for (let i = 0; i < dustCount; i++) {
-    const p = place(0, 7);
-    positions[i * 3] = p.x;
-    positions[i * 3 + 1] = p.y;
-    positions[i * 3 + 2] = p.z;
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  group.add(
-    new THREE.Points(
-      geo,
-      new THREE.PointsMaterial({
-        color: 0x8a8378,
-        size: 0.28,
-        map: getPointSprite(),
-        sizeAttenuation: true,
-        transparent: true,
-        opacity: 0.75,
-        depthWrite: false,
-      }),
-    ),
-  );
-
-  return group;
-}
-
-function buildRingTexture(): THREE.Texture {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const cx = size / 2;
-  const cy = size / 2;
-  const gradient = ctx.createRadialGradient(cx, cy, size * 0.3, cx, cy, size * 0.5);
-  gradient.addColorStop(0, 'rgba(150,225,255,0)');
-  gradient.addColorStop(0.5, 'rgba(170,235,255,0.85)');
-  gradient.addColorStop(0.64, 'rgba(170,235,255,0.85)');
-  gradient.addColorStop(1, 'rgba(170,235,255,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
+/**
+ * The reveal, rebuilt as MG1's opening (docs/DESIGN.md §1): the scanner's ping resolves the
+ * system in 3D around the Wren, and the shot it ends on is the navigation plot MG1 is played in.
+ * One scene, no cut. The system is at plot scale (1 unit = 1 Mkm, src/galaxy/intercept/sim.ts),
+ * so what the player sees during the reveal is exactly what they plot against afterwards.
+ */
 export class GalaxyRevealScene implements GameScene {
-  // Nothing in open space occludes anything; GTAO only paints half-resolution blocky artefacts
-  // across the sky here (see Engine.GameScene.usesAO).
   /** Stable identity for the harnesses in tools/ (constructor names are mangled in production). */
   readonly kind = 'GalaxyRevealScene';
   readonly usesAO = false;
   readonly grade = GRADES.space;
   scene = new THREE.Scene();
-  private sky!: SpaceSky;
-  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 4000);
-  /** Everything that moves in this scene; disposed with it. */
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.002, 3000);
+  /** MG1, once the reveal hands over; public for the tools. */
+  intercept: InterceptGame | null = null;
+  onPlotted: ((result: InterceptResult) => void) | null = null;
+
   private fx = new MotionScope('game');
-  private ship!: THREE.Group;
+  private sky!: SpaceSky;
   private sun!: Sun;
-  private planetMeshes: THREE.Object3D[] = [];
-  private planetInstances: PlanetInstance[] = [];
-  private asteroidField!: THREE.Group;
-  private pingSprite!: THREE.Sprite;
-  private pingElapsed = -1;
-  private elapsedTotal = 0;
-  private readyForContinue = false;
-  onContinue: (() => void) | null = null;
-  private continueHandler = (e: KeyboardEvent) => {
-    if (this.readyForContinue && !e.repeat && (e.code === 'Enter' || e.code === 'Space')) this.triggerContinue();
-  };
-  private clickHandler = () => {
-    if (this.readyForContinue) this.triggerContinue();
-  };
+  private ship!: THREE.Group;
+  private kethra!: PlanetInstance;
+  private planets: PlanetInstance[] = [];
+  private belt!: Belt;
+  private drift!: ReturnType<typeof buildDrift>;
+  private buoy!: ReturnType<typeof buildBuoy>;
+  private shell!: THREE.Mesh;
+  private readonly reveal: Reveal = { uOrigin: { value: toV3(sim.WREN_START) }, uRadius: { value: 0 } };
+  /** Bodies the ping resolves as its shell passes them: they grow in from nothing. */
+  private resolving: { obj: THREE.Object3D; at: number; scale: number }[] = [];
+  private readonly lookTarget = new THREE.Vector3();
+  private skip: HoldToSkip | null = null;
+  private elapsed = 0;
 
   async init(): Promise<void> {
     UIManager.setLookPromptEnabled(false);
     this.scene.background = new THREE.Color(0x02030a);
     this.scene.environment = getSharedEnvironment();
-    // High enough that the hull's metals have something to reflect (metalness without an
-    // environment reads as flat black), low enough that space still reads as vacuum-dark.
-    this.scene.environmentIntensity = 0.3;
+    // Enough for the hull's metals to have something to reflect, low enough to stay vacuum-dark.
+    this.scene.environmentIntensity = 0.25;
 
     this.sky = buildSpaceSky();
     this.scene.add(this.sky.group);
 
-    // Kit pieces load async — everything below this line may assume this.ship exists, and nothing
-    // above it touches the ship, so awaiting here up front is enough to keep playReveal()'s camera
-    // lookAt (which reads this.ship.position) and update()'s per-frame reads safe. Engine.setScene
-    // also awaits this whole init() before the scene becomes current and update() starts running.
+    this.sun = buildSun({ radius: 1.7 });
+    this.scene.add(this.sun.group);
+    // The key: the sun's light on the Wren. A faint cool bounce is the only fill (DESIGN §2).
+    const wren = toV3(sim.WREN_START);
+    this.sun.light.position.set(0, 0, 0);
+    this.sun.light.target.position.copy(wren);
+    this.scene.add(this.sun.light, this.sun.light.target, new THREE.AmbientLight(0x3a4a66, 0.12));
+
     const hull = await buildShipHull();
     this.ship = hull.group;
     // Emergency power since the white sky: the ports glow the ship's own amber, low.
     hull.parts.windows.emissive.setHex(0xffb45a);
     hull.parts.windows.emissiveIntensity = 0.55;
+    const size = new THREE.Box3().setFromObject(this.ship).getSize(new THREE.Vector3());
+    this.ship.scale.setScalar(WREN_LENGTH / Math.max(size.x, size.z));
+    this.ship.position.copy(wren);
+    // Nose (+X) along the first burn's rough heading, so the hero pass sees it underway-ready.
+    this.ship.rotation.y = -0.2;
     this.scene.add(this.ship);
 
-    const ambient = new THREE.AmbientLight(0x445577, 0.3);
-    this.scene.add(ambient);
+    this.drift = buildDrift(sim.WREN_START);
+    this.scene.add(this.drift.group);
+    this.buoy = buildBuoy(sim.BUOY);
+    this.scene.add(this.buoy.group);
+    this.resolving.push({ obj: this.buoy.group, at: sim.dist(sim.WREN_START, sim.BUOY), scale: 1 });
 
-    this.sun = buildSun({ radius: 9 });
-    this.sun.group.position.set(0, 0, -140);
-    this.scene.add(this.sun.group);
-    const sunPos = this.sun.group.position;
+    this.belt = buildBelt(sim.beltWall());
+    this.scene.add(this.belt.group);
+    this.belt.setResolved(0);
 
-    const sunLight = new THREE.PointLight(0xffe3ab, 5.5, 500, 1.4);
-    sunLight.position.copy(sunPos);
-    this.scene.add(sunLight);
+    // The instrument's fixed lines, resolved by the ping: the ecliptic grid and every orbit.
+    const lineMat = revealHairline(this.reveal);
+    this.scene.add(eclipticGrid(80, lineMat));
+    this.scene.add(orbitLoop(sim.KETHRA, INK.grove, 0.35, lineMat));
 
-    // The sun as a *directional* key on the ship. The point light above carries the belt and the
-    // near-sun space; at the ship's distance its decay leaves almost nothing, which is why the
-    // hull used to read as an unlit silhouette. A directional light is the correct model for a
-    // star 140 units away, and one light is far cheaper than turning the point light's decay off.
-    const sunKey = this.sun.light;
-    sunKey.position.copy(sunPos);
-    sunKey.target.position.set(0, 0, 0);
-    this.scene.add(sunKey);
-    this.scene.add(sunKey.target);
+    for (const def of PLANETS) {
+      const isKethra = def.id === 'kethra';
+      const orbit: sim.Orbit = isKethra ? sim.KETHRA : { radius: def.orbitRadius, inclination: 0.02, node: 0, phase: def.orbitAngle, rate: 0.03 };
+      const at = toV3(sim.orbitAt(orbit, 0));
+      const planet = buildPlanetInstance({ ...def, radius: def.radius * PLANET_SCALE }, at, this.sun.group.position, this.camera);
+      this.scene.add(planet.group);
+      this.planets.push(planet);
+      if (isKethra) this.kethra = planet;
+      else this.scene.add(orbitLoop(orbit, INK.steel, 0.3, lineMat));
+      this.resolving.push({ obj: planet.group, at: at.distanceTo(wren), scale: 1 });
+      planet.group.scale.setScalar(0.001);
+    }
+    for (const r of this.resolving) r.obj.scale.setScalar(0.001);
 
-    // Dedicated fill/rim lights on the ship, placed relative to the hero pass's camera side
-    // (the -Z, sunward flank): a warm fill so the near flank's greebles read, and a cool rim
-    // from behind-above so the silhouette separates from the sky in the pull-back shots.
-    const shipKey = new THREE.PointLight(0xffe3ab, 3, 20);
-    shipKey.position.set(5.5, 3, -6.5);
-    this.scene.add(shipKey);
-    const shipRim = new THREE.PointLight(0x7ab8ff, 3.5, 18);
-    shipRim.position.set(-4, 2, 5);
-    this.scene.add(shipRim);
-
-    this.asteroidField = buildAsteroidField(420, 1400, 26, 42);
-    this.asteroidField.position.copy(sunPos);
-    this.scene.add(this.asteroidField);
-
-    this.pingSprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: buildRingTexture(),
+    // The ping itself: a thin shell of the Wren's light, brightest at its rim.
+    this.shell = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1, 5),
+      new THREE.ShaderMaterial({
+        uniforms: { uColor: { value: new THREE.Color(0xffd9a0) }, uFade: { value: 0 } },
+        vertexShader: /* glsl */ `
+          varying float vRim;
+          void main() {
+            vec4 w = modelMatrix * vec4(position, 1.0);
+            vRim = 1.0 - abs(dot(normalize(mat3(modelMatrix) * normal), normalize(cameraPosition - w.xyz)));
+            gl_Position = projectionMatrix * viewMatrix * w;
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          uniform vec3 uColor;
+          uniform float uFade;
+          varying float vRim;
+          void main() { gl_FragColor = vec4(uColor * pow(vRim, 9.0) * 1.6 * uFade, 1.0); }
+        `,
         transparent: true,
-        opacity: 0,
         depthWrite: false,
-        depthTest: false,
         blending: THREE.AdditiveBlending,
       }),
     );
-    this.pingSprite.visible = false;
-    this.scene.add(this.pingSprite);
+    this.shell.position.copy(wren);
+    this.shell.visible = false;
+    this.scene.add(this.shell);
 
-    // Planets are shader spheres built off prepared equirect maps (planetShader.ts), so there is
-    // no per-planet asset load to stagger here -- construction is synchronous and the textures
-    // stream in behind it.
-    PLANETS.forEach((p) => {
-      const angle = p.orbitAngle;
-      const position = new THREE.Vector3(
-        Math.cos(angle) * p.orbitRadius,
-        Math.sin(angle * 0.4) * 8,
-        sunPos.z + Math.sin(angle) * p.orbitRadius,
-      );
-      const instance = buildPlanetInstance(p, position, sunPos, this.camera);
-      instance.group.userData.planetId = p.id;
-      this.scene.add(instance.group);
-      this.planetMeshes.push(instance.group);
-      this.planetInstances.push(instance);
-    });
-
-    // Parked on the ship's sunlit side (the sun sits at -Z): the old park on +Z looked at the
-    // shadow flank, which put an unlit silhouette on screen for the whole first shot.
-    this.camera.position.set(3.5, 1.0, -6.5);
-    this.camera.lookAt(this.ship.position.clone().add(new THREE.Vector3(2, 0, 0)));
-
-    window.addEventListener('keydown', this.continueHandler);
-    window.addEventListener('click', this.clickHandler);
-
+    this.kethra.group.position.copy(toV3(sim.orbitAt(sim.KETHRA, 0)));
     this.playReveal();
   }
 
   private playReveal(): void {
     UIManager.showLetterbox(true);
-    const sunPos = this.sun.group.position;
-    const start = this.camera.position.clone();
-    const startLook = this.ship.position.clone().add(new THREE.Vector3(2, 0, 0));
-    // One continuous move through the old keyframes (hero pass on the sunlit flank, the pull
-    // back past the belt, the wide of the whole system), on the camera path that never stops dead.
+    const W = toV3(sim.WREN_START);
+    const B = toV3(sim.BUOY);
+    const mid = W.clone().lerp(B, LEG1_FOCUS);
+    // MG1's first view: the same orbit framing the game opens leg 1 with.
+    const end = orbitPosition(mid, LEG1_VIEW);
+    // The wide the ping resolves: the whole approach, sun to Kethra's orbit.
+    const wideTarget = new THREE.Vector3(24, 0, 24);
+    const wide = orbitPosition(wideTarget, { yaw: 0.55, pitch: 0.66, dist: 125 });
     const path = new CameraPath([
-      { position: start, target: startLook, fov: 50 },
-      { position: new THREE.Vector3(8.5, 3, -7), target: this.ship.position.clone(), fov: 50 },
-      { position: new THREE.Vector3(24, 14, 42), target: new THREE.Vector3(-6, 2, sunPos.z * 0.4), fov: 55 },
-      { position: new THREE.Vector3(38, 48, 158), target: new THREE.Vector3(12, -8, sunPos.z * 0.58), fov: 58 },
-    ]);
-    const MOVE = 14.4;
-    const move = this.fx.tween({ duration: MOVE, ease: ease.standard, update: (e) => path.apply(this.camera, e) });
-    // Beats on the same game clock as the camera, so a slow frame can't put a caption ahead of
-    // the shot it belongs to.
-    const beats = this.fx.timeline([
-      { at: 1.2, run: () => UIManager.showCaption('You are stranded, alone, in a galaxy no chart has ever mapped.', 4200) },
-      { at: 8.2, run: () => UIManager.showCaption('Somewhere out there is the truth — and a way home.', 4200) },
-      { at: 8.2, run: () => this.triggerSensorPing(), beat: 'reveal:ping' },
-      {
-        at: MOVE + 2,
-        state: true,
-        run: () => {
-          this.readyForContinue = true;
-          this.skip.dispose();
-          UIManager.showCaption('Click or press Enter to continue', 999999);
-        },
+      // Close on the hull's sunlit flank (the sun is at the origin, toward -X).
+      { position: W.clone().add(new THREE.Vector3(-0.42, 0.1, 0.34)), target: W.clone().add(new THREE.Vector3(0.05, 0, 0)), fov: 42 },
+      { position: W.clone().add(new THREE.Vector3(-1.6, 0.7, 2.2)), target: W.clone(), fov: 45 },
+      { position: wide, target: wideTarget, fov: 50 },
+      { position: end, target: mid, fov: 50 },
+    ], { pace: 'keys' });
+    const MOVE = 11;
+    const move = this.fx.tween({
+      duration: motion.reduced ? 0.01 : MOVE,
+      ease: ease.standard,
+      update: (e) => {
+        path.apply(this.camera, e);
+        path.targetAt(e, this.lookTarget);
       },
+    });
+    const ping = () => {
+      this.shell.visible = true;
+      AudioSystem.playTone(880, 1.6, 'sine', 0.05);
+      this.fx.tween({
+        duration: motion.reduced ? 0.2 : PING_SECONDS,
+        // Constant speed, like light: the shell's band sweeps the grid visibly from the wide.
+        ease: (k) => k,
+        update: (k) => this.setPing(k),
+      });
+    };
+    const beats = this.fx.timeline([
+      { at: 1.2, run: () => UIManager.showCaption(t('reveal.caption.stranded'), 4200) },
+      { at: 5.0, run: ping, beat: 'reveal:ping' },
+      { at: 6.6, run: () => UIManager.showCaption(t('reveal.caption.truth'), 4200) },
+      { at: MOVE + 0.2, state: true, run: () => this.beginPlot() },
     ]);
-    // Hold to skip: the camera lands on its last frame and the continue prompt comes up.
+    // Hold to skip lands on the plot, fully resolved: skipping cuts to the arrival state.
     this.skip = new HoldToSkip({
       onSkip: () => {
         move.finish();
+        this.setPing(1);
         beats.skip();
       },
     });
     this.skip.show();
   }
-  private skip: HoldToSkip = new HoldToSkip({ onSkip: () => {} });
 
-  private triggerSensorPing(): void {
-    this.pingElapsed = 0;
-    this.pingSprite.position.copy(this.ship.position);
-    this.pingSprite.visible = true;
+  /** The ping at `k` of its reach: the shell grows and fades, and what it passes resolves. */
+  private setPing(k: number): void {
+    const r = PING_REACH * k;
+    this.reveal.uRadius.value = k >= 1 ? 1e5 : r;
+    this.shell.scale.setScalar(Math.max(0.01, r));
+    (this.shell.material as THREE.ShaderMaterial).uniforms.uFade.value = (1 - k) * Math.min(1, k * 8);
+    this.shell.visible = k < 1;
+    for (const item of this.resolving) {
+      const grow = THREE.MathUtils.clamp((r - item.at) / 6, 0, 1);
+      item.obj.scale.setScalar(Math.max(0.001, ease.decelerate(grow) * item.scale));
+    }
   }
 
-  private triggerContinue(): void {
-    if (!this.readyForContinue) return;
-    this.readyForContinue = false;
+  private beginPlot(): void {
+    this.skip?.dispose();
+    this.skip = null;
     UIManager.clearCaption();
     UIManager.showLetterbox(false);
-    this.onContinue?.();
+    const engine = getActiveEngine();
+    const a = gameState.data.attributes;
+    this.intercept = new InterceptGame({
+      scene: this.scene,
+      camera: this.camera,
+      wren: this.ship,
+      kethra: this.kethra.group,
+      belt: this.belt,
+      surface: engine?.renderer.domElement ?? document.body,
+      stats: { insight: a.insight, perception: a.perception, engineering: a.engineering },
+    });
+    this.intercept.onComplete = (result) => this.onPlotted?.(result);
+    this.intercept.start(this.camera.position.clone(), this.lookTarget.clone());
   }
 
   update(dt: number, elapsed: number): void {
-    this.elapsedTotal = elapsed;
+    this.elapsed = elapsed;
     this.sky.update(this.camera);
-    for (const mesh of this.planetMeshes) {
-      mesh.rotation.y += dt * 0.05;
-    }
-    for (const instance of this.planetInstances) {
-      instance.update(elapsed, dt);
-    }
-    this.ship.rotation.y = Math.sin(this.elapsedTotal * 0.15) * 0.05;
-    this.ship.updateMatrixWorld();
-
     this.sun.update(this.camera, dt);
-
-    // Asteroid belt drifts as one piece around the sun instead of sitting frozen.
-    this.asteroidField.rotation.y += dt * 0.02;
-
-    // Sensor ping sweep, timed with the second cinematic caption.
-    if (this.pingElapsed >= 0) {
-      this.pingElapsed += dt;
-      const pingDuration = 1.6;
-      const t = Math.min(1, this.pingElapsed / pingDuration);
-      // Scaled for how close the camera sits to the ship at this point in the cinematic —
-      // a world-space ring, not a screen-space one, so it has to match the ship's own scale.
-      const scale = THREE.MathUtils.lerp(1.5, 13, t);
-      this.pingSprite.scale.set(scale, scale, 1);
-      (this.pingSprite.material as THREE.SpriteMaterial).opacity = (1 - t) * 0.85;
-      if (t >= 1) {
-        this.pingElapsed = -1;
-        this.pingSprite.visible = false;
-      }
+    const ambientDt = dt * motion.ambient;
+    for (const planet of this.planets) {
+      planet.group.rotation.y += ambientDt * 0.05;
+      planet.update(motion.ambientTime, ambientDt);
+    }
+    this.drift.update(ambientDt);
+    this.buoy.update(this.elapsed);
+    this.intercept?.update(dt);
+    // The near plane follows the shot, from a hull a metre away to a system 100 Mkm across.
+    const focus = this.intercept?.focus ?? this.lookTarget;
+    const near = THREE.MathUtils.clamp(this.camera.position.distanceTo(focus) * 0.004, 0.002, 0.5);
+    if (Math.abs(near - this.camera.near) / this.camera.near > 0.1) {
+      this.camera.near = near;
+      this.camera.updateProjectionMatrix();
     }
   }
 
@@ -334,13 +272,12 @@ export class GalaxyRevealScene implements GameScene {
 
   dispose(): void {
     this.fx.dispose();
-    this.skip.dispose();
-    window.removeEventListener('keydown', this.continueHandler);
-    window.removeEventListener('click', this.clickHandler);
+    this.skip?.dispose();
+    this.intercept?.dispose();
     UIManager.showLetterbox(false);
     UIManager.clearCaption();
-    // This scene owns everything it loaded (sky, sun, planets, sprites): free it all. It used to
-    // free nothing. The hull is the exception: its clones share the cached template's geometry.
+    // This scene owns everything it loaded: free it all. The hull is the exception: its clones
+    // share the cached template's geometry.
     this.scene.remove(this.ship);
     disposeSceneFully(this.scene);
   }

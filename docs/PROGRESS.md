@@ -64,6 +64,9 @@ to milestone without stopping.
 | 2026-09-27 | Milestone screenshots commit at 1920×1080, Low and High; the other three sizes of the brief's matrix are inspected from scratch and committed at M7 | The full matrix is ~200 images per milestone; M7 is where the design puts the four-size verification |
 | 2026-09-27 | Atlas pages are exempt from the Low canvas downscale | An atlas page is 2048 px only because it packs small canvases that were already within budget; halving it halved every placard's text on Low |
 | 2026-09-27 | Tools wait for the flow to go idle, not just for the scene to become current | The scene is current ~5 s before its transition finishes; perf-run's next jump was being ignored |
+| 2026-09-27 | MG1 leg 3 is two burns (a hop over the belt, then the lead); the belt is a full ring of clumps | At a fixed cruise speed a single straight burn has one intercept day, so "pay the extra day" can't happen in one burn. Details in DESIGN §4 slot 1 |
+| 2026-09-27 | The reveal's system is at plot scale (1 unit = 1 Mkm) and matches the galaxy map's NAV figures | What the ping resolves is exactly what the player plots against; the old poster orrery had the Wren outside Kethra's orbit |
+| 2026-09-27 | The desk chart draws real state: the belt band, Kethra's orbit, the buoy and the player's own course | DESIGN §2 "Screens show real state"; it replaced invented waypoints and telemetry |
 
 ## QA log
 | Date | What | Result |

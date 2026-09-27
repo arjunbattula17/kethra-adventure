@@ -19,6 +19,7 @@ import { PauseMenu } from './ui/PauseMenu';
 import { t } from './content/strings';
 import { mulberry32 } from './core/rng';
 import { motion } from './motion';
+import { activeMiniGame } from './debug/hooks';
 
 
 const params = new URLSearchParams(location.search);
@@ -109,7 +110,7 @@ if (bootFlags) {
   // ?jump=<state> goes straight on to a state once the boot has settled (the debug harness's F1).
   const jump = params.get('jump');
   void flow.start().then(() => {
-    if (jump === 'tutorial' || jump === 'plot' || jump === 'kethra' || jump === 'vessek' || jump === 'ending') void flow.debugGo(jump);
+    if (jump === 'tutorial' || jump === 'reveal' || jump === 'kethra' || jump === 'vessek' || jump === 'ending') void flow.debugGo(jump);
   });
 } else {
   document.body.classList.add('title-open');
@@ -136,5 +137,5 @@ document.addEventListener('visibilitychange', () => AudioSystem.setSuspended(doc
 window.addEventListener('blur', () => PauseMenu.request());
 
 // A read-only probe for the test tools (tools/*.mjs). The interactive harness only loads with ?debug.
-(window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'], motion };
+(window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'], motion, miniGame: activeMiniGame };
 if (params.has('debug')) void import('./debug/DebugHarness').then(({ startDebugHarness }) => startDebugHarness(engine, flow));

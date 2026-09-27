@@ -51,6 +51,9 @@ const DESK_FRONT_Z = DESK_Z + 0.37;
 export const CONSOLE_APPROACH = { x: 0, z: DESK_Z + 1.8 };
 /** Centre of the monitor bank's screen grid — the thing the tutorial hands the first game over on. */
 export const MONITOR_ANCHOR = { x: 0, y: 1.6, z: DESK_Z - 0.52 };
+/** The centre of the nav chart laid into the deck (buildDeckSurface: the deck at 1.09 m, tilted
+ * 0.22 rad, the chart 0.13 m back on it), where the seated player looks to see MG1's course. */
+export const DESK_CHART_ANCHOR = { x: 0, y: 1.18, z: DESK_Z - 0.17 };
 /** The pilot chair's centre and the eye height of someone settled into it — where the handover
  * cinematic seats the player before the navigation boot plays out. Matches buildChair()'s
  * placement (DESK_Z + 0.74); keep the two in step if the chair ever moves. */
@@ -716,9 +719,9 @@ function buildDeckSurface(ctx: InteriorCtx, kit: Kit, parent: THREE.Group): void
   mesh(deck, chamferBox(2.36, 0.04, 0.46, 0.012), kit.charcoal, 0, 0.04, -0.13);
   const mapMat = new THREE.MeshStandardMaterial({
     color: 0x0a1620,
-    map: buildDeskMapTexture(),
+    map: buildDeskMapTexture(gameState.data.course),
     emissive: 0xffffff,
-    emissiveMap: buildDeskMapTexture(),
+    emissiveMap: buildDeskMapTexture(gameState.data.course),
     emissiveIntensity: 1.75,
     roughness: 0.9,
     metalness: 0,

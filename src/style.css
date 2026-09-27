@@ -1218,75 +1218,6 @@ body.tutorial-active .look-prompt { padding-bottom: 250px; }
   letter-spacing: 0.1em;
 }
 
-/* Course plot — the post-reveal first-game math puzzle */
-#course-plot-panel { width: 760px; max-width: 94vw; }
-.plot-chart {
-  display: block;
-  width: 100%;
-  height: 190px;
-  border: 1px solid var(--surface-border);
-  border-radius: 4px;
-  margin: 10px 0 10px;
-  background: #05060a;
-}
-.plot-steps { display: flex; gap: 8px; margin-bottom: 12px; }
-.plot-step {
-  flex: 1; display: flex; align-items: center; gap: 8px;
-  border: 1px solid var(--surface-border); border-radius: 4px;
-  padding: 7px 10px; font-size: calc(12px * var(--text-scale)); color: var(--ink-dim);
-}
-.plot-step.active { border-color: var(--accent); color: var(--ink); }
-.plot-step.done { border-color: var(--success); color: var(--success); }
-.plot-step-num {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; flex-shrink: 0;
-  border: 1px solid currentColor; border-radius: 50%;
-  font-size: calc(11px * var(--text-scale));
-}
-.plot-step-name { flex: 1; }
-.plot-step-value { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.04em; }
-.plot-work { display: flex; gap: 20px; align-items: stretch; margin-bottom: 10px; }
-.plot-question { flex: 1; }
-.plot-q-prompt {
-  font-family: var(--font-display);
-  font-size: calc(17px * var(--text-scale)); font-weight: 600; letter-spacing: 0.05em;
-  color: var(--accent); margin-bottom: 6px;
-}
-.plot-q-detail { font-size: calc(13.5px * var(--text-scale)); line-height: 1.55; color: var(--ink); }
-.plot-entry-row { display: flex; gap: 12px; align-items: flex-start; }
-.plot-entry {
-  min-width: 96px; padding: 10px 12px; text-align: right;
-  border: 1px solid var(--panel-border); border-radius: 4px;
-  background: rgba(0,0,0,0.4);
-  font-family: var(--font-display); font-size: calc(22px * var(--text-scale)); font-weight: 600;
-  color: var(--ink);
-}
-.plot-entry.solved { border-color: var(--success); color: var(--success); }
-.plot-entry-unit { font-size: calc(11px * var(--text-scale)); color: var(--ink-dim); margin-left: 6px; }
-.plot-keypad { display: grid; grid-template-columns: repeat(3, 44px); gap: 5px; }
-.plot-key {
-  height: 32px;
-  border: 1px solid var(--surface-border); border-radius: 4px;
-  background: var(--surface); color: var(--ink);
-  font-family: var(--font-display); font-size: calc(13px * var(--text-scale)); font-weight: 600;
-  cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease;
-}
-.plot-key:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent-dim); }
-.plot-key.enter { border-color: var(--accent); color: var(--accent); }
-.plot-key.enter:hover:not(:disabled) { background: var(--accent); color: #1a1408; }
-.plot-key.clr { color: var(--ink-dim); }
-.plot-key:disabled { opacity: 0.4; cursor: not-allowed; }
-.plot-status { min-height: 20px; font-size: calc(13px * var(--text-scale)); color: var(--ink-dim); }
-.plot-status.warn { color: var(--corrupt); }
-.plot-status.good { color: var(--success); }
-.plot-status.flash { animation: scan-shake 0.3s ease; }
-@keyframes scan-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
-}
-
 /* Title screen (TitleScreen.ts). Sits under #ui-root (z 10) so the Controls / Credits / Settings
    panels open above it; the HUD is hidden while it's up. Pure CSS motion: two drifting star
    layers at different speeds for depth, a slow amber glow, staggered entrances. */
@@ -1532,6 +1463,53 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 }
 .debug-menu button:hover, .debug-menu button:focus-visible { border-color: var(--accent); outline: none; }
 
+/* MG1 Intercept (src/galaxy/intercept): the plot's plate, top right, and numerals pinned to points
+   in the system. Numbers are tabular so a changing figure never shifts its neighbours. */
+.intercept-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: min(360px, 36vw);
+  padding: 16px 18px 14px;
+  background-color: var(--panel-bg);
+  color: var(--ink);
+  font-size: calc(14px * var(--text-scale));
+  line-height: 1.45;
+  pointer-events: none;
+}
+.intercept-panel h3 { margin: 2px 0 4px; font-family: var(--font-display); font-weight: 700; font-size: calc(22px * var(--text-scale)); }
+.intercept-panel p { margin: 0 0 8px; color: var(--ink-dim); }
+.intercept-readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 8px 0; }
+.intercept-readouts > div, .intercept-win > div { display: flex; flex-direction: column; }
+.intercept-readouts .label, .intercept-win .label { font-size: calc(12px * var(--text-scale)); color: var(--ink-dim); }
+.intercept-readouts .num { font-size: calc(17px * var(--text-scale)); }
+.intercept-burns { display: flex; gap: 14px; margin: 6px 0; color: var(--ink-dim); }
+.intercept-burns .on { color: var(--accent); }
+.intercept-burns .keycap, .intercept-keys .keycap { margin-right: 5px; }
+.intercept-stats { margin: 6px 0; padding: 0; list-style: none; color: var(--grove); font-size: calc(13px * var(--text-scale)); }
+.intercept-keys { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; color: var(--ink-dim); font-size: calc(13px * var(--text-scale)); }
+.intercept-win { display: flex; gap: 32px; margin-top: 6px; }
+.intercept-win .big { font-size: calc(36px * var(--text-scale)); line-height: 1.1; color: var(--ink); }
+.intercept-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.intercept-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: -18px 0 0 6px;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-size: calc(12px * var(--text-scale));
+  white-space: nowrap;
+  will-change: transform;
+}
+.intercept-label.wren { color: var(--accent); }
+.intercept-label.kethra { color: var(--grove); }
+.intercept-label.match { color: var(--ink); font-weight: 700; }
+.intercept-label.body { color: var(--ink); font-size: calc(13px * var(--text-scale)); margin: -22px 0 0 8px; }
+.intercept-label.body.kethra { color: var(--grove); }
+.intercept-label.note { background: var(--panel-bg); padding: 3px 8px; margin: -32px 0 0 10px; font-size: calc(13px * var(--text-scale)); }
+.intercept-label.warn { color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
+
 /* =============================================================================================
    The plate (docs/DESIGN.md §2, "How the UI derives from the world"): every framed surface takes
    the Wren's hull-plate cut, 45° chamfers at top-left and bottom-right. The edge is a hairline
@@ -1541,7 +1519,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
    ============================================================================================= */
 :root { --chamfer: 12px; --chamfer-sm: 6px; }
 @property --edge { syntax: '<color>'; inherits: false; initial-value: rgba(93, 102, 111, 0.45); }
-.panel, .hud-frame, .toast, .chapter-card, .look-prompt-inner, #interact-prompt, .map-panel, .tut-card,
+.panel, .hud-frame, .toast, .chapter-card, .look-prompt-inner, #interact-prompt, .map-panel, .tut-card, .intercept-panel,
 .btn, .dialogue-option, .map-btn, .title-btn, .breaker, .rite-node, .keycap {
   --c: var(--chamfer);
   clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
@@ -1555,7 +1533,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
   background-position: top left, bottom right;
   background-repeat: no-repeat;
 }
-.panel { --edge-tl: var(--accent); }
+.panel, .intercept-panel { --edge-tl: var(--accent); }
 .hud-frame, .toast, #interact-prompt, .look-prompt-inner { --c: 8px; }
 .btn, .dialogue-option, .map-btn, .title-btn, .breaker, .rite-node { --c: var(--chamfer-sm); }
 .keycap { --c: 3px; --edge: var(--accent-dim); }

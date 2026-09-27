@@ -73,6 +73,15 @@ export interface GameStateData {
   objective: string;
   planetsUnlocked: string[];
   playerPosition: { x: number; y: number; z: number } | null;
+  /** The course MG1 plotted to Kethra: flat x,y,z triples in Mkm, and its figures. The desk screen
+   * draws it; First light and the cruise quote it. */
+  course: PlottedCourse | null;
+}
+
+export interface PlottedCourse {
+  points: number[];
+  days: number;
+  cells: number;
 }
 
 function defaultShipSystems(): Record<ShipSystemKey, ShipSystemState> {
@@ -107,6 +116,7 @@ function defaultState(): GameStateData {
     objective: 'Systems rebooting...',
     planetsUnlocked: [],
     playerPosition: null,
+    course: null,
   };
 }
 
@@ -151,6 +161,12 @@ function migrateSave(raw: unknown): GameStateData {
   base.playerPosition =
     pos && typeof pos === 'object' && typeof pos.x === 'number' && typeof pos.y === 'number' && typeof pos.z === 'number'
       ? { x: pos.x, y: pos.y, z: pos.z }
+      : null;
+
+  const course = saved.course as Partial<PlottedCourse> | null | undefined;
+  base.course =
+    course && Array.isArray(course.points) && course.points.every((n) => typeof n === 'number') && course.points.length % 3 === 0
+      ? { points: [...course.points], days: num(course.days, 0), cells: num(course.cells, 0) }
       : null;
 
   const savedAttributes = (saved.attributes ?? {}) as Record<string, unknown>;

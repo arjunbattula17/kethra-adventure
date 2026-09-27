@@ -261,7 +261,8 @@ export class ShipInteriorScene implements GameScene {
 
   update(dt: number, elapsed: number): void {
     this.player.update(dt);
-    this.interaction.update(this.camera);
+    // While a scripted pose holds the player (seated, leaning over the chart), nothing is on offer.
+    if (this.player.enabled) this.interaction.update(this.camera);
     if (this.starfield) this.starfield.rotation.y += dt * 0.0015;
     if (this.emergencyLight) {
       // A spike in roughly one of every eight 1/6 s slots: decided per slot of time, not per frame,

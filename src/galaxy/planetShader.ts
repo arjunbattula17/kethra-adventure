@@ -143,9 +143,7 @@ export function buildPlanetInstance(
   const group = new THREE.Group();
   group.position.copy(position);
 
-  // The sun and every planet's orbit position are both static for the whole cinematic (only
-  // rotation animates), so the sun direction per planet is constant -- computed once here rather
-  // than re-derived every frame.
+  // Kept current in update(): MG1 moves Kethra along its orbit, and its lit side has to follow.
   const sunDir = sunPosition.clone().sub(position).normalize();
   const atmoColor = new THREE.Color(def.color).lerp(new THREE.Color(0xbfd9ff), 0.5);
   const cloudAmount = CLOUDY[def.id] ?? 0;
@@ -190,6 +188,7 @@ export function buildPlanetInstance(
     group,
     update(elapsed) {
       uniforms.uCameraPos.value.copy(camera.position);
+      sunDir.copy(sunPosition).sub(group.position).normalize();
       // Clouds shear slowly against the surface underneath; the surface's own spin is applied by
       // the caller to the whole group.
       uniforms.uCloudOffset.value = elapsed * 0.004;

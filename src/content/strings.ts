@@ -16,6 +16,50 @@ export const STRINGS = {
   'skip.hold': 'Hold to skip',
   'skip.key': 'Space',
 
+  // The reveal (src/galaxy/GalaxyRevealScene.ts), in the letterbox before the ping and after it.
+  'reveal.caption.stranded': 'You are stranded, alone, in a galaxy no chart has ever mapped.',
+  'reveal.caption.truth': 'Somewhere out there is the truth — and a way home.',
+
+  // MG1 Intercept (src/galaxy/intercept). ORION is the Wren's navigation computer.
+  'mg1.eyebrow': 'Plot a course · leg {n} of 3',
+  'mg1.leg1.title': 'Clear the drift',
+  'mg1.leg1.how': 'Aim the burn at ORION’s buoy, then run the plot. Each tick is one day, 8 Mkm apart.',
+  'mg1.leg1.objective': 'Plot a course out of the debris to ORION’s buoy.',
+  'mg1.leg1.orion': 'ORION: We’re sitting in our own debris. Plot us out to the buoy.',
+  'mg1.leg1.done': 'ORION: Clear of the drift. Now the real one.',
+  'mg1.leg2.title': 'Lead Kethra',
+  'mg1.leg2.how': 'Kethra moves while you fly. Meet it on the same day: put one of your ticks on its tick with the same number.',
+  'mg1.leg2.objective': 'Plot an intercept with Kethra.',
+  'mg1.leg2.orion': 'ORION: Kethra’s in range. Aim, then run it.',
+  'mg1.leg2.done': 'ORION: Intercept holds. Belt scan finishing… ah.',
+  'mg1.leg3.title': 'Over the belt',
+  'mg1.leg3.how': 'The belt is a wall across the plane. Burn 1 climbs over it; burn 2 leads Kethra from the top.',
+  'mg1.leg3.objective': 'Take the course over the belt to Kethra.',
+  'mg1.leg3.orion': 'ORION: Nothing gets through the plane. Go over it: two burns.',
+  'mg1.hint.lead': 'ORION: Aim for where it will be, on the day you get there.',
+  'mg1.fail.contact': 'Belt contact · day {day}',
+  'mg1.fail.kethra': 'Kethra was here on day {day} · {miss} Mkm off',
+  'mg1.fail.buoy': 'Missed the buoy by {miss} Mkm',
+  'mg1.win.eyebrow': 'Course plotted',
+  'mg1.win.days': 'Days',
+  'mg1.win.cells': 'Cells',
+  'mg1.win.orion': 'ORION: Course plotted. Margin included. You’re welcome.',
+  'mg1.label.buoy': 'Buoy',
+  'mg1.label.kethra': 'Kethra',
+  'mg1.label.day': 'Day {day}',
+  'mg1.burn': 'Burn {n}',
+  'mg1.readout.heading': 'Heading',
+  'mg1.readout.cells': 'Cells',
+  'mg1.readout.budget': 'Budget',
+  'mg1.readout.days': 'Days',
+  'mg1.key.run': 'Run the plot',
+  'mg1.key.rewind': 'Rewind',
+  'mg1.key.aim': 'Aim',
+  'mg1.key.orbit': 'Drag or WASD to look · scroll to zoom',
+  'mg1.stat.insight': 'Insight 2: Kethra’s ghost runs three more days.',
+  'mg1.stat.perception': 'Perception 2: the belt’s density shows as shading.',
+  'mg1.stat.engineering': 'Engineering 2: one spare cell.',
+
   // Shown under the spinner while a scene loads. One per load, in order.
   'loading.lore.1': 'Anchorage rule: when the sky goes white, shut everything down.',
   'loading.lore.2': 'The Aiveth say a held colour means more than a spoken word.',
@@ -120,8 +164,10 @@ export const STRINGS = {
 
 export type StringKey = keyof typeof STRINGS;
 
-export function t(key: StringKey): string {
-  return STRINGS[key];
+/** The string for `key`, with any `{name}` placeholders filled from `vars`. */
+export function t(key: StringKey, vars?: Record<string, string>): string {
+  const s: string = STRINGS[key];
+  return vars ? s.replace(/\{(\w+)\}/g, (m, name: string) => vars[name] ?? m) : s;
 }
 
 /** Words in a string, for timing on-screen text by reading pace. */

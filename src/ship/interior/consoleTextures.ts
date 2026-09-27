@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { PlottedCourse } from '../../core/GameState';
 
 // Procedural surfacing for the nav-console piece. The shipped `ship_console` PBR albedo is a very
 // dark brown corrugate, which is what made the console read as a black slab against the brief's
@@ -540,107 +541,87 @@ export function buildScuffDecalTexture(): THREE.CanvasTexture {
   return scuffTex;
 }
 
-let deskMapTex: THREE.CanvasTexture | null = null;
 
 /**
- * The hero readout laid into the console deck: a wide cyan approach/orbital plot. In the
- * reference this flat glowing chart, not the vertical monitors, is the brightest thing in the
- * whole frame, so it gets the largest canvas and the strongest emissive.
+ * The hero readout laid into the console deck, and the brightest thing in its frame. It shows real
+ * state (docs/DESIGN.md §2, "Screens show real state"): the approach to Kethra drawn top-down from
+ * MG1's system, the belt as the no-burn band it is in the plane, and, once MG1 is flown, the
+ * player's own course with a day tick every 8 Mkm and an elevation inset for the climb that the
+ * top-down view hides. Before the plot, the same chart waits for one.
  */
-export function buildDeskMapTexture(): THREE.CanvasTexture {
-  if (deskMapTex) return deskMapTex;
+export function buildDeskMapTexture(course: PlottedCourse | null): THREE.CanvasTexture {
+  const key = course ? `${course.points.map((n) => n.toFixed(2)).join(',')}|${course.days}|${course.cells}` : 'none';
+  const cached = deskMapCache.get(key);
+  if (cached) return cached;
   const w = 1024;
   const h = 320;
   const [canvas, ctx] = canvas2d(w, h);
   const rand = rng(24601);
 
-  // A lifted base plus a broad glow field under the plot: at the framing distance a near-black
-  // chart just read as a dark decal let into the desk rather than a lit surface.
   const bg = ctx.createLinearGradient(0, 0, 0, h);
   bg.addColorStop(0, '#0a2735');
   bg.addColorStop(0.6, '#072030');
   bg.addColorStop(1, '#04161f');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
-  const glow = ctx.createRadialGradient(w * 0.5, h * 0.62, 20, w * 0.5, h * 0.62, w * 0.42);
-  glow.addColorStop(0, 'rgba(79,216,240,0.32)');
-  glow.addColorStop(1, 'rgba(79,216,240,0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
 
-  // Fine measurement grid.
-  ctx.strokeStyle = 'rgba(160,232,248,0.16)';
+  // Top-down, turned so the transfer runs left to right: plot z across, plot x down.
+  const S = 13;
+  const X = (z: number) => 70 + (z + 2) * S;
+  const Y = (x: number) => h * 0.5 + (x - 19) * S;
+
+  // The measurement grid, one line per 5 Mkm.
   ctx.lineWidth = 1;
-  for (let x = 0; x <= w; x += 24) {
+  for (let z = -5; z <= 75; z += 5) {
+    ctx.strokeStyle = z % 25 === 0 ? 'rgba(168,240,255,0.26)' : 'rgba(160,232,248,0.1)';
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, h);
+    ctx.moveTo(X(z), 0);
+    ctx.lineTo(X(z), h);
     ctx.stroke();
   }
-  for (let y = 0; y <= h; y += 24) {
+  for (let x = 5; x <= 35; x += 5) {
+    ctx.strokeStyle = 'rgba(160,232,248,0.1)';
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-    ctx.stroke();
-  }
-  ctx.strokeStyle = 'rgba(168,240,255,0.34)';
-  for (let x = 0; x <= w; x += 120) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, h);
+    ctx.moveTo(0, Y(x));
+    ctx.lineTo(w, Y(x));
     ctx.stroke();
   }
 
-  const cx = w * 0.5;
-  const cy = h * 0.62;
-
-  // Orbital shells around the destination body.
-  ctx.save();
-  ctx.translate(cx, cy);
-  for (let i = 1; i <= 5; i++) {
-    ctx.strokeStyle = `rgba(79,216,240,${0.34 - i * 0.04})`;
-    ctx.lineWidth = i === 3 ? 2 : 1;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, i * 78, i * 26, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  // Destination body with a soft bloom.
-  ctx.shadowColor = 'rgba(168,240,255,0.9)';
-  ctx.shadowBlur = 26;
-  ctx.fillStyle = 'rgba(168,240,255,0.95)';
+  const arc = (r: number): [number, number][] => {
+    const pts: [number, number][] = [];
+    for (let a = 0; a <= Math.PI / 2 + 0.01; a += 0.01) pts.push([X(r * Math.sin(a)), Y(r * Math.cos(a))]);
+    return pts;
+  };
+  // The belt: a no-burn band in the plane.
+  const outer = arc(47);
+  const inner = arc(38).reverse();
+  ctx.fillStyle = 'rgba(224,85,47,0.13)';
   ctx.beginPath();
-  ctx.arc(0, 0, 13, 0, Math.PI * 2);
+  [...outer, ...inner].forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.closePath();
   ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.restore();
-
-  // The approach course: a long bright arc sweeping in from the left with waypoint diamonds.
-  ctx.shadowColor = 'rgba(120,228,255,0.8)';
-  ctx.shadowBlur = 14;
-  ctx.strokeStyle = 'rgba(178,242,255,0.95)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(40, h * 0.9);
-  ctx.bezierCurveTo(w * 0.24, h * 0.18, w * 0.55, h * 0.12, cx, cy);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.setLineDash([7, 9]);
-  ctx.strokeStyle = 'rgba(224,85,47,0.85)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(40, h * 0.9);
-  ctx.bezierCurveTo(w * 0.3, h * 0.62, w * 0.6, h * 0.86, w - 60, h * 0.34);
-  ctx.stroke();
+  ctx.strokeStyle = 'rgba(224,85,47,0.55)';
+  ctx.setLineDash([6, 6]);
+  for (const band of [outer, inner]) {
+    ctx.beginPath();
+    band.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.stroke();
+  }
   ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,150,120,0.85)';
+  ctx.font = 'bold 12px "Atkinson Hyperlegible", sans-serif';
+  ctx.fillText('BELT · NO BURN IN THE PLANE', X(31), Y(33.5));
 
-  const waypoints: [number, number, string][] = [
-    [w * 0.16, h * 0.62, 'WP-1'],
-    [w * 0.3, h * 0.29, 'WP-2'],
-    [w * 0.44, h * 0.2, 'WP-3'],
-  ];
-  ctx.font = '11px "Atkinson Hyperlegible", sans-serif';
-  for (const [x, y, label] of waypoints) {
-    ctx.strokeStyle = 'rgba(168,240,255,0.9)';
+  // Kethra's orbit.
+  ctx.strokeStyle = 'rgba(92,209,176,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  arc(60).forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.stroke();
+
+  // The Wren and the buoy.
+  const marker = (x: number, y: number, label: string, rgb: string) => {
+    ctx.strokeStyle = `rgba(${rgb},0.95)`;
     ctx.lineWidth = 1.6;
     ctx.beginPath();
     ctx.moveTo(x, y - 7);
@@ -649,33 +630,94 @@ export function buildDeskMapTexture(): THREE.CanvasTexture {
     ctx.lineTo(x - 7, y);
     ctx.closePath();
     ctx.stroke();
-    ctx.fillStyle = 'rgba(120,220,235,0.7)';
+    ctx.fillStyle = `rgba(${rgb},0.8)`;
+    ctx.font = '11px "Atkinson Hyperlegible", sans-serif';
     ctx.fillText(label, x + 11, y - 8);
+  };
+  marker(X(0), Y(12), 'WREN', '168,240,255');
+  marker(X(5.47), Y(27.04), 'BUOY', '216,166,58');
+
+  const pts: [number, number, number][] = [];
+  if (course) for (let k = 0; k < course.points.length; k += 3) pts.push([course.points[k], course.points[k + 1], course.points[k + 2]]);
+  if (pts.length > 1) {
+    // The course, in the Wren's amber, with a tick every day (8 Mkm along the real 3D path).
+    ctx.shadowColor = 'rgba(216,166,58,0.8)';
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = 'rgba(240,196,110,0.98)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    pts.forEach(([x, , z], k) => (k ? ctx.lineTo(X(z), Y(x)) : ctx.moveTo(X(z), Y(x))));
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    let carry = 0;
+    for (let k = 1; k < pts.length; k++) {
+      const [ax, ay, az] = pts[k - 1];
+      const [bx, by, bz] = pts[k];
+      const seg = Math.hypot(bx - ax, by - ay, bz - az);
+      for (let d = 8 - carry; d < seg; d += 8) {
+        const f = d / seg;
+        ctx.fillStyle = 'rgba(255,230,180,0.95)';
+        ctx.fillRect(X(az + (bz - az) * f) - 2, Y(ax + (bx - ax) * f) - 2, 4, 4);
+      }
+      carry = (carry + seg) % 8;
+    }
+    const [ex, , ez] = pts[pts.length - 1];
+    ctx.shadowColor = 'rgba(92,209,176,0.9)';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = 'rgba(150,240,210,0.95)';
+    ctx.beginPath();
+    ctx.arc(X(ez), Y(ex), 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(150,240,210,0.9)';
+    ctx.font = 'bold 12px "Atkinson Hyperlegible", sans-serif';
+    ctx.fillText('KETHRA · ARRIVAL', X(ez) + 14, Y(ex) - 10);
+
+    // Elevation inset: the climb over the belt, which top-down can't show.
+    const ix = w - 290;
+    const iy = h - 118;
+    const iw = 270;
+    const ih = 92;
+    ctx.fillStyle = 'rgba(3,18,27,0.78)';
+    ctx.fillRect(ix, iy, iw, ih);
+    ctx.strokeStyle = 'rgba(79,216,240,0.4)';
+    ctx.strokeRect(ix, iy, iw, ih);
+    const along: number[] = [0];
+    for (let k = 1; k < pts.length; k++) along.push(along[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][2] - pts[k - 1][2]));
+    const total = along[along.length - 1] || 1;
+    const EX = (d: number) => ix + 14 + (d / total) * (iw - 28);
+    const EY = (y: number) => iy + ih * 0.62 - y * 3;
+    // Where the course's ground track crosses the belt, the wall stands ±4.5 Mkm about the plane.
+    for (let k = 1; k < pts.length; k++) {
+      const r0 = Math.hypot(pts[k - 1][0], pts[k - 1][2]);
+      const r1 = Math.hypot(pts[k][0], pts[k][2]);
+      for (const edge of [38, 47]) {
+        if ((r0 - edge) * (r1 - edge) < 0) {
+          const d = along[k - 1] + (along[k] - along[k - 1]) * ((edge - r0) / (r1 - r0));
+          ctx.fillStyle = 'rgba(224,85,47,0.22)';
+          ctx.fillRect(EX(d) - 6, EY(4.5), 12, EY(-4.5) - EY(4.5));
+        }
+      }
+    }
+    ctx.strokeStyle = 'rgba(160,232,248,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(ix + 8, EY(0));
+    ctx.lineTo(ix + iw - 8, EY(0));
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(240,196,110,0.98)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    pts.forEach(([, y], k) => (k ? ctx.lineTo(EX(along[k]), EY(y)) : ctx.moveTo(EX(along[k]), EY(y))));
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(120,220,235,0.7)';
+    ctx.font = '10px "Atkinson Hyperlegible", sans-serif';
+    ctx.fillText('ELEVATION ×3', ix + 10, iy + 14);
   }
 
-  // Hazard sector wedge — the one saturated warm accent on an otherwise cool chart.
-  ctx.fillStyle = 'rgba(224,85,47,0.16)';
-  ctx.strokeStyle = 'rgba(224,85,47,0.7)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.79, h * 0.1);
-  ctx.lineTo(w * 0.97, h * 0.3);
-  ctx.lineTo(w * 0.86, h * 0.66);
-  ctx.lineTo(w * 0.73, h * 0.36);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,150,120,0.85)';
-  ctx.font = 'bold 12px "Atkinson Hyperlegible", sans-serif';
-  ctx.fillText('DEBRIS / NO-BURN', w * 0.75, h * 0.24);
-
-  // Left telemetry column.
-  const rows: [string, string][] = [
-    ['VEC', '117.4 / -08.2'],
-    ['DRIFT', '0.031 M/S'],
-    ['ETA', '04:12:55'],
-    ['FUEL', '61.8%'],
-  ];
+  // Telemetry: the plot's own figures.
+  const rows: [string, string][] = course
+    ? [['DEST', 'KETHRA'], ['DAYS', String(course.days)], ['CELLS', String(course.cells)], ['CRUISE', '8 MKM/DAY']]
+    : [['DEST', '—'], ['PLOT', 'AWAITING'], ['CRUISE', '8 MKM/DAY'], ['POWER', 'RESERVE']];
   ctx.fillStyle = 'rgba(3,18,27,0.72)';
   ctx.fillRect(16, 16, 190, 104);
   ctx.strokeStyle = 'rgba(79,216,240,0.4)';
@@ -687,38 +729,14 @@ export function buildDeskMapTexture(): THREE.CanvasTexture {
     ctx.fillText(k, 26, 38 + i * 22);
     ctx.fillStyle = 'rgba(168,240,255,0.95)';
     ctx.font = 'bold 13px "Atkinson Hyperlegible", sans-serif';
-    ctx.fillText(v, 78, 38 + i * 22);
+    ctx.fillText(v, 86, 38 + i * 22);
   });
-
-  // Right histogram.
-  for (let i = 0; i < 22; i++) {
-    const bh = 6 + rand() * 46;
-    ctx.fillStyle = `rgba(79,216,240,${0.35 + rand() * 0.45})`;
-    ctx.fillRect(w - 250 + i * 10, h - 22 - bh, 6, bh);
-  }
-  ctx.fillStyle = 'rgba(120,220,235,0.55)';
-  ctx.font = '10px "Atkinson Hyperlegible", sans-serif';
-  ctx.fillText('MASS SPECTRUM // BAND C', w - 250, h - 76);
-
-  // Ruler along the bottom edge.
-  ctx.strokeStyle = 'rgba(79,216,240,0.45)';
-  ctx.beginPath();
-  ctx.moveTo(0, h - 9);
-  ctx.lineTo(w, h - 9);
-  ctx.stroke();
-  for (let x = 0; x < w; x += 20) {
-    const tall = x % 100 === 0;
-    ctx.beginPath();
-    ctx.moveTo(x, h - 9);
-    ctx.lineTo(x, h - 9 - (tall ? 7 : 3));
-    ctx.stroke();
-  }
 
   ctx.fillStyle = 'rgba(216,166,58,0.9)';
   ctx.font = 'bold 14px "Atkinson Hyperlegible", sans-serif';
-  ctx.fillText('NAV PLOT // ORION APPROACH', 24, h - 22);
+  ctx.fillText(course ? 'NAV PLOT // ORION · KETHRA TRANSFER' : 'NAV PLOT // ORION · NO COURSE', 24, h - 22);
 
-  // Smeared fingerprints and a wiped-clean arc — the glass is a surface people touch.
+  // Smeared fingerprints: the glass is a surface people touch.
   ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < 14; i++) {
     const x = rand() * w;
@@ -736,9 +754,11 @@ export function buildDeskMapTexture(): THREE.CanvasTexture {
   ctx.fillStyle = 'rgba(0,0,0,0.16)';
   for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
 
-  deskMapTex = finish(canvas, false);
-  return deskMapTex;
+  const tex = finish(canvas, false);
+  deskMapCache.set(key, tex);
+  return tex;
 }
+const deskMapCache = new Map<string, THREE.CanvasTexture>();
 
 const faceCache = new Map<string, THREE.CanvasTexture>();
 
