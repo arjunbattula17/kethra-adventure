@@ -235,6 +235,9 @@ export function buildLighting(ctx: InteriorCtx): void {
   // Cold starlight leaking in past the console window — the only light in the room that is neither
   // a warm practical nor a screen.
   const starlight = new THREE.DirectionalLight(0x6d86c0, 0.22);
+  // Starlight through the viewport doesn't depend on the ship's power: in the emergency stage it
+  // is most of the light in the room.
+  ctx.ownLight.add(starlight);
   starlight.position.set(-2, 4.5, -18);
   ctx.scene.add(starlight);
 
@@ -551,6 +554,7 @@ export function buildLighting(ctx: InteriorCtx): void {
       light.position.set(wallX + inward * 0.5, y - 0.15, z);
       ctx.scene.add(light);
       ctx.setEmergencyLight(light);
+      ctx.ownLight.add(light);
     }
   };
   addBeacon(-1, (-2.6 * 4) / 3, true);
@@ -572,6 +576,10 @@ export function buildLighting(ctx: InteriorCtx): void {
 
   const pendantBase = pendantLights.map((l) => l.intensity);
   ctx.animatedMaterials.add(glowAlarmPool).add(glowAlarmBar).add(matAlarmLens);
+  for (const m of [glowAlarmPool, glowAlarmBar, matAlarmLens]) ctx.ownLight.add(m);
+  // Painted light follows the ship's power stage (power.ts) by role, warm and cool apart; kept out
+  // of tint merging, which would fold the warm and cool pools into one material.
+  for (const m of [glowWarmCone, glowWarmPool, glowWarmPoolSoft, glowWarmBar, glowCoolPool, glowPendantHalo]) ctx.animatedMaterials.add(m);
   const alarmPoolBase = glowAlarmPool.opacity;
   const alarmBarBase = glowAlarmBar.opacity;
   const alarmDomeBase = matAlarmLens.emissiveIntensity;

@@ -24,7 +24,7 @@ mkdirSync(OUT, { recursive: true });
 // became current (tracked by this tool); scenes with a private clock say so.
 const SCENES = [
   { name: 'intro', query: '?newGame=1', kind: 'IntroScene', clock: 's.elapsed', beats: [2, 7.0, 14, 19] },
-  { name: 'reveal', query: '?newGame=1&skipTutorial=1', kind: 'GalaxyRevealScene', clock: 'sceneTime', beats: [1.5, 6, 11, 16] },
+  { name: 'reveal', query: '?newGame=1&skipTutorial=1', kind: 'GalaxyRevealScene', clock: 'sceneTime', beats: [1.5, 5.8, 8.2, 13] },
   {
     name: 'ship', query: '?newGame=1&skipIntro=1', kind: 'ShipInteriorScene', clock: 'sceneTime', beats: [3],
     // Named views, [x, y, z, yaw, pitch] (feet position): shot after the beats, 0.6 s after each teleport.

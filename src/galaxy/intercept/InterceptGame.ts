@@ -131,6 +131,8 @@ export class InterceptGame {
 
     this.panel = document.createElement('div');
     this.panel.className = 'intercept-panel';
+    // Every key on the plate is also a button, so the plot can be flown with the mouse alone.
+    this.panel.addEventListener('click', this.onPanelClick);
     const root = document.getElementById('ui-root')!;
     root.append(this.labels.root, this.panel);
     world.belt.setDensityVisible(world.stats.perception >= 2);
@@ -607,6 +609,19 @@ export class InterceptGame {
     }
   };
 
+  private onPanelClick = (e: MouseEvent): void => {
+    const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+    if (!act || this.blocked()) return;
+    if (act === 'run') this.run();
+    else if (act === 'rewind') this.rewind();
+    else if (act === 'less' || act === 'more') this.changeCells(act === 'more' ? 1 : -1);
+    else if (act.startsWith('burn') && this.phase === 'plot') {
+      this.selected = Number(act.slice(4));
+      this.dirty = true;
+      this.renderPanel();
+    }
+  };
+
   private onKeyUp = (e: KeyboardEvent): void => {
     if (e.key === 'Shift') this.held.delete('Shift');
     this.held.delete(e.code);
@@ -715,7 +730,7 @@ export class InterceptGame {
     const days = used * sim.DAYS_PER_CELL;
     const burnTabs =
       this.plans.length > 1
-        ? `<div class="intercept-burns">${this.plans.map((_, i) => `<span class="${i === this.selected ? 'on' : ''}"><span class="keycap">${i + 1}</span>${t('mg1.burn', { n: String(i + 1) })}</span>`).join('')}</div>`
+        ? `<div class="intercept-burns">${this.plans.map((_, i) => `<button type="button" data-act="burn${i}" class="${i === this.selected ? 'on' : ''}"><span class="keycap">${i + 1}</span>${t('mg1.burn', { n: String(i + 1) })}</button>`).join('')}</div>`
         : '';
     const az = Math.round(THREE.MathUtils.euclideanModulo(plan.azimuth / DEG, 360));
     const el = Math.round(plan.elevation / DEG);
@@ -726,10 +741,10 @@ export class InterceptGame {
     ].filter(Boolean);
     const action =
       this.phase === 'result'
-        ? `<span class="keycap">R</span>${t('mg1.key.rewind')}`
+        ? `<button type="button" data-act="rewind"><span class="keycap">R</span>${t('mg1.key.rewind')}</button>`
         : this.phase === 'run'
           ? `<span class="num">${t('mg1.label.day', { day: String(Math.floor(this.runDay)) })}</span>`
-          : `<span class="keycap">Space</span>${t('mg1.key.run')}`;
+          : `<button type="button" data-act="run"><span class="keycap">Space</span>${t('mg1.key.run')}</button>`;
     this.panel.innerHTML = `
       <div class="eyebrow">${t('mg1.eyebrow', { n: String(leg.id) })}</div>
       <h3>${t(`mg1.leg${leg.id}.title` as StringKey)}</h3>
@@ -737,7 +752,7 @@ export class InterceptGame {
       ${burnTabs}
       <div class="intercept-readouts">
         <div><span class="label">${t('mg1.readout.heading')}</span><span class="num">${az}° / ${el >= 0 ? '+' : ''}${el}°</span></div>
-        <div><span class="label">${t('mg1.readout.cells')}</span><span class="num"><span class="keycap">[</span> ${plan.cells} <span class="keycap">]</span></span></div>
+        <div><span class="label">${t('mg1.readout.cells')}</span><span class="num"><button type="button" class="keycap" data-act="less" aria-label="${t('mg1.key.less')}">[</button> ${plan.cells} <button type="button" class="keycap" data-act="more" aria-label="${t('mg1.key.more')}">]</button></span></div>
         <div><span class="label">${t('mg1.readout.budget')}</span><span class="num">${used} / ${leg.budget}</span></div>
         <div><span class="label">${t('mg1.readout.days')}</span><span class="num">${days}</span></div>
       </div>

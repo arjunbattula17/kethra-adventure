@@ -54,6 +54,8 @@ export const STRINGS = {
   'mg1.readout.days': 'Days',
   'mg1.key.run': 'Run the plot',
   'mg1.key.rewind': 'Rewind',
+  'mg1.key.less': 'One cell fewer',
+  'mg1.key.more': 'One cell more',
   'mg1.key.aim': 'Aim',
   'mg1.key.orbit': 'Drag or WASD to look · scroll to zoom',
   'mg1.stat.insight': 'Insight 2: Kethra’s ghost runs three more days.',

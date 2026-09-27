@@ -1488,6 +1488,10 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .intercept-burns .keycap, .intercept-keys .keycap { margin-right: 5px; }
 .intercept-stats { margin: 6px 0; padding: 0; list-style: none; color: var(--grove); font-size: calc(13px * var(--text-scale)); }
 .intercept-keys { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; color: var(--ink-dim); font-size: calc(13px * var(--text-scale)); }
+.intercept-panel button { pointer-events: auto; cursor: pointer; font: inherit; color: inherit; background: none; border: 0; padding: 0; }
+.intercept-panel button.keycap { padding: 0 6px; }
+.intercept-panel button:hover, .intercept-panel button:focus-visible { color: var(--accent-hover); }
+.intercept-burns button.on { color: var(--accent); }
 .intercept-win { display: flex; gap: 32px; margin-top: 6px; }
 .intercept-win .big { font-size: calc(36px * var(--text-scale)); line-height: 1.1; color: var(--ink); }
 .intercept-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }

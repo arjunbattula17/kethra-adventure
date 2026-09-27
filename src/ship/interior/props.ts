@@ -696,6 +696,7 @@ function buildWorkbench(k: Kit, ctx: InteriorCtx, wallX: number, z: number, sign
   place(k, cyl(0.05, 0.12, 0.12, 12), k.m.steelDark, shadeX, topY + 0.38, lz, 0, 0, inward * 0.3);
   const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffd9a0, emissiveIntensity: 1.6, roughness: 0.4 });
   ctx.animatedMaterials.add(bulbMat);
+  ctx.ownLight.add(bulbMat);
   place(k, cyl(0.055, 0.055, 0.012, 12), bulbMat, shadeX + inward * 0.02, topY + 0.32, lz, 0, 0, inward * 0.3);
 
   const lamp = new THREE.PointLight(0xffd9a0, 1.9, 3.2, 2);

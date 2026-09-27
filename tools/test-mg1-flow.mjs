@@ -76,8 +76,9 @@ await page.keyboard.press('KeyR');
 check('R rewinds', await phaseIs('plot', 3000));
 const lead = sim.anglesOf(sim.leadTo(legs[1].start, legs[1].startDay).dir);
 await aimTo(0, lead.azimuth, lead.elevation);
-await page.keyboard.press('Space');
-check('leg 2: leading Kethra meets it', await until(() => window.__DEBUG__.engine.getCurrentScene().intercept.state().outcome?.kind === 'arrive', 15000));
+// The plate's keys are buttons too: this run is started with the mouse.
+await page.click('.intercept-panel [data-act="run"]');
+check('leg 2: leading Kethra meets it (run from the plate, by mouse)', await until(() => window.__DEBUG__.engine.getCurrentScene().intercept.state().outcome?.kind === 'arrive', 15000));
 // "The straight route crosses a dense clump": the belt resolves under the line just flown.
 check('the belt resolves and marks where that line hits it', await until(() => [...document.querySelectorAll('.intercept-label.note')].some((n) => /Belt contact · day \d+/.test(n.textContent)), 8000));
 
@@ -94,7 +95,7 @@ const top = sim.add(legs[2].start, sim.scale(sim.direction(s.plans[0].azimuth, s
 const lead3 = sim.anglesOf(sim.leadTo(top, legs[2].startDay + sim.DAYS_PER_CELL).dir);
 await page.keyboard.press('Digit2');
 await aimTo(1, lead3.azimuth, lead3.elevation);
-await page.keyboard.press('BracketRight');
+await page.click('.intercept-panel [data-act="more"]');
 s = await state();
 check('] spends the last cell of the budget', s.plans.reduce((n, p) => n + p.cells, 0) === s.budget, JSON.stringify(s.plans.map((p) => p.cells)));
 await page.keyboard.press('BracketRight');

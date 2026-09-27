@@ -48,6 +48,9 @@ export interface InteriorCtx {
    * must never be merged into another, or both would start animating.
    */
   animatedMaterials: Set<THREE.Material>;
+  /** Lights and materials that keep their own light whatever the ship's power stage (power.ts):
+   * alarms, a fault bulb running its own flicker, the view outside. */
+  ownLight: Set<object>;
   setStarfield(points: THREE.Points): void;
   setEmergencyLight(light: THREE.PointLight): void;
 }

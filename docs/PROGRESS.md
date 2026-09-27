@@ -5,7 +5,7 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
-**2026-09-27: M0 done; starting M1.** Milestone check-ins are OFF, so work continues milestone
+**2026-09-27: M1 done; starting M2.** Milestone check-ins are OFF, so work continues milestone
 to milestone without stopping.
 
 ## Milestones
@@ -19,7 +19,13 @@ to milestone without stopping.
   - [x] UI kit pass: chamfered plates, sentence-case labels, hold-to-skip, kinetic title, tabular counts, HUD steps back (1e9c53a)
   - [x] Wren draw calls, steps 1–6 (docs/DESIGN.md §7): Low 614 → 256, High 942 → 520 (1e9c53a)
   - [x] The Conductor (HUD holds during cinematic beats, ambient motion ducks under hero moments), the space kit's sun, panel morphs, `npm run journey`, perf re-measure, M0 screenshots
-- [ ] M1 Level 1: the reveal and MG1 Intercept ← next
+- [x] **M1 Level 1: the reveal and MG1 Intercept**
+  - [x] The reveal rebuilt at plot scale as MG1's opening: the hero pass, the ping resolving the system, one continuous move onto the plot (ca4357a)
+  - [x] MG1 Intercept: three legs, readable fails with instant rewind, the amber wavefront win, stats that change the play; keyboard, mouse or both (ca4357a)
+  - [x] The course on the desk chart (real state), the player leaning over it after the win (ca4357a)
+  - [x] The keypad plot deleted (ca4357a)
+  - [x] The Wren's lighting arc: emergency → navigation → full (power.ts); full stands on `left_wren` until First light exists (M2)
+- [ ] M2 First light and the cruise ← next
 - [ ] M2 First light and the cruise
 - [ ] M3 MG2 Canopy
 - [ ] M4 MG3 Hush and Kethra's floor
@@ -45,11 +51,13 @@ to milestone without stopping.
 | 12 | P3 | Floor textures: one canvas wrapped by several CanvasTextures (per-texture `.repeat`), so the same image uploads more than once. The Low downscale's reach is now moot for the Wren: its small canvases live in atlas pages, which the downscale deliberately skips so Low keeps each canvas's own resolution | floorTextures.ts:21-47 | M7 (bake the repeat into UVs so the textures can share) |
 | 13 | P3 | Kethra pillars appear to float ~0.42 m; the Heart's amber vane may overhang the slab (from code, unverified in engine) | KethraScene.ts:569-573, grove.ts:326 | M4 |
 | 14 | ~~P3~~ | **Fixed (131f3a3)**: the reveal's engine embers removed; the ports glow emergency amber | | |
-| 15 | P3 | The reveal still frames the Wren large against a poster-style system (the sun is now the kit's: a limb-darkened disc with a still corona) | GalaxyRevealScene.ts | M1 (reveal rebuilt as MG1's opening) |
+| 15 | ~~P3~~ | **Fixed (ca4357a)**: the reveal is rebuilt at plot scale as MG1's opening | GalaxyRevealScene.ts | |
 | 16 | P2 | perf-run's Low numbers at 6× CPU are too noisy to rank builds on this PC: identical runs differ by about ±10 ms at p50, and throttling from page load vs after arrival changed the Wren's scene pass from ~10 ms to ~30 ms | tools/perf-run.mjs | M7: repeat runs, report the median of medians, and add main-thread CPU per frame from a trace |
 | 17 | P3 | Every return to the Wren redraws a rebuilt ship, and its warm-up frame (programs, texture uploads) freezes the loading screen for ~5.2 s on High | GameFlow.returnFromPlanet, Engine.setScene | M7: keep the ship's programs alive across planet visits, or prewarm it while the planet plays |
 | 18 | P3 | Three materials in Kethra bump their version every frame (one MeshStandardMaterial by 8 per frame), so three.js re-checks their programs each frame. Pre-existing: the baseline does the same | Kethra scene | M4 (Kethra's floor pass) |
 | 19 | P2 | Vessek's JS heap went 52 → 79 MB (Low) and 53 → 105 MB (High) with the eight code-built hull variants | shipHull.ts, VessekScene.ts | M5: share geometry across variants or drop the CPU-side arrays after upload |
+| 20 | P3 | The Wren's power stage is set when the room is built; nothing animates between stages yet | ShipInteriorScene, power.ts | M2: First light animates emergency → full as the power wave |
+| 21 | P3 | In MG1 the Kethra and Wren tick numerals can overlap where the two ghosts cross | InterceptGame.drawLabels | M7 art pass: offset labels by side of the line |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -81,6 +89,11 @@ to milestone without stopping.
 | 2026-09-27 | Panel morph: Character (560×700) → Settings | The frame eases through 12 frames to 600×733; no re-entry, no errors |
 | 2026-09-27 | Controlled A/B against the baseline build (same day, 6× CPU after arrival, seed 7) | Wren scene pass 10.0–14.9 ms vs 18.3–20.1 ms; Kethra 28.6–33.5 ms vs 28.3–28.7 ms |
 | 2026-09-27 | M0 screenshots: 1920×1080 Low + High committed (docs/screenshots/m0, 36 JPEGs); 1280×720, 2560×1080 and 1440×900 inspected from scratch (108 PNGs) | Zero console errors. Fixed: atlased text on Low was half-resolution; the arrival card came within 4 px of a two-line objective at 1280×720 (now `top: max(14vh, 140px)`). Noted for M6: the centred "Level N" card is still the default the design replaces |
+| 2026-09-27 | MG1 model: `tools/test-intercept-sim.mjs` | 17/17: each leg solvable; aiming at Kethra now misses by 19 Mkm; a flattened lead misses; the straight route hits the belt; no single burn (1,500 directions × every cell count) and no dive arrives; the belt has no gap in the plane; a plain climb costs the fourth cell |
+| 2026-09-27 | MG1 played with real input: `tools/test-mg1-flow.mjs` | All passed: Shift + arrow aiming, [ ], 1/2, Space, R, the plate's buttons by mouse; the miss and contact labels; the budget refused past four; the counted win; the saved course; +1 insight and engineering; engineering 2 → five cells |
+| 2026-09-27 | `npm run journey` (now seven tests) | 7/7; the tutorial flow is 39/39 with the MG1 and lighting-arc checks |
+| 2026-09-27 | M1 screenshots: 1920×1080 Low + High (docs/screenshots/m1, 32 JPEGs): reveal beats, MG1's legs and win, the desk chart, the three power stages | Zero console errors. Fixed on the way: the reveal's line shader (reversed smoothstep showed the grid before the ping), a ping that washed the screen gold, the sun filling leg 1, near-side belt rocks cluttering leg 3, a white win line, the desk chart seen as a sliver from the seat, interaction prompts over the scripted poses |
+| 2026-09-27 | The reveal + MG1 at 1366×768 (`measure-scene`) | Low (6× CPU) 30 calls, 14k tris, p50 16.7 / p95 24.3 ms; High 40 calls, p50 16.6 / p95 25.9 ms. Budget 80 / 160 |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;

@@ -94,6 +94,8 @@ await page.evaluate(() => window.__DEBUG__.engine.setManualQualityTier('low'));
 check('tutorial reaches its first step', await until(async () => (await cardTitle()) !== null, 120000));
 check('tutorial card is the first thing shown', (await cardTitle()) === 'Take the helm', (await cardTitle()) ?? 'no card');
 check('first game does not auto-start on load', !(await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship)));
+// The Wren's lighting arc (docs/DESIGN.md §2): emergency power until navigation boots.
+check('the Wren wakes on emergency power', (await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().power?.stage)) === 'emergency');
 // This browser profile has never finished the opening, so the whole-tutorial skip must not be
 // offered (the cold-open caption skip hint has its own label and is gone by the time the first
 // card is up).
@@ -241,6 +243,7 @@ await page.evaluate(() => window.__DEBUG__.miniGame()?.win());
 check('winning MG1 returns to the Wren, leaning over the chart', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene'), 60000));
 check('the plotted course is saved for the desk screen', await page.evaluate(() => (window.__DEBUG__.gameState.data.course?.points.length ?? 0) >= 9));
 check('control returns once the player stands', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.player?.enabled === true), 30000));
+check('after the boot and the plot, navigation is online', (await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().power?.stage)) === 'navigation');
 
 const postFlags = await page.evaluate(() => ({
   flags: window.__DEBUG__.gameState.data.flags,

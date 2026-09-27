@@ -25,6 +25,8 @@ import { buildLighting } from './interior/lighting';
 import { batchStaticGeometry } from './interior/batchStaticGeometry';
 import { mulberry32 } from '../core/rng';
 import { buildInteriorColliders } from './interior/collision';
+import { gameState } from '../core/GameState';
+import { ShipPower, powerStageFor } from './interior/power';
 
 const _ledColour = new THREE.Color();
 
@@ -68,6 +70,9 @@ export class ShipInteriorScene implements GameScene {
   private floorLedMats: THREE.MeshStandardMaterial[] = [];
   private starfield: THREE.Points | null = null;
   private emergencyLight: THREE.PointLight | null = null;
+  private readonly ownLight = new Set<object>();
+  /** The Wren's power stage; First light (M2) animates it from here. */
+  readonly power = new ShipPower();
   private statusLights: StatusLight[] = [];
   private animated: ((elapsed: number, dt: number) => void)[] = [];
   private noMerge = new Set<THREE.Object3D>();
@@ -93,6 +98,7 @@ export class ShipInteriorScene implements GameScene {
       animated: this.animated,
       noMerge: this.noMerge,
       animatedMaterials: new Set(),
+      ownLight: this.ownLight,
       setStarfield: (points) => {
         this.starfield = points;
       },
@@ -170,6 +176,10 @@ export class ShipInteriorScene implements GameScene {
     if (getActiveEngine()?.getQualityTier() === 'low') downscaleCanvasTextures(this.scene, 1024);
 
     this.applyLightBudget(getActiveEngine()?.getQualityTier() === 'low' ? 8 : POINT_LIGHT_BUDGET);
+    // The Wren's power stage (power.ts), read off the save: emergency until navigation boots.
+    if (this.starfield) this.ownLight.add(this.starfield).add(this.starfield.material as THREE.Material);
+    this.power.collect(this.scene, this.ownLight, this.floorLedMats);
+    this.power.apply(powerStageFor((f) => gameState.hasFlag(f)));
     bus.emit('scene:ship_interior:ready');
   }
 
