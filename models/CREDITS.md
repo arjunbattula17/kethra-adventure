@@ -10,6 +10,16 @@ attribution legally required, credited here as good practice).
 
 glTF format, PBR textures (base color / normal / ORM / emissive) included as shipped.
 
+Sixteen of the twenty-one shared maps in `quaternius/Textures/` shipped as lossless 2048x2048
+PNGs — 27MB in total, with the three ORM maps alone accounting for 9.9MB — and the ship interior
+is the first scene the game loads, so that weight was paid on every first load. Re-encoded to
+`.jpg` by `tools/recompress-textures.mjs`, which picks a quality per file against a measured
+mean-error budget and refuses any file JPEG would make larger (27MB -> 6.5MB). The five left as
+PNG are the decal sheet, the two detail masks and the two emissive maps: all small and
+high-contrast, and all bigger as JPEG than as PNG. `src/ship/interior/kit.ts`'s URL modifier
+redirects the glTFs' original bare `.png` filename requests to the `.jpg` siblings, the same way
+the nature kit's does.
+
 All models in `quaternius-nature/` are the **Stylized Nature MegaKit (Standard)** by
 [Quaternius](https://quaternius.com), licensed
 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain — no
@@ -30,16 +40,9 @@ lossless PNG with no alpha channel in use — several were 4-6MB apiece for no v
 quality-85 JPEG. Re-encoded to `.jpg`; `src/planets/kethra/kit.ts`'s URL modifier redirects the
 glTFs' original bare `.png` filename requests to the `.jpg` siblings.
 
-All models in `planets/` are NASA Visualization Technology Applications and Development (VTAD)
-3D models, public domain U.S. government works. Re-encoded from the originals by
-`tools/prep-planet-models.mjs`, which downscales/recompresses each embedded texture to a JPEG
-(the source PNGs are 4096x3072, far more resolution than these planets — small on screen for
-nearly this whole cinematic, see planetShader.ts — ever need) and splices it back into the glTF
-binary; geometry is untouched. Used as stand-ins for this game's own fictional planets (Kethra,
-Vessek Anchorage, Orrun's Reach, Isilthe — see src/galaxy/planetData.ts), tinted toward each
-planet's established color, not as literal Saturn/Venus/Jupiter/Earth.
+The Wren's hull is built in code (`src/galaxy/shipHull.ts`). It replaced "Colored Freighter" by
+Jacques Fourie (CC BY 3.0) on 2026-09-27; that model is no longer in the build.
 
-- `saturn.glb` — https://science.nasa.gov/resource/saturn-3d-model/
-- `venus.glb` — https://science.nasa.gov/resource/venus-3d-model/
-- `jupiter.glb` — https://science.nasa.gov/resource/jupiter-3d-model/
-- `earth.glb` — https://science.nasa.gov/resource/earth-3d-model/
+The former `planets/` NASA VTAD glbs were replaced by shader planets driven by the prepared
+equirect maps in `public/textures/planets/` — see `public/textures/CREDITS.md` and
+`tools/prep-planet-textures.mjs`.
