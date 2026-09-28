@@ -5,7 +5,7 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
-**2026-09-27: M3 done; starting M4.** Milestone check-ins are OFF, so work continues milestone
+**2026-09-27: M4 done; starting M5.** Milestone check-ins are OFF, so work continues milestone
 to milestone without stopping.
 
 ## Milestones
@@ -37,11 +37,16 @@ to milestone without stopping.
   - [x] Touchdown: gear squash, a dust ring, the establishing shot, the Aiveth lanterns turning to the skiff; Kethra builds under that held shot
   - [x] Stats: traversal 2 less inertia, perception 2 pods lit longer, engineering 2 a wider lamp; +1 traversal
   - [x] The skiff (src/galaxy/skiff.ts) parks on the landing terrace as the return pad, replacing the cylinder-and-torus
-- [ ] M4 MG3 Hush and Kethra's floor ← next
-- [ ] M2 First light and the cruise
-- [ ] M3 MG2 Canopy
-- [ ] M4 MG3 Hush and Kethra's floor
-- [ ] M5 Level 2: Vessek expanded
+- [x] **M4 MG3 Hush and Kethra's floor**
+  - [x] The Heart's chamber (src/planets/kethra/hush): a walled ring about the Heart, now at its centre, with root tunnels, a Kindling rim, low root mounds, lantern posts, glowcaps, the far arch and the gate arch. One set of blocks (sim.ts) is what renders, what you collide with and what the moth's sight is tested against
+  - [x] The moth (sim.ts `Moth`): it watches from a perch with a sweeping gaze; light in the gaze fills its alert; a wing-beat, then it glides at the light; if you are still there it fans you back to the last lamp; hood and step aside and it searches, then goes home. A brushed glowcap turns its gaze. It moves to the gate arch once you reach a tunnel's lamp or the south of the chamber
+  - [x] The gaze made visible on every tier: rays cast through the cone against the same blocks draw the shaft and the pool, so cover casts a gaze-shadow; Medium and High add a shadowed spot for the light itself. Teal, warming to amber as it notices you
+  - [x] The lantern (hold F or the right mouse button to hood it): raised as you reach the chamber, slower hooded (traversal 2 less so), crouch lowers it behind cover; the chamber's light falls away inside
+  - [x] The in-world Rite at the moved call-stone: 1/2/3, each breath lighting its glyph and running along the floor to its vane; unseen breaths are held and draw the moth a step closer (gate arch, vane, rim); a breath in its gaze brings it down on you; a wrong colour sours the water and startles it. Archaeology 3 names the first colour; insight 3 marks its next perch; perception 2 shows where its sweep is heading
+  - [x] The win: the Heart wakes, the moth settles on it with its wings open, and the wake travels out of the chamber, up the terraces and into the canopy (wake.ts), filmed on the player's own camera, hold to skip
+  - [x] The Rite's DOM panel and the lantern bloom deleted; MG2's moth no longer overwritten by the old patrol
+  - [x] Kethra's floor: a still pool the terraces stand in (the fall reset at its surface), the lantern-tree canopy overhead with the skiff's hole in it, the pillars grounded, the chamber on foundations, the build split into tasks
+- [ ] M5 Level 2: Vessek expanded ← next
 - [ ] M6 Opening, menus, ending
 - [ ] M7 Whole-game pass and art pass
 - [ ] M8 Report
@@ -61,21 +66,25 @@ to milestone without stopping.
 | 10 | P2 | Reduced motion: glides and FOV now handled; the intro dolly and the white-sky swell still ignore it | IntroScene | M6 (intro rebuild) |
 | 11 | ~~P3~~ | **Fixed (131f3a3)**: reveal frees its resources; Kethra's timer is scene-owned | | |
 | 12 | P3 | Floor textures: one canvas wrapped by several CanvasTextures (per-texture `.repeat`), so the same image uploads more than once. The Low downscale's reach is now moot for the Wren: its small canvases live in atlas pages, which the downscale deliberately skips so Low keeps each canvas's own resolution | floorTextures.ts:21-47 | M7 (bake the repeat into UVs so the textures can share) |
-| 13 | P3 | Kethra pillars appear to float ~0.42 m; the Heart's amber vane may overhang the slab (from code, unverified in engine) | KethraScene.ts:569-573, grove.ts:326 | M4 |
+| 13 | ~~P3~~ | **Fixed (M4)**: the pillars stand on the terraces; the Heart sits in its own chamber | | |
 | 14 | ~~P3~~ | **Fixed (131f3a3)**: the reveal's engine embers removed; the ports glow emergency amber | | |
 | 15 | ~~P3~~ | **Fixed (ca4357a)**: the reveal is rebuilt at plot scale as MG1's opening | GalaxyRevealScene.ts | |
 | 16 | P2 | perf-run's Low numbers at 6× CPU are too noisy to rank builds on this PC: identical runs differ by about ±10 ms at p50, and throttling from page load vs after arrival changed the Wren's scene pass from ~10 ms to ~30 ms | tools/perf-run.mjs | M7: repeat runs, report the median of medians, and add main-thread CPU per frame from a trace |
 | 17 | P3 | Every return to the Wren redraws a rebuilt ship, and its warm-up frame (programs, texture uploads) freezes the loading screen for ~5.2 s on High | GameFlow.returnFromPlanet, Engine.setScene | M7: keep the ship's programs alive across planet visits, or prewarm it while the planet plays |
-| 18 | P3 | Three materials in Kethra bump their version every frame (one MeshStandardMaterial by 8 per frame), so three.js re-checks their programs each frame. Pre-existing: the baseline does the same | Kethra scene | M4 (Kethra's floor pass) |
+| 18 | ~~P3~~ | **Fixed (M4)**: the three materials were the moth's wings and the two haze sheets. three.js draws transparent double-sided materials in two passes and marks them for update on each; `forceSinglePass` | grove.ts, KethraScene.buildAtmosphere | |
 | 19 | P2 | Vessek's JS heap went 52 → 79 MB (Low) and 53 → 105 MB (High) with the eight code-built hull variants | shipHull.ts, VessekScene.ts | M5: share geometry across variants or drop the CPU-side arrays after upload |
 | 20 | P3 | The Wren's power stage is set when the room is built; nothing animates between stages yet | ShipInteriorScene, power.ts | M2: First light animates emergency → full as the power wave |
 | 21 | P3 | In MG1 the Kethra and Wren tick numerals can overlap where the two ghosts cross | InterceptGame.drawLabels | M7 art pass: offset labels by side of the line |
-| 22 | P2 | Kethra's first build is one long synchronous task; the cruise starts it at the title so it lands on a held shot, but the frame still stalls there (~4 s at 6× CPU in the baseline profile) | KethraScene.init | M4: build in chunks across frames |
+| 22 | P2 | Arriving on Kethra with a cold shader cache stalls one frame for 9.8 s (Low, 1×; M3 7.9 s): the first render waits on the driver to link ~160 programs (`getProgramParameter`), though `compileAsync` ran first. Kethra's `init` is no longer the problem: split into tasks, it is 0.4 s. Under the cruise and MG2 this lands on the handover to Kethra | Engine.prepareScene/setScene, every scene | M7: find why the prepared programs aren't ready (the parallel-compile extension, or keys that differ at the first draw), warm them across frames under the held shots, and cut the program count (the kit's variants, per-terrace materials) |
 | 23 | P3 | The cruise's Kethra entry (cloud sprites, canopy lights, a wedge skiff) is interim until MG2 takes over the arrival; Vessek's cruise holds on the planet until its docking (M5) | CruiseScene, cruise/pieces.ts | M3, M5 |
 | 24 | P3 | Kethra's night side reads strong rather than "faint" (DESIGN §5, beat 4): the night map's bioluminescence is bright | planetShader night term | M7 art pass |
 | 25 | P3 | After the cruise the arrival card repeats the planet's name the kinetic title just gave | GameFlow.cruiseTo | M6 (the card's redesign) |
 | 26 | P3 | MG2's foliage reads as stylized blobs where it's lit; the limbs are plain tapered cylinders | canopy/CanopyScene.ts | M7 art pass |
 | 27 | P3 | A naive autopilot steering straight at each gap scraped 11 times in one descent (132 s): the short limbs hugging each gap leave about 2 m of margin | canopy/layout.ts | Playtest; widen the hugging ring if players find it punishing |
+| 28 | P2 | Kethra on Low is over budget: 229 draw calls against 160 (baseline 155). Toggled one at a time: the kit's instanced foliage and scatter are 69 calls, the chamber 11, the canopy 4; the other 145 aren't broken down yet | KethraScene | M7: break the rest down by object, then merge static props per material (as the Wren's batchStaticGeometry does) |
+| 29 | P3 | The Hush's view on High draws 669k triangles against 500k: the background tree belt behind the chamber's walls is still drawn | KethraScene filler trees | M7: the design's LOD or impostors for the belt |
+| 30 | P3 | tools/record-gameplay.mjs still travels by the pre-M2 fade (it emits `galaxy:travel_to` and waits 2.2 s); its Hush clip is updated, but the trip needs tools/lib/travel.mjs | tools/record-gameplay.mjs | M8, before the video is recorded |
+| 31 | P3 | MG2's Wickmoth now flies its layer-4 path: the old patrol overwrote its position every frame, so it had never been on screen | canopy/CanopyScene.ts | M7 art pass: look at layer 4 with it there |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -99,6 +108,17 @@ to milestone without stopping.
 | 2026-09-27 | The Wren's full power follows `first_light`, or `left_wren` for the debug jumps that leave without it | First light is now the first departure |
 | 2026-09-27 | MG2 is its own scene, prepared under the cruise and handed the skiff at the cruise's last shot; Kethra builds under MG2's establishing shot | A long build mid-descent would freeze play. MG2 plays on the first arrival only |
 | 2026-09-27 | The kinetic title "Kethra" plays at the cruise's handoff; after touchdown the level's arrival card | One title per arrival; the card keeps the level number (issue 25) |
+| 2026-09-27 | The Heart's chamber is a ring of 12.5 m about the Heart, which moves to its centre (0, −21.8); the door is at the approach ramp's top | The ramp already tops out at z −9.3, and the design's four beats need about 25 m of room |
+| 2026-09-27 | The high perch is the gate arch over the door, looking south; the call-stone stands outside the rim's south arc | "Sees over low cover" and "the rim hides you" pull opposite ways: over the mounds the perch must look steeply down, over the rim shallowly. Sight maps of every perch (tools/test-hush-sim.mjs checks the result) put the south mounds 14–20 m below the gate and the rim between it and the stone |
+| 2026-09-27 | One set of blocks is the chamber's geometry, its collision and the moth's line of sight | What looks like cover is cover, with no second model to drift |
+| 2026-09-27 | The root tunnels are roofed at 1.95 m and walked through standing | The player's collider is a fixed 1.8 m tall; crouching does not shorten it |
+| 2026-09-27 | The gaze is drawn from rays against those blocks, not from a shadow map | Low has no shadows, so a shadowed spot would light the floor behind cover and contradict the rules there; the rays agree with the sight test on every tier |
+| 2026-09-27 | A flare turns the moth's gaze; only the lantern fills its alert | "Brush it, the moth turns, then settles": a brief light draws its look, not the moth |
+| 2026-09-27 | Breaths count only while the moth is settled on a perch | Each breath sends it a step closer; breathing during that flight would skip the timing the Rite is about |
+| 2026-09-27 | The held lantern is unlit | Its own flame, centimetres away, lit the brass cage white under bloom |
+| 2026-09-27 | The wake replaces the canopy's bright/dim switch: a front travelling out from the Heart that leaves a residual glow; the awake glow is half the old bright | One system for the chamber, terraces, flora, pool and canopy; the full old bright read as neon once everything carried it |
+| 2026-09-27 | Kethra stands in a still pool, with the fall reset at its surface | The terraces stood over a void; the lore has water climbing the terraces when the Heart wakes |
+| 2026-09-27 | The moon's shadow renders once; in the frames it is not repainted, only the chamber casts in the gaze's shadow pass | Measured at High: the moon's pass was 286 calls and ~595k triangles a frame, the gaze's 153 and ~590k; together that took Kethra from 892 to 455 calls |
 
 ## QA log
 | Date | What | Result |
@@ -124,6 +144,14 @@ to milestone without stopping.
 | 2026-09-27 | MG2 layout: `tools/test-canopy-layout.mjs` | 27/27: every gap open, every layer 83–97% floor elsewhere, the sway layer's gap open 71% of the time and closed the rest, pods on every layer, each next gap reachable in the descent, the final drop narrowest and over the pad, every climb-back point clear |
 | 2026-09-27 | MG2 flown: `tools/test-mg2-flow.mjs` | 16/16: strafe, brake (0.9 vs 2.4 m/s), the lamp waking pods, a real bough scrape costing a pip, three scrapes climbing back with the hull restored, a full descent flown to touchdown by steering at each gap, Kethra with the skiff parked, +1 traversal, a later arrival skipping MG2, engineering 2 widening the lamp |
 | 2026-09-27 | A black frame on High in the cruise | UnrealBloom smearing a NaN from the plumes' shader (MSAA sampled a varying past its clamp; `pow` of a negative). Fixed by clamping in the fragment shader, here and in the three other new shaders that did the same |
+| 2026-09-27 | MG3's rules: `tools/test-hush-sim.mjs` | 54/54: the door open and the ring closed; posts, glowcaps and the singer's place clear; the tunnels walked through standing; the rim's three gaps; the far arch sees the lesson glowcap and the path in (40/120 of its sweep open, never hooded); the open floor swept part of the time; crouched against either north mound the arch can't see you, standing it can; inside a tunnel the ledge never sees you; behind each south mound it does; against the rim's far side it doesn't; inside the rim it does; each Rite perch sees the stone part of the time and each is closer; the moth's notice, glide and gust; hood and step aside, and it searches and goes home; a flare turns its gaze and it settles; a breath seen or unseen |
+| 2026-09-27 | MG3 played with real input: `tools/test-mg3-flow.mjs` | 28/28: into the chamber through the door, F and the right mouse button hood the lantern, hooded 1.70 m/s against 3.25 (traversal 2: 2.45), an open lantern in the sweep gusts you back to the door's lamp in control, hooded the same spot is safe for a whole sweep, the glowcap turns its gaze and it settles, the tunnel's lamp sends it to the gate arch, a breath in its gaze and a wrong colour each gust you back to the stone's lamp, three breaths while it looks away bring it vane → rim → Heart, the reward, hold to skip the wake, the card |
+| 2026-09-27 | `tools/test-kethra-flow.mjs` with the chamber | 16/16 (the Heart through the harness hook; the carving on the gate) |
+| 2026-09-27 | `npm run journey` (twelve tests) | 11/12, then the tutorial flow alone 39/39. It had failed on 404s because I rebuilt `dist` while it ran; the other eleven loaded fresh pages |
+| 2026-09-27 | M4 screenshots, 1920×1080 Low + High (docs/screenshots/m4, 42 JPEGs): Kethra's floor, the Hush's beats, the Rite, the wake | Zero console errors. Fixed on the way: the lantern's body blown white by its own flame (now unlit), its open hood hanging over it, the gaze's hull drawn as hard sheets (now brightest edge-on) and poking over the walls (rays stop at the ring), the moon's glint on the pool a white block under bloom (rougher water), the awake grove neon (half the old bright), the rim washed flat by a square-law lantern pressed against it (decay 1.2) |
+| 2026-09-27 | Kethra's arrival on a cold shader cache (`debugGo`, Low, 1×; the M3 commit built alongside for comparison) | `init` 0.4 s now it is split into tasks. The stall is the first render linking programs: M3 7.9 s (130 programs), M4 at first 10.1 s + 9.6 s (187). The second round was the lantern's light, hidden inside its lowered group: three.js leaves hidden lights out of the count, so every program rebuilt once the first frame hid it. Fixed: 9.8 s, 160 programs |
+| 2026-09-27 | Issue 18 traced with a trap on `material.version` | three.js draws transparent double-sided materials back-then-front and marks them for update each time: the moth's four wings (+8 a frame) and the two haze sheets (+2 each). `forceSinglePass` on them: nothing bumps now |
+| 2026-09-27 | Vessek's bus and plan for M5: `tools/test-bus-sim.mjs`, `tools/test-vessek-layout.mjs` | 21/21 and 39/39 (M5 work, committed with M5) |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;
@@ -172,3 +200,21 @@ are from `tools/measure-scene.mjs` (spawn view, no pan), since perf-run doesn't 
 - **Memory:** loop-to-loop +1.2% (Low) and +1.5% (High). Vessek's heap is new: the twenty-one
   hulls are now code-built (issue 19).
 - The Wren's draw calls at the spawn view (`measure-scene`): Low 614 → 256, High 942 → 520.
+
+### M4 (2026-09-27)
+`tools/measure-scene.mjs` at 1366×768, spawn view, one run each (read p95 with issue 16 in mind).
+"Hush" is Kethra from just inside the chamber's door, looking in.
+
+| Scene | Preset | p50 / p95 ms | Draw calls | Triangles | Programs | Budget (calls / tris) |
+|---|---|---|---|---|---|---|
+| Kethra | Low (6× CPU) | 16.5 / 24.2 | 223 | 324k | 158 | 160 / 320k |
+| Kethra | High | 15.8 / 35.1 | **449** | **649k** | 181 | 450 / 900k |
+| Hush | Low | 17.0 / 23.8 | 135 | 322k | 158 | 120 / 200k |
+| Hush | High | 17.0 / 29.2 | 283 | 669k | 182 | 300 / 500k |
+
+- **High:** 892 → 449 calls and 1.83M → 649k triangles at the spawn view, from drawing the moon's
+  shadow once and keeping the gaze's shadow to the chamber (decisions log). That is under the
+  baseline's 611 / 1.24M and inside Kethra's budget.
+- **Low:** 223 against 160 (issue 28). The Hush view is over on both counts on Low and on
+  triangles on High (issue 29).
+- **Arrival, cold shader cache:** 9.8 s linking programs on the first render (issue 22).

@@ -246,6 +246,39 @@ export const AudioSystem = {
     noise.start();
   },
 
+  /** The Wickmoth's gust: a wide rush of air that falls away, with the wingbeats in it. */
+  playGust(): void {
+    const c = getCtx();
+    if (!c || !sfxBus) return;
+    const len = 1.1;
+    const buffer = c.createBuffer(1, Math.floor(c.sampleRate * len), c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const t = i / data.length;
+      const beat = 0.6 + 0.4 * Math.abs(Math.sin(t * Math.PI * 5));
+      data[i] = (Math.random() * 2 - 1) * Math.sin(t * Math.PI) * beat;
+    }
+    const src = c.createBufferSource();
+    src.buffer = buffer;
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(1800, c.currentTime);
+    lp.frequency.exponentialRampToValueAtTime(260, c.currentTime + len);
+    const g = c.createGain();
+    g.gain.value = 0.16;
+    src.connect(lp);
+    lp.connect(g);
+    g.connect(sfxBus);
+    src.start();
+  },
+
+  /** A breath of the Rite: one of three glass notes, azure, amber, verdant. */
+  playBreath(index: number): void {
+    const f = [329.63, 440, 659.25][index] ?? 440;
+    glass(f, 0, 0.9, 0.07);
+    tone(f / 2, 0.02, 1.2, { type: 'sine', vol: 0.04, attack: 0.08 });
+  },
+
   /** A landing thump, scaled by how far the player fell. */
   playLand(strength: number): void {
     tone(70, 0, 0.14, { type: 'sine', vol: 0.05 + 0.08 * Math.min(1, strength), lowpass: 300 });

@@ -52,6 +52,8 @@ export class PlayerController {
   private respawn: { pos: THREE.Vector3; yaw: number } | null = null;
   enabled = true;
   crouching = false;
+  /** A cap on movement speed (m/s) a scene can set: the hooded lantern in MG3 slows you. */
+  speedLimit = Infinity;
   private raycaster = new THREE.Raycaster();
   private moveState = { speed: 0 };
   headBobTime = 0;
@@ -174,7 +176,7 @@ export class PlayerController {
 
     this.crouching = held('crouch');
     const sprinting = held('sprint') && !this.crouching;
-    const targetSpeed = this.crouching ? CROUCH_SPEED : sprinting ? SPRINT_SPEED : WALK_SPEED;
+    const targetSpeed = Math.min(this.speedLimit, this.crouching ? CROUCH_SPEED : sprinting ? SPRINT_SPEED : WALK_SPEED);
 
     let moveX = 0;
     let moveZ = 0;

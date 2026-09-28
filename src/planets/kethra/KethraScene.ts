@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { displayFontsReady } from '../../core/loadFonts';
 import { GRADES } from '../../core/GradeGlowPass';
-import { MotionScope, motion } from '../../motion';
+import { MotionScope, CameraPath, ease, motion } from '../../motion';
 import type { GameScene } from '../../core/Engine';
 import { PlayerController } from '../../player/PlayerController';
 import { InteractionSystem } from '../../player/InteractionSystem';
@@ -15,22 +15,44 @@ import { DialogueSystem } from '../../dialogue/DialogueSystem';
 import { WARDEN_DIALOGUE, ARCHIVIST_DIALOGUE } from './kethraDialogue';
 import { KETHRA_LORE_ENTRIES } from './kethraLore';
 import { ShipLibrary } from '../../journal/shipLibrary';
-import { KethraMechanismPuzzle } from './KethraMechanismPuzzle';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { applyPbr } from '../../core/TextureLibrary';
 import { KitBatcher, kitInstanceBox, jitter, groveRandom, resetGroveRandom } from './kit';
 import { buildKethraColliders } from './collision';
 import { Figure } from '../../characters/Figure';
 import { getPointSprite } from '../../galaxy/spaceDressing';
-import { buildWickmoth, buildCisternHeart, buildLanternBloom, buildShrineStele, tintByLuminance, CANOPY_TINTS } from './grove';
-import type { Wickmoth, CisternHeart, LanternBloom } from './grove';
+import { buildCisternHeart, buildShrineStele, tintByLuminance, CANOPY_TINTS } from './grove';
+import type { CisternHeart } from './grove';
 import { buildSkiff } from '../../galaxy/skiff';
+import { HushGame } from './hush/HushGame';
+import * as H from './hush/sim';
+import { addWake, wake } from './wake';
+import { HoldToSkip } from '../../ui/HoldToSkip';
+import { buildCanopyCeiling } from './canopyCeiling';
+import type { CanopyCeiling } from './canopyCeiling';
+import { t } from '../../content/strings';
 
 /** Where the skiff is parked on the landing terrace, beside the arrival point. */
 const SKIFF_AT = { x: 3, z: 19.6 };
 
 const DIM_CANOPY_COLOR = new THREE.Color(0x274a3a);
 const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
+/**
+ * What the wake leaves on a canopy material: half the way from the old dim emissive (0.8) to the old
+ * bright one (1.8). The full difference read as neon once the whole grove carried it at once.
+ */
+const CANOPY_WAKE = BRIGHT_CANOPY_COLOR.clone().multiplyScalar(1.8).sub(DIM_CANOPY_COLOR.clone().multiplyScalar(0.8)).multiplyScalar(0.5);
+/** The grove's green, as the wake leaves it on stone and flora. */
+const WAKE_GREEN = new THREE.Color(0x3fd9a8);
+
+/**
+ * The still water the terraces stand in: "light and water climb the terraces again" when the Heart
+ * wakes. Below every walking surface (the lowest, the ramps' feet, is about 0.2).
+ */
+const WATER_Y = -0.9;
+
+/** Lets a frame render between builders, so building the grove never freezes the shot above it. */
+const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 // Clear radius kept around every interaction anchor and the spawn when scattering boulders, applied
 // per-axis rather than by centre distance: a collider is an axis-aligned box, so a rock 3.4 units
@@ -73,6 +95,7 @@ function retintFlora(built: Map<string, THREE.InstancedMesh[]>): void {
         mat.emissive.set(glow);
         mat.emissiveMap = mat.map;
         mat.emissiveIntensity = 0.45;
+        addWake(mat, new THREE.Color(glow).multiplyScalar(0.35), 1.4);
       } else if (mat.name.startsWith('Leaves')) {
         tintByLuminance(mat, 0x5fa88c, 1.5);
       }
@@ -102,18 +125,17 @@ interface TreePlacement {
   scale: number;
 }
 
-// The six trunk anchors from the original hand-built canopy, kept at the same positions so the
-// gameplay collision/readability of the terraces doesn't shift — only the mesh at each spot
-// changes. Mixed families (Common/Pine/Twisted) so the canopy doesn't read as one repeated tree;
-// the two TwistedTree slots are scaled well below their native ~16-19m to stay in scale with the
-// rest of the grove while still reading as older, gnarled outliers.
+// The trunk anchors from the original hand-built canopy, kept at the same positions so the gameplay
+// collision/readability of the terraces doesn't shift — only the mesh at each spot changes. Mixed
+// families (Common/Pine/Twisted) so the canopy doesn't read as one repeated tree; the TwistedTree
+// slot is scaled well below its native ~16-19m to stay in scale with the rest of the grove while
+// still reading as an older, gnarled outlier. The two that stood beside the Heart went with the
+// approach terrace: the Heart's chamber is walled now (hush/chamber.ts).
 const NAMED_TREES: TreePlacement[] = [
   { position: [-8, 0, 4], species: 'CommonTree_2', yaw: 0.4, scale: 1.05 },
   { position: [8, 0, 4], species: 'Pine_2', yaw: 2.1, scale: 1.0 },
   { position: [-16, 0.6, -6], species: 'TwistedTree_3', yaw: 1.0, scale: 0.62 },
   { position: [16, 0.6, -6], species: 'CommonTree_4', yaw: 3.6, scale: 1.1 },
-  { position: [-4, 1.1, -18], species: 'Pine_4', yaw: 5.0, scale: 0.95 },
-  { position: [4, 1.1, -18], species: 'TwistedTree_5', yaw: 4.2, scale: 0.5 },
 ];
 
 // Background canopy fill: belts of trees beyond the walkable terraces, purely decorative (no
@@ -128,7 +150,7 @@ function generateFillerTrees(): TreePlacement[] {
     [-17, 17, 29, 42], // north, beyond the landing terrace (edge at z=21)
     [-40, -29, -15, 10], // west, beyond the west terrace (edge at x=-21)
     [29, 40, -15, 10], // east, beyond the east terrace (edge at x=21)
-    [-15, 15, -38, -27], // south, beyond the mechanism chamber (edge at z=-19)
+    [-17, 17, -48, -39], // south, beyond the Heart's chamber (wall at z=-35)
   ];
   const trees: TreePlacement[] = [];
   for (const [xMin, xMax, zMin, zMax] of belts) {
@@ -151,7 +173,7 @@ function generateFillerTrees(): TreePlacement[] {
         scale = jitter(0.7, 1.1);
       }
       trees.push({
-        position: [jitter(xMin, xMax), 0, jitter(zMin, zMax)],
+        position: [jitter(xMin, xMax), WATER_Y - 0.3, jitter(zMin, zMax)],
         species,
         yaw: groveRandom() * Math.PI * 2,
         scale,
@@ -172,10 +194,14 @@ const TERRACE_CAP_INSET = 0.3;
 function makeTerrace(width: number, depth: number, x: number, y: number, z: number, color = 0x7d8c86): THREE.Group {
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.02 });
   applyPbr(mat, 'lichen_rock', [width / 3, depth / 3]);
+  addWake(mat, WAKE_GREEN.clone().multiplyScalar(0.02), 0.7);
   const group = new THREE.Group();
 
-  const base = new THREE.Mesh(new THREE.BoxGeometry(width, 0.5, depth), mat);
-  base.position.y = -0.05;
+  // The base tier's top is at 0.2; it runs down below the water line, so the terrace stands in the
+  // pool rather than hanging over it.
+  const baseHeight = 0.5 + Math.max(0, y + 1.4 - WATER_Y - 0.9);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(width, baseHeight, depth), mat);
+  base.position.y = 0.2 - baseHeight / 2;
   base.receiveShadow = true;
   base.castShadow = true;
   group.add(base);
@@ -337,12 +363,24 @@ export class KethraScene implements GameScene {
   private floorMeshes: THREE.Object3D[] = [];
   /** Mid-points of the connecting ramps, kept clear of scattered boulders — see buildClutter. */
   private rampAnchors: THREE.Vector3[] = [];
-  private canopyMats: THREE.MeshStandardMaterial[] = [];
-  private creature: THREE.Object3D;
-  private wickmoth: Wickmoth;
   private heart!: CisternHeart;
-  private bloom!: LanternBloom;
-  private puzzle = new KethraMechanismPuzzle();
+  /** MG3 Hush: the Heart's chamber, its moth and the Rite (hush/HushGame.ts). */
+  hush!: HushGame;
+  /** The grove's lights at full strength: they fall away inside the chamber. */
+  private lights: { light: THREE.Light; base: number; keep: number }[] = [];
+  private wakeSkip: HoldToSkip | null = null;
+  private canopy!: CanopyCeiling;
+  /**
+   * The moon's shadow is drawn once, not every frame: nothing it shadows moves. Only the moth's
+   * gaze (hush/HushGame.ts) needs a live shadow, and only of the chamber, so in the frames the moon
+   * is not being repainted everything outside the chamber stops casting for the shadow pass.
+   * Measured at High: the moon's pass was 286 draw calls and ~595k triangles a frame, and the gaze's
+   * 153 and ~590k while it drew every tree it could see through the door.
+   */
+  private moon: THREE.DirectionalLight | null = null;
+  private moonDirty = true;
+  private shadowsOn = false;
+  private worldCasters: THREE.Object3D[] = [];
   private warden: Figure | null = null;
   private archivist: Figure | null = null;
   private unsub: Array<() => void> = [];
@@ -351,8 +389,6 @@ export class KethraScene implements GameScene {
 
   constructor() {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 2, 18));
-    this.wickmoth = buildWickmoth();
-    this.creature = this.wickmoth.root;
   }
 
   async init(): Promise<void> {
@@ -373,30 +409,37 @@ export class KethraScene implements GameScene {
     // Standing under a forest that makes its own light is the moment the concept means something.
     ShipLibrary.award(['lib_biolum']);
 
-    this.buildGround();
-    this.buildTerraces();
-    this.buildNPCs();
-    this.buildFragments();
-    this.buildShrineAndValve();
-    this.buildCreatureArea();
-    this.buildMechanismChamber();
-    this.buildReturnPad();
-    this.buildAtmosphere();
-    this.buildLighting();
+    // Kethra builds under the cruise and the canopy (docs/DESIGN.md §5): each builder is its own
+    // task, so the shot playing above keeps its frames.
+    const builders = [
+      () => this.buildGround(),
+      () => this.buildTerraces(),
+      () => this.buildNPCs(),
+      () => this.buildFragments(),
+      () => this.buildShrineAndValve(),
+      () => this.buildHeartChamber(),
+      () => this.buildReturnPad(),
+      () => this.buildAtmosphere(),
+      () => this.buildLighting(),
+    ];
+    for (const build of builders) {
+      build();
+      await nextTask();
+    }
 
     await Promise.all([this.buildFoliage(), this.buildGroundCover(), this.buildClutter()]);
+    await nextTask();
 
     this.scene.add(this.player.rig);
     this.player.setFloorTargets(this.floorMeshes);
     this.player.setColliders(await this.colliders());
     this.player.teleport(new THREE.Vector3(0, 2, 18), 0);
-    // The terraces are raised islands with unguarded edges, and the only thing below them is the
-    // catch plane 20 units down with no way back up — walking off any edge was an unrecoverable
-    // soft lock. -6 is well below the lowest terrace surface (-0.05) and well above the plane, so
-    // the player is caught during the fall rather than after landing on it.
+    // The terraces are raised islands with unguarded edges over the pool, with no way back up —
+    // walking off any edge was an unrecoverable soft lock. The reset is just above the water, so
+    // the player is caught as they slip, before they are seen to sink into it.
     this.player.setRespawn(new THREE.Vector3(0, 2, 18), 0);
-    this.player.fallResetY = -6;
-    this.player.onFellOut = () => UIManager.toast('You lose your footing and scramble back to the landing terrace.');
+    this.player.fallResetY = WATER_Y + 0.3;
+    this.player.onFellOut = () => UIManager.toast('You slip into the dark water and wade back to the landing terrace.');
     this.player.onFootstep = () => AudioSystem.playFootstep('organic');
     this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
     this.stopMusic = AudioSystem.startMusic('kethra');
@@ -408,20 +451,26 @@ export class KethraScene implements GameScene {
     // Same low-tier canvas budget as the ship interior — see the note there.
     if (getActiveEngine()?.getQualityTier() === 'low') downscaleCanvasTextures(this.scene, 1024);
 
-    this.puzzle.onSolved = () => {
-      this.setCanopyBright(true);
-      motion.conductor.duck(3);
-      bus.emit('player:shake', 0.35);
-      this.fx.after(1.6, () => {
-        AudioSystem.playLevelEnd();
-        UIManager.showChapterCard({
-          eyebrow: 'Level 2 complete',
-          title: 'The Heart wakes',
-          lines: ['Light and water climb the terraces again.', '+3 resonant crystal: enough to repair the Wren’s navigation and Deep Scanner.'],
-        });
-      });
+    const own = new Set<THREE.Object3D>();
+    for (const root of [this.hush.chamber.group, this.heart.root, this.heart.callStone]) root.traverse((o) => own.add(o));
+    this.scene.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh && o.castShadow && !own.has(o)) this.worldCasters.push(o);
+    });
+    this.scene.onBeforeRender = () => {
+      if (this.moonDirty) return;
+      for (const o of this.worldCasters) o.castShadow = false;
     };
-    if (gameState.hasFlag('kethra_mechanism_solved')) this.setCanopyBright(true);
+    this.scene.onAfterRender = () => {
+      if (this.moonDirty) this.moonDirty = false;
+      else for (const o of this.worldCasters) o.castShadow = true;
+    };
+
+    // Awake already (a return visit): the wake has passed everything.
+    wake.origin.set(H.HEART.x, H.FLOOR_Y, H.HEART.z);
+    if (gameState.hasFlag('kethra_mechanism_solved')) {
+      wake.done();
+      this.heart.setAwake(true);
+    } else wake.reset();
 
     gameState.setObjective('Explore Kethra. Speak with the Aiveth and find the true light-sequence.');
   }
@@ -435,6 +484,22 @@ export class KethraScene implements GameScene {
     safetyNet.position.y = -20;
     this.scene.add(safetyNet);
     this.floorMeshes.push(safetyNet);
+
+    // The pool between the terraces: black, still, catching the lights as glints. The terraces
+    // used to stand over a void. It is not a floor: a step off an edge falls to the reset below.
+    // Rough enough that the moon's glint on it is a sheen, not a mirror-bright block under bloom.
+    const waterMat = new THREE.MeshStandardMaterial({ color: 0x040a09, roughness: 0.62, metalness: 0, envMapIntensity: 0.3 });
+    addWake(waterMat, WAKE_GREEN.clone().multiplyScalar(0.05), 1.3);
+    const water = new THREE.Mesh(new THREE.CircleGeometry(110, 64), waterMat);
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = WATER_Y;
+    water.receiveShadow = true;
+    this.scene.add(water);
+
+    // The canopy the skiff came down through, overhead.
+    this.canopy = buildCanopyCeiling();
+    addWake(this.canopy.leaves, CANOPY_WAKE.clone().multiplyScalar(0.3), 1.6);
+    this.scene.add(this.canopy.group);
   }
 
   private buildTerraces(): void {
@@ -446,9 +511,8 @@ export class KethraScene implements GameScene {
     const rampB = makeTerrace(4, 8, 7, -0.1, 10);
     rampB.rotation.x = -0.12;
     const eastTerrace = makeTerrace(10, 9, 16, 0.6, -2);
-    const chamberApproach = makeTerrace(8, 10, 0, 1.1, -14, 0x453a4a);
 
-    // Connecting ramps. Without these, plaza / westTerrace / eastTerrace / chamberApproach are four
+    // Connecting ramps. Without these, the plaza, the side terraces and the Heart's chamber are
     // separate islands with nothing between them: the side terraces sit 3 units away across empty
     // space and 0.60 m up, and the chamber 3 units away and 1.10 m up. Nothing bridges them and no
     // jump can, either — PlayerController's apex is JUMP_SPEED^2 / (2 * GRAVITY) = 6^2 / 36 = exactly
@@ -465,8 +529,9 @@ export class KethraScene implements GameScene {
     const westRamp = makeRamp('x', [-11.3, 0.98], [-7.7, 0.38], 5, -0.5);
     const eastRamp = makeRamp('x', [7.7, 0.38], [11.3, 0.98], 5, -0.5);
     // Run out to z = -4 rather than stopping at the plaza edge, so 1.10 m is climbed over 5 units
-    // (12.4deg) instead of 3 (20deg); the first two units simply lie on the plaza as a wedge.
-    const chamberRamp = makeRamp('z', [-9.3, 1.48], [-4, 0.38], 6, 0);
+    // (12.4deg) instead of 3 (20deg); the first two units simply lie on the plaza as a wedge. It
+    // tops out at the chamber's door (hush/sim.ts puts the ring's north edge at z = -9.3).
+    const chamberRamp = makeRamp('z', [H.CENTER.z + H.RADIUS, H.FLOOR_Y], [-4, 0.38], 6, 0);
 
     // A boulder is up to 6.7 units across and a ramp is 2.2-6 wide, so one landing at a ramp's mouth
     // can cover most of it. Measured before this was added: a 5.5 x 5.5 boulder sat across the
@@ -478,7 +543,7 @@ export class KethraScene implements GameScene {
       new THREE.Vector3(-20.6, 0, -4.65),
     ];
 
-    for (const t of [landing, plaza, rampA, westTerrace, rampB, eastTerrace, chamberApproach, westRamp, eastRamp, chamberRamp]) {
+    for (const t of [landing, plaza, rampA, westTerrace, rampB, eastTerrace, westRamp, eastRamp, chamberRamp]) {
       this.scene.add(t);
       this.floorMeshes.push(t);
     }
@@ -530,14 +595,15 @@ export class KethraScene implements GameScene {
       // kit's red-foliage species (TwistedTree) that leaves almost no green channel to multiply
       // against, so the toggle barely showed. A flat tint responds the same way regardless of the
       // species' authored leaf color, so the whole canopy visibly reacts together, which matters
-      // here since this is the player's puzzle-progress feedback.
+      // here since this is the player's puzzle-progress feedback. The wake (wake.ts) carries it
+      // from dim to bright when the Heart wakes.
       mat.emissive = DIM_CANOPY_COLOR.clone();
       mat.emissiveIntensity = 0.8;
       // The kit's leaves come in autumn red (TwistedTree) and summer green; the art bible gives
       // Kethra's canopy one palette, sea-greens and teals. Tinting by the leaf texture's brightness
       // keeps every painted leaf cluster while putting both families in that palette.
       tintByLuminance(mat, CANOPY_TINTS[species.length % CANOPY_TINTS.length]);
-      this.canopyMats.push(mat);
+      addWake(mat, CANOPY_WAKE, 1.6);
     }
   }
 
@@ -580,10 +646,12 @@ export class KethraScene implements GameScene {
   }
 
   private buildFragments(): void {
+    // On the walking surfaces: the side terraces' tops are at 0.98 and the ledge's at 2.78. They
+    // used to stand 0.42 above them, floating.
     const fragmentSpots: [number, number, number][] = [
-      [-16, 1.4, -3],
-      [16, 1.4, -3],
-      [-20, 3.2, -8],
+      [-16, 0.98, -3],
+      [16, 0.98, -3],
+      [-20, 2.78, -8],
     ];
     fragmentSpots.forEach(([x, y, z], idx) => {
       const pillarMat = new THREE.MeshStandardMaterial({ color: 0x2a2418, roughness: 0.8 });
@@ -617,7 +685,7 @@ export class KethraScene implements GameScene {
           side: THREE.DoubleSide,
         }),
       );
-      rune.position.set(x, y + 0.9, z);
+      rune.position.set(x, y + 1.32, z);
       rune.rotation.y = Math.PI / 4;
       this.scene.add(rune);
 
@@ -704,63 +772,35 @@ export class KethraScene implements GameScene {
     });
   }
 
-  private buildCreatureArea(): void {
-    this.creature.position.set(0, 2.4, -11.5);
-    this.scene.add(this.creature);
-
-    // The lantern bloom at the chamber approach's west edge: its open cup is the light that keeps
-    // the Wickmoth awake. Closing it is how the player quiets the guardian.
-    this.bloom = buildLanternBloom();
-    this.bloom.root.position.set(-3.1, 1.48, -10.4);
-    this.bloom.root.rotation.y = 0.6;
-    this.bloom.setClosed(gameState.hasFlag('kethra_grove_dimmed'));
-    this.scene.add(this.bloom.root);
-
-    this.interaction.register({
-      object: this.bloom.root,
-      label: () => (gameState.hasFlag('kethra_grove_dimmed') ? 'Open the lantern bloom' : 'Close the lantern bloom'),
-      range: 2.6,
-      onInteract: () => {
-        const dimmed = gameState.hasFlag('kethra_grove_dimmed');
-        if (dimmed) {
-          gameState.data.flags = gameState.data.flags.filter((f) => f !== 'kethra_grove_dimmed');
-          this.bloom.setClosed(false);
-          UIManager.toast('The bloom opens. The Wickmoth stirs and lifts off.');
-        } else {
-          gameState.setFlag('kethra_grove_dimmed');
-          this.bloom.setClosed(true);
-          UIManager.toast('You fold the petals shut. In the dimness, the Wickmoth settles.');
-        }
-      },
-    });
-  }
-
-  private buildMechanismChamber(): void {
+  /**
+   * The Cistern Heart's chamber (MG3 Hush, docs/DESIGN.md §4 slot 3): the Heart at its centre, the
+   * call-stone moved to the far side of the basin, and the carving on the gate. HushGame builds the
+   * room itself, its moth and its rules.
+   */
+  private buildHeartChamber(): void {
     // Kindling-cut stone: flat-shaded and untextured, because a tiled rock map smears into stripes
     // across extruded shapes, which made the vanes read as planks.
     const stoneMat = new THREE.MeshStandardMaterial({ color: 0x75857f, roughness: 0.9, flatShading: true });
     this.heart = buildCisternHeart(stoneMat);
-    this.heart.root.position.set(0, 1.48, -18.2);
+    this.heart.root.position.set(H.HEART.x, H.HEART.y, H.HEART.z);
+    this.heart.root.rotation.y = H.HEART_YAW;
     this.scene.add(this.heart.root);
+    // The call-stone faces the singer, who stands south of it looking over it to the Heart.
+    this.heart.callStone.position.set(H.STONE.x, H.STONE.y, H.STONE.z);
+    this.heart.callStone.rotation.y = Math.PI;
+    this.scene.add(this.heart.callStone);
 
-    // The call-stone faces the player coming up the approach; it is where the Rite is sung.
-    const consoleGroup = this.heart.callStone;
-    consoleGroup.position.set(0, 1.48, -14.9);
-    this.scene.add(consoleGroup);
-
-    this.interaction.register({
-      object: consoleGroup,
-      label: 'Sing the Rite at the call-stone',
-      range: 3,
-      onInteract: () => {
-        if (!gameState.hasFlag('kethra_grove_dimmed') && !gameState.hasFlag('kethra_mechanism_solved')) {
-          UIManager.toast('The Wickmoth circles the call-stone. Something bright nearby keeps it awake.');
-          return;
-        }
-        this.puzzle.open();
-      },
+    this.hush = new HushGame({
+      scene: this.scene,
+      camera: this.camera,
+      player: this.player,
+      heart: this.heart,
+      shadows: getActiveEngine()?.getQualityTier() !== 'low',
+      onWin: () => this.stageWake(),
     });
+    this.floorMeshes.push(this.hush.chamber.floor);
 
+    // The last Kindling carving, cut into the inner face of the gate's west pillar.
     const carvingMat = new THREE.MeshStandardMaterial({ color: 0x1c1810, roughness: 0.9 });
     applyPbr(carvingMat, 'lichen_rock', [1, 1.5]);
     const carvingGroup = new THREE.Group();
@@ -774,8 +814,8 @@ export class KethraScene implements GameScene {
     const frameRight = frameLeft.clone();
     frameRight.position.x = 0.65;
     carvingGroup.add(plaque, frameTop, frameBottom, frameLeft, frameRight);
-    carvingGroup.position.set(-2.6, 2.3, -17.5);
-    carvingGroup.rotation.y = 0.3;
+    carvingGroup.position.set(-(H.GATE.halfWidth + 0.55), H.FLOOR_Y + 1.02, H.GATE.z - 1.04);
+    carvingGroup.rotation.y = Math.PI;
     this.scene.add(carvingGroup);
     const kindlingEntry = KETHRA_LORE_ENTRIES.find((l) => l.id === 'kethra_kindling_record');
     this.interaction.register({
@@ -797,6 +837,73 @@ export class KethraScene implements GameScene {
         }
       },
     });
+  }
+
+  /**
+   * The win (docs/DESIGN.md §4, slot 3): the Heart wakes, the moth settles on it, and the light
+   * travels out of the chamber, up the terraces and into the canopy. The player's own camera is
+   * lifted off them for the shot and handed back after. Hold to skip.
+   */
+  private stageWake(): void {
+    const cam = this.camera;
+    this.player.enabled = false;
+    UIManager.showLetterbox(true);
+    motion.conductor.duck(11);
+    bus.emit('player:shake', 0.3);
+    const from = cam.getWorldPosition(new THREE.Vector3());
+    const look = from.clone().add(cam.getWorldDirection(new THREE.Vector3()).multiplyScalar(6));
+    this.scene.attach(cam);
+    const F = H.FLOOR_Y;
+    const heartAt = new THREE.Vector3(H.HEART.x, F + 2.3, H.HEART.z);
+    const path = new CameraPath(
+      [
+        { position: from, target: look, fov: cam.fov },
+        { position: new THREE.Vector3(3.4, F + 3.2, H.HEART.z - 8.6), target: heartAt, fov: 56 },
+        { position: new THREE.Vector3(0.6, F + 8.5, H.HEART.z - 4.5), target: new THREE.Vector3(0, F + 1, H.HEART.z + 9), fov: 60 },
+        { position: new THREE.Vector3(0, F + 15.5, -8), target: new THREE.Vector3(0, 1, 9), fov: 62 },
+        { position: new THREE.Vector3(0, F + 17, 2), target: new THREE.Vector3(0, 15, 20), fov: 64 },
+      ],
+      { pace: 'keys' },
+    );
+    const LENGTH = 11.5;
+    const move = this.fx.tween({ duration: LENGTH, ease: ease.standard, update: (e) => path.apply(cam, e) });
+    // The Heart takes a breath first, then the light goes out from it.
+    const front = this.fx.tween({
+      duration: 7.5,
+      delay: 3.2,
+      ease: ease.accelerate,
+      update: (e) => {
+        wake.radius = e * 78;
+      },
+    });
+    const line = this.fx.after(3.4, () => UIManager.showCaption(t('mg3.orion.wake'), 4000));
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      move.cancel();
+      front.cancel();
+      line.cancel();
+      wake.done();
+      this.wakeSkip?.dispose();
+      this.wakeSkip = null;
+      this.player.rig.add(cam);
+      cam.fov = 65;
+      cam.updateProjectionMatrix();
+      this.player.enabled = true;
+      UIManager.showLetterbox(false);
+      this.hush.finish();
+      AudioSystem.playLevelEnd();
+      UIManager.toast('The Cistern Heart wakes. Water and light flow back up the terraces.', 'learn');
+      UIManager.showChapterCard({
+        eyebrow: 'Level 2 complete',
+        title: 'The Heart wakes',
+        lines: ['Light and water climb the terraces again.', '+3 resonant crystal: enough to repair the Wren’s navigation and Deep Scanner.'],
+      });
+    };
+    this.fx.after(LENGTH, finish);
+    this.wakeSkip = new HoldToSkip({ onSkip: finish });
+    this.wakeSkip.show();
   }
 
   /**
@@ -825,23 +932,12 @@ export class KethraScene implements GameScene {
       [-11.5, 0.9, -6.2, 0.9],
       [21.5, 0.9, 2.5, 1.0],
       [11.4, 0.9, -6.4, 0.95],
-      // The four boulders dressing the chamber approach are pulled to its edges and cut to about a
-      // third the footprint. The approach slab is only 8 units wide and Rock_Medium runs 3-5 units
-      // across at the old scales, so as solids these four met in the middle and sealed the corridor
-      // — measured, the only gap left was a single 0.25-wide cell, and "Access the Cistern Heart"
-      // (which opens the mechanism puzzle) was unreachable. They now leave a ~3.6-unit clear lane
-      // down the centre. The last two also drop from y = 2.4 to 1.5: the slab's surface is 1.48, so
-      // they had been floating 0.9 above it.
-      [-3.2, 1.5, -9.4, 0.45],
-      [3.3, 1.5, -9.3, 0.45],
       // Was (-20.4, 2.7, -6.2): that is the one approach corridor to the secret ledge, and
       // Rock_Medium reaches 2.59 units from its own origin before scaling, so as a solid boulder it
       // sealed the ledge off no matter how the stair was routed. Moved onto the open west terrace;
       // it stays clear of Inscription 1's pillar at (-16, -3) and of the stair's x -21.7..-19.5.
       [-18.4, 0.9, 0.5, 0.85],
       [-19.6, 2.7, -9.6, 0.8],
-      [3.2, 1.5, -12.9, 0.45],
-      [-3.1, 1.5, -12.2, 0.45],
       // Off the spawn line, not on it. At (0, 20.5) this boulder sat 2.5m dead ahead of the arrival
       // point, and Rock_Medium runs up to ~5 units across at these scales — measured, it reached
       // z = 18.15 against a spawn at z = 18, so on a fair share of loads the player materialised
@@ -865,8 +961,6 @@ export class KethraScene implements GameScene {
       [3.1, 0.09, 5.5],
       [-6.5, -0.02, 11.5],
       [6.4, -0.02, 11.4],
-      [-1.6, 1.16, -13],
-      [1.5, 1.16, -13.2],
     ];
     for (const [x, y, z] of pathSpots) {
       batcher.add(pick(ROCK_PATHS), {
@@ -876,7 +970,7 @@ export class KethraScene implements GameScene {
       });
     }
 
-    // The twelve hand-placed boulders are landmarks the player walks around; the flat path stones
+    // The hand-placed boulders are landmarks the player walks around; the flat path stones
     // laid between them are trodden on.
     const built = await batcher.flush(this.scene);
     for (const [species, meshes] of built) {
@@ -900,8 +994,6 @@ export class KethraScene implements GameScene {
       [12, 20, -6, 2, 0.98, 16],
       [-20, -12, -6, 2, 0.98, 16],
       [-5, 5, 12, 20, 0.38, 14],
-      [-6, -3.6, -19, -9, 1.48, 8],
-      [3.6, 6, -19, -9, 1.48, 8],
       [-21, -19, -9, -7, 2.78, 7],
     ];
 
@@ -973,8 +1065,8 @@ export class KethraScene implements GameScene {
     const hazeTex = buildHazeTexture();
     const hazeLayers: [number, number, number, number, number, number][] = [
       // z, y, width, height, color, opacity
-      [-30, 8, 90, 22, 0x2a6a5a, 0.35],
-      [-46, 10, 130, 28, 0x16324a, 0.4],
+      [-42, 8, 90, 22, 0x2a6a5a, 0.35],
+      [-56, 10, 130, 28, 0x16324a, 0.4],
     ];
     for (const [z, y, width, height, color, opacity] of hazeLayers) {
       const hazeMat = new THREE.MeshBasicMaterial({
@@ -984,6 +1076,9 @@ export class KethraScene implements GameScene {
         opacity,
         depthWrite: false,
         side: THREE.DoubleSide,
+        // A flat sheet: one pass, not three.js's back-then-front for transparent double-sided
+        // materials, which marks the material for update twice every frame.
+        forceSinglePass: true,
       });
       const plane = new THREE.Mesh(new THREE.PlaneGeometry(width, height), hazeMat);
       plane.position.set(0, y, z);
@@ -995,6 +1090,7 @@ export class KethraScene implements GameScene {
   private buildLighting(): void {
     const ambient = new THREE.AmbientLight(0x5f7288, 1.0);
     this.scene.add(ambient);
+    this.lights.push({ light: ambient, base: 1.0, keep: 0.2 });
 
     // Key light: cool moonlight, now shadow-casting so trunks/terraces read with real
     // directional contrast instead of flat even lighting.
@@ -1007,15 +1103,20 @@ export class KethraScene implements GameScene {
     moon.shadow.camera.left = -30;
     moon.shadow.camera.right = 30;
     moon.shadow.camera.top = 30;
-    moon.shadow.camera.bottom = -30;
+    // The Heart's chamber runs to z = -35.
+    moon.shadow.camera.bottom = -38;
     moon.shadow.bias = -0.0015;
+    moon.shadow.autoUpdate = false;
+    this.moon = moon;
     this.scene.add(moon);
+    this.lights.push({ light: moon, base: 1.4, keep: 0.12 });
 
     // Rim light: warm, positioned behind the canopy relative to the player's usual approach,
     // so trunk and canopy silhouettes pick up an edge highlight against the dark fog.
     const rim = new THREE.DirectionalLight(0xd9a15f, 0.55);
     rim.position.set(-14, 6, -22);
     this.scene.add(rim);
+    this.lights.push({ light: rim, base: 0.55, keep: 0.1 });
 
     // Fill lights: cool, keep shadowed faces from crushing to black and spread bioluminescent
     // color across both the east and west terraces instead of just the center.
@@ -1025,6 +1126,7 @@ export class KethraScene implements GameScene {
     const fillB = new THREE.PointLight(0x5f8ad9, 1.4, 22);
     fillB.position.set(-16, 6, -4);
     this.scene.add(fillB);
+    this.lights.push({ light: fillA, base: 2, keep: 0.08 }, { light: fillB, base: 1.4, keep: 0.08 });
   }
 
   private async colliders(): Promise<THREE.Box3[]> {
@@ -1038,39 +1140,48 @@ export class KethraScene implements GameScene {
       const box = await kitInstanceBox(t.species, new THREE.Vector3(...t.position), t.yaw, t.scale);
       boxes.push(box);
     }
-    // The Heart's basin and plinth: one box, since the basin is a ring the player shouldn't wade into.
-    boxes.push(makeCollider(0, -18.2, 2.45, 2.45, 2.2));
+    // The Heart's chamber: its own boxes, the same blocks the moth's sight is tested against.
+    boxes.push(...this.hush.colliders);
     // The parked skiff.
     boxes.push(makeCollider(SKIFF_AT.x, SKIFF_AT.z, 1.5, 1.5, 1.2));
-    // The creature drifts on its own path every frame (see update()), so a box baked from where it
-    // happens to be at load would block empty air a second later.
-    boxes.push(...buildKethraColliders(this.scene, { floorMeshes: this.floorMeshes, animated: [this.creature] }));
+    // The moth flies between perches and the lantern rides the camera, so a box baked from where
+    // either happens to be at load would block empty air a second later.
+    boxes.push(...buildKethraColliders(this.scene, {
+      floorMeshes: this.floorMeshes,
+      animated: [this.hush.moth.root, this.player.rig],
+      exact: [this.hush.chamber.group, this.heart.root, this.heart.callStone],
+    }));
     return boxes;
   }
 
-  private setCanopyBright(bright: boolean): void {
-    const target = bright ? BRIGHT_CANOPY_COLOR : DIM_CANOPY_COLOR;
-    for (const mat of this.canopyMats) {
-      mat.emissive.copy(target);
-      mat.emissiveIntensity = bright ? 1.8 : 0.8;
-    }
-    this.heart.setAwake(bright);
+  /** Paints the moon's shadow again on the next frame (after the scene is built, or shadows return). */
+  private repaintMoon(): void {
+    if (!this.moon) return;
+    this.moon.shadow.needsUpdate = true;
+    this.moonDirty = true;
   }
 
   update(dt: number, elapsed: number): void {
+    const shadows = getActiveEngine()?.renderer.shadowMap.enabled ?? false;
+    if (shadows && !this.shadowsOn) this.repaintMoon();
+    this.shadowsOn = shadows;
     this.player.update(dt);
     this.interaction.update(this.camera);
     const eye = this.player.getWorldPosition();
     this.warden?.update(dt, elapsed, eye);
     this.archivist?.update(dt, elapsed, eye);
 
-    const dormant = gameState.hasFlag('kethra_grove_dimmed') || gameState.hasFlag('kethra_mechanism_solved');
     // The grove's own life steps down while the Heart wakes (the Conductor, docs/DESIGN.md §3).
     const ambientDt = dt * motion.ambient;
-    this.wickmoth.update(ambientDt, motion.ambientTime, dormant);
-    this.bloom.update(ambientDt, motion.ambientTime);
+    this.hush.update(dt, elapsed);
     this.heart.update(dt, elapsed);
+    // Inside the chamber the grove's light falls away and the lantern, the glowcaps and the moth's
+    // gaze are what you see by. Once the Heart is awake, it lights the room itself.
+    const dark = this.hush.inside * (gameState.hasFlag('kethra_mechanism_solved') ? 0.55 : 1);
+    for (const l of this.lights) l.light.intensity = THREE.MathUtils.lerp(l.base, l.base * l.keep, dark);
+    this.scene.environmentIntensity = THREE.MathUtils.lerp(0.5, 0.08, dark);
 
+    this.canopy.update(motion.ambientTime);
     const motes = this.scene.getObjectByName('motes') as THREE.Points | undefined;
     if (motes) motes.rotation.y += ambientDt * 0.01;
   }
@@ -1082,6 +1193,8 @@ export class KethraScene implements GameScene {
 
   dispose(): void {
     this.fx.dispose();
+    this.hush.dispose();
+    this.wakeSkip?.dispose();
     for (const u of this.unsub) u();
     this.stopAmbient?.();
     this.stopMusic?.();

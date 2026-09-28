@@ -526,8 +526,9 @@ export class CanopyScene implements GameScene {
     if (!near) return;
     const k = ((time * 0.07) % 1) * 2 - 1;
     this.moth.root.position.set(k * 38, L.LAYERS[3].y - 5 + Math.sin(time * 0.9) * 1.5, 6 - k * 10);
-    this.moth.root.rotation.y = Math.atan2(-10, 38) + Math.PI;
-    this.moth.update(dt, time, false);
+    // Head along its path (local +z is forward).
+    this.moth.root.rotation.y = Math.atan2(38, -10);
+    this.moth.update(dt, time);
   }
 
   private burstSparks(at: THREE.Vector3, normal: THREE.Vector3, color = 0xffc27a, ring = false): void {

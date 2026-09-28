@@ -121,14 +121,23 @@ function wingShape(length: number, width: number, hind: boolean): THREE.ShapeGeo
 }
 
 export interface Wickmoth {
+  /** Carries position and heading (the head faces local +z); its owner moves it. */
   root: THREE.Group;
-  update(dt: number, elapsed: number, dormant: boolean): void;
+  /** Pitches with the gaze. */
+  body: THREE.Group;
+  light: THREE.PointLight;
+  /**
+   * The wing state its owner sets: `beat` in flaps per second (0 holds them still, gliding),
+   * `spread` from folded (0) to open (1), `glow` how brightly the stained glass burns (0..1).
+   */
+  wings: { beat: number; spread: number; glow: number };
+  update(dt: number, elapsed: number): void;
 }
 
 /**
  * The Wickmoth: "territorial, slow, wings like stained glass with the light still moving through
- * it" (LORE.md). A 2.6 m wingspan guardian that patrols the chamber approach while the grove is
- * bright, and settles, wings folded and dimmed, once the lantern bloom is closed.
+ * it" (LORE.md). A 2.6 m wingspan guardian. It has no mind of its own here: MG2 flies it across the
+ * canopy and MG3 (hush/HushGame.ts) moves it between perches.
  */
 export function buildWickmoth(): Wickmoth {
   const root = new THREE.Group();
@@ -174,6 +183,9 @@ export function buildWickmoth(): Wickmoth {
     transparent: true,
     opacity: 0.92,
     side: THREE.DoubleSide,
+    // Transparent and double-sided draws in two passes (back, then front), and three.js marks the
+    // material for update on each: 8 program re-checks a frame for the four wings.
+    forceSinglePass: true,
     depthWrite: false,
   });
   const hinges: { pivot: THREE.Group; side: number; hind: boolean }[] = [];
@@ -195,38 +207,35 @@ export function buildWickmoth(): Wickmoth {
   const light = new THREE.PointLight(0x7fe0d0, 1.1, 7, 2);
   light.position.y = 0.3;
   root.add(light);
-  // A guardian, not an insect: 2.6 m across. Nose tipped up in flight so the wings face the player
-  // coming up the approach instead of cutting edge-on through their eye line.
+  // A guardian, not an insect: 2.6 m across.
   body.scale.setScalar(1.45);
 
-  let t = 0;
-  let settle = 0;
+  const wings = { beat: 0.67, spread: 1, glow: 1 };
+  let phase = 0;
+  let spread = wings.spread;
+  let glow = wings.glow;
   return {
     root,
-    update(dt, elapsed, dormant) {
-      t += dt;
-      settle = damp(settle, dormant ? 1 : 0, 0.8, dt);
-      // Awake: slow, heavy flaps and a lazy patrol across the approach. Dormant: perched, wings
-      // folded up in a tent, breathing.
-      const flap = Math.sin(t * 4.2);
+    body,
+    light,
+    wings,
+    update(dt, elapsed) {
+      phase += dt * wings.beat * Math.PI * 2;
+      spread = damp(spread, wings.spread, 6, dt);
+      glow = damp(glow, wings.glow, 3, dt);
+      // Open, the wings beat through a heavy arc; folded, they close up over the back in a tent.
+      const flap = Math.sin(phase);
       for (const h of hinges) {
         const open = h.side * (0.2 + 0.55 * (flap * 0.5 + 0.5)) * (h.hind ? 0.85 : 1);
-        const folded = h.side * 1.2;
-        h.pivot.rotation.z = THREE.MathUtils.lerp(open, folded, settle);
+        h.pivot.rotation.z = THREE.MathUtils.lerp(h.side * 1.2, open, spread);
       }
-      const patrolX = Math.sin(t * 0.35) * 3.2;
-      // It settles at the east edge of the approach, off the path, so a player walking past a
-      // sleeping guardian has it beside them rather than hanging at head height in the way.
-      root.position.x = THREE.MathUtils.lerp(patrolX, 2.8, settle);
-      root.position.y = THREE.MathUtils.lerp(2.5 + Math.sin(t * 1.1) * 0.25 + flap * 0.04, 1.78, settle);
-      body.rotation.y = THREE.MathUtils.lerp(Math.cos(t * 0.35) * 0.9, 0, settle);
-      body.rotation.z = THREE.MathUtils.lerp(-Math.cos(t * 0.35) * 0.15, 0, settle);
-      body.rotation.x = THREE.MathUtils.lerp(-0.55, -0.1, settle);
-      wingMat.emissiveIntensity = THREE.MathUtils.lerp(0.75 + Math.sin(elapsed * 1.7) * 0.2, 0.25, settle);
-      light.intensity = THREE.MathUtils.lerp(1.1, 0.25, settle);
+      wingMat.emissiveIntensity = THREE.MathUtils.lerp(0.25, 0.75 + Math.sin(elapsed * 1.7) * 0.2, glow);
+      light.intensity = THREE.MathUtils.lerp(0.25, 1.1, glow);
     },
   };
 }
+
+export type RiteColour = keyof typeof RITE;
 
 export interface CisternHeart {
   root: THREE.Group;
@@ -234,6 +243,12 @@ export interface CisternHeart {
   water: THREE.Mesh;
   callStone: THREE.Group;
   setAwake(awake: boolean): void;
+  /** A breath of one colour: its glyph on the stone and its vane flare, then settle. */
+  breathe(colour: RiteColour): void;
+  /** The colours held so far in the Rite: their vanes stay lit, dimmer than a flare. */
+  setHeld(colours: RiteColour[]): void;
+  /** A wrong colour: the water clouds over, then clears. */
+  sour(): void;
   update(dt: number, elapsed: number): void;
 }
 
@@ -322,7 +337,7 @@ export function buildCisternHeart(stone: THREE.Material): CisternHeart {
   vaneShape.lineTo(-0.32, 0);
   const vaneGeo = new THREE.ExtrudeGeometry(vaneShape, { depth: 0.22, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 1 });
   vaneGeo.translate(0, 0, -0.11);
-  const crystals: { mat: THREE.MeshStandardMaterial; light: THREE.PointLight; color: number; order: number }[] = [];
+  const crystals: { name: RiteColour; mat: THREE.MeshStandardMaterial; light: THREE.PointLight; color: number; order: number; flare: number; held: number }[] = [];
   (['azure', 'amber', 'verdant'] as const).forEach((name, i) => {
     const a = Math.PI + (i - 1) * ((Math.PI * 2) / 3);
     const vane = new THREE.Group();
@@ -350,7 +365,7 @@ export function buildCisternHeart(stone: THREE.Material): CisternHeart {
     const light = new THREE.PointLight(RITE[name], 0, 5, 2);
     light.position.set(0, 2.9, 0.4);
     vane.add(light);
-    crystals.push({ mat: crystalMat, light, color: RITE[name], order: i });
+    crystals.push({ name, mat: crystalMat, light, color: RITE[name], order: i, flare: 0, held: 0 });
     // The glyph brightens with its crystal.
     crystal.userData.glyphMat = glyphMat;
     root.add(vane);
@@ -401,10 +416,31 @@ export function buildCisternHeart(stone: THREE.Material): CisternHeart {
   face.position.set(0, 1.125, 0.03);
   face.rotation.x = -Math.PI / 2 - 0.35;
   callStone.add(face);
+  // A lit pad over each glyph, so a breath shows on the stone as well as at the Heart.
+  const pads = new Map<RiteColour, { mat: THREE.MeshBasicMaterial; flare: number }>();
+  (['azure', 'amber', 'verdant'] as const).forEach((name, i) => {
+    const tex = canvasTexture(128, (ctx, sz) => {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, sz, sz);
+      ctx.strokeStyle = '#fff';
+      drawRiteGlyph(ctx, name, sz / 2, sz / 2, sz * 0.36);
+    });
+    const mat = new THREE.MeshBasicMaterial({ color: RITE[name], alphaMap: tex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const pad = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), mat);
+    pad.position.set((i - 1) * 0.324, 0, 0.004);
+    face.add(pad);
+    pads.set(name, { mat, flare: 0 });
+  });
 
   let awake = 0;
   let awakeTarget = 0;
   let wakeClock = 0;
+  let soured = 0;
+  const clearWater = new THREE.Color(0x0e2a33);
+  const awakeWater = new THREE.Color(0x1a4d57);
+  const sourWater = new THREE.Color(0x3a2c16);
+  const sourGlow = new THREE.Color(0x6a4a1a);
+  const waterGlow = waterMat.emissive.clone();
   return {
     root,
     core,
@@ -414,98 +450,42 @@ export function buildCisternHeart(stone: THREE.Material): CisternHeart {
       awakeTarget = on ? 1 : 0;
       if (on) wakeClock = 0;
     },
+    breathe(colour) {
+      const c = crystals.find((k) => k.name === colour);
+      if (c) c.flare = 1;
+      const pad = pads.get(colour);
+      if (pad) pad.flare = 1;
+    },
+    setHeld(colours) {
+      for (const c of crystals) c.held = colours.includes(c.name) ? 1 : 0;
+    },
+    sour() {
+      soured = 1;
+    },
     update(dt, elapsed) {
       wakeClock += dt;
       awake = damp(awake, awakeTarget, 0.9, dt);
+      soured = Math.max(0, soured - dt / 4);
       coreGroup.rotation.y += dt * (0.25 + awake * 0.6);
       coreGroup.position.y = 1.75 + Math.sin(elapsed * 0.9) * 0.06 + awake * 0.25;
       coreMat.emissiveIntensity = 0.35 + awake * 2.2 + Math.sin(elapsed * 2) * 0.1 * awake;
       coreLight.intensity = 0.8 + awake * 4;
-      waterMat.emissiveIntensity = 0.08 + awake * 0.9;
-      waterMat.color.setHex(awake > 0.5 ? 0x1a4d57 : 0x0e2a33);
-      // On waking, the vanes light one after another in the true order of the Rite.
+      waterMat.emissiveIntensity = 0.08 + awake * 0.9 + soured * 0.35;
+      waterMat.color.copy(awake > 0.5 ? awakeWater : clearWater).lerp(sourWater, soured);
+      waterMat.emissive.copy(waterGlow).lerp(sourGlow, soured);
+      // On waking, the vanes light one after another in the true order of the Rite. Before that, a
+      // breath flares its vane and a held colour keeps it lit.
       for (const c of crystals) {
-        const lit = awakeTarget > 0 ? THREE.MathUtils.clamp((wakeClock - c.order * 0.7) / 0.6, 0, 1) : awake;
-        c.mat.emissiveIntensity = 0.15 + lit * 2.4;
-        c.light.intensity = lit * 2.2;
+        c.flare = Math.max(0, c.flare - dt / 1.2);
+        const woken = awakeTarget > 0 ? THREE.MathUtils.clamp((wakeClock - c.order * 0.7) / 0.6, 0, 1) : awake;
+        const lit = Math.max(woken, c.held * 0.45, c.flare);
+        c.mat.emissiveIntensity = 0.15 + lit * 2.4 + c.flare * 1.6;
+        c.light.intensity = lit * 2.2 + c.flare * 3;
       }
-    },
-  };
-}
-
-export interface LanternBloom {
-  root: THREE.Group;
-  setClosed(closed: boolean): void;
-  update(dt: number, elapsed: number): void;
-}
-
-/**
- * The grove's lantern bloom: a head-high Kindling-grown flower whose open cup lights the approach
- * and keeps the Wickmoth awake. Closing it (the "dim the grove light" interaction) folds the petals
- * shut and its light goes to an ember.
- */
-export function buildLanternBloom(): LanternBloom {
-  const root = new THREE.Group();
-  const stemMat = new THREE.MeshStandardMaterial({ color: 0x2f5a46, roughness: 0.8, flatShading: true });
-  const curve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(0.15, 0.8, 0.05),
-    new THREE.Vector3(-0.05, 1.6, 0.1),
-    new THREE.Vector3(0.1, 2.2, 0.25),
-  ]);
-  root.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 0.07, 5), stemMat));
-  for (const [y, side] of [[0.6, 1], [1.1, -1]] as const) {
-    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 4), stemMat);
-    leaf.scale.z = 0.2;
-    leaf.position.set(side * 0.3, y, 0.05);
-    leaf.rotation.z = side * -1.1;
-    root.add(leaf);
-  }
-  const head = new THREE.Group();
-  head.position.set(0.1, 2.2, 0.25);
-  head.rotation.x = 0.5;
-  root.add(head);
-  const petalMat = new THREE.MeshStandardMaterial({
-    color: 0x9fe8c8,
-    emissive: 0x5cd1b0,
-    emissiveIntensity: 1.1,
-    roughness: 0.5,
-    side: THREE.DoubleSide,
-    flatShading: true,
-  });
-  const petals: THREE.Group[] = [];
-  for (let i = 0; i < 6; i++) {
-    const hinge = new THREE.Group();
-    hinge.rotation.y = (i / 6) * Math.PI * 2;
-    const petal = new THREE.Mesh(new THREE.SphereGeometry(0.42, 5, 4, 0, 0.9, 0, Math.PI * 0.5), petalMat);
-    petal.rotation.x = Math.PI;
-    petal.scale.set(1, 1.4, 1);
-    hinge.add(petal);
-    head.add(hinge);
-    petals.push(hinge);
-  }
-  const heartMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xc8ffe8, emissiveIntensity: 2.2 });
-  const pistil = new THREE.Mesh(new THREE.IcosahedronGeometry(0.11, 1), heartMat);
-  pistil.position.y = 0.05;
-  head.add(pistil);
-  const light = new THREE.PointLight(0x5cd1b0, 1.4, 8, 2);
-  light.position.y = 0.1;
-  head.add(light);
-
-  let open = 1;
-  let openTarget = 1;
-  return {
-    root,
-    setClosed(closed) {
-      openTarget = closed ? 0 : 1;
-    },
-    update(dt, elapsed) {
-      open = damp(open, openTarget, 2.5, dt);
-      for (const p of petals) p.rotation.x = THREE.MathUtils.lerp(0.05, -0.9, open) ;
-      const breathe = 1 + Math.sin(elapsed * 1.3) * 0.08;
-      petalMat.emissiveIntensity = (0.15 + open * 0.95) * breathe;
-      heartMat.emissiveIntensity = 0.3 + open * 1.9;
-      light.intensity = (0.12 + open * 1.3) * breathe;
+      for (const pad of pads.values()) {
+        pad.flare = Math.max(0, pad.flare - dt / 1.4);
+        pad.mat.opacity = pad.flare;
+      }
     },
   };
 }

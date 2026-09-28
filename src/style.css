@@ -823,22 +823,6 @@ details.advanced[open] summary { color: var(--ink); }
 .repair-row .bar-fill { height: 100%; background: var(--accent); }
 .repair-row .btn { padding: 6px 12px; font-size: calc(13px * var(--text-scale)); }
 
-/* Sequence puzzle panel (the Cistern Heart mechanism on Kethra) */
-#power-puzzle-panel { width: 640px; }
-#power-nodes { display: flex; gap: 16px; justify-content: center; margin: 20px 0; }
-.power-node {
-  width: 120px; height: 100px;
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  gap: 6px;
-}
-.power-node .icon { font-size: calc(22px * var(--text-scale)); }
-.power-node .name { font-size: calc(11px * var(--text-scale)); text-transform: uppercase; letter-spacing: 0.05em; }
-#threat-indicator { text-align: center; font-size: calc(13px * var(--text-scale)); margin-bottom: 6px; letter-spacing: 0.04em; }
-
 /* Skill check floating text */
 .skill-check-result {
   position: absolute;
@@ -1009,30 +993,6 @@ button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; backgroun
 .breaker-msg { min-height: 2.8em; margin-top: 12px; font-size: calc(15px * var(--text-scale)); color: var(--ink-dim); }
 .breaker-msg.fail { color: var(--warn); }
 .breaker-msg.ok { color: var(--success); }
-
-/* Rite glyph buttons (the Cistern Heart). */
-.rite-nodes { display: flex; gap: 12px; justify-content: center; margin: 18px 0 6px; flex-wrap: wrap; }
-.rite-node {
-  width: 118px;
-  padding: 14px 8px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  background: var(--hull);
-  border: 1px solid var(--line);
-  border-radius: var(--r-control);
-  cursor: pointer;
-  transition: transform 90ms var(--ease-decelerate), border-color 140ms var(--ease-decelerate);
-}
-.rite-node:hover { transform: translateY(-1px); border-color: var(--accent); }
-.rite-node:active { transform: scale(0.97); }
-.rite-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.rite-node canvas { width: 56px; height: 56px; }
-.rite-node .name { font-weight: 700; font-size: calc(14px * var(--text-scale)); }
-.rite-progress { display: flex; justify-content: center; gap: 8px; margin: 8px 0; }
-.rite-progress span { width: 34px; height: 4px; border-radius: 1px; background: rgba(93, 102, 111, 0.45); }
-.rite-progress span.set { background: var(--grove); }
 
 /* Reduced motion: no transitions beyond short fades, no idle animation, no transform motion. */
 body.reduced-motion .title-planet { animation: none; }
@@ -1307,13 +1267,19 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   text-transform: uppercase;
 }
 /* The logo is the game's verb drawn in type: the Wren's scan line passes through the name, and
-   below the line the letters take the grove's light. Above it, ink; below it, sea-green. */
+   below the line the letters take the grove's light. Above it, ink; below it, sea-green: a second
+   copy of the name in solid grove, laid exactly over the first and clipped away above the line. */
 .title-name-text {
   display: inline-block;
-  background: linear-gradient(180deg, var(--ink) 0%, var(--ink) 58%, var(--grove) 58%, #3f9c83 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--ink);
+}
+.title-name-lit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--grove);
+  clip-path: inset(58% 0 0 0);
+  pointer-events: none;
 }
 .title-scan {
   position: absolute;
@@ -1529,6 +1495,44 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .canopy-pip { width: 14px; height: 8px; box-shadow: inset 0 0 0 1px var(--accent-dim); }
 .canopy-pip.on { background: var(--accent); box-shadow: none; }
 
+/* MG3 Hush (src/planets/kethra/hush): the chamber's plate, top right. What the moth is doing, how
+   close it is to noticing you (a line that fills), and at the call-stone the Rite's three keys. */
+.hush-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: min(330px, 34vw);
+  padding: 14px 18px 12px;
+  background-color: var(--panel-bg);
+  color: var(--ink);
+  font-size: calc(14px * var(--text-scale));
+  line-height: 1.45;
+  pointer-events: none;
+}
+.hush-status { margin: 4px 0 6px; font-size: calc(16px * var(--text-scale)); }
+.hush-alert { position: relative; height: 2px; background: var(--line); margin-bottom: 8px; }
+.hush-alert > span { position: absolute; inset: 0; background: var(--accent); transform-origin: left; transform: scaleX(0); }
+.hush-rite { margin: 10px 0 4px; padding-top: 8px; box-shadow: inset 0 1px 0 var(--line); }
+.hush-colours { display: flex; gap: 14px; margin: 6px 0; }
+.hush-colour .keycap { margin-right: 5px; }
+.hush-colour.azure { color: #5fb4ff; }
+.hush-colour.amber { color: #ffb45a; }
+.hush-colour.verdant { color: #7be0a0; }
+.hush-rule { color: var(--ink-dim); }
+.hush-hint { color: var(--grove); font-size: calc(13px * var(--text-scale)); margin-top: 4px; }
+/* The gust: the wings' stained glass washing over the view. */
+.hush-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at 30% 40%, rgba(95, 180, 255, 0.55), transparent 60%),
+    radial-gradient(ellipse at 70% 55%, rgba(123, 224, 160, 0.5), transparent 60%),
+    radial-gradient(ellipse at 50% 80%, rgba(255, 180, 90, 0.45), transparent 55%);
+  z-index: 18;
+}
+
 /* MG1 Intercept (src/galaxy/intercept): the plot's plate, top right, and numerals pinned to points
    in the system. Numbers are tabular so a changing figure never shifts its neighbours. */
 .intercept-panel {
@@ -1589,8 +1593,8 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
    ============================================================================================= */
 :root { --chamfer: 12px; --chamfer-sm: 6px; }
 @property --edge { syntax: '<color>'; inherits: false; initial-value: rgba(93, 102, 111, 0.45); }
-.panel, .hud-frame, .toast, .chapter-card, .look-prompt-inner, #interact-prompt, .map-panel, .tut-card, .intercept-panel, .canopy-panel,
-.btn, .dialogue-option, .map-btn, .title-btn, .breaker, .rite-node, .keycap {
+.panel, .hud-frame, .toast, .chapter-card, .look-prompt-inner, #interact-prompt, .map-panel, .tut-card, .intercept-panel, .canopy-panel, .hush-panel,
+.btn, .dialogue-option, .map-btn, .title-btn, .breaker, .keycap {
   --c: var(--chamfer);
   clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
   border: 0;
@@ -1603,23 +1607,23 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
   background-position: top left, bottom right;
   background-repeat: no-repeat;
 }
-.panel, .intercept-panel, .canopy-panel { --edge-tl: var(--accent); }
+.panel, .intercept-panel, .canopy-panel, .hush-panel { --edge-tl: var(--accent); }
 .hud-frame, .toast, #interact-prompt, .look-prompt-inner { --c: 8px; }
-.btn, .dialogue-option, .map-btn, .title-btn, .breaker, .rite-node { --c: var(--chamfer-sm); }
+.btn, .dialogue-option, .map-btn, .title-btn, .breaker { --c: var(--chamfer-sm); }
 .keycap { --c: 3px; --edge: var(--accent-dim); }
 .tut-card { --edge: rgba(217, 164, 65, 0.5); }
 
 /* Interactive states on the plate: hover lifts and turns the edge amber; press springs; focus is an
    inner amber ring; disabled drops to Steel. */
-.btn, .dialogue-option, .map-btn, .title-btn, .rite-node {
+.btn, .dialogue-option, .map-btn, .title-btn {
   transition: transform var(--dur-micro) var(--ease-decelerate), --edge var(--dur-micro) var(--ease-decelerate), background-color var(--dur-micro) var(--ease-decelerate), color var(--dur-micro) var(--ease-decelerate);
 }
-.btn:hover:not(:disabled), .dialogue-option:hover:not(.locked), .map-btn:hover:not(:disabled), .title-btn:hover, .rite-node:hover { --edge: var(--accent); }
-.btn:active:not(:disabled), .dialogue-option:active:not(.locked), .map-btn:active:not(:disabled), .title-btn:active, .rite-node:active {
+.btn:hover:not(:disabled), .dialogue-option:hover:not(.locked), .map-btn:hover:not(:disabled), .title-btn:hover { --edge: var(--accent); }
+.btn:active:not(:disabled), .dialogue-option:active:not(.locked), .map-btn:active:not(:disabled), .title-btn:active {
   transform: scale(0.97);
   transition: transform var(--dur-spring-press) var(--ease-spring-press);
 }
-.btn:focus-visible, .dialogue-option:focus-visible, .map-btn:focus-visible, .title-btn:focus-visible, .rite-node:focus-visible {
+.btn:focus-visible, .dialogue-option:focus-visible, .map-btn:focus-visible, .title-btn:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--accent);
 }

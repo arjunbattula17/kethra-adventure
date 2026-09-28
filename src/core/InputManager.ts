@@ -25,6 +25,17 @@ class InputManagerImpl {
     canvas.addEventListener('click', () => {
       if (document.pointerLockElement !== canvas) canvas.requestPointerLock?.();
     });
+    // Mouse buttons read like keys, as 'Mouse0' (left), 'Mouse2' (right), so a binding can list them.
+    // On the window: with the mouse captured every press lands on the canvas anyway, and without it
+    // the HUD layer sits over the canvas and would swallow them.
+    window.addEventListener('mousedown', (e) => {
+      const code = `Mouse${e.button}`;
+      if (!this.keys.has(code)) this.justPressed.add(code);
+      this.keys.add(code);
+    });
+    window.addEventListener('mouseup', (e) => this.keys.delete(`Mouse${e.button}`));
+    // The right button holds the lantern's hood on Kethra; the browser's menu would steal it.
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
     document.addEventListener('pointerlockchange', () => {
       const wasLocked = this.pointerLocked;

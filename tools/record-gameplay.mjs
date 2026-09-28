@@ -72,7 +72,7 @@ await record('02_traversal', async (page) => {
   await page.waitForTimeout(600);
 });
 
-// Clip 3: environmental puzzle-solving (the Cistern Heart light-sequence).
+// Clip 3: environmental puzzle-solving (MG3 Hush: the Rite at the call-stone, and the wake).
 await record('03_puzzle_solving', async (page) => {
   await page.goto(baseUrl + '?skipIntro=1&unlockKethra=1', { waitUntil: 'load' });
   await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 10000 });
@@ -84,23 +84,15 @@ await record('03_puzzle_solving', async (page) => {
     gameState.setFlag('kethra_fragment_1_read');
     gameState.setFlag('kethra_fragment_2_read');
     gameState.setFlag('kethra_fragment_3_read');
-    gameState.setFlag('kethra_grove_dimmed');
   });
-  await teleport(page, 0, 1.4, -15.5);
-  await page.keyboard.down('KeyE');
-  await page.waitForTimeout(120);
-  await page.keyboard.up('KeyE');
-  await page.waitForTimeout(1200);
-  const order = ['Azure', 'Amber', 'Verdant'];
-  for (const label of order) {
-    await page.waitForTimeout(900);
-    await page.evaluate((lbl) => {
-      const nodes = Array.from(document.querySelectorAll('.power-node'));
-      const target = nodes.find((n) => n.textContent.includes(lbl));
-      if (target) target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-    }, label);
-  }
-  await page.waitForTimeout(2500);
+  // At the call-stone, lantern hooded; the Rite is sung through the harness hook (tools/test-mg3-flow.mjs
+  // plays it breath by breath) so the clip is the wake: the Heart, the moth, the light up the terraces.
+  await teleport(page, 0, 1.6, -29.45);
+  await page.keyboard.down('KeyF');
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.__DEBUG__.miniGame()?.win());
+  await page.waitForTimeout(12500);
+  await page.keyboard.up('KeyF');
 });
 
 await browser.close();

@@ -36,6 +36,8 @@ pause menu.
 | Jump | `Space` |
 | Crouch (hold) | `C` `Ctrl` |
 | Interact, talk, read | `E` |
+| Hood the lantern (hold) | `F` `Right mouse` |
+| Breathe a colour of the Rite | `1` `2` `3` |
 | Character sheet | `Tab` |
 | Settings | `O` |
 | Pause menu, close a panel | `Esc` |
@@ -43,6 +45,8 @@ pause menu.
 
 - **Look around:** Click the game first to capture the mouse.
 - **Interact, talk, read:** When a prompt appears at the centre of the screen.
+- **Hood the lantern (hold):** In the Heart’s chamber on Kethra: the Wickmoth reads light.
+- **Breathe a colour of the Rite:** At the call-stone: azure, amber, verdant.
 
 Numbers `1`–`9` pick a dialogue option or a colour in the Rite puzzle. Buttons in every menu work
 with the mouse, or with `Tab` and `Enter`.

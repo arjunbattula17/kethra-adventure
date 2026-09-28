@@ -3,7 +3,9 @@
 // budget without the full tools/perf-run.mjs loop.
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
-//   node tools/measure-scene.mjs <ship|kethra|vessek|reveal|intro|ending> [baseUrl] [--tier=low|medium|high] [--cpu=1]
+//   node tools/measure-scene.mjs <ship|kethra|hush|vessek|reveal|intro|ending> [baseUrl] [--tier=low|medium|high] [--cpu=1]
+//
+// `hush` is Kethra from just inside the Heart's chamber door, looking in (MG3's budget, DESIGN.md §8).
 import { chromium } from 'playwright';
 
 const args = process.argv.slice(2);
@@ -14,12 +16,13 @@ const CPU = Number(opt('cpu', 1));
 const SCENES = {
   ship: ['?newGame=1&skipIntro=1', 'ShipInteriorScene'],
   kethra: ['?newGame=1&skipIntro=1&unlockKethra=1&jump=kethra', 'KethraScene'],
+  hush: ['?newGame=1&skipIntro=1&unlockKethra=1&jump=kethra', 'KethraScene', { x: 0, y: 1.6, z: -11.4, yaw: 0 }],
   vessek: ['?newGame=1&skipIntro=1&unlockVessek=1&jump=vessek', 'VessekScene'],
   reveal: ['?newGame=1&skipTutorial=1', 'GalaxyRevealScene'],
   intro: ['?newGame=1', 'IntroScene'],
   ending: ['?newGame=1&skipIntro=1&unlockVessek=1&jump=ending', 'EndingScene'],
 };
-const [query, kind] = SCENES[SCENE];
+const [query, kind, pose] = SCENES[SCENE];
 
 const browser = await chromium.launch({
   args: ['--use-gl=angle', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
@@ -32,6 +35,13 @@ if (CPU > 1) await (await page.context().newCDPSession(page)).send('Emulation.se
 await page.goto(`${BASE}${query}&tier=${TIER}&seed=7`, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k, kind, { timeout: 240000, polling: 250 });
 await page.waitForTimeout(4000);
+if (pose) {
+  await page.evaluate((p) => {
+    const s = window.__DEBUG__.engine.getCurrentScene();
+    s.player.teleport(new s.player.rig.position.constructor(p.x, p.y, p.z), p.yaw);
+  }, pose);
+  await page.waitForTimeout(2000);
+}
 const r = await page.evaluate(async () => {
   const engine = window.__DEBUG__.engine;
   const info = engine.renderer.info;

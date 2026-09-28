@@ -28,6 +28,8 @@ export const BINDINGS = {
   jump: { action: 'Jump', keys: ['Space'], codes: ['Space'] },
   crouch: { action: 'Crouch (hold)', keys: ['C', 'Ctrl'], codes: ['KeyC', 'ControlLeft', 'ControlRight'] },
   interact: { action: 'Interact, talk, read', keys: ['E'], codes: ['KeyE'], note: 'When a prompt appears at the centre of the screen.' },
+  hood: { action: 'Hood the lantern (hold)', keys: ['F', 'Right mouse'], codes: ['KeyF', 'Mouse2'], note: 'In the Heart’s chamber on Kethra: the Wickmoth reads light.' },
+  rite: { action: 'Breathe a colour of the Rite', keys: ['1', '2', '3'], codes: ['Digit1', 'Digit2', 'Digit3'], note: 'At the call-stone: azure, amber, verdant.' },
   character: { action: 'Character sheet', keys: ['Tab'], codes: ['Tab'] },
   settings: { action: 'Settings', keys: ['O'], codes: ['KeyO'] },
   pause: { action: 'Pause menu, close a panel', keys: ['Esc'], codes: ['Escape'] },
@@ -37,4 +39,4 @@ export const BINDINGS = {
 export type BindingId = keyof typeof BINDINGS;
 
 /** The order the Controls screen and the doc list them in. */
-export const BINDING_ORDER = ['look', 'turnLeft', 'turnRight', 'forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'interact', 'character', 'settings', 'pause', 'skip'];
+export const BINDING_ORDER = ['look', 'turnLeft', 'turnRight', 'forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'interact', 'hood', 'rite', 'character', 'settings', 'pause', 'skip'];

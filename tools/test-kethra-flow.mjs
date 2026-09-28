@@ -24,11 +24,11 @@ const check = (name, ok, detail = '') => {
 const sceneKind = () => page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.kind);
 const waitScene = (kind) => page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k, kind, { timeout: 240000, polling: 500 });
 const state = () => page.evaluate(() => JSON.parse(JSON.stringify(window.__DEBUG__.gameState.data)));
-async function teleport(x, y, z) {
-  await page.evaluate(({ x, y, z }) => {
+async function teleport(x, y, z, yaw = 0) {
+  await page.evaluate(({ x, y, z, yaw }) => {
     const s = window.__DEBUG__?.engine.getCurrentScene();
-    s.player.teleport(new s.player.rig.position.constructor(x, y, z), 0);
-  }, { x, y, z });
+    s.player.teleport(new s.player.rig.position.constructor(x, y, z), yaw);
+  }, { x, y, z, yaw });
   await page.waitForTimeout(400);
 }
 async function pressE() {
@@ -88,30 +88,27 @@ s = await state();
 check('valve realigned', s.flags.includes('kethra_helped_with_valve'));
 check('shrine record in the journal', s.journalLogs.some((l) => l.id === 'kethra_ritual_record' && l.unlocked));
 
-// 5. The Heart is guarded until the grove is dimmed. The call-stone stands at z -14.9, facing the
-// approach; the player sings the Rite from in front of it.
-await teleport(0, 1.4, -12.8);
-await pressE();
-check('Cistern Heart refused while the guardian is alert', !(await page.$('#power-puzzle-panel')));
-await teleport(-4, 2.4, -9);
-await pressE();
-check('grove dimmed', (await state()).flags.includes('kethra_grove_dimmed'));
+// 5. The Heart's chamber (MG3 Hush, docs/DESIGN.md §4 slot 3): walking through the gate begins it.
+await teleport(0, 1.6, -8.4);
+await page.keyboard.down('KeyW');
+await page.waitForTimeout(1200);
+await page.keyboard.up('KeyW');
+check('walking into the Heart’s chamber begins the Hush', await page.waitForSelector('.hush-panel', { timeout: 5000 }).then(() => true, () => false));
 
-// 6. Solve the Heart with the true order read from the inscriptions.
-await teleport(0, 1.4, -12.8);
-await pressE();
-check('Cistern Heart panel opens', !!(await page.$('#power-puzzle-panel')));
-for (const label of ['Azure', 'Amber', 'Verdant']) {
-  await page.evaluate((lbl) => [...document.querySelectorAll('.rite-node')].find((n) => n.textContent.includes(lbl))?.click(), label);
-  await page.waitForTimeout(300);
-}
-await page.waitForTimeout(600);
+// 6. The Rite, sung through the harness hook (tools/test-mg3-flow.mjs breathes it with 1/2/3), then
+// the wake, held to skip.
+await page.evaluate(() => window.__DEBUG__.miniGame()?.win());
+await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene().hush.state().phase === 'won', null, { timeout: 5000 }).catch(() => {});
+await page.waitForTimeout(1500);
+await page.keyboard.down('Space');
+await page.waitForTimeout(1100);
+await page.keyboard.up('Space');
+await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene().hush.state().phase === 'done', null, { timeout: 20000 }).catch(() => {});
 s = await state();
 check('Heart solved and crystals awarded', s.flags.includes('kethra_mechanism_solved') && s.shipSystems.navigation.haveAmount === 3);
-await closePanel();
 
-// 7. The last carving, marked on the map's survey.
-await teleport(-2.6, 1.8, -15.6); // in front of the carving, facing it
+// 7. The last carving, on the inner face of the gate's west pillar, marked on the map's survey.
+await teleport(-4.07, 1.6, -11.5, Math.PI); // in front of the carving, facing it
 await pressE();
 const insight = (await state()).attributes.insight;
 await pressE();

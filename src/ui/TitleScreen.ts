@@ -33,7 +33,7 @@ export const TitleScreen = {
       <div class="title-planet"></div>
       <div class="title-inner">
         <div class="title-kicker"></div>
-        <h1 class="title-name"><span class="title-name-text"></span><span class="title-scan" aria-hidden="true"></span></h1>
+        <h1 class="title-name"><span class="title-name-text"></span><span class="title-name-lit" aria-hidden="true"></span><span class="title-scan" aria-hidden="true"></span></h1>
         <p class="title-tagline"></p>
         <nav class="title-menu"></nav>
       </div>`;
@@ -41,7 +41,7 @@ export const TitleScreen = {
     (root.querySelector('.title-planet') as HTMLDivElement).style.backgroundImage = `url(${import.meta.env.BASE_URL}textures/planets/kethra_day.jpg)`;
     root.querySelector('.title-kicker')!.textContent = t('title.kicker');
     root.querySelector('.title-name-text')!.textContent = t('title.name');
-    root.querySelector('.title-name')!.setAttribute('data-name', t('title.name'));
+    root.querySelector('.title-name-lit')!.textContent = t('title.name');
     root.querySelector('.title-tagline')!.textContent = t('title.tagline');
 
     const menu = root.querySelector('.title-menu')!;
