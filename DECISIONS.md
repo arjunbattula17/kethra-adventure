@@ -159,3 +159,19 @@ sideways) so the whole game plays without a mouse; every key comes from `src/con
 Repairing comms with the Anchorage's alloy offers the transmission of the ledger; the ending shows
 the Wren's light leaving for home, names Isilthe as next, and rolls credits (team ID and every
 licensed asset only).
+
+### D-25 · UPGRADE · Performance pass measured on a real Intel UHD laptop — *Done 2026-09-27, reversible*
+Measured on an i5-1035G1 laptop with Intel UHD graphics, the class of machine the game has to run
+on (docs/PERF_REPORT.md, "2026-09-27"). Most changes leave the picture identical (image diff at the
+noise floor); two change it slightly and are the team's to reverse:
+- **Balanced uses FXAA instead of 4x MSAA.** Multisampling was 36% of a Balanced frame on this GPU.
+  Edges and the smallest screen text are a touch softer (mean 1.6/255 per pixel). Quality keeps MSAA.
+  Revert: `Engine.samplesFor` and the `fxaaPass` line in `PostProcessing.setQuality`.
+- **Kethra paints its shadow map once** (as Vessek and the Wren already did). The two Aiveth's
+  shadows no longer follow their breathing and head turns, which the map could barely resolve.
+  Revert: remove `staticShadows` from `KethraScene`.
+Automatic behaviour that changed, all under Settings → Quality → Auto only: Intel UHD/HD and ARM
+Chromebook graphics start on Performance; the start-up benchmark re-measures after stepping down and
+can lower the render resolution before the first frame; and on Performance a scene that averages
+under ~45 fps is held at a steady 30 fps (judged per scene). Choosing a tier by hand turns all of it
+off, as before.

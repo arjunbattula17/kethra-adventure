@@ -1058,7 +1058,7 @@ button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; backgroun
 .rite-progress span.set { background: var(--grove); }
 
 /* Reduced motion: no transitions beyond short fades, no idle animation, no transform motion. */
-body.reduced-motion .title-planet { animation: none; }
+body.reduced-motion .title-planet-surface { animation: none; }
 body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
   animation-duration: 1ms !important;
   animation-iteration-count: 1 !important;
@@ -1350,21 +1350,47 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   width: 88vmin;
   height: 88vmin;
   border-radius: 50%;
+  overflow: hidden;
   pointer-events: none;
-  background-size: 200% 100%;
-  background-position: 0% 50%;
-  /* Lit from the upper left (the unseen star), a thin atmosphere rim, the night side falling off. */
-  box-shadow: inset -1.2vmin 1.2vmin 3vmin rgba(210, 255, 225, 0.25), 0 0 8vmin rgba(90, 200, 150, 0.12);
+  /* A soft outer glow here; the atmosphere rim is ::before, see below. */
+  box-shadow: 0 0 8vmin rgba(90, 200, 150, 0.12);
   opacity: 0.9;
+}
+/* Lit from the upper left (the unseen star), a thin atmosphere rim. Its own layer between the
+   surface and the terminator (::after), the order it painted in when the map was this element's
+   background: an inset shadow on .title-planet would now sit under the surface and not show. */
+.title-planet::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  box-shadow: inset -1.2vmin 1.2vmin 3vmin rgba(210, 255, 225, 0.25);
+}
+/* The turning surface: two copies of the map side by side (each twice the disc's width, as the
+   old background-size was), slid by one copy's width per turn. It moves by transform, which the
+   compositor animates without repainting; the old background-position animation repainted the whole
+   disc and its blurred shadows on every frame the title was open. */
+.title-planet-surface {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 0;
+  width: 400%;
+  height: 100%;
+  background-size: 50% 100%;
+  background-repeat: repeat-x;
+  will-change: transform;
   animation: title-spin 240s linear infinite;
 }
-@keyframes title-spin { to { background-position: 200% 50%; } }
+@keyframes title-spin { to { transform: translateX(-50%); } }
 /* The terminator: lit from the upper right (toward the screen corner), falling into night on the
    side that faces the menu, so the text sits over the dark limb. */
 .title-planet::after {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 2;
   border-radius: 50%;
   background: radial-gradient(circle at 76% 18%, rgba(255, 250, 235, 0.12) 0%, rgba(0, 0, 0, 0) 26%, rgba(3, 5, 10, 0.45) 46%, rgba(3, 5, 10, 0.88) 64%, rgba(3, 5, 10, 0.97) 82%);
 }
@@ -1454,7 +1480,7 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
 .title-btn.primary { background: var(--accent); color: #1a1408; border-color: var(--accent); }
 .title-btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 @media (prefers-reduced-motion: reduce) {
-  .title-planet { animation: none; }
+  .title-planet-surface { animation: none; }
 }
 
 /* Controls and Credits panels, opened from the title screen. */

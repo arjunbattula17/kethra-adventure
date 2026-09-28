@@ -21,6 +21,8 @@ export class CinematicSequencer {
   onComplete: () => void = () => {};
   private startPos = new THREE.Vector3();
   private startLook = new THREE.Vector3();
+  /** Per-frame look target, reused so update() allocates nothing. */
+  private look = new THREE.Vector3();
   private startFov = 50;
 
   constructor(camera: THREE.PerspectiveCamera) {
@@ -75,8 +77,7 @@ export class CinematicSequencer {
       const ease = kf.ease ?? easeInOutCubic;
       const p = ease(rawP);
       this.camera.position.lerpVectors(this.startPos, kf.position, p);
-      const look = new THREE.Vector3().lerpVectors(this.startLook, kf.lookAt, p);
-      this.camera.lookAt(look);
+      this.camera.lookAt(this.look.lerpVectors(this.startLook, kf.lookAt, p));
       if (kf.fov) {
         this.camera.fov = THREE.MathUtils.lerp(this.startFov, kf.fov, p);
         this.camera.updateProjectionMatrix();

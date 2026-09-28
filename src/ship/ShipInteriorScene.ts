@@ -8,6 +8,7 @@ import { disposeSceneTextures, downscaleCanvasTextures } from '../core/disposeSc
 import { clearMemoTextures } from '../core/memoTexture';
 import { getActiveEngine } from '../core/EngineRegistry';
 import { getSharedEnvironment } from '../core/Environment';
+import { pbrTexturesReady } from '../core/TextureLibrary';
 import { AudioSystem } from '../audio/AudioSystem';
 import type { InteriorCtx, StatusLight } from './interior/ctx';
 import { ROOM_W, ROOM_D } from './interior/ctx';
@@ -61,6 +62,7 @@ export class ShipInteriorScene implements GameScene {
   private statusLights: StatusLight[] = [];
   private animated: ((elapsed: number, dt: number) => void)[] = [];
   private noMerge = new Set<THREE.Object3D>();
+  private mergeWithin = new Set<THREE.Object3D>();
   private unsubShake: (() => void) | null = null;
   private stopAmbient: (() => void) | null = null;
   private stopMusic: (() => void) | null = null;
@@ -82,6 +84,7 @@ export class ShipInteriorScene implements GameScene {
       statusLights: this.statusLights,
       animated: this.animated,
       noMerge: this.noMerge,
+      mergeWithin: this.mergeWithin,
       setStarfield: (points) => {
         this.starfield = points;
       },
@@ -117,11 +120,22 @@ export class ShipInteriorScene implements GameScene {
     // geometry — the whole airlock, both side walls, and every detail prop — streaming in afterward
     // as unbatched, unmerged individual draw calls, with each piece's load/parse/GPU-upload landing
     // as a hitch on whatever frame happened to be running when it resolved.
-    await Promise.all([buildWalls(ctx), buildAirlock(ctx), buildDetailProps(ctx)]);
+    // pbrTexturesReady: the window frame's metal maps (applyPbr in starfieldWindow.ts), in hand before
+    // the engine's warm-up frame rather than landing mid-play.
+    await Promise.all([buildWalls(ctx), buildAirlock(ctx), buildDetailProps(ctx), pbrTexturesReady()]);
     // Read colliders off the props *before* batching: the merge pass collapses every mesh sharing a
     // material into one geometry, so afterwards a per-mesh bounding box would span the whole room.
     const propColliders = buildInteriorColliders(ctx);
     batchStaticGeometry(ctx);
+    // Every mesh outside ctx.noMerge is static by that set's own contract (ctx.ts): nothing moves it
+    // after the build. Compose each one's local matrix once instead of on every frame; three.js
+    // otherwise rebuilds all ~900 of them per frame, 3% of the main thread in a profile of this room
+    // (docs/PERF_LOG.md, 2026-09-27). A parent that moves still carries its children along.
+    this.scene.traverse((o) => {
+      if (!(o as THREE.Mesh).isMesh || this.noMerge.has(o)) return;
+      o.updateMatrix();
+      o.matrixAutoUpdate = false;
+    });
 
     this.scene.add(this.player.rig);
 

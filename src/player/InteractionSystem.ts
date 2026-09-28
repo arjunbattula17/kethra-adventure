@@ -28,17 +28,34 @@ function resolveLabel(it: Interactable): string {
  * is refused; narrow enough that nothing behind or beside them is offered.
  */
 const MIN_FACING_DOT = 0.34;
-/** Scratch vectors for the per-frame proximity pass, which runs over every registered target. */
+/**
+ * A layer no camera draws, for meshes that exist only to be aimed at: the ship keeps an interaction
+ * target's original small meshes here after drawing the target as merged batches
+ * (batchStaticGeometry.ts), so the crosshair tests the same shapes it always did. Only this system's
+ * raycaster looks at it.
+ */
+export const RAYCAST_ONLY_LAYER = 1;
+
+/** Scratch values for update(), which runs every frame and so allocates nothing. */
 const _forward = new THREE.Vector3();
 const _objPos = new THREE.Vector3();
 const _toTarget = new THREE.Vector3();
+const _camPos = new THREE.Vector3();
+const _screenCentre = new THREE.Vector2(0, 0);
 
 export class InteractionSystem {
   private interactables: Interactable[] = [];
   private raycaster = new THREE.Raycaster();
+  private active: Interactable[] = [];
+  private targets: THREE.Object3D[] = [];
+  private hits: THREE.Intersection[] = [];
   private currentTarget: Interactable | null = null;
   private currentLabel: string | null = null;
   onPromptChange: (label: string | null) => void = () => {};
+
+  constructor() {
+    this.raycaster.layers.enable(RAYCAST_ONLY_LAYER);
+  }
 
   register(interactable: Interactable): () => void {
     this.interactables.push(interactable);
@@ -68,15 +85,27 @@ export class InteractionSystem {
   }
 
   update(camera: THREE.Camera): void {
-    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    const camPos = new THREE.Vector3();
-    camera.getWorldPosition(camPos);
+    this.raycaster.setFromCamera(_screenCentre, camera);
+    const camPos = camera.getWorldPosition(_camPos);
 
-    const active = this.interactables.filter((it) => !(it.enabled && !it.enabled()));
-    const rayHits = this.raycaster.intersectObjects(
-      active.map((it) => it.object),
-      true,
-    );
+    const active = this.active;
+    const targets = this.targets;
+    active.length = 0;
+    targets.length = 0;
+    let maxRange = 0;
+    for (const it of this.interactables) {
+      if (it.enabled && !it.enabled()) continue;
+      active.push(it);
+      targets.push(it.object);
+      if (it.range > maxRange) maxRange = it.range;
+    }
+    // Nothing past the longest range can be offered (a hit beyond its target's range is refused
+    // below), and three.js skips any mesh whose bounding sphere starts beyond `far` without testing
+    // its triangles. Same result, a fraction of the work when the crosshair crosses a detailed prop.
+    this.raycaster.far = maxRange;
+    const rayHits = this.hits;
+    rayHits.length = 0;
+    this.raycaster.intersectObjects(targets, true, rayHits);
 
     let best: Interactable | null = null;
     if (rayHits.length > 0) {

@@ -2,11 +2,23 @@ import * as THREE from 'three';
 
 const loader = new THREE.TextureLoader();
 const cache = new Map<string, THREE.Texture>();
+const loads: Promise<void>[] = [];
+
+/**
+ * Resolves once every map requested so far has arrived (or failed). Scenes await it at the end of
+ * init(), so these images are decoded and uploaded in the engine's warm-up frame behind the loading
+ * cover, not in whichever frame of play they happened to arrive in.
+ */
+export function pbrTexturesReady(): Promise<void> {
+  return Promise.all(loads).then(() => undefined);
+}
 
 function load(url: string, srgb: boolean): THREE.Texture {
   const cached = cache.get(url);
   if (cached) return cached;
-  const tex = loader.load(url);
+  let settle!: () => void;
+  loads.push(new Promise<void>((resolve) => (settle = resolve)));
+  const tex = loader.load(url, () => settle(), undefined, () => settle());
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.anisotropy = 8;

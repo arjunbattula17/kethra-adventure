@@ -5,6 +5,7 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { FXAAPass } from 'three/examples/jsm/postprocessing/FXAAPass.js';
 
 // The scene lighting rig runs hot for the ACES filmic curve baked into the renderer (Engine.ts,
 // not ours to edit) plus a room-wide IBL ambient (ShipInteriorScene.ts's environmentIntensity,
@@ -18,20 +19,11 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 // that lifts only genuinely crushed near-zero pixels so they keep a sliver of material detail —
 // the brief's whole-fix shape: lift the shadow floor's readability without milkifying it, pull
 // the highlights down separately.
-const gradeShader = {
-  uniforms: { tDiffuse: { value: null } },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    varying vec2 vUv;
-    void main() {
-      vec4 color = texture2D(tDiffuse, vUv);
+//
+// Written as a function so it can run inside OutputPass's own shader, just before the tone map
+// (see the constructor): one full-screen pass instead of two.
+const GRADE_GLSL = `
+    vec4 kethraGrade(vec4 color, vec2 vUv) {
       vec3 c = color.rgb;
 
       // Flat exposure trim compensating for the fixed renderer exposure + ambient IBL running hot.
@@ -80,10 +72,31 @@ const gradeShader = {
       float vig = 1.0 - smoothstep(0.35, 0.85, length(centered) * 1.15);
       c *= mix(0.85, 1.0, vig);
 
-      gl_FragColor = vec4(clamp(c, 0.0, 1.0), color.a);
+      return vec4(clamp(c, 0.0, 1.0), color.a);
+    }
+`;
+
+/** The grade as its own pass: the fallback if OutputPass's shader ever stops matching (see the constructor). */
+const gradeShader = {
+  uniforms: { tDiffuse: { value: null } },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    varying vec2 vUv;
+    ${GRADE_GLSL}
+    void main() {
+      gl_FragColor = kethraGrade(texture2D(tDiffuse, vUv), vUv);
     }
   `,
 };
+
+const OUTPUT_READ = 'gl_FragColor = texture2D( tDiffuse, vUv );';
 
 export type QualityTier = 'high' | 'medium' | 'low';
 
@@ -92,6 +105,7 @@ export class PostProcessing {
   private renderPass: RenderPass;
   private aoPass: GTAOPass;
   private bloomPass: UnrealBloomPass;
+  private fxaaPass: FXAAPass;
   // Whether the *current scene* can benefit from AO at all, independent of the quality tier and of
   // the settings menu's own toggle. Both of those choose whether to pay for AO; this decides
   // whether AO is even meaningful here. See GameScene.usesAO.
@@ -170,8 +184,30 @@ export class PostProcessing {
     this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.18, 0.94);
     this.composer.addPass(this.bloomPass);
 
-    this.composer.addPass(new ShaderPass(gradeShader));
-    this.composer.addPass(new OutputPass());
+    // The grade runs inside OutputPass's shader, on the colour it reads, just before the tone map:
+    // the same maths as the separate grade pass it replaces, without writing the whole frame out to a
+    // half-float target and reading it straight back. That round trip was 4% of a frame in the Wren
+    // on Intel UHD graphics (docs/PERF_LOG.md, 2026-09-27). If a three.js upgrade changes the line
+    // this hooks, the grade goes back to being its own pass rather than silently vanishing.
+    const output = new OutputPass();
+    const outputShader = output.material.fragmentShader;
+    if (outputShader.includes(OUTPUT_READ) && outputShader.includes('void main() {')) {
+      output.material.fragmentShader = outputShader
+        .replace('void main() {', `${GRADE_GLSL}\n\t\tvoid main() {`)
+        .replace(OUTPUT_READ, 'gl_FragColor = kethraGrade( texture2D( tDiffuse, vUv ), vUv );');
+    } else {
+      this.composer.addPass(new ShaderPass(gradeShader));
+    }
+    this.composer.addPass(output);
+
+    // Anti-aliasing for the Balanced tier, in place of 4x MSAA. Multisampling this chain's
+    // half-float target was 36% of a Balanced frame in the Wren on Intel UHD graphics (72 -> 46 ms,
+    // docs/PERF_LOG.md, 2026-09-27) and ~50 MB of shared memory at 1366x768; FXAA is one full-screen
+    // pass. It runs after OutputPass because it expects tone-mapped sRGB input; when it is off,
+    // OutputPass is the last enabled pass and draws to the screen itself.
+    this.fxaaPass = new FXAAPass();
+    this.fxaaPass.enabled = false;
+    this.composer.addPass(this.fxaaPass);
   }
 
   setActive(scene: THREE.Scene, camera: THREE.PerspectiveCamera): void {
@@ -211,6 +247,7 @@ export class PostProcessing {
     this.aoRequested = tier === 'high';
     this.aoPass.enabled = this.aoRequested && this.aoSupported;
     this.bloomPass.enabled = tier !== 'low';
+    this.fxaaPass.enabled = tier === 'medium';
   }
 
   setAOSupported(supported: boolean): void {

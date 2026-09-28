@@ -284,6 +284,8 @@ export class GameFlow {
         scene.adaptToTier(after);
         this.engine.prewarmScene(scene);
       }
+      // Still under 30 fps on Performance: a lower render resolution, chosen before the first frame.
+      this.engine.fitRenderScale(scene);
       UIManager.setLoadingProgress(1, '');
       this.pendingShip = Promise.resolve(scene);
     } catch {

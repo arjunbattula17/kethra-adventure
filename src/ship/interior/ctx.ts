@@ -37,25 +37,33 @@ export interface InteriorCtx {
    * Meshes the static-geometry batching pass (batchStaticGeometry.ts) must leave alone: anything
    * whose own position/rotation/scale is mutated per frame (merging bakes a mesh's transform into
    * shared vertex data, so an animated transform would freeze at whatever it was during batching),
-   * plus interaction targets and the floor raycast slab, where identity matters for other reasons.
-   * Material-property animation (emissiveIntensity, light intensity, texture offset) is unaffected
-   * by merging and does not need registration here.
+   * plus the floor raycast slab and stand-alone aim proxies, where identity matters for other
+   * reasons. Material-property animation (emissiveIntensity, light intensity, texture offset) is
+   * unaffected by merging and does not need registration here.
    */
   noMerge: Set<THREE.Object3D>;
+  /**
+   * Interaction targets whose meshes are merged among themselves rather than into the room's
+   * batches, so the merged result stays inside the target (see protectSubtree).
+   */
+  mergeWithin: Set<THREE.Object3D>;
   setStarfield(points: THREE.Points): void;
   setEmergencyLight(light: THREE.PointLight): void;
 }
 
 /**
- * Registers every mesh in `object`'s subtree as unmergeable. Use for anything registered with
+ * Keeps `object`'s meshes out of the room-wide batches. Use for anything registered with
  * `ctx.interaction` — InteractionSystem raycasts recursively into the registered object, so pulling
  * its descendant meshes out into a scene-level merged batch would make it un-aimable-at (crosshair
  * hit-testing would find nothing there, falling back to the coarser proximity-only check).
+ *
+ * The meshes are still merged, among themselves: batchStaticGeometry draws the target as one mesh
+ * per material and keeps the originals inside it on RAYCAST_ONLY_LAYER, never drawn, so aiming at it
+ * hits the same small meshes it always did. Before, these subtrees were left as ~220 separate draw
+ * calls, most of the draws in the view of the navigation console.
  */
 export function protectSubtree(ctx: InteriorCtx, object: THREE.Object3D): void {
-  object.traverse((child) => {
-    if ((child as THREE.Mesh).isMesh) ctx.noMerge.add(child);
-  });
+  ctx.mergeWithin.add(object);
 }
 
 export function addGrimeOverlay(

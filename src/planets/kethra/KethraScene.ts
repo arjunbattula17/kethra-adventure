@@ -14,7 +14,7 @@ import { KETHRA_LORE_ENTRIES } from './kethraLore';
 import { ShipLibrary } from '../../journal/shipLibrary';
 import { KethraMechanismPuzzle } from './KethraMechanismPuzzle';
 import { AudioSystem } from '../../audio/AudioSystem';
-import { applyPbr } from '../../core/TextureLibrary';
+import { applyPbr, pbrTexturesReady } from '../../core/TextureLibrary';
 import { KitBatcher, kitInstanceBox, jitter, groveRandom, resetGroveRandom } from './kit';
 import { buildKethraColliders } from './collision';
 import { Figure } from '../../characters/Figure';
@@ -321,6 +321,14 @@ export class KethraScene implements GameScene {
    * "all targets reachable" claim had only ever been checked against a dev build.
    */
   readonly kind = 'KethraScene';
+  /**
+   * The moon's 2,048-pixel shadow map covers the whole grove, and every tree, rock and terrace in it
+   * casts. Nothing that casts ever moves: the Wickmoth and the Heart's turning core cast no shadow,
+   * and the two Aiveth only breathe and turn their heads, which the map can't resolve. Redrawing it
+   * every frame was about 170 draw calls and 310k triangles per frame for an identical picture
+   * (docs/PERF_LOG.md, 2026-09-27); Vessek and the Wren already paint theirs once.
+   */
+  readonly staticShadows = true;
 
   onDepart: (() => void) | null = null;
 
@@ -338,6 +346,9 @@ export class KethraScene implements GameScene {
   private unsub: Array<() => void> = [];
   private stopAmbient: (() => void) | null = null;
   private stopMusic: (() => void) | null = null;
+  /** Held rather than looked up by name each frame: getObjectByName walks the whole scene graph. */
+  private motes: THREE.Points | null = null;
+  private eye = new THREE.Vector3();
 
   constructor() {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 2, 18));
@@ -371,7 +382,9 @@ export class KethraScene implements GameScene {
     this.buildAtmosphere();
     this.buildLighting();
 
-    await Promise.all([this.buildFoliage(), this.buildGroundCover(), this.buildClutter()]);
+    // The terraces' rock and metal maps (applyPbr, above) with the kit, so they are in hand for the
+    // engine's warm-up frame behind the loading cover.
+    await Promise.all([this.buildFoliage(), this.buildGroundCover(), this.buildClutter(), pbrTexturesReady()]);
 
     this.scene.add(this.player.rig);
     this.player.setFloorTargets(this.floorMeshes);
@@ -961,6 +974,7 @@ export class KethraScene implements GameScene {
     const motes = new THREE.Points(geo, mat);
     motes.name = 'motes';
     this.scene.add(motes);
+    this.motes = motes;
 
     // Layered haze walls beyond the far terraces, for depth cueing on top of the exponential
     // fog: near layer tinted toward the canopy's bioluminescent teal, far layer toward the
@@ -1053,7 +1067,7 @@ export class KethraScene implements GameScene {
   update(dt: number, elapsed: number): void {
     this.player.update(dt);
     this.interaction.update(this.camera);
-    const eye = this.player.getWorldPosition();
+    const eye = this.player.camera.getWorldPosition(this.eye);
     this.warden?.update(dt, elapsed, eye);
     this.archivist?.update(dt, elapsed, eye);
 
@@ -1062,8 +1076,7 @@ export class KethraScene implements GameScene {
     this.bloom.update(dt, elapsed);
     this.heart.update(dt, elapsed);
 
-    const motes = this.scene.getObjectByName('motes') as THREE.Points | undefined;
-    if (motes) motes.rotation.y += dt * 0.01;
+    if (this.motes) this.motes.rotation.y += dt * 0.01;
   }
 
   onResize(width: number, height: number): void {

@@ -15,7 +15,7 @@ import { placeKitPiece, preloadKit } from '../../ship/interior/kit';
 import { groundKitPiece } from '../../ship/interior/walls';
 import { buildShipHull } from '../../galaxy/shipHull';
 import { buildStarfield } from '../../galaxy/spaceDressing';
-import { buildPlanetInstance } from '../../galaxy/planetShader';
+import { buildPlanetInstance, planetTexturesReady } from '../../galaxy/planetShader';
 import type { PlanetInstance } from '../../galaxy/planetShader';
 import { PLANETS } from '../../galaxy/planetData';
 import { buildInstancedKit } from '../kethra/kit';
@@ -159,7 +159,9 @@ export class VessekScene implements GameScene {
     this.buildLighting();
     this.buildPeople();
     this.buildInteractions();
-    await Promise.all([this.buildShell(), this.buildDressing(), this.buildRing(), this.buildHydroponics()]);
+    // The planet's maps with the kit: in hand before the engine's warm-up frame, so they are decoded
+    // and uploaded behind the loading cover rather than in the first frame the window comes into view.
+    await Promise.all([this.buildShell(), this.buildDressing(), this.buildRing(), this.buildHydroponics(), planetTexturesReady()]);
 
     this.scene.add(this.player.rig);
     this.player.setFloorTargets([this.floor]);

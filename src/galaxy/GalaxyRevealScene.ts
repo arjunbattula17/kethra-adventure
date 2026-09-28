@@ -5,7 +5,7 @@ import { UIManager } from '../ui/UIManager';
 import { getSharedEnvironment } from '../core/Environment';
 import { PLANETS } from './planetData';
 import { buildShipHull } from './shipHull';
-import { buildPlanetInstance, type PlanetInstance } from './planetShader';
+import { buildPlanetInstance, planetTexturesReady, type PlanetInstance } from './planetShader';
 import { buildStarfield, getPointSprite } from './spaceDressing';
 
 function buildGlowTexture(): THREE.Texture {
@@ -201,6 +201,8 @@ class EngineTrail {
 }
 
 export class GalaxyRevealScene implements GameScene {
+  /** Stable identity for the tools/ harnesses; see ShipInteriorScene.kind. */
+  readonly kind = 'GalaxyRevealScene';
   // Nothing in open space occludes anything; GTAO only paints half-resolution blocky artefacts
   // across the sky here (see Engine.GameScene.usesAO).
   readonly usesAO = false;
@@ -216,6 +218,8 @@ export class GalaxyRevealScene implements GameScene {
   private asteroidField!: THREE.Group;
   private engineTrail: EngineTrail;
   private engineLocalPositions: THREE.Vector3[] = [];
+  private trailDir = new THREE.Vector3();
+  private trailOrigins: THREE.Vector3[] = [];
   private pingSprite!: THREE.Sprite;
   private pingElapsed = -1;
   private elapsedTotal = 0;
@@ -249,7 +253,12 @@ export class GalaxyRevealScene implements GameScene {
     // point-star fields below — a flat color reads as empty space, this reads as a sky. It
     // replaced the NASA starmap's 1024x512 print-resolution JPEG, whose compression blotches
     // were the single largest source of "the space background looks blurry".
-    new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/space/starfield.jpg`, (texture) => {
+    //
+    // Awaited at the end of init() (with the sun and planet maps), not left to land whenever the
+    // network delivered it: a 4096x2048 image arriving mid-cinematic was decoded, uploaded and
+    // converted to a cube map in a frame the player was watching, a 2.6-5.5 s freeze on Intel UHD
+    // graphics (docs/PERF_LOG.md, 2026-09-27). Now that work happens in the engine's warm-up frame.
+    const starfieldLoad = new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}textures/space/starfield.jpg`).then((texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping;
       texture.colorSpace = THREE.SRGBColorSpace;
       this.scene.background = texture;
@@ -258,6 +267,8 @@ export class GalaxyRevealScene implements GameScene {
       // near-black sky into a duller grey than the texture's own galactic band actually is.
       // backgroundIntensity boosts just the background draw, independent of that shared pipeline.
       this.scene.backgroundIntensity = 1.5;
+    }).catch(() => {
+      // Keeps the flat colour background: a missing sky is not worth stopping the reveal for.
     });
 
     this.scene.add(buildStarfield(2400, 500, 1.1));
@@ -279,11 +290,14 @@ export class GalaxyRevealScene implements GameScene {
     // A real photospheric surface (granulation and active regions, from Solar System Scope via
     // tools/prep-planet-textures.mjs) with limb darkening toward the edge. The flat
     // MeshBasicMaterial disc this replaces had a hard aliased rim and read as a paper cutout.
+    let sunMapArrived!: () => void;
+    const sunMapLoad = new Promise<void>((resolve) => (sunMapArrived = resolve));
+    const sunMap = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/planets/sun.jpg`, () => sunMapArrived(), undefined, () => sunMapArrived());
     this.sun = new THREE.Mesh(
       new THREE.SphereGeometry(9, 48, 32),
       new THREE.ShaderMaterial({
         uniforms: {
-          uMap: { value: new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/planets/sun.jpg`) },
+          uMap: { value: sunMap },
           uTime: { value: 0 },
         },
         vertexShader: /* glsl */ `
@@ -393,8 +407,8 @@ export class GalaxyRevealScene implements GameScene {
     this.scene.add(this.pingSprite);
 
     // Planets are shader spheres built off prepared equirect maps (planetShader.ts), so there is
-    // no per-planet asset load to stagger here -- construction is synchronous and the textures
-    // stream in behind it.
+    // no per-planet asset load to stagger here -- construction is synchronous, and the maps are
+    // awaited below with the sky's.
     PLANETS.forEach((p) => {
       const angle = p.orbitAngle;
       const position = new THREE.Vector3(
@@ -408,6 +422,9 @@ export class GalaxyRevealScene implements GameScene {
       this.planetMeshes.push(instance.group);
       this.planetInstances.push(instance);
     });
+
+    // Every image the cinematic shows, in hand before the engine's warm-up frame (see starfieldLoad).
+    await Promise.all([starfieldLoad, sunMapLoad, planetTexturesReady()]);
 
     // Parked on the ship's sunlit side (the sun sits at -Z): the old park on +Z looked at the
     // shadow flank, which put an unlit silhouette on screen for the whole first shot.
@@ -496,8 +513,14 @@ export class GalaxyRevealScene implements GameScene {
     this.asteroidField.rotation.y += dt * 0.02;
 
     // Engine trail: embers streaming backward from the ship's thrusters.
-    const engineDir = new THREE.Vector3(-1, 0, 0).applyQuaternion(this.ship.quaternion).normalize();
-    const origins = this.engineLocalPositions.map((p) => this.ship.localToWorld(p.clone()));
+    // Scratch vectors held on the scene, so the trail allocates nothing per frame.
+    const engineDir = this.trailDir.set(-1, 0, 0).applyQuaternion(this.ship.quaternion).normalize();
+    const origins = this.trailOrigins;
+    for (let i = 0; i < this.engineLocalPositions.length; i++) {
+      origins[i] ??= new THREE.Vector3();
+      this.ship.localToWorld(origins[i].copy(this.engineLocalPositions[i]));
+    }
+    origins.length = this.engineLocalPositions.length;
     this.engineTrail.spawnBurst(origins, engineDir, dt);
     this.engineTrail.update(dt);
 

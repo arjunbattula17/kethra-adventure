@@ -95,6 +95,88 @@ the graphics card, so the real Chromebook test (TESTING_ON_A_REAL_CHROMEBOOK.md)
 - Giving small props plain colours on the Performance tier cut draw calls from 661 only to 637, so we
   took it back out. Measuring first is why we didn't keep code that didn't help.
 
+---
+
+## 2026-09-27: tested on a real school-class laptop
+
+Everything above was measured on a desktop with a gaming graphics card and a slowed-down processor,
+which can't show what a weak graphics chip does. This pass was measured on an ordinary laptop with
+Intel UHD graphics (an i5-1035G1), the kind of machine the game has to run on. The numbers are in
+`PERF_LOG.md` and `docs/perf/igpu-before` / `igpu-after`.
+
+### 12. Lights only do work where they reach
+- **Why:** three.js works out every light for every pixel, even a light 10 metres away whose glow
+  can't reach it. The Wren has 16 short-range lights, so most of that work added zero.
+- **What:** one line added to three.js's lighting code at start-up: skip a light that can't reach
+  this pixel.
+- **Number:** the Wren's Performance frame went from 30.5 ms to 23.8 ms. Screenshots before and after
+  differ by less than two runs of the old build differ from each other.
+- **Say it:** "The graphics card was doing the lighting maths for lights that were too far away to
+  matter. We told it to skip those, and the ship got 22% faster with a pixel-identical picture."
+
+### 13. Cheaper smoothing on Balanced
+- **Why:** 4× multisampling (the smoothing of jagged edges) was over a third of every Balanced frame
+  on Intel graphics.
+- **What:** Balanced now uses FXAA, a one-pass edge smoother. Quality keeps multisampling.
+- **Number:** the Wren on Balanced went from 77 ms a frame (13 fps) to 36 ms (28 fps).
+- **Say it:** "We measured each effect separately, found that edge smoothing cost more than everything
+  else together on a laptop, and swapped it for a cheaper method that looks almost the same."
+
+### 14. No more freezes the first time you look around
+- **Why:** the browser prepares each object for the graphics card the first time it's drawn. The
+  loading screen only prepared what the camera could see, so turning around froze the game: half a
+  second in the Wren, 1.6 seconds in the Anchorage, up to 5.5 seconds in the galaxy reveal (where the
+  4096-pixel sky arrived partway through the cinematic).
+- **What:** behind the loading screen, the game now draws everything in the level once, and waits
+  for every image before the level starts.
+- **Number:** the worst frame on the first look around: Wren 480 → 71 ms, Anchorage 1,614 → 94 ms,
+  galaxy reveal 2,641 → 16 ms.
+- **Say it:** "We found the stutters by timing every frame, not just the average. They came from work
+  the browser did the first time you saw something, so we moved all of it behind the loading screen."
+
+### 15. Fewer draw calls in the Wren
+- **Why:** each draw call has a fixed cost on both the processor and the graphics card.
+- **What:** the merging pass now also merges repeated bolts and rivets (instanced pieces) and the
+  consoles you can interact with, and the renderer groups objects that use the same shader.
+- **Number:** facing the navigation console, 520 → 377 draw calls and 215 → 84 shader switches; the
+  processor's time sending the frame fell by about a third.
+- **Say it:** "The console was drawn as hundreds of separate pieces because the game needs to know
+  when you aim at it. We draw it as a few merged pieces now and keep the originals invisible, just
+  for aiming."
+
+### 16. Kethra's shadows drawn once
+- **What:** Kethra redrew its whole shadow map every frame, though nothing that casts a shadow
+  moves. It now paints it once, like the other two levels.
+- **Say it:** "The grove's shadows never change, so we calculate them once instead of 60 times a
+  second."
+
+### 17. A steady frame rate instead of a jumpy one
+- **What:** on Auto, the game now recognises an Intel UHD laptop and starts on Performance straight
+  away (before, it prepared Balanced first and then redid everything). If a level still can't hold
+  about 45 fps, it holds a steady 30 in that level instead of jumping between 30 and 60.
+- **Number:** on the test laptop, Kethra, the Anchorage and the galaxy reveal hold 60 fps; the Wren
+  holds 30 with its worst frame at 35 ms and none over 50 ms. A first visit from New game to walking
+  around the Wren went from ~85 s to ~36 s, because the graphics are prepared once, not twice.
+- **Say it:** "A steady 30 feels smoother than a frame rate that keeps jumping, so on a laptop that
+  can't hold 60 in the ship, the game locks to 30 there, and goes back to 60 in levels that can."
+
+### 18. Small things that add up
+- The title screen's planet no longer repaints itself 60 times a second (it slides instead).
+- Nothing in the game loop creates garbage for the memory cleaner anymore: aiming, footsteps, the
+  cinematic camera and the engine trail reuse their objects.
+- Kethra no longer searches its whole scene for the floating motes every frame.
+
+### Tried and dropped (this pass)
+- Drawing near objects first to skip hidden pixels: 6% *slower*, because it switched shaders more.
+- Turning off normal maps (surface detail) on Performance: under 3% faster, not worth the flatter look.
+- Half the lights on Performance: 8% faster, not worth a visibly different room.
+
+### Still open
+- Facing the Wren's console costs about 31 ms a frame on Intel UHD graphics. What's left is the
+  lighting maths itself, with many lights overlapping there. That's why the Wren runs at a steady 30
+  on such a laptop. Getting it to 60 would mean simpler lighting in that room on Performance, which
+  is a look decision for the team.
+
 ### Still open
 - The Wren still sends about 650 draw calls a frame, from about 350 separately textured props, and
   runs around 23 fps on the simulated Chromebook. The planned fix is a texture atlas: pack the small

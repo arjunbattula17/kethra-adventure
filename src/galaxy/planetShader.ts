@@ -95,12 +95,25 @@ export interface PlanetInstance {
 
 const textureLoader = new THREE.TextureLoader();
 const textureCache = new Map<string, THREE.Texture>();
+const textureLoads: Promise<void>[] = [];
+
+/**
+ * Resolves once every planet map requested so far has arrived (or failed). A scene awaits it at the
+ * end of init(), so the images are decoded and uploaded in the engine's warm-up frame, behind the
+ * loading cover. Without it they landed whenever the network delivered them, mid-cinematic, and the
+ * decode and upload happened in a frame the player was watching.
+ */
+export function planetTexturesReady(): Promise<void> {
+  return Promise.all(textureLoads).then(() => undefined);
+}
 
 function planetTexture(file: string, srgb: boolean): THREE.Texture {
   const url = `${import.meta.env.BASE_URL}textures/planets/${file}`;
   let texture = textureCache.get(url);
   if (!texture) {
-    texture = textureLoader.load(url);
+    let settle!: () => void;
+    textureLoads.push(new Promise<void>((resolve) => (settle = resolve)));
+    texture = textureLoader.load(url, () => settle(), undefined, () => settle());
     texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     // Equirect maps wrap in longitude and clamp at the poles; letting V repeat mirrors the pole
     // rows across the seam.
