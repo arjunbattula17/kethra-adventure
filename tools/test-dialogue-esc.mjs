@@ -43,11 +43,12 @@ await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'vessek'
 await completeTrip(page, 'VessekScene');
 await page.waitForTimeout(3000);
 
+// The pulse now follows the junction's report (docs/DESIGN.md §6, Ten): the deal struck and the
+// junction back on the bus, the player tells Varro, and her line ends in the pulse.
+await page.evaluate(() => { for (const f of ['vessek_varro_met', 'vessek_school_lit', 'vessek_junction_reset']) window.__DEBUG__.gameState.setFlag(f); });
 await teleport(-2.6, 0.2, 0.2, 0);
 await press('KeyE');
-await press('Digit2'); // What do you want for conduit alloy?
-await press('Digit1'); // The core is my only way home
-check('Varro reached the closing line', await hasFlag('vessek_varro_met'));
+check('Varro reached the closing line', (await page.textContent('#dialogue-text'))?.includes('junction'));
 await press('Escape'); // dismiss the last line with Esc instead of its option
 check('the dialogue closed', !(await page.$('#dialogue-panel')));
 const pulsed = await page.waitForFunction(() => window.__DEBUG__.gameState.data.flags.includes('vessek_pulse'), null, { timeout: 12000 }).then(() => true, () => false);

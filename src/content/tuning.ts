@@ -15,6 +15,10 @@ export const PLAYER = {
   PLAYER_RADIUS: 0.35,
   /** Standing height of the collision capsule — the eye sits just under the top of it. */
   PLAYER_HEIGHT: 1.8,
+  /** Crouched, the capsule is this tall: low enough to crawl Vessek's ducts (1.25 m inside). */
+  CROUCH_HEIGHT: 1.1,
+  /** Up or down a ladder (m/s). */
+  CLIMB_SPEED: 1.8,
   /** Obstacles shorter than this are walked over rather than into. */
   STEP_OVER: 0.25,
   GRAVITY: -18,

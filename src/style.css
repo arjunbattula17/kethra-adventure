@@ -959,41 +959,6 @@ button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; backgroun
 #pause-panel .btn { justify-content: flex-start; }
 #pause-panel .pause-objective { margin-top: 4px; font-size: calc(14px * var(--text-scale)); color: var(--ink-dim); }
 
-/* Breaker gallery (Vessek Anchorage). */
-.breaker-panel { width: min(760px, 96vw); }
-.frost { margin: 4px 0 14px; }
-.frost-label { font-family: var(--font-display); font-weight: 700; font-size: calc(16px * var(--text-scale)); margin-bottom: 6px; }
-.frost .bar { height: 6px; }
-.frost-fill { display: block; height: 100%; background: var(--accent); transform-origin: left center; }
-.bus-meter { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: calc(14px * var(--text-scale)); }
-.bus-meter .cells { display: flex; gap: 4px; }
-.bus-meter .cell { width: 22px; height: 12px; border: 1px solid var(--line); border-radius: 1px; background: transparent; }
-.bus-meter .cell.used { background: var(--accent); border-color: var(--accent); }
-.bus-label { color: var(--ink-dim); }
-.bus-value { font-family: var(--font-display); font-weight: 700; font-size: calc(16px * var(--text-scale)); }
-.breaker-list { display: grid; gap: 6px; }
-.breaker {
-  display: grid;
-  grid-template-columns: 12px 1fr auto auto;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-control);
-  background: var(--hull);
-}
-.breaker-state { width: 10px; height: 10px; border-radius: 1px; background: #3a2a26; border: 1px solid var(--line); }
-.breaker.on .breaker-state { background: var(--success); border-color: var(--success); }
-.breaker.goal .breaker-name::after { content: ' · needed'; font-weight: 400; color: var(--accent); }
-.breaker-name { font-weight: 700; }
-.breaker-name .tag { margin-left: 6px; font-weight: 400; font-size: calc(12px * var(--text-scale)); color: var(--grove); }
-.breaker-note { font-size: calc(13px * var(--text-scale)); color: var(--ink-dim); font-style: italic; }
-.breaker-load { font-family: var(--font-display); font-weight: 700; font-size: calc(15px * var(--text-scale)); color: var(--ink-dim); white-space: nowrap; }
-.breaker .btn { min-width: 108px; padding: 8px 12px; }
-.breaker-msg { min-height: 2.8em; margin-top: 12px; font-size: calc(15px * var(--text-scale)); color: var(--ink-dim); }
-.breaker-msg.fail { color: var(--warn); }
-.breaker-msg.ok { color: var(--success); }
-
 /* Reduced motion: no transitions beyond short fades, no idle animation, no transform motion. */
 body.reduced-motion .title-planet { animation: none; }
 body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
@@ -1594,7 +1559,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 :root { --chamfer: 12px; --chamfer-sm: 6px; }
 @property --edge { syntax: '<color>'; inherits: false; initial-value: rgba(93, 102, 111, 0.45); }
 .panel, .hud-frame, .toast, .chapter-card, .look-prompt-inner, #interact-prompt, .map-panel, .tut-card, .intercept-panel, .canopy-panel, .hush-panel,
-.btn, .dialogue-option, .map-btn, .title-btn, .breaker, .keycap {
+.btn, .dialogue-option, .map-btn, .title-btn, .keycap {
   --c: var(--chamfer);
   clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
   border: 0;
@@ -1609,7 +1574,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 }
 .panel, .intercept-panel, .canopy-panel, .hush-panel { --edge-tl: var(--accent); }
 .hud-frame, .toast, #interact-prompt, .look-prompt-inner { --c: 8px; }
-.btn, .dialogue-option, .map-btn, .title-btn, .breaker { --c: var(--chamfer-sm); }
+.btn, .dialogue-option, .map-btn, .title-btn { --c: var(--chamfer-sm); }
 .keycap { --c: 3px; --edge: var(--accent-dim); }
 .tut-card { --edge: rgba(217, 164, 65, 0.5); }
 

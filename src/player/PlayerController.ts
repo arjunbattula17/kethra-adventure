@@ -18,7 +18,7 @@ export interface FloorRaycastTarget {
 
 // Movement feel lives in the tuning file; see the warning there before changing it.
 const {
-  EYE_HEIGHT, WALK_SPEED, SPRINT_SPEED, CROUCH_SPEED, PLAYER_RADIUS, PLAYER_HEIGHT,
+  EYE_HEIGHT, WALK_SPEED, SPRINT_SPEED, CROUCH_SPEED, PLAYER_RADIUS, PLAYER_HEIGHT, CROUCH_HEIGHT, CLIMB_SPEED,
   STEP_OVER, GRAVITY, JUMP_SPEED, MOUSE_SENSITIVITY, MAX_STEP_UP,
   COYOTE_TIME, JUMP_BUFFER, LAND_DIP, LAND_RECOVER, TURN_SPEED,
 } = PLAYER;
@@ -41,6 +41,11 @@ export class PlayerController {
   pitch = 0;
   colliders: ColliderBox[] = [];
   floorTargets: THREE.Object3D[] = [];
+  /**
+   * Ladder shafts: stand in one and W climbs, S descends. At the top, W also steps off onto the
+   * floor ahead. Vessek's ducts use them.
+   */
+  ladders: THREE.Box3[] = [];
   /**
    * Below this world Y the player has fallen out of the level and is put back at the respawn point.
    * Kethra's terraces are islands with unguarded edges over a catch plane 20 units down, and there
@@ -121,8 +126,8 @@ export class PlayerController {
     return floorY !== null && floorY - feetY > MAX_STEP_UP;
   }
 
-  private blockedAt(x: number, z: number, feetY: number): boolean {
-    const headY = feetY + PLAYER_HEIGHT;
+  private blockedAt(x: number, z: number, feetY: number, height = this.crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT): boolean {
+    const headY = feetY + height;
     const stepY = feetY + STEP_OVER;
     for (const { box } of this.colliders) {
       if (box.max.y <= stepY || box.min.y >= headY) continue;
@@ -174,7 +179,10 @@ export class PlayerController {
     this.rig.rotation.set(0, this.yaw, 0);
     this.camera.rotation.set(this.pitch, 0, 0);
 
-    this.crouching = held('crouch');
+    // Under something low (a duct's roof, or the top of a ladder into one) you crouch, and stay
+    // crouched until there is room to stand.
+    const pos = this.rig.position;
+    this.crouching = held('crouch') || this.blockedAt(pos.x, pos.z, pos.y, PLAYER_HEIGHT);
     const sprinting = held('sprint') && !this.crouching;
     const targetSpeed = Math.min(this.speedLimit, this.crouching ? CROUCH_SPEED : sprinting ? SPRINT_SPEED : WALK_SPEED);
 
@@ -195,10 +203,33 @@ export class PlayerController {
     moveDir.addScaledVector(right, moveX);
     if (moveDir.lengthSq() > 0) moveDir.normalize();
 
+    const ladder = this.ladders.find((b) => pos.x > b.min.x && pos.x < b.max.x && pos.z > b.min.z && pos.z < b.max.z && pos.y >= b.min.y - 0.05 && pos.y <= b.max.y + 0.05);
+    const climb = held('forward') ? 1 : held('back') ? -1 : 0;
+    const atTop = ladder !== undefined && pos.y >= ladder.max.y - 0.02;
+    const atFoot = ladder !== undefined && pos.y <= ladder.min.y + 0.02;
+    // At the top W steps off, and at the foot S backs away: both are walking, not climbing.
+    if (ladder && climb !== 0 && !(climb > 0 && atTop) && !(climb < 0 && atFoot)) {
+      // On the rungs: straight up or down, no gravity, no sliding off sideways, and a body's width
+      // clear of the shaft's walls, which may close in above where the way in was open.
+      pos.y = THREE.MathUtils.clamp(pos.y + climb * CLIMB_SPEED * dt, ladder.min.y, ladder.max.y);
+      pos.x = THREE.MathUtils.clamp(pos.x, ladder.min.x + PLAYER_RADIUS, ladder.max.x - PLAYER_RADIUS);
+      pos.z = THREE.MathUtils.clamp(pos.z, ladder.min.z + PLAYER_RADIUS, ladder.max.z - PLAYER_RADIUS);
+      this.velocityY = 0;
+      this.onGround = true;
+      this.moveState.speed = 0;
+      this.crouchAmount = damp(this.crouchAmount, this.crouching ? 1 : 0, 14, dt);
+      this.camera.position.set(0, EYE_HEIGHT - EYE_HEIGHT * 0.35 * this.crouchAmount, 0);
+      this.camera.rotation.z = 0;
+      return;
+    }
+
     const desired = _desired.copy(this.rig.position).addScaledVector(moveDir, targetSpeed * dt);
     const resolved = this.resolveCollisionXZ(desired);
 
-    const floorY = this.sampleFloorHeight(resolved.x, resolved.z);
+    // Over the shaft at the top of a ladder, its top rung is the floor until you step off onto the
+    // real one; otherwise the hole under the upper floor drops you back down the shaft.
+    const overTop = atTop && resolved.x > ladder.min.x && resolved.x < ladder.max.x && resolved.z > ladder.min.z && resolved.z < ladder.max.z;
+    const floorY = overTop ? ladder.max.y : this.sampleFloorHeight(resolved.x, resolved.z);
     if (floorY !== null) {
       const stepDiff = floorY - this.rig.position.y;
       if (stepDiff > MAX_STEP_UP && !this.onGround) {

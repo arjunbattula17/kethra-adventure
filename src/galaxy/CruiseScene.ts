@@ -23,6 +23,8 @@ import type { Sun } from './sun';
 import { buildCanopyLights, buildCloudLayer, buildPassingRocks, buildPlume, buildShockRing, Streaks } from './cruise/pieces';
 import { buildSkiff } from './skiff';
 import type { Skiff } from './skiff';
+import { buildAnchorage } from '../planets/vessek/anchorage';
+import type { Anchorage } from '../planets/vessek/anchorage';
 
 export interface CruiseOptions {
   destination: 'kethra' | 'vessek';
@@ -45,30 +47,30 @@ const BEAT = {
   end: 49,
 } as const;
 
-/** The Wren's speed along its line (units per second) at key times: at rest, the burn, the cruise. */
-const SPEED: [number, number][] = [
-  [0, 0],
-  [0.8, 0],
-  [BEAT.acceleration, 9],
-  [BEAT.transit, 70],
-  [BEAT.reveal, 70],
-  [BEAT.entry, 25],
-];
+/** At Vessek, when the Wren's nose meets the Lantern Bay's collar. */
+const DOCKED = BEAT.handoff + 1.2;
 
-function speedAt(time: number): number {
-  for (let i = 1; i < SPEED.length; i++) {
-    const [t1, v1] = SPEED[i];
-    const [t0, v0] = SPEED[i - 1];
+/** The Wren's speed along her line (units per second) at key times: at rest, the burn, the cruise.
+ * Over Kethra she keeps way on for the skiff's drop; at Vessek she slows to rest at her berth. */
+const SPEED: Record<CruiseOptions['destination'], [number, number][]> = {
+  kethra: [[0, 0], [0.8, 0], [BEAT.acceleration, 9], [BEAT.transit, 70], [BEAT.reveal, 70], [BEAT.entry, 25]],
+  vessek: [[0, 0], [0.8, 0], [BEAT.acceleration, 9], [BEAT.transit, 70], [BEAT.reveal, 70], [BEAT.entry, 14], [BEAT.handoff - 1, 2.2], [DOCKED, 0]],
+};
+
+function speedAt(time: number, speeds: [number, number][]): number {
+  for (let i = 1; i < speeds.length; i++) {
+    const [t1, v1] = speeds[i];
+    const [t0, v0] = speeds[i - 1];
     if (time <= t1) return v0 + ((v1 - v0) * (time - t0)) / (t1 - t0);
   }
-  return SPEED[SPEED.length - 1][1];
+  return speeds[speeds.length - 1][1];
 }
 
 /** Distance along the line at `time`: the speed curve integrated, so a skip lands in the right place. */
-function distanceAt(time: number): number {
+function distanceAt(time: number, speeds: [number, number][]): number {
   let x = 0;
   const step = 1 / 30;
-  for (let s = 0; s < time; s += step) x += speedAt(s + step / 2) * Math.min(step, time - s);
+  for (let s = 0; s < time; s += step) x += speedAt(s + step / 2, speeds) * Math.min(step, time - s);
   return x;
 }
 
@@ -80,7 +82,8 @@ const smooth = (a: number, b: number, x: number) => {
 /**
  * First light's exterior and the cruise to a planet (docs/DESIGN.md §5): the plumes bloom, the Wren
  * leaves the belt, the days pass as the sun turns around the hull, the destination's night side
- * fills the frame, and for Kethra the skiff drops through the cloud to the canopy. The level it
+ * fills the frame; for Kethra the skiff drops through the cloud to the canopy, and at Vessek the
+ * Wren slows in through the Anchorage's lashed hulls to dock at the Lantern Bay. The level it
  * arrives at builds underneath (the flow passes `arrival`); if it isn't ready when the title is up,
  * the last shot holds until it is.
  */
@@ -110,6 +113,10 @@ export class CruiseScene implements GameScene {
   private skiff: Skiff | null = null;
   private clouds: ReturnType<typeof buildCloudLayer> | null = null;
   private canopy: THREE.Group | null = null;
+  private anchorage: Anchorage | null = null;
+  /** Where the Wren comes to rest at Vessek; the Anchorage and the world are set around it. */
+  private readonly berth = new THREE.Vector3();
+  private readonly speeds: [number, number][];
   private engineLight!: THREE.PointLight;
   private time = 0;
   private skip: HoldToSkip | null = null;
@@ -124,6 +131,7 @@ export class CruiseScene implements GameScene {
 
   constructor(opts: CruiseOptions) {
     this.opts = opts;
+    this.speeds = SPEED[opts.destination];
   }
 
   async init(): Promise<void> {
@@ -183,6 +191,11 @@ export class CruiseScene implements GameScene {
       this.canopy = buildCanopyLights();
       this.canopy.visible = false;
       this.scene.add(this.canopy);
+    } else {
+      this.anchorage = await buildAnchorage();
+      this.berth.set(distanceAt(DOCKED + 1, this.speeds), 0, 0);
+      this.anchorage.group.position.copy(this.berth);
+      this.scene.add(this.anchorage.group);
     }
 
     const root = document.getElementById('ui-root')!;
@@ -271,11 +284,13 @@ export class CruiseScene implements GameScene {
   update(dt: number): void {
     if (!this.arrived) this.time = Math.min(BEAT.end + 60, this.time + dt);
     const time = this.time;
-    const S = this.shipPos.set(distanceAt(time), 0, 0);
+    const S = this.shipPos.set(distanceAt(time, this.speeds), 0, 0);
     this.hull.group.position.copy(S);
 
-    // The drive: four plumes bloom at ignition and settle to the cruise.
-    const drive = time < 0.35 ? 0 : Math.min(1, (time - 0.35) / 0.6) * (1 - 0.35 * smooth(BEAT.transit, BEAT.transit + 4, time));
+    // The drive: four plumes bloom at ignition and settle to the cruise; for the docking they go
+    // out, and she coasts in.
+    const coast = this.anchorage ? 1 - smooth(BEAT.reveal, BEAT.entry, time) : 1;
+    const drive = time < 0.35 ? 0 : Math.min(1, (time - 0.35) / 0.6) * (1 - 0.35 * smooth(BEAT.transit, BEAT.transit + 4, time)) * coast;
     this.plumes.forEach((p, i) => p.set(time < 0.35 + i * 0.16 ? 0 : drive));
     this.rings.forEach((r, i) => r.set(time - (0.35 + i * 0.16)));
     this.hull.parts.engines.emissiveIntensity = 2.4 * drive;
@@ -294,11 +309,13 @@ export class CruiseScene implements GameScene {
     if (this.dayEl.textContent !== dayText) this.dayEl.textContent = dayText;
     this.course.visible = time > BEAT.transit && time < BEAT.reveal + 2;
     this.course.position.copy(S);
+    this.rocks.visible = time < BEAT.transit + 2;
 
     // The destination waits on the line ahead, out of sight until the sweep turns to it: six days
-    // out it would be a point, and the reveal is its first look.
-    this.planet.group.position.copy(S).add(_planetOffset);
-    // Kethra gives way to the skiff's entry; Vessek holds the frame until the title (its docking is M5).
+    // out it would be a point, and the reveal is its first look. Vessek stays put beyond the
+    // Anchorage, so it grows as the Wren slows in.
+    this.planet.group.position.copy(this.anchorage ? this.berth : S).add(_planetOffset);
+    // Kethra gives way to the skiff's entry.
     this.planet.group.visible = time > BEAT.reveal - 0.5 && (time < BEAT.entry + 2 || !this.skiff);
     this.planet.group.rotation.y += dt * 0.01;
     // For the reveal the sun sits straight behind the planet from where the sweep starts, a little
@@ -315,6 +332,8 @@ export class CruiseScene implements GameScene {
     lerpGrade(GRADES.space, this.opts.destination === 'kethra' ? GRADES.kethra : GRADES.vessek, reveal, this.grade);
 
     this.updateEntry(time, dt);
+    this.anchorage?.update(motion.ambientTime);
+    this.anchorage?.setDocked(smooth(DOCKED - 0.2, DOCKED + 0.4, time));
     this.updateCamera(time, S);
 
     // Stars stretch with speed during the climb, then relax into the cruise.
@@ -332,7 +351,6 @@ export class CruiseScene implements GameScene {
     const inAir = time >= BEAT.entry + 2;
     // Space is left behind for the last two beats: a new sky, the cloud deck, the canopy.
     this.sky.group.visible = !inAir;
-    this.rocks.visible = !inAir && time < BEAT.transit + 2;
     this.hull.group.visible = !inAir;
     this.sun.group.visible = !inAir;
     this.clouds.group.visible = inAir;
@@ -400,6 +418,16 @@ export class CruiseScene implements GameScene {
       cam.position.copy(sk).add(new THREE.Vector3(THREE.MathUtils.lerp(-7, -9, k), THREE.MathUtils.lerp(3, 4.5, k), 1.5));
       cam.lookAt(this.look.copy(sk).add(new THREE.Vector3(8, -4 - k * 6, 0)));
       this.setFov(52);
+    } else if (this.anchorage) {
+      // Behind her and a little above as she coasts in between the moored hulls, the camera
+      // falling back as she slows, to settle on the Lantern Bay with the ring rising beyond. Under
+      // reduced motion it holds the first position and she crosses the frame.
+      const k = reduced ? 0 : smooth(BEAT.entry + 2, DOCKED + 0.6, time);
+      const settle = reduced ? 1 : smooth(BEAT.entry + 3, DOCKED, time);
+      cam.position.copy(_dockCamFrom).lerp(_dockCamTo, k).add(this.berth);
+      this.look.copy(S).add(_dockLead).lerp(_dockAt.copy(_dockLook).add(this.berth), settle);
+      cam.lookAt(this.look);
+      this.setFov(48);
     }
   }
 
@@ -439,3 +467,9 @@ const _planetOffset = new THREE.Vector3(520, -40, 30);
 const _space = new THREE.Color(0x02030a);
 const _night = new THREE.Color(0x061612);
 const _fog = new THREE.FogExp2(0x0a211b, 0.0035);
+// The docking shot, relative to the berth.
+const _dockCamFrom = new THREE.Vector3(-48, 5, 9);
+const _dockCamTo = new THREE.Vector3(-16, 4.4, 7.5);
+const _dockLead = new THREE.Vector3(6, 0, 0);
+const _dockLook = new THREE.Vector3(7, 0.5, -1.5);
+const _dockAt = new THREE.Vector3();

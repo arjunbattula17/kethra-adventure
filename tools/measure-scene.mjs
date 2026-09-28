@@ -3,9 +3,10 @@
 // budget without the full tools/perf-run.mjs loop.
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
-//   node tools/measure-scene.mjs <ship|kethra|hush|vessek|reveal|intro|ending> [baseUrl] [--tier=low|medium|high] [--cpu=1]
+//   node tools/measure-scene.mjs <ship|kethra|hush|vessek|dock|reveal|intro|ending> [baseUrl] [--tier=low|medium|high] [--cpu=1]
 //
 // `hush` is Kethra from just inside the Heart's chamber door, looking in (MG3's budget, DESIGN.md §8).
+// `dock` is the cruise to Vessek at its last shot, the Wren docked at the Anchorage (the space budget).
 import { chromium } from 'playwright';
 
 const args = process.argv.slice(2);
@@ -18,6 +19,7 @@ const SCENES = {
   kethra: ['?newGame=1&skipIntro=1&unlockKethra=1&jump=kethra', 'KethraScene'],
   hush: ['?newGame=1&skipIntro=1&unlockKethra=1&jump=kethra', 'KethraScene', { x: 0, y: 1.6, z: -11.4, yaw: 0 }],
   vessek: ['?newGame=1&skipIntro=1&unlockVessek=1&jump=vessek', 'VessekScene'],
+  dock: ['?newGame=1&skipIntro=1&unlockVessek=1', 'ShipInteriorScene'],
   reveal: ['?newGame=1&skipTutorial=1', 'GalaxyRevealScene'],
   intro: ['?newGame=1', 'IntroScene'],
   ending: ['?newGame=1&skipIntro=1&unlockVessek=1&jump=ending', 'EndingScene'],
@@ -41,6 +43,20 @@ if (pose) {
     s.player.teleport(new s.player.rig.position.constructor(p.x, p.y, p.z), p.yaw);
   }, pose);
   await page.waitForTimeout(2000);
+}
+if (SCENE === 'dock') {
+  // Leave for Vessek: hold the throttle through First light, then jump the cruise to its last shot.
+  await page.evaluate(() => {
+    window.__DEBUG__.flow.tutorial?.skip?.();
+    window.__DEBUG__.bus.emit('galaxy:travel_to', 'vessek');
+  });
+  await page.waitForSelector('.first-light-hint', { timeout: 60000 });
+  await page.keyboard.down('Space');
+  await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.power?.stage === 'full', null, { timeout: 30000, polling: 100 });
+  await page.keyboard.up('Space');
+  await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'CruiseScene', null, { timeout: 60000, polling: 100 });
+  await page.evaluate(() => { window.__DEBUG__.engine.getCurrentScene().time = 46.5; });
+  await page.waitForTimeout(1500);
 }
 const r = await page.evaluate(async () => {
   const engine = window.__DEBUG__.engine;

@@ -80,7 +80,10 @@ function materialSignature(mat: THREE.Material): string | null {
  * are left alone (ctx.animatedMaterials). Also: a double-sided transparent material is drawn in two
  * passes by default; for thin glows and decals one pass looks the same.
  */
-function shareIdenticalMaterials(ctx: InteriorCtx, meshes: THREE.Mesh[]): number {
+/** What batching needs from a scene's context: the Wren's InteriorCtx, or any scene's own three fields. */
+export type BatchCtx = Pick<InteriorCtx, 'scene' | 'noMerge' | 'animatedMaterials'>;
+
+function shareIdenticalMaterials(ctx: BatchCtx, meshes: THREE.Mesh[]): number {
   const canonical = new Map<string, THREE.Material>();
   let replaced = 0;
   for (const mesh of meshes) {
@@ -115,7 +118,7 @@ function expandInstances(mesh: THREE.InstancedMesh): THREE.BufferGeometry[] {
   return out;
 }
 
-export function batchStaticGeometry(ctx: InteriorCtx): void {
+export function batchStaticGeometry(ctx: BatchCtx): void {
   // `?nobatch=1` leaves every source mesh as its own scene node, which is what tools/interior-audit
   // .mjs needs: a merged batch's bounding box is the union of every mesh sharing that material, so
   // per-object overlap/containment checks are meaningless against the batched scene.

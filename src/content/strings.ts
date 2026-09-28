@@ -173,10 +173,10 @@ export const STRINGS = {
   'map.kethra.region.west': 'West terrace',
   'map.kethra.region.east': 'East terrace',
   'map.kethra.region.chamber': 'Chamber approach',
-  'map.vessek.region.collar': 'Docking collar',
-  'map.vessek.region.concourse': 'Lantern Bay concourse',
-  'map.vessek.region.hydroponics': 'Hydroponics',
-  'map.vessek.region.gallery': 'Breaker gallery',
+  'map.vessek.region.hall': 'Lantern Bay',
+  'map.vessek.region.school': 'School hold',
+  'map.vessek.region.tanker': 'Hydroponics tanker',
+  'map.vessek.region.junction': 'Aft junction',
 
   // Title screen. title.name is the game's working title (DECISIONS D-17): change it here.
   'title.kicker': 'A deep-space survey',

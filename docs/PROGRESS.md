@@ -5,8 +5,10 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
-**2026-09-27: M4 done; starting M5.** Milestone check-ins are OFF, so work continues milestone
-to milestone without stopping.
+**2026-09-27: M5 built and committed; its verification is unfinished.** The Vessek flow passes
+end to end, but the full journey run was stopped for low memory, and the M5 screenshots and the
+twenty-one-ship Anchorage's look are still to check (the open items under M5). Milestone check-ins
+are OFF, so work continues milestone to milestone without stopping.
 
 ## Milestones
 - [x] Phase 0: brief saved, branch, baseline (screens, perf, journey test)
@@ -46,7 +48,18 @@ to milestone without stopping.
   - [x] The win: the Heart wakes, the moth settles on it with its wings open, and the wake travels out of the chamber, up the terraces and into the canopy (wake.ts), filmed on the player's own camera, hold to skip
   - [x] The Rite's DOM panel and the lantern bloom deleted; MG2's moth no longer overwritten by the old patrol
   - [x] Kethra's floor: a still pool the terraces stand in (the fall reset at its surface), the lantern-tree canopy overhead with the skiff's hole in it, the pillars grounded, the chamber on foundations, the build split into tasks
-- [ ] M5 Level 2: Vessek expanded ← next
+- [ ] **M5 Level 2: Vessek expanded** (built; verification open)
+  - [x] Four compartments joined by tubes, each lashed hull with its own light: the Lantern Bay hall, the school hold, the hydroponics tanker and the aft junction (src/planets/vessek/layout.ts, rooms.ts, dressing.ts)
+  - [x] The ring bus in the world (bus.ts, busWorld.ts): six units across eight circuits, each lever in the room it serves, conduits that glow with the flow, gauges in the hall, the school and the junction; the dock lights and hall lamps switch themselves back on. Engineering 2 stamps each lever's load, perception 2 marks the self-resetting ones and warns before they come back
+  - [x] Dace's ducts: crawl-only (crouch now lowers the player to 1.1 m and holds wherever standing would collide), ladders, one-way drops, chalk arrows, and fans that block a duct while their circuit runs
+  - [x] Kishōtenketsu. Ki: light the school's lamps by switching something else off. Shō: Varro's deal sends you through the hall duct to the aft junction. Ten: the rehearsal pulse seals the tanker hatch, starts the frost clock, and the self-resetting lamps trip the bus whenever it's loaded. Ketsu: lock them out at their boxes in the ducts, bring up pumps, heaters and scrubbers inside six units, and the grow lights come back row by row
+  - [x] Stats change the route, not whether you can win: persuasion 3's deal throws the hall lamps' lockout for you, insight 2 (after the Heart) trades for the junction's keypad code, traversal 2 fits the short duct from the tanker
+  - [x] The docking variant of the cruise: the Anchorage's broken ring in front of the violet world, its lamps blinking out of sync; the Wren slows in between the moored hulls to the Lantern Bay's collar under the title "Vessek Anchorage" (src/planets/vessek/anchorage.ts)
+  - [x] The breaker panel deleted (BreakerPuzzle.ts and its CSS)
+  - [ ] Look at the Anchorage with its twenty moored hulls (three rafted outboard): built and type-checked, not yet seen; the docking frames and numbers below are from the thirteen-hull version
+  - [ ] M5 screenshots, 1920×1080 Low + High
+  - [ ] `npm run journey` on this build (the base URL must be the default `/kethra-adventure/`)
+  - [ ] Vessek's own perf row against its budget (180 / 200k Low, 400 / 400k High)
 - [ ] M6 Opening, menus, ending
 - [ ] M7 Whole-game pass and art pass
 - [ ] M8 Report
@@ -56,7 +69,7 @@ to milestone without stopping.
 |---|---|---|---|---|
 | 1 | ~~P1~~ | **Fixed (ea28978)**: Esc on Varro's closing line meant the pulse never fired | DialogueSystem.ts | Regression test fails before and passes after |
 | 2 | ~~P1~~ | **Fixed (131f3a3)**: double start from the title | flow machine + title guard | |
-| 3 | ~~P1~~ | **Fixed (131f3a3)**: breaker double solve | BreakerPuzzle.ts | |
+| 3 | ~~P1~~ | **Fixed (131f3a3)**: breaker double solve (the panel itself is deleted in M5) | BreakerPuzzle.ts | |
 | 4 | ~~P2~~ | **Fixed (131f3a3)**: stale timers closing the wrong panel (`close(id)`) | PanelManager.ts | |
 | 5 | ~~P2~~ | **Fixed (131f3a3)**: replaced panels now close properly | PanelManager.ts | |
 | 6 | ~~P2~~ | **Fixed (131f3a3)**: beacon sweeps registered noMerge | lighting.ts | |
@@ -76,7 +89,7 @@ to milestone without stopping.
 | 20 | P3 | The Wren's power stage is set when the room is built; nothing animates between stages yet | ShipInteriorScene, power.ts | M2: First light animates emergency → full as the power wave |
 | 21 | P3 | In MG1 the Kethra and Wren tick numerals can overlap where the two ghosts cross | InterceptGame.drawLabels | M7 art pass: offset labels by side of the line |
 | 22 | P2 | Arriving on Kethra with a cold shader cache stalls one frame for 9.8 s (Low, 1×; M3 7.9 s): the first render waits on the driver to link ~160 programs (`getProgramParameter`), though `compileAsync` ran first. Kethra's `init` is no longer the problem: split into tasks, it is 0.4 s. Under the cruise and MG2 this lands on the handover to Kethra | Engine.prepareScene/setScene, every scene | M7: find why the prepared programs aren't ready (the parallel-compile extension, or keys that differ at the first draw), warm them across frames under the held shots, and cut the program count (the kit's variants, per-terrace materials) |
-| 23 | P3 | The cruise's Kethra entry (cloud sprites, canopy lights, a wedge skiff) is interim until MG2 takes over the arrival; Vessek's cruise holds on the planet until its docking (M5) | CruiseScene, cruise/pieces.ts | M3, M5 |
+| 23 | ~~P3~~ | **Fixed (M3, M5)**: MG2 takes over Kethra's arrival; Vessek's cruise docks at the Anchorage | CruiseScene, anchorage.ts | |
 | 24 | P3 | Kethra's night side reads strong rather than "faint" (DESIGN §5, beat 4): the night map's bioluminescence is bright | planetShader night term | M7 art pass |
 | 25 | P3 | After the cruise the arrival card repeats the planet's name the kinetic title just gave | GameFlow.cruiseTo | M6 (the card's redesign) |
 | 26 | P3 | MG2's foliage reads as stylized blobs where it's lit; the limbs are plain tapered cylinders | canopy/CanopyScene.ts | M7 art pass |
@@ -85,6 +98,7 @@ to milestone without stopping.
 | 29 | P3 | The Hush's view on High draws 669k triangles against 500k: the background tree belt behind the chamber's walls is still drawn | KethraScene filler trees | M7: the design's LOD or impostors for the belt |
 | 30 | P3 | tools/record-gameplay.mjs still travels by the pre-M2 fade (it emits `galaxy:travel_to` and waits 2.2 s); its Hush clip is updated, but the trip needs tools/lib/travel.mjs | tools/record-gameplay.mjs | M8, before the video is recorded |
 | 31 | P3 | MG2's Wickmoth now flies its layer-4 path: the old patrol overwrote its position every frame, so it had never been on screen | canopy/CanopyScene.ts | M7 art pass: look at layer 4 with it there |
+| 32 | P3 | The team docs still describe the breaker panel and the one-room Vessek (EXPLAIN_TO_TEAM.md, docs/INTERVIEW_PREP.md, docs/DEMO_VIDEO_SHOTLIST.md, docs/STORYBOARD_CHECK.md) | team docs | M8, with the report |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -119,6 +133,11 @@ to milestone without stopping.
 | 2026-09-27 | The wake replaces the canopy's bright/dim switch: a front travelling out from the Heart that leaves a residual glow; the awake glow is half the old bright | One system for the chamber, terraces, flora, pool and canopy; the full old bright read as neon once everything carried it |
 | 2026-09-27 | Kethra stands in a still pool, with the fall reset at its surface | The terraces stood over a void; the lore has water climbing the terraces when the Heart wakes |
 | 2026-09-27 | The moon's shadow renders once; in the frames it is not repainted, only the chamber casts in the gaze's shadow pass | Measured at High: the moon's pass was 286 calls and ~595k triangles a frame, the gaze's 153 and ~590k; together that took Kethra from 892 to 455 calls |
+| 2026-09-27 | Crouch lowers the player to 1.1 m, and stays down wherever standing up would collide | The ducts are where crouch finally matters (DESIGN §6); letting go of C under a duct's roof must not wedge you into it. Kethra's root tunnels (1.95 m) are still walked standing |
+| 2026-09-27 | Every circuit's lever is in the room it serves; the two self-resetting circuits' lockout boxes are in the ducts | "Breakers are physical levers in different compartments" (DESIGN §6): the crisis becomes a route through the ship, and the ducts are how you reach the lockouts |
+| 2026-09-27 | The ducts' shell is rasterised from their runs (5 cm cells), open at the mouths and over the ladder shafts | One closed tube with exact openings at corners, mouths and shafts, where boxes per run left seams and doubled walls. `tools/test-vessek-layout.mjs` walks each mouth from inside its room |
+| 2026-09-27 | The docking arrival's Anchorage is its own model (src/planets/vessek/anchorage.ts), the moored hulls and the Lantern Bay merged by material | Twenty moored hulls and the Bay (the ring's twenty-one) share five draw calls. With thirteen, the docked shot measured 31 calls on Low against the space budget's 80; more hulls add triangles, not calls |
+| 2026-09-27 | At Vessek the planet stays put beyond the Anchorage while the Wren slows in; over Kethra it still rides ahead of the ship | A planet that moved with the ship slid across the sky behind the fixed approach camera; standing still, it grows as she comes in |
 
 ## QA log
 | Date | What | Result |
@@ -152,6 +171,9 @@ to milestone without stopping.
 | 2026-09-27 | Kethra's arrival on a cold shader cache (`debugGo`, Low, 1×; the M3 commit built alongside for comparison) | `init` 0.4 s now it is split into tasks. The stall is the first render linking programs: M3 7.9 s (130 programs), M4 at first 10.1 s + 9.6 s (187). The second round was the lantern's light, hidden inside its lowered group: three.js leaves hidden lights out of the count, so every program rebuilt once the first frame hid it. Fixed: 9.8 s, 160 programs |
 | 2026-09-27 | Issue 18 traced with a trap on `material.version` | three.js draws transparent double-sided materials back-then-front and marks them for update each time: the moth's four wings (+8 a frame) and the two haze sheets (+2 each). `forceSinglePass` on them: nothing bumps now |
 | 2026-09-27 | Vessek's bus and plan for M5: `tools/test-bus-sim.mjs`, `tools/test-vessek-layout.mjs` | 21/21 and 39/39 (M5 work, committed with M5) |
+| 2026-09-27 | `tools/test-vessek-flow.mjs` with the docking arrival (thirteen-hull build) | 49/49: the cruise lands on the title "Vessek Anchorage" and the Wren comes to rest at her berth before the cut; Ki, Shō through the hall duct and ladder, the pulse, the self-resetting lamps tripping the bus, the lockouts, the bay saved, the ledger, the ending; zero console errors |
+| 2026-09-27 | The docking shot's flare | A white blob on the Lantern Bay was a GGX glint: the sun behind at a grazing angle on glossy canopy glass, then on the panel roughness map's glossy texels, spread by the bloom. The Anchorage's hulls are now matte (roughness ≥ 0.8, no roughness map; windows fully matte). A floodlight near the hull was a false lead |
+| 2026-09-27 | Journey run (fourteen tests), stopped | The five model tests and smoke passed. The tutorial flow failed because I passed the site root as the base URL: it builds `baseUrl + '/?newGame=1'`, which needs the default `/kethra-adventure/`. The run was then stopped for low system memory before the other browser tests. To rerun |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;
@@ -218,3 +240,13 @@ are from `tools/measure-scene.mjs` (spawn view, no pan), since perf-run doesn't 
 - **Low:** 223 against 160 (issue 28). The Hush view is over on both counts on Low and on
   triangles on High (issue 29).
 - **Arrival, cold shader cache:** 9.8 s linking programs on the first render (issue 22).
+
+### M5 (2026-09-27, partial)
+`tools/measure-scene.mjs dock` at 1366×768: the cruise to Vessek at its last shot, the Wren docked.
+Measured with thirteen moored hulls; the twenty-hull Anchorage has the same draw calls and more
+triangles, still to measure. Vessek's own row is still to take.
+
+| Scene | Preset | p50 / p95 ms | Draw calls | Triangles | Programs | Budget (calls / tris) |
+|---|---|---|---|---|---|---|
+| Docking shot | Low (6× CPU) | 16.7 / 21.0 | 31 | 76k | 117 | 80 / 150k |
+| Docking shot | High | 16.6 / 26.4 | 41 | 76k | 134 | 160 / 300k |

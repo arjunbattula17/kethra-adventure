@@ -11,7 +11,7 @@ import { AudioSystem } from '../audio/AudioSystem';
 const ATTRIBUTE_INFO: Record<AttributeKey, { label: string; description: string }> = {
   insight: { label: 'Insight', description: 'Puts what you have learned into words: deeper questions and better offers in conversation.' },
   archaeology: { label: 'Archaeology', description: 'Reads Kindling script: boundary glyphs, carvings, the plate under the Anchorage.' },
-  engineering: { label: 'Engineering', description: 'Reads machines: the load stamped on a breaker, a fair trade for a repair.' },
+  engineering: { label: 'Engineering', description: 'Reads machines: the load stamped on a lever, a fair trade for a repair.' },
   traversal: { label: 'Traversal', description: 'Climbs and squeezes: tight ducts and steep shortcuts.' },
   persuasion: { label: 'Persuasion', description: 'Finds the words: questions and offers people won’t hear from a stranger.' },
   perception: { label: 'Perception', description: 'Notices things: the first colour of a rite, circuits that switched themselves on.' },

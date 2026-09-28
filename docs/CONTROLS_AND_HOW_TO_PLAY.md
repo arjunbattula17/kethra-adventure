@@ -48,22 +48,33 @@ pause menu.
 - **Hood the lantern (hold):** In the Heart’s chamber on Kethra: the Wickmoth reads light.
 - **Breathe a colour of the Rite:** At the call-stone: azure, amber, verdant.
 
-Numbers `1`–`9` pick a dialogue option or a colour in the Rite puzzle. Buttons in every menu work
-with the mouse, or with `Tab` and `Enter`.
+Numbers `1`–`9` pick a dialogue option; at Kethra's call-stone, `1` `2` `3` breathe a colour of the
+Rite. Buttons in every menu work with the mouse, or with `Tab` and `Enter`.
 
 ## How to play
 - **Level 1, the Wren.** A short tutorial teaches looking, moving, the character sheet and the
-  console. Booting navigation shows the system; then plot a course to Kethra (distance, days at
-  cruise speed, reserve fuel cells).
-- **Level 2, Kethra.** Talk to the Aiveth, Warden Corvenna and Fen. Read three inscriptions on the
-  terraces, close the lantern bloom so the Wickmoth guardian settles, then sing the Rite of Three
-  Breaths in the true order at the call-stone. The Heart wakes and gives you resonant crystal.
+  console. Booting navigation reveals the system, and you plot the course to Kethra: aim each burn
+  (`Shift` + arrows, or drag), run the plot, and meet Kethra on the same day, over the debris belt.
+- **First light and the cruise.** Hold `Space` at the throttle to fire the drive, then ride the
+  cruise to Kethra (hold `Space` to skip it).
+- **The canopy.** Fly the Wren's skiff down through Kethra's lantern-tree canopy: `WASD` steers,
+  the mouse aims the lamp that wakes the pods, `Shift` brakes. Scraping a bough three times climbs
+  you back a layer.
+- **Level 2, Kethra.** Talk to the Aiveth, Warden Corvenna and Fen, and read the three inscriptions
+  on the terraces: they give the Rite's true order. In the Heart's chamber the Wickmoth reads light:
+  hold `F` or the right mouse button to hood your lantern, crouch behind the basin rim, and use the
+  root tunnels when it watches from high up. If it reaches you it only fans you back to the last
+  lamp. At the call-stone, breathe the three colours in order, each only while it looks away. The
+  Heart wakes and gives you resonant crystal.
 - **Back on the Wren.** At the repair station (right of the airlock), use the crystal to repair
   navigation and the Deep Scanner. The scanner finds a ring of ships at Vessek.
-- **Level 3, Vessek Anchorage.** Meet Dace and Harbormaster Varro. A white-sky pulse knocks out the
-  ring's power; in the breaker gallery, bring the heaters and air scrubbers back without
-  overloading a 6-unit bus before the hydroponics bay freezes. If it freezes, you get another try at
-  once. Read the ledger, talk to Varro, and take the conduit alloy home.
+- **Level 3, Vessek Anchorage.** The whole ring runs on one bus of six units, and every lever is in
+  the room it serves; the gauges show the load. Help Dace light the school hold by switching
+  something else off, then take Harbormaster Varro's deal and crawl Dace's ducts (`C` to crouch,
+  `W` on a ladder) to the aft junction. When the rehearsal pulse browns out the ring, the lamps that
+  switch themselves back on will trip the bus: lock them out at their boxes in the ducts, then bring
+  up the pumps, heaters and scrubbers before the hydroponics bay freezes. If it freezes, you get
+  another try at once. Read the ledger, talk to Varro, and take the conduit alloy home.
 - **The ending.** Repair long-range comms on the Wren and transmit the ledger.
 
 **Stats.** Six skills (insight, archaeology, engineering, traversal, persuasion, perception) grow

@@ -180,7 +180,7 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
   await page.close();
 }
 
-// 5. Vessek Anchorage: arrival card, dialogue, the pulse, the breaker panel, a document, the ending.
+// 5. Vessek Anchorage: arrival card, dialogue, the pulse, the bus gauge and a trip, a document, the ending.
 {
   const page = await newPage();
   await page.goto(`${BASE}?skipIntro=1&unlockVessek=1&newGame=1&tier=low`, { waitUntil: 'domcontentloaded' });
@@ -202,22 +202,20 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
     await page.keyboard.press('Digit2');
     await page.waitForTimeout(600);
     await shot(page, 'vessek-dialogue-stat-gates');
-    await page.keyboard.press('Digit1');
-    await page.waitForTimeout(500);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    // The pulse follows the junction's report (tools/test-vessek-flow.mjs plays up to it).
+    await page.evaluate(() => { for (const f of ['vessek_varro_met', 'vessek_school_lit', 'vessek_junction_reset']) window.__DEBUG__.gameState.setFlag(f); });
+    await pressE(page);
     await page.keyboard.press('Digit1');
     await page.waitForTimeout(1300);
     await shot(page, 'vessek-pulse');
     await page.waitForTimeout(6000);
     await shot(page, 'vessek-blackout-hud');
-    await teleport(page, 4.6, 0.2, -8.8, 0);
-    await pressE(page);
-    await page.waitForTimeout(500);
-    await page.click('#breaker-panel button[aria-label$="Circulation pumps"]');
-    await page.click('#breaker-panel button[aria-label$="Hydroponics heaters"]');
-    await page.waitForTimeout(300);
-    await shot(page, 'vessek-breakers-overload');
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(400);
+    // The hall's levers under the gauge: the hall lamps back on by themselves, then a trip.
+    await teleport(page, 5.8, 0.2, -9.6, 0);
+    await page.waitForTimeout(24000);
+    await shot(page, 'vessek-bus-gauge');
     await teleport(page, -4.2, 0.2, 1.4, 1.57);
     await pressE(page);
     await shot(page, 'document-reader');

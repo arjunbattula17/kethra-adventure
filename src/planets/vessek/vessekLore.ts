@@ -35,12 +35,17 @@ export const VESSEK_ENTRIES: JournalLogEntry[] = [
   },
 ];
 
-/** The breaker labels, each written by a different ship's crew (the ring is a patchwork). */
-export const BREAKER_NOTES = {
+/**
+ * The notes on the bus's levers, each written by a different ship's crew (the ring is a patchwork).
+ * busWorld.ts shows each one the first time its lever is thrown: they are how the ring teaches you.
+ */
+export const LEVER_NOTES = {
   regulator: 'REGULATOR. First on, or nothing holds. —Lantern Bay',
   pumps: 'Circulation pumps. Needs the regulator. —Mireille crew',
   heaters: 'Hydroponics heaters. NO FLOW = TRIP. Pumps first!! —Dace',
   scrubbers: 'Air scrubbers. Needs the regulator. Don’t skip these. —Copper Hen',
   dock: 'Dock lights. Come back on by themselves after a pulse. —Six Sisters',
   lamps: 'Lantern Bay hall lamps. Also come back by themselves. —I. Varro',
+  fans: 'Duct fans. OFF before anyone goes in. Anyone. —Dace',
+  school: 'School lamps. Two units, and worth both. —the Hold',
 } as const;
