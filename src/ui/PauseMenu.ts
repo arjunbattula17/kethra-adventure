@@ -11,7 +11,9 @@ interface PauseOptions {
   /** Whether "Restart level" applies (the player is inside a level, not the Wren's hub). */
   canRestart: () => boolean;
   restartLevel: () => void;
-  quitToTitle: () => void;
+  /** Saves and leaves for the title. If the save fails it stays and returns false, unless
+   * `evenIfUnsaved`. */
+  quitToTitle: (evenIfUnsaved: boolean) => boolean;
 }
 
 /**
@@ -64,7 +66,13 @@ export const PauseMenu = {
       PanelManager.close();
       opts.restartLevel();
     });
-    add('Save and quit to title', 'quiet', () => opts.quitToTitle());
+    let unsaved = false;
+    const quit = add('Save and quit to title', 'quiet', () => {
+      if (opts.quitToTitle(unsaved)) return;
+      // The save failed (its toast says why): a second press quits anyway.
+      unsaved = true;
+      quit.textContent = 'Quit without saving';
+    });
     PanelManager.open(panel, undefined, undefined, 'pause');
     (actions.firstChild as HTMLButtonElement).focus();
   },

@@ -67,6 +67,12 @@ if (ONLY === 'mg1') { await browser.close(); process.exit(failures() ? 1 : 0); }
   await page.locator('button', { hasText: /save and quit/i }).first().click();
   await page.waitForTimeout(2500);
   check('BUG-015: with storage blocked, save and quit does not silently drop the game', !navigated, `navigated ${navigated} from ${url0}`);
+  const second = page.locator('button', { hasText: /quit without saving/i });
+  if (!navigated && (await second.count())) {
+    await second.first().click();
+    await page.waitForTimeout(2500);
+    check('BUG-015: and a second press, now "Quit without saving", does quit', navigated);
+  }
   await clean(page, errors.filter((e) => !/could not write save/.test(e)), 'save and quit, storage blocked');
   await context.close();
 }

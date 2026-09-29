@@ -102,9 +102,10 @@ PauseMenu.init({
   canPause: () => !document.body.classList.contains('title-open') && !document.body.classList.contains('ending-open') && !UIManager.isCinematic() && !!engine.getCurrentScene(),
   canRestart: () => flow.canRestartLevel(),
   restartLevel: () => void flow.restartLevel(),
-  quitToTitle: () => {
-    SaveSystem.save();
+  quitToTitle: (evenIfUnsaved) => {
+    if (!SaveSystem.save() && !evenIfUnsaved) return false;
     location.assign(location.pathname);
+    return true;
   },
 });
 if (bootFlags) {
