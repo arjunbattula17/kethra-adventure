@@ -135,12 +135,19 @@ class DialogueSystemImpl {
         btn.innerHTML = `<span class="opt-num">${this.choices.length}</span>${opt.requires ? `<span class="tag">${opt.requires.attribute}</span>` : ''}`;
         label.textContent = opt.text;
         btn.onmouseenter = () => AudioSystem.playHover();
-        btn.onclick = choose;
+        // The second click of a double-click lands on the next line's option in the same spot.
+        btn.onclick = (e) => {
+          if (e.detail <= 1) choose();
+        };
       }
       btn.appendChild(label);
       options.appendChild(btn);
     }
     panel.appendChild(options);
+    // A held Enter repeats, and each repeat would press the next line's focused option.
+    options.addEventListener('keydown', (e) => {
+      if (e.repeat && (e.key === 'Enter' || e.key === ' ')) e.preventDefault();
+    });
 
     if (PanelManager.isOpen && PanelManager.activeId === 'dialogue') PanelManager.setContent(panel);
     else PanelManager.open(panel, () => this.finish(), undefined, 'dialogue');
