@@ -161,7 +161,12 @@ export class GameFlow {
 
   async start(): Promise<void> {
     if (this.state !== 'boot') return;
-    if (gameState.hasFlag('tutorial_battle_complete')) {
+    const params = new URLSearchParams(location.search);
+    // A save made during the reveal or MG1 has the opening flag (set as the reveal starts) but not
+    // galaxy_revealed (set after the plot). On the Wren its console would stay offline for good, so
+    // it resumes at the reveal. ?skipIntro sets the opening flag alone on purpose, for tools.
+    const midReveal = gameState.hasFlag('tutorial_battle_complete') && !gameState.hasFlag('galaxy_revealed') && !params.has('skipIntro');
+    if (gameState.hasFlag('tutorial_battle_complete') && !midReveal) {
       // Covers players whose completed save predates the skip marker: their save already proves
       // they finished the opening, so a later "new game" should still offer the skip.
       markOpeningSeen();
@@ -177,7 +182,7 @@ export class GameFlow {
     // testing what comes *after* the opening and would otherwise have to drive five gated steps
     // to reach it. tools/test-tutorial-flow.mjs covers the real route. There is no player-facing
     // path here: the only way in without this parameter is the console.
-    if (new URLSearchParams(location.search).has('skipTutorial')) {
+    if (params.has('skipTutorial') || midReveal) {
       await this.go('reveal', async () => {
         this.shipScene = new ShipInteriorScene();
         await this.engine.setScene(() => this.shipScene!);
