@@ -144,10 +144,12 @@ class Timer implements Active {
     if (this.cancelled) return false;
     this.left -= dt;
     if (this.left > 0) return true;
+    // Settled before the callback runs: a callback that throws must not leave the timer due, or it
+    // fires (and throws) again every frame and takes the rest of each frame's update with it.
+    if (this.repeat === null) this.cancelled = true;
+    else this.left += this.repeat;
     this.fn();
-    if (this.repeat === null || this.cancelled) return false;
-    this.left += this.repeat;
-    return true;
+    return !this.cancelled;
   }
   cancel(): void {
     this.cancelled = true;
