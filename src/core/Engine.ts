@@ -240,7 +240,10 @@ export class Engine {
     // otherwise holding 60fps clears the p95 bar by itself — measured on an RTX 4060, 13 such
     // frames in 15s were enough to walk it to 'low'. Requiring the average to be off 60fps too
     // keeps that jitter out while still catching a machine that is genuinely GPU-bound.
-    if (p95 > 33.3 && total / this.recentFrameMs.length > 20) {
+    // Judged against the frame budget in force: under the low-battery cap every frame lasts ~33 ms
+    // on purpose, which the uncapped bar would read as a struggling machine.
+    const budget = this.capTo30 ? 2 : 1;
+    if (p95 > 33.3 * budget && total / this.recentFrameMs.length > 20 * budget) {
       // sustained sub-30fps at p95 with a sub-50fps average — a real, felt stutter, not jitter
       if (this.tier !== 'low') {
         this.tier = this.tier === 'high' ? 'medium' : 'low';
