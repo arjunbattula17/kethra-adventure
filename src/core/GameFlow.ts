@@ -25,9 +25,8 @@ const LEVELS: Record<string, { number: number; title: string; line: string }> = 
 };
 
 /**
- * The scene-level states of a playthrough. One transition runs at a time, and only along the
- * edges below: a second click on Set course, a pad pressed twice or a stale callback can't start
- * a transition that is already running or doesn't belong to where the player is.
+ * Scene-level states of a playthrough. One transition runs at a time, and only along EDGES, so a
+ * double click or a stale callback can't start a second or out-of-place transition.
  */
 export type FlowState = 'boot' | 'intro' | 'wren' | 'reveal' | 'kethra' | 'vessek' | 'ending';
 
@@ -76,10 +75,9 @@ export class GameFlow {
   /** The save as it stood when the player entered the current level: "Restart this level" returns here. */
   private levelSnapshot: { planetId: string; json: string } | null = null;
 
-  /** Where the playthrough is, and whether a transition is under way. */
   state: FlowState = 'boot';
   private busy = false;
-  /** The flow's own waits, on the game clock: they pause with the game. */
+  /** Waits run on the game clock, so they pause with the game. */
   private fx = new MotionScope('game');
 
   constructor(engine: Engine) {
@@ -88,8 +86,7 @@ export class GameFlow {
     // Long-range comms is the last repair the Anchorage's alloy pays for, and the one that lets the
     // ledger go home: repairing it is what opens the ending.
     bus.on('ship:repaired', (key: string) => {
-      // On the ui clock: the repair panel is open (and the game paused) when this lands, and the
-      // offer takes that panel's place.
+      // Use the ui clock: the repair panel has the game paused when this fires.
       if (key === 'communications' && gameState.hasFlag('vessek_alloy_given')) motion.ui.after(0.9, () => this.offerTransmit());
     });
     bus.on('ui:transmit', () => this.requestTransmit());
@@ -107,8 +104,8 @@ export class GameFlow {
   }
 
   /**
-   * Runs one transition to `to`, if the machine is idle and the edge exists. Returns whether it
-   * ran. Everything that changes the scene goes through here.
+   * Runs one transition to `to` if none is running and the edge exists. Returns whether it ran.
+   * All scene changes go through here.
    */
   private async go(to: FlowState, body: () => Promise<void>, force = false): Promise<boolean> {
     if (this.busy) {
@@ -125,8 +122,7 @@ export class GameFlow {
       this.state = to;
       return true;
     } catch (err) {
-      // A transition that couldn't finish (a level chunk that failed to arrive) has already put
-      // the player back where they were and said so; the state stays where it was.
+      // A failed body has already restored the player and shown an error; the state is unchanged.
       console.warn(`[flow] ${this.state} → ${to} did not complete`, err);
       return false;
     } finally {
@@ -194,15 +190,14 @@ export class GameFlow {
     await this.go('intro', async () => {
       introLoaded = await this.bootIntro();
     });
-    // If the intro's chunk failed to arrive, skip the mood piece and boot the old way rather than
-    // stranding the player on a black screen.
+    // If the intro chunk failed to load, go straight to the ship so the screen isn't left black.
     if (!introLoaded) await this.go('wren', () => this.beginTutorialOnShip());
   }
 
   /**
-   * Fresh game: the drifting-ship intro plays before anything else. It is also the cheapest scene
-   * to stand up, so the first image lands sooner than booting the full interior would, and loading
-   * it pre-warms the hull the galaxy reveal reuses later.
+   * Fresh game: plays the intro scene first. It is the cheapest scene to build, so the first frame
+   * appears sooner, and it pre-warms the hull the galaxy reveal reuses. Returns false if the intro
+   * chunk failed to load.
    */
   private async bootIntro(): Promise<boolean> {
     let IntroScene;
@@ -301,8 +296,7 @@ export class GameFlow {
     UIManager.showCaption('Navigation online. Reserve power routed to long-range scan.', 2600);
     await this.wait(2.5);
     UIManager.clearCaption();
-    // The caption fades out on its own; the reveal's scan transition takes over from there. The
-    // letterbox stays up: the cinematic runs letterboxed and retracts it when it ends.
+    // The letterbox stays up: the reveal cinematic retracts it when it ends.
     await this.wait(0.3);
     await this.enterReveal();
   }
@@ -410,9 +404,8 @@ export class GameFlow {
   }
 
   /**
-   * MG1 is won: back to the Wren, still in the helm seat the player sat down in to boot navigation,
-   * with the plotted course on the desk screen in front of them (saved first, so the rebuilt
-   * console draws it).
+   * After MG1: rebuilds the ship interior with the player seated at the helm. The course is saved
+   * before the rebuild so the console draws it.
    */
   private async finishReveal(result: InterceptResult | null): Promise<void> {
     await UIManager.fadeToBlack();
@@ -421,7 +414,7 @@ export class GameFlow {
     await this.engine.setScene(() => this.shipScene!);
     this.poseSeated(this.shipScene);
     UIManager.setLookPromptEnabled(false);
-    // MG1 showed its own objectives; back aboard, the saved one stands until the next is set.
+    // MG1 replaced the HUD objective; restore the saved one.
     UIManager.setObjective(gameState.data.objective, gameState.data.objectiveNote);
     await UIManager.fadeFromBlack();
     if (result) await this.lookAtChart();
@@ -429,9 +422,8 @@ export class GameFlow {
   }
 
   /**
-   * Lean over the deck chart, where the course just plotted is drawn, and hold. The chart lies
-   * nearly flat at chest height, so from the seat it is a sliver: rising and leaning in is what
-   * makes it readable.
+   * Leans the camera over the desk chart showing the plotted course, and holds. The chart lies
+   * nearly flat at chest height, so it is unreadable from the seat.
    */
   private async lookAtChart(): Promise<void> {
     const scene = this.shipScene;
@@ -460,7 +452,7 @@ export class GameFlow {
     await this.wait(1.6);
   }
 
-  /** The plot is the calibration: award it, stand up, hand control back. */
+  /** Sets the post-plot flags and awards, stands the player up and returns control. */
   private async completeCalibration(): Promise<void> {
     gameState.setFlag('galaxy_revealed');
     if (!gameState.data.planetsUnlocked.includes('kethra')) {
@@ -472,7 +464,6 @@ export class GameFlow {
     // the Doppler-confirmed cruise speed — plus what the reveal's scan itself demonstrated,
     // land in the Ship's Library the moment they earned the calibration.
     ShipLibrary.award(['lib_navigation', 'lib_doppler', 'lib_spectroscopy', 'lib_kepler', 'lib_belts']);
-    // MG1's awards (docs/DESIGN.md §4): the plot used insight and engineering.
     gameState.addAttributeXp('insight', 1);
     gameState.addAttributeXp('engineering', 1);
 
@@ -556,13 +547,13 @@ export class GameFlow {
   }
 
   /**
-   * Leaving the Wren for a planet (docs/DESIGN.md §5): the departure from the helm, the cruise, and
-   * the level building underneath the cruise's last beat. This replaced the fade and loading bar.
-   * The level's code and the cruise load while the Wren is still on screen.
+   * Travel from the ship to a planet: the helm departure, the cruise, then the level. The level and
+   * cruise chunks load while the ship is still on screen, and the level is prepared at the end of
+   * the cruise.
    */
   private async cruiseTo(planetId: string): Promise<void> {
     const ship = this.shipScene;
-    // The first arrival at Kethra comes down through the canopy: MG2 (DESIGN §4, slot 2).
+    // The first arrival at Kethra plays the canopy descent (MG2) before the level.
     const flyCanopy = planetId === 'kethra' && !gameState.hasFlag('canopy_flown');
     let level: GameScene & { onDepart: (() => void) | null };
     let CruiseScene: typeof import('../galaxy/CruiseScene').CruiseScene;
@@ -592,7 +583,8 @@ export class GameFlow {
     if (canopy) {
       await this.engine.setScene(() => canopy, { prepared: true, quiet: true });
       await new Promise<void>((resolve) => (canopy.onComplete = resolve));
-      // Kethra's long first build lands on the held establishing shot, not mid-descent.
+      // Prepare the level after the canopy ends, so its slow first build stalls on the held final
+      // shot rather than mid-descent.
       await this.engine.prepareScene(level);
       gameState.setFlag('canopy_flown');
       gameState.addAttributeXp('traversal', 1);
@@ -602,19 +594,18 @@ export class GameFlow {
     this.levelSnapshot = { planetId, json: gameState.toJSON() };
     await this.engine.setScene(() => level, { prepared: true });
     await UIManager.fadeFromBlack();
-    // The level's number and line; the cruise's title gave its name (M6 redesigns this card).
     const card = LEVELS[planetId];
     UIManager.showChapterCard({ eyebrow: `Level ${card.number}`, title: card.title, lines: [card.line] });
     SaveSystem.save();
   }
 
-  /** Later departures (the short version, DESIGN §5): from the helm, a push into the viewport. */
+  /** Departures after the first: sit at the helm, then push into the viewport. */
   private async departure(ship: ShipInteriorScene): Promise<void> {
     await this.takeTheHelm(ship);
     await this.pushIntoViewport(ship);
   }
 
-  /** The first departure: First light at the helm, then out through the glass. */
+  /** The first departure: plays FirstLight at the helm, then pushes into the viewport. */
   private async firstLight(ship: ShipInteriorScene): Promise<void> {
     await this.takeTheHelm(ship);
     await new FirstLight(ship).play();
@@ -622,7 +613,6 @@ export class GameFlow {
     await this.pushIntoViewport(ship);
   }
 
-  /** The cinematic takes over: the HUD steps out, the letterbox rises, the player sits at the helm. */
   private async takeTheHelm(ship: ShipInteriorScene): Promise<void> {
     InputManager.exitPointerLock();
     UIManager.setLookPromptEnabled(false);
@@ -633,7 +623,7 @@ export class GameFlow {
     await this.sitAtConsole();
   }
 
-  /** The camera rises and pushes toward the glass above the monitors until space fills the frame. */
+  /** Moves the camera up and forward toward the viewport glass above the monitors. */
   private async pushIntoViewport(ship: ShipInteriorScene): Promise<void> {
     const player = ship.player;
     const camera = ship.camera;
@@ -660,10 +650,7 @@ export class GameFlow {
   private async enterPlanet(planetId: string): Promise<void> {
     const level = LEVELS[planetId];
     await UIManager.fadeToBlack();
-    // Loaded on demand. Each level is entered from behind the transition, so its code (and the kit
-    // loaders and shaders that come with it) has no reason to sit in the chunk that has to arrive
-    // before the ship interior can render. The await lands behind the cover, where a first-visit
-    // fetch is invisible.
+    // Dynamic import keeps level code out of the initial chunk; the fetch happens behind the fade.
     let scene: GameScene & { onDepart: (() => void) | null };
     try {
       UIManager.showLoading();
@@ -676,16 +663,15 @@ export class GameFlow {
         scene = new VessekScene();
       }
     } catch {
-      // A chunk that fails to arrive (stale deploy, dropped connection) would otherwise reject with
-      // no handler, and the cover is already down — the player would be left staring at nothing
-      // with no way out. Come back up and stay on the ship.
+      // A chunk that fails to load (stale deploy, dropped connection) would leave the screen black:
+      // fade back in and stay on the ship.
       UIManager.hideLoading();
       await UIManager.fadeFromBlack();
       UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
       throw new Error(`level ${planetId} failed to load`);
     }
     scene.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
-    // The first departure retires the HUD's key strip (UIManager.refreshStatusBar).
+    // left_wren also hides the HUD key strip (UIManager.refreshStatusBar).
     gameState.setFlag('left_wren');
     this.levelSnapshot = { planetId, json: gameState.toJSON() };
     UIManager.setLoadingProgress(0.45, `Building ${level.title}`);
@@ -722,7 +708,7 @@ export class GameFlow {
     SaveSystem.save();
   }
 
-  /** What to do aboard the Wren, from how far the story has got. */
+  /** The ship objective for the current story progress. */
   private shipObjective(): string {
     if (gameState.hasFlag('ending_seen')) return 'The ledger is on its way home. Explore, or chart a course.';
     if (gameState.hasFlag('vessek_alloy_given')) return 'Repair long-range comms with the Anchorage’s alloy (repair station, right of the airlock).';
@@ -733,10 +719,7 @@ export class GameFlow {
 
   // ------------------------------------------------------------------ the ending
 
-  /**
-   * The moment comms come back: the player chooses to send the ledger, and the ending plays. A
-   * panel rather than an automatic cutscene, so the last act of the story is the player's.
-   */
+  /** Shows the transmit panel once comms are repaired; choosing Transmit plays the ending. */
   private offerTransmit(): void {
     if (gameState.hasFlag('ending_seen') || this.state !== 'wren') return;
     const panel = document.createElement('div');

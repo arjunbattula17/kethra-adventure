@@ -2,10 +2,9 @@ import { motion, DUR } from '../motion';
 import { t } from '../content/strings';
 
 /**
- * Hold to skip (docs/BRIEF.md, <cinematics>): a cinematic skips only after a deliberate hold, so a
- * stray key or click never throws one away. Space, Enter, or pressing on the hint itself; the line
- * under the hint fills while held and drains back if let go early. On the ui clock, so it keeps
- * working while the game clock is paused or frozen.
+ * Hold-to-skip hint for cinematics: holding Space, Enter or the hint itself fills a bar, and
+ * letting go early drains it. Runs on the ui clock so it keeps working while the game clock is
+ * paused.
  */
 export class HoldToSkip {
   private readonly el: HTMLDivElement;

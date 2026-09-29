@@ -12,13 +12,11 @@ const _look = new THREE.Vector3();
 
 /**
  * One continuous camera move through a set of keys: centripetal Catmull-Rom curves for the
- * position and for the look target, sampled by arc length so the speed along the path is even,
- * and a smooth FOV track. It passes through every key without stopping. The old sequencer eased to
- * a dead stop at each keyframe. Under reduced motion the FOV holds at its first value: zooms are
- * among the moves that setting removes.
+ * position and the look target, sampled by arc length for even speed, and a smooth FOV track.
+ * Under reduced motion the FOV holds at its first value.
  *
- * `pace: 'keys'` gives every stretch between keys the same time instead: for a move that changes
- * scale (a hull a metre away to a whole system), where even speed would spend it all far out.
+ * `pace: 'keys'` gives each segment between keys equal time instead, for moves that change scale a
+ * lot, where even speed would spend nearly all the time on the long far-out segments.
  */
 export class CameraPath {
   private readonly posCurve: THREE.CatmullRomCurve3;

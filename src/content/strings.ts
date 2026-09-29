@@ -20,7 +20,7 @@ export const STRINGS = {
   'reveal.caption.stranded': 'You are stranded, alone, in a galaxy no chart has ever mapped.',
   'reveal.caption.truth': 'Somewhere out there is the truth — and a way home.',
 
-  // MG2 Canopy (src/planets/kethra/canopy). ORION speaks through the skiff.
+  // MG2 Canopy (src/planets/kethra/canopy).
   'mg2.objective': 'Bring the skiff down through the canopy to the landing terrace.',
   'mg2.eyebrow': 'Descent · layer {n} of 5',
   'mg2.hull': 'Hull',
@@ -79,7 +79,7 @@ export const STRINGS = {
   'cruise.day': 'Day {day}',
   'cruise.title.vessek': 'Vessek Anchorage',
 
-  // MG1 Intercept (src/galaxy/intercept). ORION is the Wren's navigation computer.
+  // MG1 Intercept (src/galaxy/intercept).
   'mg1.eyebrow': 'Plot a course',
   'mg1.title': 'Meet Kethra',
   'mg1.objective': 'Plot an intercept with Kethra.',

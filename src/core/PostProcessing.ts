@@ -140,13 +140,13 @@ export class PostProcessing {
     this.applyGlow();
   }
 
-  /** Glow on every tier (docs/DESIGN.md §7): UnrealBloom on High, the grade pass's cheap glow below. */
+  /** Glow on every tier: UnrealBloom on High, the grade pass's cheaper glow below it. */
   private applyGlow(): void {
     this.bloomPass.enabled = this.bloomRequested && this.tier === 'high';
     this.gradePass.glowEnabled = this.bloomRequested && this.tier !== 'high';
   }
 
-  /** The current scene's colour grade. */
+  /** Sets the colour grade; undefined falls back to the interior grade. */
   setGrade(profile: GradeProfile | undefined): void {
     this.gradePass.setGrade(profile ?? GRADES.interior);
   }

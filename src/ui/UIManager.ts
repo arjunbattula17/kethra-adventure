@@ -8,7 +8,7 @@ import { AudioSystem } from '../audio/AudioSystem';
 import { motion, DUR, EXIT_FACTOR } from '../motion';
 import { playKineticTitle } from './KineticTitle';
 
-/** Seconds of no change before a HUD frame steps back to 35% (docs/DESIGN.md §2). */
+/** Seconds of no change before a HUD frame dims to 35% opacity. */
 const HUD_QUIET_AFTER = 6;
 
 const LOADING_LORE: StringKey[] = ['loading.lore.1', 'loading.lore.2', 'loading.lore.3', 'loading.lore.4', 'loading.lore.5', 'loading.lore.6'];
@@ -102,7 +102,7 @@ class UIManagerImpl {
       AudioSystem.playCollect();
     });
     bus.on('attribute:changed', () => this.refreshStatusBar());
-    // News that arrived during a cinematic beat, delivered once the HUD is back.
+    // Show the toasts that were held while a cinematic was playing.
     bus.on('motion:conducting', (on: boolean) => {
       if (on) return;
       for (const [message, kind] of this.heldToasts.splice(0)) this.toast(message, kind);
@@ -128,8 +128,8 @@ class UIManagerImpl {
   private loadingLoreIndex = 0;
   private loadingLoreTimer: { cancel(): void } | null = null;
   private captionTimer: { cancel(): void } | null = null;
-  /** Level plus progress through it (2.35 = level 2, 35%): one continuous value, so a level-up
-   * fills the bar, wraps and keeps going instead of fighting a second animation. */
+  /** Level plus progress through it (2.35 = level 2, 35%), kept as one value so a single tween can
+   * fill the bar, wrap at a level-up and keep going. */
   private shownProgress = { value: -1 };
   private cardTimers: { cancel(): void }[] = [];
   private cardEarly: (() => void) | null = null;
@@ -166,8 +166,8 @@ class UIManagerImpl {
     }
     const points = gameState.data.unspentPoints;
     (this.statusBar.querySelector('.hud-points') as HTMLElement).textContent = points > 0 ? `+${points} point${points > 1 ? 's' : ''}` : '';
-    // The key strip teaches the three keys during level 1; once the player has left the Wren it
-    // retires (the pause menu's Controls keeps them). Unspent points keep the strip awake.
+    // The key hints hide once left_wren is set; the pause menu's Controls still lists them.
+    // Unspent points keep the strip from dimming.
     this.statusBar.classList.toggle('retired', gameState.hasFlag('left_wren'));
     if (points > 0) {
       this.quietTimers.status?.cancel();
@@ -200,7 +200,7 @@ class UIManagerImpl {
   }
   private xpTween: { cancel(): void } | null = null;
 
-  /** Brings a HUD frame forward, and lets it step back again after a quiet spell. */
+  /** Undims a HUD frame and restarts its HUD_QUIET_AFTER timer. */
   private wake(frame: HTMLElement, key: 'objective' | 'status'): void {
     frame.classList.remove('quiet');
     this.quietTimers[key]?.cancel();
@@ -242,7 +242,7 @@ class UIManagerImpl {
     t.textContent = message;
     this.toastStack.appendChild(t);
     motion.ui.animate(t, [{ opacity: 0, transform: 'translateX(-8px)' }, { opacity: 1, transform: 'none' }], { dur: 'small' });
-    // At most four lines of news at once: the oldest still on screen leaves early.
+    // At most four toasts at once: the oldest one still showing is dismissed early.
     const live = [...this.toastStack.children].filter((c) => !c.classList.contains('leaving'));
     if (live.length > 4) this.dismissToast(live[0] as HTMLElement);
     const hold = 2.6 + message.split(' ').length * 0.18;
@@ -268,8 +268,8 @@ class UIManagerImpl {
   }
 
   /**
-   * The white sky's light, over everything for a moment. Reduced motion keeps it short and dim, and
-   * the flash guard refuses it outright if three full-screen flashes already landed this second.
+   * A brief full-screen white flash. Reduced motion makes it short and dim, and it is skipped when
+   * motion.requestFlash refuses it (the per-second flash limit).
    */
   whiteFlash(seconds = 0.9): void {
     if (!motion.requestFlash()) return;
@@ -309,14 +309,14 @@ class UIManagerImpl {
     const title = el('div', 'chapter-title');
     this.cardEl.append(eyebrow, title);
     playKineticTitle(title, card.title);
-    // An arrival title is a hero moment: the world's idle motion steps down under it.
+    // Reduce the world's idle motion while the title plays.
     motion.conductor.duck(2);
     for (const line of card.lines ?? []) {
       const p = el('div', 'chapter-line');
       p.textContent = line;
       this.cardEl.appendChild(p);
     }
-    // A new card owns the timers: the previous card's hide can't cut this one short.
+    // Cancel the previous card's timers so its hide can't cut this card short.
     for (const timer of this.cardTimers) timer.cancel();
     this.cardTimers = [];
     if (this.cardEarly) {
@@ -414,9 +414,8 @@ class UIManagerImpl {
   }
 
   /**
-   * The Wren's scan line crossing the screen (a medium panel's time in, the exit fraction of it
-   * out). A new scan cancels one still running, so back-to-back scene changes never stack.
-   * Reduced motion swaps the sweep for a short cross-fade.
+   * The scan-line wipe: 'out' covers the screen in DUR.medium * EXIT_FACTOR, 'in' clears it in
+   * DUR.medium. A new scan cancels one still running. Reduced motion uses a short cross-fade.
    */
   private async scan(dir: 'in' | 'out'): Promise<void> {
     const cover = this.fadeEl.querySelector('.scan-cover') as HTMLElement;

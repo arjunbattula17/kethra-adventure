@@ -246,7 +246,7 @@ export const AudioSystem = {
     noise.start();
   },
 
-  /** The Wickmoth's gust: a wide rush of air that falls away, with the wingbeats in it. */
+  /** The moth's gust: noise with a falling lowpass cutoff and a wingbeat pulse. */
   playGust(): void {
     const c = getCtx();
     if (!c || !sfxBus) return;
@@ -272,7 +272,7 @@ export const AudioSystem = {
     src.start();
   },
 
-  /** A breath of the Rite: one of three glass notes, azure, amber, verdant. */
+  /** A Rite breath: one of three glass notes (E4, A4, E5) chosen by `index`. */
   playBreath(index: number): void {
     const f = [329.63, 440, 659.25][index] ?? 440;
     glass(f, 0, 0.9, 0.07);

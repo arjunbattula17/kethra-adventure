@@ -15,7 +15,7 @@ export const PLAYER = {
   PLAYER_RADIUS: 0.35,
   /** Standing height of the collision capsule — the eye sits just under the top of it. */
   PLAYER_HEIGHT: 1.8,
-  /** Crouched, the capsule is this tall: low enough to crawl Vessek's ducts (1.25 m inside). */
+  /** Crouched capsule height; must stay under Vessek's duct height (1.25 m inside). */
   CROUCH_HEIGHT: 1.1,
   /** Up or down a ladder (m/s). */
   CLIMB_SPEED: 1.8,
@@ -58,8 +58,9 @@ export const MG1 = {
 
 /**
  * Navigation figures for the galaxy map. Orbits are in millions of km (Mkm) and match planetData's
- * orbitRadius values. MG1's model (src/galaxy/intercept/sim.ts) uses the same cruise speed and belt
- * but keeps its own copies, so its tests can load it into Node alone: change them together.
+ * orbitRadius values. The intercept model (src/galaxy/intercept/sim.ts) uses the same cruise speed
+ * and belt but keeps its own copies, so its tests can load it into Node alone: change them
+ * together.
  */
 export const NAV = {
   /** Where the Wren is parked after the white sky. */

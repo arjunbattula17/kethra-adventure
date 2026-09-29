@@ -24,15 +24,14 @@ let ambient = 1;
 let ambientTime = 0;
 
 /**
- * The Conductor (docs/DESIGN.md §3): at any moment one primary motion leads.
- * - A cinematic beat holds it. The HUD steps out and keeps still (the page gets `conducting`, and
- *   HUD news waits for the beat to end: listen for `motion:conducting`).
- * - A hero moment ducks it. Ambient world motion (planet spin, a drifting belt, moths, motes) eases
- *   down to AMBIENT_DUCK and back once the moment has passed. Scenes opt in by driving those idles
- *   from `motion.ambient` and `motion.ambientTime`.
+ * Coordinates cinematic moments.
+ * - hold(key) hides the HUD: the body gets the `conducting` class and `motion:conducting` is
+ *   emitted, so HUD updates can wait for the release.
+ * - duck(seconds) eases ambient world motion down to AMBIENT_DUCK and back. Scenes opt in by driving
+ *   idle motion from `motion.ambient` and `motion.ambientTime`.
  */
 const conductor = {
-  /** Starts a cinematic beat under `key`; beats can overlap, and the HUD returns when the last ends. */
+  /** Hides the HUD under `key`; holds can overlap, and the HUD returns when the last is released. */
   hold(key: string): void {
     if (holds.has(key)) return;
     holds.add(key);
@@ -48,15 +47,15 @@ const conductor = {
   get holding(): boolean {
     return holds.size > 0;
   },
-  /** A hero moment of `seconds` (game time): ambient motion ducks for it. */
+  /** Ducks ambient motion for `seconds` of game time. */
   duck(seconds: number): void {
     duckUntil = Math.max(duckUntil, clocks.game.time + seconds);
   },
 };
 
 /**
- * The one entry point. The engine calls tick() once per display frame; everything that moves reads
- * the game or ui clock through a MotionScope.
+ * Motion entry point. The engine calls tick() once per display frame; animations read the game or
+ * ui clock through a MotionScope.
  */
 export const motion = {
   clocks,
@@ -107,12 +106,12 @@ export const motion = {
     return gameDt;
   },
 
-  /** 1, or less under a hero moment: multiply ambient world motion's dt by it. */
+  /** 1 normally, lower while ducked: multiply ambient world motion's dt by it. */
   get ambient(): number {
     return ambient;
   },
 
-  /** Game time as ambient motion sees it: slows under a hero moment. Drive idle sines from this. */
+  /** Game time scaled by the ambient factor, so it slows while ducked. Drive idle sines from this. */
   get ambientTime(): number {
     return ambientTime;
   },

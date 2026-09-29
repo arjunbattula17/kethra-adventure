@@ -57,7 +57,7 @@ export class PlayerController {
   private respawn: { pos: THREE.Vector3; yaw: number } | null = null;
   enabled = true;
   crouching = false;
-  /** A cap on movement speed (m/s) a scene can set: the hooded lantern in MG3 slows you. */
+  /** A cap on movement speed (m/s) that a scene can set. */
   speedLimit = Infinity;
   private raycaster = new THREE.Raycaster();
   private moveState = { speed: 0 };
@@ -179,8 +179,7 @@ export class PlayerController {
     this.rig.rotation.set(0, this.yaw, 0);
     this.camera.rotation.set(this.pitch, 0, 0);
 
-    // Under something low (a duct's roof, or the top of a ladder into one) you crouch, and stay
-    // crouched until there is room to stand.
+    // Force a crouch while there is no headroom to stand (a duct roof, or a ladder top into one).
     const pos = this.rig.position;
     this.crouching = held('crouch') || this.blockedAt(pos.x, pos.z, pos.y, PLAYER_HEIGHT);
     const sprinting = held('sprint') && !this.crouching;
@@ -209,8 +208,8 @@ export class PlayerController {
     const atFoot = ladder !== undefined && pos.y <= ladder.min.y + 0.02;
     // At the top W steps off, and at the foot S backs away: both are walking, not climbing.
     if (ladder && climb !== 0 && !(climb > 0 && atTop) && !(climb < 0 && atFoot)) {
-      // On the rungs: straight up or down, no gravity, no sliding off sideways, and a body's width
-      // clear of the shaft's walls, which may close in above where the way in was open.
+      // Climbing: vertical movement only, no gravity, and x/z kept a player radius inside the
+      // shaft, since its walls can close in above the opening.
       pos.y = THREE.MathUtils.clamp(pos.y + climb * CLIMB_SPEED * dt, ladder.min.y, ladder.max.y);
       pos.x = THREE.MathUtils.clamp(pos.x, ladder.min.x + PLAYER_RADIUS, ladder.max.x - PLAYER_RADIUS);
       pos.z = THREE.MathUtils.clamp(pos.z, ladder.min.z + PLAYER_RADIUS, ladder.max.z - PLAYER_RADIUS);

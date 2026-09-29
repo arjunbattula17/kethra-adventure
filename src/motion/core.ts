@@ -7,9 +7,8 @@ import { stepSpring, springAtRest } from './spring';
 import type { SpringState } from './spring';
 
 /**
- * Two clocks. `game` stops while the game is paused (a panel is open, the pause menu is up, the
- * debug harness froze it); `ui` never stops, so menus still animate over a paused world. Every
- * tween, timer and timeline belongs to a scope on one of them, and nothing else keeps time.
+ * Two clocks: `game` stops while the game is paused; `ui` never stops, so menus still animate
+ * while paused. Every tween, timer and timeline runs in a scope on one of them.
  */
 export type Domain = 'game' | 'ui';
 
@@ -61,8 +60,8 @@ export function startUiClock(): void {
   requestAnimationFrame(loop);
 }
 
-/** Reduced motion lives here so every part of the module reads the same flag. Set it through
- * motion.setReduced (index.ts), which also mirrors it to the page's CSS class. */
+/** The shared reduced-motion flag. Set it through motion.setReduced (index.ts), which also updates
+ * the page's CSS class. */
 export const reducedState = { value: false };
 
 export interface TweenOpts {
@@ -124,7 +123,7 @@ export class Tween implements Active {
     this.opts.done?.();
   }
 
-  /** Plays back toward the start from wherever it is now. */
+  /** Flips the play direction from the current position. */
   reverse(): void {
     this.direction = this.direction > 0 ? -1 : 1;
     this.finished = false;
@@ -165,7 +164,7 @@ export interface Cue {
   beat?: string;
 }
 
-/** A sequence of cues on a scope's clock. Replaces the scenes' own cue lists and setTimeout chains. */
+/** A sequence of timed cues on a scope's clock. */
 export class Timeline implements Active {
   private t = 0;
   private i = 0;
@@ -276,9 +275,9 @@ export interface AnimateOpts {
 }
 
 /**
- * Owns everything that moves for one scene, panel or component. Starting a tween on a property that
- * already has one retargets it from where it is now; dispose() cancels all of it. A stale timer can
- * no longer fire into a scene that has gone.
+ * Owns every tween, timer and animation for one scene, panel or component. to() on a property that
+ * is already tweening retargets from its current value; dispose() cancels everything, so no timer
+ * fires into a disposed scene.
  */
 export class MotionScope {
   private items: Active[] = [];
@@ -353,7 +352,7 @@ export class MotionScope {
     return this.add(new SpringValue(initial, cfg, apply));
   }
 
-  /** A DOM animation with the tokens, the reduced-motion rule and ownership (dispose cancels it). */
+  /** Runs a Web Animation with the motion tokens and the reduced-motion rule; dispose() cancels it. */
   animate(el: Element, keyframes: Keyframe[], opts: AnimateOpts = {}): Animation {
     const base = typeof opts.dur === 'number' ? opts.dur : DUR[opts.dur ?? 'small'];
     let seconds = opts.exit ? base * EXIT_FACTOR : base;

@@ -29,7 +29,7 @@ interface Settings {
 const TIER_DEFAULTS: Record<QualityTier, { shadows: boolean; ao: boolean; bloom: boolean }> = {
   high: { shadows: true, ao: true, bloom: true },
   medium: { shadows: true, ao: false, bloom: true },
-  // Low keeps a cheap glow (GradeGlowPass): without it a game about light goes flat.
+  // Low keeps the cheap GradeGlowPass bloom; the lighting looks flat without it.
   low: { shadows: false, ao: false, bloom: true },
 };
 

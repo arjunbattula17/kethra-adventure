@@ -4,13 +4,9 @@ import { motion } from '../motion';
 import { activeMiniGame } from './hooks';
 
 /**
- * The debug harness (docs/DESIGN.md §8), loaded only with `?debug` in the address:
- *   F1  jump to any state (reloads into it through the real boot flags)
- *   F2  win the running mini-game      F3  fail it
- *   F4  time scale ×1 → ×0.25 → ×4     F7  freeze / unfreeze    F8  step one frame while frozen
- * plus an overlay: frame time (p50/p95), draw calls and triangles per frame (all passes),
- * geometries, textures, JS heap, quality tier and the flow state. `?seed=N` (read in boot.ts) fixes
- * every random stream. F5 is left alone: browsers reload on it.
+ * Debug harness, loaded only with `?debug`: F1 state-jump menu, F2 win / F3 fail the mini-game, F4
+ * cycle time scale, F7 freeze, F8 step one frame, plus a perf overlay. F5 is unused (browser
+ * reload).
  */
 const JUMPS: { label: string; query: string }[] = [
   { label: 'Title', query: '' },

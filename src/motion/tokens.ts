@@ -1,6 +1,6 @@
 /**
- * Motion tokens (docs/DESIGN.md §3). Every duration and curve in the game comes from here; CSS gets
- * the same values as custom properties at boot (applyCssTokens in ./index.ts).
+ * Motion tokens. Every duration and curve in the game comes from here; CSS gets the same values as
+ * custom properties at boot (applyCssTokens in ./index.ts).
  */
 
 /** Seconds. Entrances use these; exits run at EXIT_FACTOR of them. */
@@ -20,14 +20,14 @@ export type DurToken = keyof typeof DUR;
 /** Exits leave faster than entrances arrive. */
 export const EXIT_FACTOR = 0.75;
 
-/** Siblings entering in turn: the gap between them, and the most the whole stagger may add. */
+/** Stagger for siblings entering in turn: seconds between each, and the maximum total delay. */
 export const STAGGER = { step: 0.04, cap: 0.24 } as const;
 
 /** Cubic-bezier control points, shared by CSS and the JS easing functions. */
 export const BEZIER = {
-  /** Entrances: fast out of the gate, settling in. */
+  /** Entrances: fast start, slow settle. */
   decelerate: [0.2, 0.8, 0.2, 1],
-  /** Exits: gathering speed as it leaves. */
+  /** Exits: slow start, speeding up. */
   accelerate: [0.4, 0, 1, 1],
   /** A move between two on-screen states: camera moves, shared elements. */
   standard: [0.65, 0, 0.35, 1],
@@ -54,7 +54,7 @@ export interface SpringConfig {
 /** Under reduced motion no transition runs longer than this, and moves become cross-fades. */
 export const REDUCED_MAX = 0.15;
 
-/** The Conductor's duck: under a hero moment, ambient world motion runs at this fraction. */
+/** Speed fraction for ambient world motion while the Conductor ducks it. */
 export const AMBIENT_DUCK = 0.25;
 
 /** Full-screen flashes allowed per rolling second, in every mode. */

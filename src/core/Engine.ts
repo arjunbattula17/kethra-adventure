@@ -276,10 +276,7 @@ export class Engine {
     performance.measure('scene:compile', 'scene-init-end', 'scene-compile-end');
   }
 
-  /**
-   * `quiet`: no loading indicator. For a scene prepared under a cinematic that is still on screen
-   * (the cruise builds the level it arrives at), where a spinner would break the shot.
-   */
+  /** `quiet` skips the loading indicator, for a scene prepared while a cutscene is still on screen. */
   async setScene(factory: () => Promise<GameScene> | GameScene, opts: { prepared?: boolean; quiet?: boolean } = {}): Promise<void> {
     // Asset fetch + shader compile below can run several seconds on a cold cache (first load, or
     // a judge's laptop on unfamiliar wifi) with nothing else on screen — the caller's fade-to-black
@@ -326,7 +323,7 @@ export class Engine {
     }
   }
 
-  /** Regrades the frame now, for a scene that moves between grades (the cruise into Kethra's night). */
+  /** Sets the colour grade immediately, for a scene that changes grade partway through. */
   setGrade(profile: GradeProfile): void {
     this.postFx.setGrade(profile);
   }
@@ -489,8 +486,8 @@ export class Engine {
       this.lastDrawAt = now;
       this.timer.update(now);
       const realDt = Math.min(this.timer.getDelta(), 0.1);
-      // One clock for everything that moves (src/motion). The game clock stops while paused, so
-      // `elapsed` no longer runs on behind a panel and makes sine-driven idles jump on resume.
+      // One clock for everything that moves (src/motion). The game clock stops while paused so
+      // sine-driven idles don't jump on resume.
       const dt = motion.tick(realDt, this.paused || this.contextLost);
       if (!this.paused && this.current && !this.contextLost) {
         this.current.update(dt, motion.gameTime);

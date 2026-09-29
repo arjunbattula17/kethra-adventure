@@ -1,11 +1,7 @@
 import * as THREE from 'three';
 import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 
-/**
- * A scene's colour grade (docs/DESIGN.md §2, "Grade becomes per-scene"). Applied in linear HDR
- * before tone mapping. The interior profile is the original global grade; space scenes no longer
- * inherit its shadow lift, which is what turned empty space grey.
- */
+/** Per-scene colour grade, applied in linear HDR before tone mapping. */
 export interface GradeProfile {
   /** Flat exposure trim. */
   exposure: number;
@@ -38,13 +34,13 @@ export function lerpGrade(a: GradeProfile, b: GradeProfile, t: number, out: Grad
 }
 
 export const GRADES = {
-  /** The Wren: the grade the room was tuned against (the original, unchanged). */
+  /** Ship interior; its lighting was tuned against this grade. */
   interior: { exposure: 0.85, knee: 0.48, shoulder: 1.15, gamma: 1.15, toe: 0.035, cool: [0.92, 0.96, 1.05], warm: [1.06, 1.0, 0.9], vignette: 0.85 },
   /** Space: black stays black, highlights roll off warm, a slightly firmer vignette. */
   space: { exposure: 1.0, knee: 0.6, shoulder: 0.9, gamma: 1.0, toe: 0, cool: [0.95, 0.98, 1.04], warm: [1.04, 1.0, 0.94], vignette: 0.8 },
   /** Kethra at night: deep blacks, teal shadows, the canopy's green kept clean. */
   kethra: { exposure: 0.95, knee: 0.5, shoulder: 1.0, gamma: 1.08, toe: 0.01, cool: [0.9, 1.0, 1.02], warm: [1.03, 1.0, 0.93], vignette: 0.82 },
-  /** The Anchorage: warm mids under tungsten, frost-blue shadows. */
+  /** Vessek: warm mids, cool blue shadows. */
   vessek: { exposure: 0.9, knee: 0.5, shoulder: 1.1, gamma: 1.1, toe: 0.015, cool: [0.9, 0.97, 1.06], warm: [1.07, 1.0, 0.88], vignette: 0.84 },
 } satisfies Record<string, GradeProfile>;
 
@@ -67,7 +63,7 @@ const thresholdShader = {
     varying vec2 vUv;
     vec3 bright(vec3 c) {
       float l = max(c.r, max(c.g, c.b));
-      // Soft knee: nothing below the threshold glows, and the edge doesn't pop.
+      // Soft knee from 0.7x to 1.3x the threshold, so the glow edge doesn't pop.
       float k = clamp((l - uThreshold * 0.7) / (uThreshold * 0.6), 0.0, 1.0);
       return c * k * k;
     }
@@ -154,11 +150,9 @@ const gradeShader = {
 };
 
 /**
- * The grade and, on the Low and Medium tiers, a cheap glow in one place: a bright-pass into a
- * quarter-resolution buffer, a horizontal and a vertical blur there, and the composite inside the
- * grade itself. Four small draws instead of UnrealBloom's thirteen; the High tier keeps
- * UnrealBloom ahead of this pass and turns the glow here off. A game whose thesis is light
- * shouldn't lose its glow on the cheapest setting.
+ * Colour grade plus an optional cheap glow for the Low and Medium tiers: a bright-pass into a
+ * quarter-resolution buffer, a horizontal and a vertical blur, then a composite inside the grade.
+ * The High tier runs UnrealBloom before this pass and leaves the glow here off.
  */
 export class GradeGlowPass extends Pass {
   glowEnabled = false;

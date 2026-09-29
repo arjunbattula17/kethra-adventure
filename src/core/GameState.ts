@@ -75,8 +75,7 @@ export interface GameStateData {
   objectiveNote: string;
   planetsUnlocked: string[];
   playerPosition: { x: number; y: number; z: number } | null;
-  /** The course MG1 plotted to Kethra: flat x,y,z triples in Mkm, and its figures. The desk screen
-   * draws it; First light and the cruise quote it. */
+  /** The course plotted in MG1, with `points` as flat x,y,z triples in Mkm. */
   course: PlottedCourse | null;
 }
 

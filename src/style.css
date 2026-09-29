@@ -89,7 +89,7 @@ html, body {
    a different typeface from everything around them. */
 button, input, select, textarea { font: inherit; color: inherit; }
 
-/* One small label per panel at most, in sentence case: no tracked capitals (docs/DESIGN.md §2). */
+/* Small panel label in sentence case, at most one per panel. */
 .eyebrow {
   display: flex;
   align-items: center;
@@ -156,8 +156,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Driven frame by frame from code (UIManager's count-up): a CSS transition on top would lag it. */
 .hud-level .bar-fill { transition: none; }
 
-/* Anything that counts: Atkinson's tabular figures, so digits don't shift as the value changes.
-   (Rajdhani has no tabular figures; docs/DESIGN.md §2, Typography.) */
+/* Numbers use the body font's tabular figures so digits don't shift as the value changes
+   (Rajdhani has no tabular figures). */
 .num { font-family: var(--font-body); font-variant-numeric: tabular-nums; }
 
 /* A small square status pip: the one way the UI marks whose news something is. */
@@ -392,8 +392,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .intro-text.skipped * { opacity: 0 !important; transition: opacity 0.2s ease-in !important; }
 
 /* Panels (dialogue, journal, map, repair, settings, documents): one panel for everything. */
-/* No backdrop blur (docs/DESIGN.md §2): a scrim that darkens toward the edges keeps the world
-   visible behind the plate while separating it. */
+/* A scrim that darkens toward the edges instead of a backdrop blur, so the world stays visible. */
 .panel-overlay {
   position: absolute;
   inset: 0;
@@ -930,7 +929,7 @@ button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; backgroun
 /* Chapter card: level arrival and level complete. Upper third, clear of the play centre. */
 .chapter-card {
   position: absolute;
-  /* Clear of a three-line objective in the top-left at 1280×720, where 14vh alone reached its corner. */
+  /* The 140px floor keeps the card clear of a three-line objective at 1280x720. */
   top: max(14vh, 140px);
   left: 50%;
   transform: translate(-50%, -8px);
@@ -1235,8 +1234,8 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   text-transform: uppercase;
 }
 /* The logo is the game's verb drawn in type: the Wren's scan line passes through the name, and
-   below the line the letters take the grove's light. Above it, ink; below it, sea-green: a second
-   copy of the name in solid grove, laid exactly over the first and clipped away above the line. */
+   below it the letters are sea-green: a second copy of the name in the grove colour sits exactly
+   over the first, clipped away above the line. */
 .title-name-text {
   display: inline-block;
   color: var(--ink);
@@ -1414,8 +1413,8 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .first-light-bar { position: relative; width: 120px; height: 2px; background: var(--line); }
 .first-light-bar > span { position: absolute; inset: 0; background: var(--accent); transform-origin: left; transform: scaleX(0); }
 
-/* The cruise (src/galaxy/CruiseScene.ts): the day counter, top centre inside the letterbox, and
-   the arrival title, lit letter by letter in the grove's sea-green. */
+/* Cruise (src/galaxy/CruiseScene.ts): the day counter, top centre inside the letterbox, and the
+   arrival title. */
 .cruise-days {
   position: absolute;
   top: calc(11vh + 18px);
@@ -1446,7 +1445,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 }
 .cruise-title.visible { opacity: 1; }
 
-/* MG2 Canopy (src/planets/kethra/canopy): the descent's plate, top right; the hull as three pips. */
+/* Canopy minigame panel (src/planets/kethra/canopy), top right; the hull is shown as three pips. */
 .canopy-panel {
   position: absolute;
   top: 20px;
@@ -1463,8 +1462,8 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .canopy-pip { width: 14px; height: 8px; box-shadow: inset 0 0 0 1px var(--accent-dim); }
 .canopy-pip.on { background: var(--accent); box-shadow: none; }
 
-/* MG3 Hush (src/planets/kethra/hush): the chamber's plate, top right. What the moth is doing, how
-   close it is to noticing you (a line that fills), and at the call-stone the Rite's three keys. */
+/* Hush minigame panel (src/planets/kethra/hush), top right: the moth's status, an alert bar, and
+   the three colour keys at the call-stone. */
 .hush-panel {
   position: absolute;
   top: 20px;
@@ -1488,7 +1487,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .hush-colour.verdant { color: #7be0a0; }
 .hush-rule { color: var(--ink-dim); }
 .hush-hint { color: var(--grove); font-size: calc(13px * var(--text-scale)); margin-top: 4px; }
-/* The gust: the wings' stained glass washing over the view. */
+/* Full-screen colour wash shown when the moth's gust catches the player. */
 .hush-wash {
   position: absolute;
   inset: 0;
@@ -1501,8 +1500,8 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
   z-index: 18;
 }
 
-/* MG1 Intercept (src/galaxy/intercept): the plot's plate, top right, and numerals pinned to points
-   in the system. Numbers are tabular so a changing figure never shifts its neighbours. */
+/* Intercept minigame (src/galaxy/intercept): the panel, top right, and labels pinned to points in
+   the scene. Numbers are tabular so a changing figure never shifts its neighbours. */
 .intercept-panel {
   position: absolute;
   top: 20px;
@@ -1585,11 +1584,10 @@ body.reduced-motion .intercept-panel .intercept-launch { animation: none; }
 .intercept-label.note.match { color: var(--success); box-shadow: inset 0 0 0 1px var(--success); font-weight: 700; }
 
 /* =============================================================================================
-   The plate (docs/DESIGN.md §2, "How the UI derives from the world"): every framed surface takes
-   the Wren's hull-plate cut, 45° chamfers at top-left and bottom-right. The edge is a hairline
-   (--edge) drawn inside the cut; panels tip their top-left chamfer in amber, like the painted
-   plate numbers aboard. clip-path would cut an outline, so focus is an inner ring instead.
-   Kept last in the file so it wins over the older per-component borders above.
+   Chamfered plate: framed surfaces are cut with clip-path at the top-left and bottom-right
+   corners, with a hairline edge (--edge) drawn inside the cut; panels tint the top-left chamfer
+   amber. clip-path would cut off an outline, so focus uses an inner ring instead.
+   Kept last in the file so it overrides the per-component borders above.
    ============================================================================================= */
 :root { --chamfer: 12px; --chamfer-sm: 6px; }
 @property --edge { syntax: '<color>'; inherits: false; initial-value: rgba(93, 102, 111, 0.45); }
@@ -1613,8 +1611,7 @@ body.reduced-motion .intercept-panel .intercept-launch { animation: none; }
 .keycap { --c: 3px; --edge: var(--accent-dim); }
 .tut-card { --edge: rgba(217, 164, 65, 0.5); }
 
-/* Interactive states on the plate: hover lifts and turns the edge amber; press springs; focus is an
-   inner amber ring; disabled drops to Steel. */
+/* Plate interaction states: amber edge on hover, spring on press, inner amber ring on focus. */
 .btn, .dialogue-option, .map-btn, .title-btn {
   transition: transform var(--dur-micro) var(--ease-decelerate), --edge var(--dur-micro) var(--ease-decelerate), background-color var(--dur-micro) var(--ease-decelerate), color var(--dur-micro) var(--ease-decelerate);
 }
@@ -1656,13 +1653,13 @@ body.reduced-motion .intercept-panel .intercept-launch { animation: none; }
 /* Kinetic title letters (src/ui/KineticTitle.ts). */
 .kt-letter { display: inline-block; white-space: pre; }
 
-/* The HUD steps back when nothing is happening (docs/DESIGN.md §2). */
+/* The HUD dims while idle. */
 .hud-frame, #status-bar { transition: opacity var(--dur-medium) var(--ease-decelerate); }
 .hud-frame.quiet, #status-bar.quiet { opacity: 0.35; }
 #status-bar.retired .hud-keys { display: none; }
 
-/* The Conductor (src/motion/index.ts): during a cinematic beat the HUD steps out and keeps still,
-   so the one motion that matters leads. HUD news waits in UIManager until the beat ends. */
+/* The HUD hides while the conductor (src/motion/index.ts) runs a cinematic; UIManager queues HUD
+   updates until it ends. */
 .hud-left, #toast-stack { transition: opacity var(--dur-medium) var(--ease-decelerate); }
 body.conducting .hud-left,
 body.conducting #status-bar,

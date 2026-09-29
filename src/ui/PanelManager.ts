@@ -78,9 +78,8 @@ class PanelManagerImpl {
   }
 
   /**
-   * A fresh panel rises into place. A panel replacing another, or a new page of the same one,
-   * morphs instead (docs/DESIGN.md §2, Defaults audit): the frame grows or shrinks from the old
-   * size to the new while the new content fades up, so the panel never leaves and re-enters.
+   * Shows `next` in place of the current content: the frame grows or shrinks from the old size to
+   * the new while the new content fades up, so the panel never leaves and re-enters.
    */
   private morphTo(next: HTMLElement): void {
     const from = (this.content.firstElementChild as HTMLElement | null)?.getBoundingClientRect();
