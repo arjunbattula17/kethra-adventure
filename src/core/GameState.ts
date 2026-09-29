@@ -178,7 +178,8 @@ function migrateSave(raw: unknown): GameStateData {
 
   const savedAttributes = (saved.attributes ?? {}) as Record<string, unknown>;
   for (const key of Object.keys(base.attributes) as AttributeKey[]) {
-    base.attributes[key] = num(savedAttributes[key], base.attributes[key]);
+    // At least 1, where every attribute starts: nothing in play lowers one.
+    base.attributes[key] = Math.max(1, num(savedAttributes[key], base.attributes[key]));
   }
 
   const savedSystems = (saved.shipSystems ?? {}) as Record<string, unknown>;
