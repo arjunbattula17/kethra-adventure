@@ -143,9 +143,17 @@ export class RingBus {
         this.timers.set(id, next);
         continue;
       }
+      if (this.on.has(id) || this.locked.has(id)) {
+        this.timers.delete(id);
+        continue;
+      }
+      // Its needs are off (the regulator was thrown): it stays due and comes on once they return,
+      // rather than dropping its reset for good.
+      if (CIRCUITS[id].needs.some((n) => !this.on.has(n))) {
+        this.timers.set(id, 0);
+        continue;
+      }
       this.timers.delete(id);
-      if (this.on.has(id) || this.locked.has(id)) continue;
-      if (CIRCUITS[id].needs.some((n) => !this.on.has(n))) continue;
       const e = this.close(id);
       events.push(e.kind === 'trip' ? e : { kind: 'autoReset', id });
     }
