@@ -94,6 +94,8 @@ export class CruiseScene implements GameScene {
   /** Builds the destination level. Called when the title appears, so the slow first build happens
    * during a held shot; the scene waits for the promise before calling onArrive. */
   prepareArrival: (() => Promise<unknown>) | null = null;
+  /** Called instead of onArrive if preparing the destination failed. */
+  onArriveFailed: ((err: unknown) => void) | null = null;
 
   private readonly opts: CruiseOptions;
   private fx = new MotionScope('game');
@@ -257,7 +259,10 @@ export class CruiseScene implements GameScene {
     AudioSystem.playLevelStart();
     // Hold on the title until the destination level is built.
     const ready = this.prepareArrival?.() ?? Promise.resolve();
-    void ready.then(() => this.fx.after(motion.reduced ? 0.3 : 2.4, () => this.finish()));
+    void ready.then(
+      () => this.fx.after(motion.reduced ? 0.3 : 2.4, () => this.finish()),
+      (err) => this.onArriveFailed?.(err),
+    );
   }
 
   private finish(): void {

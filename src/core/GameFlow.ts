@@ -578,21 +578,31 @@ export class GameFlow {
     const course = gameState.data.course;
     const cruise = new CruiseScene({ destination: planetId === 'vessek' ? 'vessek' : 'kethra', days: course?.days ?? 6, cells: course?.cells ?? 4 });
     const cruiseReady = this.engine.prepareScene(cruise);
-    if (ship) await (gameState.hasFlag('first_light') ? this.departure(ship) : this.firstLight(ship));
-    await cruiseReady;
-    gameState.setFlag('left_wren');
-    await this.engine.setScene(() => cruise, { prepared: true, quiet: true });
-    this.shipScene = null;
-    cruise.prepareArrival = () => this.engine.prepareScene(canopy ?? level);
-    await new Promise<void>((resolve) => (cruise.onArrive = resolve));
-    if (canopy) {
-      await this.engine.setScene(() => canopy, { prepared: true, quiet: true });
-      await new Promise<void>((resolve) => (canopy.onComplete = resolve));
-      // Prepare the level after the canopy ends, so its slow first build stalls on the held final
-      // shot rather than mid-descent.
-      await this.engine.prepareScene(level);
-      gameState.setFlag('canopy_flown');
-      gameState.addAttributeXp('traversal', 1);
+    // Awaited after the departure; marked handled now so an early failure isn't reported as uncaught.
+    cruiseReady.catch(() => {});
+    try {
+      if (ship) await (gameState.hasFlag('first_light') ? this.departure(ship) : this.firstLight(ship));
+      await cruiseReady;
+      gameState.setFlag('left_wren');
+      await this.engine.setScene(() => cruise, { prepared: true, quiet: true });
+      this.shipScene = null;
+      cruise.prepareArrival = () => this.engine.prepareScene(canopy ?? level);
+      await new Promise<void>((resolve, reject) => {
+        cruise.onArrive = resolve;
+        cruise.onArriveFailed = reject;
+      });
+      if (canopy) {
+        await this.engine.setScene(() => canopy, { prepared: true, quiet: true });
+        await new Promise<void>((resolve) => (canopy.onComplete = resolve));
+        // Prepare the level after the canopy ends, so its slow first build stalls on the held final
+        // shot rather than mid-descent.
+        await this.engine.prepareScene(level);
+        gameState.setFlag('canopy_flown');
+        gameState.addAttributeXp('traversal', 1);
+      }
+    } catch (err) {
+      await this.abortTrip();
+      throw err;
     }
     await UIManager.fadeToBlack();
     level.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
@@ -602,6 +612,21 @@ export class GameFlow {
     const card = LEVELS[planetId];
     UIManager.showChapterCard({ eyebrow: `Level ${card.number}`, title: card.title, lines: [card.line] });
     SaveSystem.save();
+  }
+
+  /**
+   * A trip that failed after the departure began (a download died): back to a fresh Wren with the
+   * HUD the departure took away, and the same message as a failed start.
+   */
+  private async abortTrip(): Promise<void> {
+    await UIManager.fadeToBlack();
+    UIManager.showLetterbox(false);
+    UIManager.setCrosshairVisible(true);
+    UIManager.setLookPromptEnabled(true);
+    this.shipScene = new ShipInteriorScene();
+    await this.engine.setScene(() => this.shipScene!);
+    await UIManager.fadeFromBlack();
+    UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
   }
 
   /** Departures after the first: sit at the helm, then push into the viewport. */

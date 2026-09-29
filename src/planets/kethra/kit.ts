@@ -66,6 +66,8 @@ function loadTemplate(name: string): Promise<KitPrimitive[]> {
       return prims;
     });
     templateCache.set(name, pending);
+    // Forget a failed download, so a later visit retries instead of failing forever.
+    pending.catch(() => templateCache.delete(name));
   }
   return pending;
 }

@@ -106,6 +106,8 @@ export async function kitPiece(name: string): Promise<THREE.Object3D> {
       return root;
     });
     cache.set(name, pending);
+    // Forget a failed download, so a later build retries instead of failing forever.
+    pending.catch(() => cache.delete(name));
   }
   const template = await pending;
   return template.clone(true);
