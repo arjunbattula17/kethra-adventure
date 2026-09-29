@@ -442,13 +442,8 @@ export class CruiseScene implements GameScene {
     this.titleEl.remove();
     UIManager.showLetterbox(false);
     UIManager.clearCaption();
-    // The hull shares the cached template's geometry, so it is removed before disposal; only the
-    // plumes and rings added here are disposed.
-    for (const part of [...this.plumes, ...this.rings]) {
-      part.mesh.geometry.dispose();
-      (part.mesh.material as THREE.Material).dispose();
-    }
-    this.scene.remove(this.hull.group);
+    // The hull is built fresh for this scene (only its panel textures are cached, and a disposed
+    // texture re-uploads on next use), so it goes with everything else.
     disposeSceneFully(this.scene);
   }
 }

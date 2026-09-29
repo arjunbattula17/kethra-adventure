@@ -276,7 +276,6 @@ export class GalaxyRevealScene implements GameScene {
     this.intercept?.dispose();
     UIManager.showLetterbox(false);
     UIManager.clearCaption();
-    this.scene.remove(this.ship);
     disposeSceneFully(this.scene);
   }
 }
