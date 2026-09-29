@@ -78,11 +78,16 @@ export const ShipLibrary = {
   init(): void {
     // Present-but-locked from the start (hidden until earned); dedupe by id so loading an old
     // save that already carries some entries never doubles them.
-    for (const entry of LIBRARY_ENTRIES) {
-      if (!gameState.data.journalLogs.some((l) => l.id === entry.id)) {
-        gameState.data.journalLogs.push({ ...entry });
+    const backfill = () => {
+      for (const entry of LIBRARY_ENTRIES) {
+        if (!gameState.data.journalLogs.some((l) => l.id === entry.id)) {
+          gameState.data.journalLogs.push({ ...entry });
+        }
       }
-    }
+    };
+    backfill();
+    // init runs before the save loads, and a load replaces the whole list: backfill that too.
+    bus.on('state:loaded', backfill);
     bus.on('ship:repaired', () => this.award(['lib_energy']));
   },
 

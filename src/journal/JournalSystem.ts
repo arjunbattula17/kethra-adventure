@@ -56,21 +56,26 @@ class JournalSystemImpl {
   private selectedClueIds: string[] = [];
 
   init(): void {
-    if (gameState.data.journalLogs.length === 0) {
-      gameState.data.journalLogs = STARTER_LOGS.map((l) => ({ ...l }));
-    }
-    // The contract brief predates the voyage, so it leads the logs. Added by id so a save written
-    // before it existed gains it once.
-    if (!gameState.data.journalLogs.some((l) => l.id === 'log_brief')) {
-      gameState.data.journalLogs.unshift({
-        id: 'log_brief',
-        title: t('log.brief.title'),
-        body: t('log.brief.body'),
-        corrupted: false,
-        timestamp: t('log.brief.timestamp'),
-        unlocked: true,
-      });
-    }
+    const backfill = () => {
+      if (gameState.data.journalLogs.length === 0) {
+        gameState.data.journalLogs = STARTER_LOGS.map((l) => ({ ...l }));
+      }
+      // The contract brief predates the voyage, so it leads the logs. Added by id so a save written
+      // before it existed gains it once.
+      if (!gameState.data.journalLogs.some((l) => l.id === 'log_brief')) {
+        gameState.data.journalLogs.unshift({
+          id: 'log_brief',
+          title: t('log.brief.title'),
+          body: t('log.brief.body'),
+          corrupted: false,
+          timestamp: t('log.brief.timestamp'),
+          unlocked: true,
+        });
+      }
+    };
+    backfill();
+    // init runs before the save loads, and a load replaces the whole list: backfill that too.
+    bus.on('state:loaded', backfill);
     bus.on('ui:open_journal', () => this.open());
     bus.on('evidence:pair_selected', (pair: { a: string; b: string }) => this.tryConnect(pair.a, pair.b));
   }
