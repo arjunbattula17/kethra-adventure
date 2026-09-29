@@ -5,21 +5,19 @@ import { getPointSprite } from '../../../galaxy/spaceDressing';
 import * as H from './sim';
 
 /**
- * The Cistern Heart's chamber (MG3 Hush), built from the blocks in sim.ts: the same numbers the
- * moth's line of sight and the player's collision use, so what looks like cover is cover. Static
- * pieces are merged by material (stone, Kindling-cut stone, root, glyph band), so the whole room is
- * a handful of draw calls.
+ * The Hush chamber, built from the blocks in sim.ts that also drive the moth's line of sight and
+ * player collision, so visible cover matches real cover. Static pieces are merged by material.
  */
 export interface Chamber {
   group: THREE.Group;
   /** The walking surface: a floor target for the player. */
   floor: THREE.Mesh;
   colliders: THREE.Box3[];
-  /** Materials the wake crosses when the Heart wakes (KethraScene adds them to the wave). */
+  /** Materials the wake wave passes over; KethraScene adds them to the wave. */
   wake: { mat: THREE.MeshStandardMaterial; residual: THREE.Color; front: number }[];
   lightPost(i: number): void;
   flareCap(i: number): void;
-  /** A breath runs along the floor channel from the stone to the Heart, in `color`. */
+  /** Runs a glowing pulse along the floor channel from the stone to the Heart, in `color`. */
   pulse(color: THREE.Color): void;
   update(dt: number): void;
 }
@@ -99,7 +97,7 @@ function hash(i: number): number {
 }
 
 const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
-/** How far the chamber's walls and floor run down below its floor: into the pool around it. */
+/** Depth the walls and floor extend below floor level, into the surrounding pool. */
 const FOUNDATION = 3.2;
 
 export function buildChamber(): Chamber {
@@ -110,12 +108,11 @@ export function buildChamber(): Chamber {
 
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x55615c, roughness: 0.93 });
   applyPbr(stoneMat, 'lichen_rock', [1, 1]);
-  // Kindling-cut stone: flat and untextured like the Heart's, so arches and the rim read as made.
+  // Cut stone: flat-shaded and untextured so arches and the rim read as built, not natural.
   const cutMat = new THREE.MeshStandardMaterial({ color: 0x6f7d78, roughness: 0.88, flatShading: true });
   const barkMat = new THREE.MeshStandardMaterial({ color: 0x5a4c3c, roughness: 1 });
   applyPbr(barkMat, 'bark_willow', [1, 1]);
-  // The glyph band: Kindling script cut around the walls and along the rim, faintly lit. It is what
-  // the wake lights first.
+  // Glyph band around the walls and along the rim, faintly emissive.
   const glyphMat = new THREE.MeshStandardMaterial({ color: 0x1a2622, emissive: 0x3fd9a8, emissiveIntensity: 0.45, roughness: 0.6 });
   const floorMat = new THREE.MeshStandardMaterial({ color: 0x3e4743, roughness: 0.95 });
   applyPbr(floorMat, 'lichen_rock', [7, 7]);
@@ -126,8 +123,8 @@ export function buildChamber(): Chamber {
   const glyph = new Batch();
 
   // --- Floor ---
-  // A deep drum, so the chamber stands on stone down into the grove's pool, and the door's threshold
-  // shows as a plinth rather than a slab edge.
+  // A deep cylinder, so the base reaches down into the pool and the doorway shows a plinth, not a
+  // slab edge.
   const floor = new THREE.Mesh(new THREE.CylinderGeometry(H.RADIUS + 0.3, H.RADIUS + 0.3, FOUNDATION, 72), floorMat);
   floor.position.set(H.CENTER.x, F - FOUNDATION / 2, H.CENTER.z);
   floor.receiveShadow = true;
@@ -138,7 +135,7 @@ export function buildChamber(): Chamber {
   for (const [i, k] of blocks.filter((b) => b.kind === 'wall').entries()) {
     const h = H.WALL_HEIGHT - 0.6 + hash(i) * 1.4;
     stone.add(box(k.hx * 2, h + FOUNDATION, k.hz * 2), place(k.x, F + (h - FOUNDATION) / 2, k.z, k.yaw));
-    // A plinth course at the foot and a cornice, both proud of the inner face.
+    // A plinth at the foot and a cornice at the top, both sticking out from the inner face.
     const inX = -Math.cos(k.yaw);
     const inZ = Math.sin(k.yaw);
     cut.add(box(0.5, 0.55, k.hz * 2), place(k.x + inX * (k.hx + 0.1), F + 0.27, k.z + inZ * (k.hx + 0.1), k.yaw));
@@ -150,7 +147,7 @@ export function buildChamber(): Chamber {
       const a = Math.atan2(k.z - H.CENTER.z, k.x - H.CENTER.x) + (hash(i + 9) - 0.5) * 0.08;
       const at = (d: number, y: number) => v3(H.CENTER.x + Math.cos(a) * d, y, H.CENTER.z + Math.sin(a) * d);
       bark.add(root([at(r + 1.6, F + h + 0.4), at(r + 0.3, F + h + 0.2), at(r - 0.15, F + h * 0.55), at(r - 0.3, F + 1.2), at(r - 1.2 - hash(i) * 0.8, F + 0.05)], 0.16 + hash(i + 3) * 0.08), new THREE.Matrix4());
-      // And down the outer face into the pool, as the grove sees it from the terraces.
+      // A second root down the outer face into the pool.
       bark.add(root([at(r + 0.6, F + h + 0.35), at(r + 1.55, F + h * 0.7), at(r + 1.6, F + 0.8), at(r + 2.6 + hash(i + 5), F - 2.8)], 0.2 + hash(i + 7) * 0.1), new THREE.Matrix4());
     }
   }
@@ -163,7 +160,7 @@ export function buildChamber(): Chamber {
     cut.add(box(1.4, 0.5, 2.0), place(side * gw, F + 0.25, gateZ));
     cut.add(box(1.3, 0.35, 2.0), place(side * gw, F + 7.4, gateZ));
   }
-  // Voussoirs along two arcs meeting at a point: springing at +7.6, apex at +11.
+  // Voussoirs (arch stones) along two arcs that meet at a point, starting at +7.6.
   const springY = F + 7.6;
   const span = gw - 0.55;
   const radius = span * 1.6;
@@ -180,7 +177,7 @@ export function buildChamber(): Chamber {
       cut.add(box(len + 0.04, 0.7, 1.9), place(x, y, gateZ, 0, 1, 1, 1, 0, side * tm + Math.PI / 2));
     }
   }
-  // The tower above the arch, and the root shelf on its inner face where the moth watches from.
+  // Tower above the arch, and the root shelf under the moth's ledge perch.
   stone.add(box(gw * 2 + 1.1, 5.4, 1.8), place(0, F + 12.2 + 0.3, gateZ));
   cut.add(box(gw * 2 + 1.3, 0.4, 2.0), place(0, F + 15.1, gateZ));
   const ledge = H.PERCHES.ledge.at;
@@ -189,7 +186,7 @@ export function buildChamber(): Chamber {
     bark.add(root([v3(side * 1.2, ledge.y - 0.4, ledge.z - 0.4), v3(side * 2.2, ledge.y - 2.2, gateZ - 1.2), v3(side * (gw - 0.2), F + 8.2, gateZ - 1.0), v3(side * (gw + 0.1), F + 4, gateZ - 1.1)], 0.2), new THREE.Matrix4());
   }
 
-  // --- The far arch, low on the south-west wall, where the moth first watches from ---
+  // --- Far arch on the south-west wall, under the moth's arch perch ---
   const arch = H.PERCHES.arch.at;
   const archA = Math.atan2(arch.z - H.CENTER.z, arch.x - H.CENTER.x);
   const tx = -Math.sin(archA);
@@ -207,7 +204,7 @@ export function buildChamber(): Chamber {
     cut.add(box(0.72, 0.55, 0.56), place(arch.x + tx * along, y, arch.z + tz * along, archYaw, 1, 1, 1, -(t + Math.PI / 2), 0));
   }
 
-  // --- The basin rim: Kindling masonry with a capstone and a lit glyph line along the top ---
+  // --- Basin rim: cut-stone blocks with a capstone and a glyph line along the top ---
   for (const k of blocks.filter((b) => b.kind === 'rim')) {
     cut.add(box(k.hx * 2, H.RIM_HEIGHT - 0.12, k.hz * 2 - 0.06, 1.5), place(k.x, F + (H.RIM_HEIGHT - 0.12) / 2, k.z, k.yaw));
     cut.add(box(k.hx * 2 + 0.16, 0.14, k.hz * 2, 1.5), place(k.x, F + H.RIM_HEIGHT - 0.07, k.z, k.yaw));
@@ -229,7 +226,7 @@ export function buildChamber(): Chamber {
     bark.add(box(k.hx * 2, k.y1 - k.y0, k.hz * 2, 1.5), place(k.x, (k.y0 + k.y1) / 2, k.z, k.yaw));
   }
 
-  // --- Root mounds: low humps with a root or two arching over ---
+  // --- Root mounds: low humps, each with one root arching over ---
   for (const [i, k] of blocks.filter((b) => b.kind === 'mound').entries()) {
     const hump = new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2);
     bark.add(hump, place(k.x, F, k.z, k.yaw, k.hx * 1.02, H.MOUND_HEIGHT, k.hz * 1.08));
@@ -259,7 +256,7 @@ export function buildChamber(): Chamber {
   const postHalos = pointsAt(H.POSTS.map((p) => v3(p.lamp.x, F + 1.76, p.lamp.z + 0.4)), 0xffc27a, 1.6);
   group.add(postHalos.points);
 
-  // --- Glowcaps: three to a cluster, dim until brushed ---
+  // --- Glowcaps: three per cluster, dim until flareCap() flares them ---
   const capGeo = new THREE.SphereGeometry(0.12, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
   capGeo.scale(1, 0.55, 1);
   const stemGeo = new THREE.CylinderGeometry(0.025, 0.035, 0.18, 5);
@@ -284,7 +281,7 @@ export function buildChamber(): Chamber {
   const capHalos = pointsAt(H.GLOWCAPS.map((g) => v3(g.x, F + 0.25, g.z)), 0x4fd9c8, 1.2);
   group.add(capHalos.points);
 
-  // --- The breath channel: a groove from the stone to the basin that a breath runs along ---
+  // --- Breath channel: a floor groove from the stone to the basin that pulse() lights ---
   const chanFrom = v3(H.STONE.x, F + 0.012, H.STONE.z - 0.3);
   const chanTo = v3(H.HEART.x, F + 0.012, H.HEART.z - 2.35);
   const chanLen = chanFrom.distanceTo(chanTo);
@@ -315,12 +312,12 @@ export function buildChamber(): Chamber {
 
   group.add(stone.mesh(stoneMat), cut.mesh(cutMat), bark.mesh(barkMat), glyph.mesh(glyphMat, false));
 
-  // --- Collision: the sim's blocks, plus the solid parts the moth can see over but you cannot pass ---
+  // --- Collision: the sim's blocks, plus solid parts that block movement but not the moth's sight ---
   const colliders: THREE.Box3[] = [];
   const toBox3 = (b: { min: H.Vec; max: H.Vec }) => new THREE.Box3(v3(b.min.x, b.min.y, b.min.z), v3(b.max.x, b.max.y, b.max.z));
   for (const k of blocks) {
-    // The basin's sight block is its low lip; for walking it is the old full-height box, so no one
-    // steps up into the water.
+    // The basin blocks sight only at its low lip but collides at full height, so the player can't
+    // step into the water.
     const solid = k.kind === 'basin' ? { ...k, y1: F + 2.2 } : k;
     for (const b of H.blockToBoxes(solid)) colliders.push(toBox3(b));
   }
@@ -372,7 +369,7 @@ export function buildChamber(): Chamber {
   };
 }
 
-/** Soft halos (additive point sprites) whose size each light sets from 0 to 1. */
+/** Additive point-sprite halos; set(i, k) drives halo i's size and brightness with k from 0 to 1. */
 function pointsAt(at: THREE.Vector3[], color: number, size: number): { points: THREE.Points; set(i: number, k: number): void } {
   const geo = new THREE.BufferGeometry().setFromPoints(at);
   const amount = new Float32Array(at.length);

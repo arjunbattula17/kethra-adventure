@@ -3,18 +3,13 @@ import { damp } from '../../../motion';
 
 const OPEN = { intensity: 1.2, distance: 9 };
 const HOODED = { intensity: 0.15, distance: 2.2 };
-/**
- * Gentler than the physical 2: pressed against the rim (beat 3's cover) a square-law lantern lit
- * the stone 25 times brighter at 0.3 m than at 1.5 m, and bloom turned it into a blank sheet.
- */
+/** Softer than physical decay (2): inverse-square falloff blows out nearby surfaces under bloom. */
 const DECAY = 1.2;
 
 /**
- * The player's lantern in the Heart's chamber (MG3 Hush): held low at the left of the view, raised
- * as you reach the chamber and lowered as you leave. Hooding slides a shutter down over the glass
- * and pulls the light in to a small pool. The light itself always exists (at zero intensity when
- * lowered) and is never hidden: three.js leaves hidden lights out of the light count, and a count
- * that changes recompiles every program in the scene. Lowered, only the lantern's body hides.
+ * The player's first-person lantern: raised or lowered, and hooded to shrink its light to a small
+ * pool. The light is never hidden, only set to intensity 0: hidden lights leave the light count,
+ * and a count change recompiles every shader in the scene. When lowered, only the body is hidden.
  */
 export class Lantern {
   readonly group = new THREE.Group();
@@ -33,8 +28,8 @@ export class Lantern {
   private t = 0;
 
   constructor() {
-    // Unlit, as held things in first person are: its own flame, centimetres away, would light the
-    // cage white. The colours are the cage as the flame lights it.
+    // Unlit materials: the lantern's own light is centimetres away and would blow the cage out to
+    // white, so the colours are pre-lit.
     const brass = new THREE.MeshBasicMaterial({ color: 0x6a4c26 });
     const glassMat = new THREE.MeshBasicMaterial({ color: 0xffc88a, transparent: true, opacity: 0.22, depthWrite: false });
     const add = (geo: THREE.BufferGeometry, mat: THREE.Material, y: number) => {

@@ -2,22 +2,20 @@ import * as THREE from 'three';
 import { getPointSprite } from '../../galaxy/spaceDressing';
 
 /**
- * The canopy over the grove, seen from below: the same lantern-tree canopy the skiff came down
- * through in MG2, as a ceiling of dark leaf clumps with lantern pods hanging under it on their
- * threads, open above the landing terrace where the skiff broke through. It only has to read from
- * the terraces, so it is a few thousand triangles in four draw calls, and it makes no light of its
- * own: its pods glow, and the wake (wake.ts) lights it when the Heart wakes.
+ * The grove's canopy seen from below: dark leaf clumps with hanging lantern pods, open above the
+ * landing terrace. Only seen from a distance, so it is a few thousand triangles in four draw calls,
+ * and it casts no light of its own; wake.ts lights the leaves.
  */
 export interface CanopyCeiling {
   group: THREE.Group;
-  /** The leaves' material, for the wake. */
+  /** The leaves' material, which wake.ts lights. */
   leaves: THREE.MeshStandardMaterial;
   update(elapsed: number): void;
 }
 
 const CENTRE = { x: 0, z: -6 };
 const REACH = 62;
-/** Where the skiff came down, and how wide the hole it left is. */
+/** Gap in the canopy above the landing terrace: centre and radius. */
 const HOLE = { x: 2, z: 17, r: 6 };
 
 /**
@@ -56,7 +54,6 @@ export function buildCanopyCeiling(): CanopyCeiling {
     const y = 25 + groveRandom() * 6 + d * 0.06;
     m.compose(new THREE.Vector3(x, y, z), q.setFromEuler(e.set(0, groveRandom() * Math.PI, 0)), new THREE.Vector3(size, size * (0.28 + groveRandom() * 0.18), size * (0.75 + groveRandom() * 0.4)));
     clumps.push(m.clone());
-    // Most clumps carry a lantern or two under them.
     const n = groveRandom() < 0.55 ? 1 + Math.floor(groveRandom() * 2) : 0;
     for (let i = 0; i < n; i++) {
       pods.push(new THREE.Vector3(x + (groveRandom() - 0.5) * size, y - size * 0.25 - 1 - groveRandom() * 3.5, z + (groveRandom() - 0.5) * size));
@@ -68,7 +65,7 @@ export function buildCanopyCeiling(): CanopyCeiling {
   clumpMesh.computeBoundingSphere();
   group.add(clumpMesh);
 
-  // Pods: small lanterns, warm and teal as in the canopy, on threads up into the leaves.
+  // Lantern pods, warm or teal, each hanging on a thread from the leaves.
   const podGeo = new THREE.OctahedronGeometry(0.22, 0);
   podGeo.scale(1, 1.5, 1);
   const podMesh = new THREE.InstancedMesh(podGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), pods.length);
@@ -101,7 +98,7 @@ export function buildCanopyCeiling(): CanopyCeiling {
     group,
     leaves,
     update(elapsed) {
-      // A slow breath through the pods, each on its own phase.
+      // Slow brightness pulse on each pod, with a per-pod phase offset.
       podColours.forEach((c, i) => {
         podMesh.setColorAt(i, base.copy(c).multiplyScalar(0.8 + 0.2 * Math.sin(elapsed * 0.7 + i * 1.7)));
       });

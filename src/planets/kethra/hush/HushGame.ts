@@ -19,15 +19,15 @@ import type { StringKey } from '../../../content/strings';
 import { MotionScope, ease, motion } from '../../../motion';
 import { getPointSprite } from '../../../galaxy/spaceDressing';
 
-/** The stone's glyphs, left to right: keys 1, 2 and 3. */
+/** Rite colours in key order: keys 1, 2 and 3. */
 const COLOURS: RiteColour[] = ['azure', 'amber', 'verdant'];
 const TRUE_ORDER = KETHRA_TRUE_SEQUENCE as RiteColour[];
 const GAZE_CALM = new THREE.Color(0x5fd9c8);
 const GAZE_ALERT = new THREE.Color(0xffb45a);
-/** Hooded, you move at this (m/s); traversal 2 lets you go quicker. */
+/** Speed limit while hooded, in m/s; the trained value applies at traversal 2. */
 const HOODED_SPEED = 1.7;
 const HOODED_SPEED_TRAINED = 2.4;
-/** South of this, the high perch watches even if you skipped the tunnels. */
+/** Player z below which the moth moves to the high perch, even if no side post was reached. */
 const HIGH_PERCH_Z = -24.5;
 const BREATH_COOLDOWN = 1.2;
 
@@ -38,16 +38,16 @@ export interface HushHost {
   camera: THREE.PerspectiveCamera;
   player: PlayerController;
   heart: CisternHeart;
-  /** Only Medium and High light the floor with a shadowed spot; every tier draws the gaze. */
+  /** Adds a shadow-casting spotlight for the gaze (Medium and High); every tier draws the gaze
+   * cone. */
   shadows: boolean;
-  /** The Heart has woken: the scene stages the wake, then calls finish(). */
+  /** Called on win; the host plays the wake sequence, then calls finish(). */
   onWin(): void;
 }
 
 /**
- * MG3 Hush (docs/DESIGN.md §4, slot 3): cross the Wickmoth's chamber unseen, then sing the Rite
- * under its gaze. KethraScene hosts it; this owns the chamber, the moth, the gaze, the player's
- * lantern, the Rite and the plate. The rules live in sim.ts, which the tests drive directly.
+ * The Hush stealth minigame: cross the chamber unseen by the moth, then play the Rite sequence.
+ * Hosted by KethraScene; owns the chamber, moth, gaze, lantern and panel. The rules are in sim.ts.
  */
 export class HushGame {
   readonly chamber: Chamber;
@@ -102,14 +102,14 @@ export class HushGame {
       host.scene.add(spot, spot.target);
       this.spot = spot;
     }
-    // The moth's shadow on the floor, so its height reads.
+    // Fake blob shadow under the moth, so its height is readable.
     this.shadowBlob = new THREE.Mesh(
       new THREE.CircleGeometry(1, 24),
       new THREE.MeshBasicMaterial({ map: getPointSprite(), color: 0x000000, transparent: true, opacity: 0.5, depthWrite: false }),
     );
     this.shadowBlob.rotation.x = -Math.PI / 2;
     host.scene.add(this.shadowBlob);
-    // Insight 3: a ring of light where it will perch next.
+    // Marker for the moth's next perch, shown at insight 3.
     this.mark = new THREE.Sprite(new THREE.SpriteMaterial({ map: getPointSprite(), color: 0xffb45a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.mark.scale.setScalar(1.4);
     host.scene.add(this.mark);
@@ -122,14 +122,14 @@ export class HushGame {
     return this.chamber.colliders;
   }
 
-  /** 0 outside the chamber, 1 well inside: how far the scene's lights should fall away. */
+  /** 0 outside the chamber to 1 well inside; the scene dims its lights by this. */
   get inside(): number {
     const p = this.host.player.rig.position;
     const d = Math.hypot(p.x - H.CENTER.x, p.z - H.CENTER.z);
     return THREE.MathUtils.smoothstep(H.RADIUS + 3, H.RADIUS - 2.5, d);
   }
 
-  /** The moth at rest on the woken Heart: no gaze, no threat. */
+  /** Puts the moth at rest on the Heart with no gaze, for a save where the puzzle is solved. */
   private rest(): void {
     this.phase = 'done';
     this.brain.reset(H.PERCHES.heart);
@@ -178,7 +178,6 @@ export class HushGame {
       }
     }
 
-    // Where it should be watching from.
     if (playing) {
       const want = this.phase === 'rite' ? H.RITE_PERCHES[this.step] : this.highPerch ? 'ledge' : 'arch';
       this.brain.moveTo(H.PERCHES[want]);
@@ -191,17 +190,17 @@ export class HushGame {
       feet: { x: feet.x, y: feet.y, z: feet.z },
       flares: this.flares,
     };
-    // Won, it still flies (to the Heart); it only stops once at rest there.
+    // Keep updating after the win so the moth flies to the Heart; stop once it is done.
     const event = this.phase === 'done' ? null : this.brain.update(dt, sense);
     this.flares = [];
     if (this.pending) {
-      // The breath went into the moth this frame: did it see it?
+      // The moth sensed the breath flare this frame; gliding means it saw it.
       if (this.brain.mode === 'glide') this.say('mg3.orion.seen');
       else this.held();
       this.pending = null;
     }
     if (event === 'gust' && playing) this.gust();
-    // The lesson: once a brushed glowcap has turned its gaze, say what that meant.
+    // Once a brushed glowcap has drawn the moth's attention, show the flare hint once.
     if (this.seenFlare >= 0) {
       this.seenFlare += dt;
       if (this.brain.attention && this.seenFlare > 0.6) {
@@ -254,13 +253,12 @@ export class HushGame {
     if ((id === 'west' || id === 'east') && !this.highPerch) this.goHigh();
   }
 
-  /** Beat 3: it moves up to the gate arch. */
   private goHigh(): void {
     this.highPerch = true;
     this.say('mg3.orion.ledge');
   }
 
-  /** Carried back to the last lamp you reached. No harm; the retry is instant. */
+  /** Fail state: carries the player back to the last post reached. */
   gust(): void {
     if (this.gusting || (this.phase !== 'cross' && this.phase !== 'rite')) return;
     this.gusting = true;
@@ -296,7 +294,7 @@ export class HushGame {
     });
   }
 
-  /** The gust's colour: the wings' stained glass washing over the view. */
+  /** Full-screen colour flash for the gust. */
   private wash(): void {
     const el = document.createElement('div');
     el.className = 'hush-wash';
@@ -338,7 +336,7 @@ export class HushGame {
       this.pending = colour;
       return;
     }
-    // A wrong colour sours the water and startles it: back to the stone's lamp.
+    // Wrong colour: the moth fans and the player is gusted back to the last post.
     this.host.heart.sour();
     AudioSystem.playFail();
     this.say(KETHRA_RITUAL_SEQUENCE[this.step] === colour ? 'mg3.orion.ritual' : 'mg3.orion.wrong');
@@ -346,7 +344,7 @@ export class HushGame {
     this.fx.after(0.55, () => this.gust());
   }
 
-  /** A breath it did not see: held, and it comes a step closer. The third wakes the Heart. */
+  /** A correct breath the moth did not see: advance a step; the last step wins. */
   private held(): void {
     this.step++;
     this.host.heart.setHeld(TRUE_ORDER.slice(0, this.step));
@@ -373,14 +371,14 @@ export class HushGame {
     this.host.onWin();
   }
 
-  /** The scene's wake has played: the chamber is at rest. */
+  /** Called by the host once the wake sequence has finished. */
   finish(): void {
     this.phase = 'done';
     this.unregister?.();
     this.unregister = null;
   }
 
-  /** F2 in the harness, and the tests: sing the Rite through now. Safe to call again. */
+  /** Debug win (F2 in the harness, and tests); safe to call more than once. */
   private debugWin(): void {
     if (this.phase === 'won' || this.phase === 'done') return;
     this.step = TRUE_ORDER.length - 1;
@@ -421,13 +419,12 @@ export class HushGame {
         w.glow = 0.9;
     }
     m.update(dt, elapsed);
-    // Settled on the woken Heart, its stained glass lights the chamber.
+    // Once settled on the Heart, the moth's light brightens to light the chamber.
     if (b.mode === 'settle') {
       m.light.intensity = resting || this.phase === 'won' ? 3.5 : m.light.intensity;
       m.light.distance = 16;
     }
 
-    // The gaze: calm teal, warming to amber as it notices you.
     const watching = this.phase !== 'won' && this.phase !== 'done';
     const perception = gameState.data.attributes.perception >= 2;
     this.colour.copy(GAZE_CALM).lerp(GAZE_ALERT, b.alert);
@@ -435,7 +432,7 @@ export class HushGame {
     const strength = !watching ? 0 : (moving ? 0.3 : 1) * (perception ? 1.45 : 1);
     const g = b.gaze();
     this.gaze.update(g, this.colour, strength);
-    // Perception 2: where its sweep is heading, a moment early.
+    // Perception 2: show a faint ghost gaze 0.8 s ahead of the sweep.
     if (perception && watching && b.mode === 'perched' && !b.attention) {
       const ahead = H.sweepAt(b.perch, b.clock + 0.8);
       this.ghost.update({ ...g, dir: H.dirOf(ahead.yaw, ahead.pitch) }, GAZE_CALM, 0.3);
@@ -448,7 +445,7 @@ export class HushGame {
       this.spot.angle = Math.max(0.05, g.halfAngle);
       this.spot.distance = Math.max(1, g.range);
       this.spot.intensity = strength * 90;
-      // Its shadow only matters while you can see into the chamber.
+      // Only re-render the shadow map while the player is close enough to see it.
       const p = this.host.player.rig.position;
       this.spot.shadow.autoUpdate = strength > 0 && Math.hypot(p.x - H.CENTER.x, p.z - H.CENTER.z) < H.RADIUS + 14;
     }
@@ -458,7 +455,7 @@ export class HushGame {
     this.shadowBlob.scale.setScalar(1.1 + height * 0.12);
     (this.shadowBlob.material as THREE.MeshBasicMaterial).opacity = THREE.MathUtils.clamp(0.55 - height * 0.035, 0.1, 0.55);
 
-    // Insight 3: its next perch, marked.
+    // Insight 3: mark the moth's next perch.
     const next = !watching ? null : this.phase === 'rite' ? (this.step + 1 < H.RITE_PERCHES.length ? H.PERCHES[H.RITE_PERCHES[this.step + 1]] : H.PERCHES.heart) : this.highPerch ? null : H.PERCHES.ledge;
     const mat = this.mark.material as THREE.SpriteMaterial;
     mat.opacity = next && gameState.data.attributes.insight >= 3 ? 0.55 + Math.sin(elapsed * 2.4) * 0.2 : 0;
@@ -505,8 +502,9 @@ export class HushGame {
   }
 
   /**
-   * For the tests: `stoneMargin` is how far (radians) the gaze's edge is from the stone, negative
-   * while the stone is inside the cone; `attention` whether a flare has turned its gaze.
+   * Snapshot for tests. `stoneMargin` is the angle in radians from the gaze cone's edge to the
+   * stone, negative while the stone is inside the cone; `attention` is whether a flare holds the
+   * moth's gaze.
    */
   state(): { phase: Phase; mode: H.MothMode; perch: string; alert: number; hooded: boolean; post: string; gusts: number; step: number; seesStone: boolean; stoneMargin: number; attention: boolean; high: boolean } {
     const g = this.brain.gaze();

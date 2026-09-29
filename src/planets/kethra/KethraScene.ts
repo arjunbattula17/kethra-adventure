@@ -37,21 +37,17 @@ const SKIFF_AT = { x: 3, z: 19.6 };
 
 const DIM_CANOPY_COLOR = new THREE.Color(0x274a3a);
 const BRIGHT_CANOPY_COLOR = new THREE.Color(0x4fd98a);
-/**
- * What the wake leaves on a canopy material: half the way from the old dim emissive (0.8) to the old
- * bright one (1.8). The full difference read as neon once the whole grove carried it at once.
- */
+/** Residual emissive the wake leaves on canopy leaves: half the step from dim (x0.8) to bright
+ * (x1.8). */
 const CANOPY_WAKE = BRIGHT_CANOPY_COLOR.clone().multiplyScalar(1.8).sub(DIM_CANOPY_COLOR.clone().multiplyScalar(0.8)).multiplyScalar(0.5);
-/** The grove's green, as the wake leaves it on stone and flora. */
+/** Base color of the wake's residual glow on stone and water. */
 const WAKE_GREEN = new THREE.Color(0x3fd9a8);
 
-/**
- * The still water the terraces stand in: "light and water climb the terraces again" when the Heart
- * wakes. Below every walking surface (the lowest, the ramps' feet, is about 0.2).
- */
+/** Height of the water plane, below every walking surface (the lowest, at the ramps' feet, is about
+ * 0.2). */
 const WATER_Y = -0.9;
 
-/** Lets a frame render between builders, so building the grove never freezes the shot above it. */
+/** Yields to the event loop so a frame can render between builders. */
 const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 // Clear radius kept around every interaction anchor and the spawn when scattering boulders, applied
@@ -125,12 +121,8 @@ interface TreePlacement {
   scale: number;
 }
 
-// The trunk anchors from the original hand-built canopy, kept at the same positions so the gameplay
-// collision/readability of the terraces doesn't shift — only the mesh at each spot changes. Mixed
-// families (Common/Pine/Twisted) so the canopy doesn't read as one repeated tree; the TwistedTree
-// slot is scaled well below its native ~16-19m to stay in scale with the rest of the grove while
-// still reading as an older, gnarled outlier. The two that stood beside the Heart went with the
-// approach terrace: the Heart's chamber is walled now (hush/chamber.ts).
+// Hand-placed trees with trunk colliders (see colliders()); the terrace ramps are placed around
+// them. The TwistedTree is scaled well below its native ~16-19m to match the rest of the grove.
 const NAMED_TREES: TreePlacement[] = [
   { position: [-8, 0, 4], species: 'CommonTree_2', yaw: 0.4, scale: 1.05 },
   { position: [8, 0, 4], species: 'Pine_2', yaw: 2.1, scale: 1.0 },
@@ -197,8 +189,8 @@ function makeTerrace(width: number, depth: number, x: number, y: number, z: numb
   addWake(mat, WAKE_GREEN.clone().multiplyScalar(0.02), 0.7);
   const group = new THREE.Group();
 
-  // The base tier's top is at 0.2; it runs down below the water line, so the terrace stands in the
-  // pool rather than hanging over it.
+  // The base tier's top is at 0.2; it extends below the water line so no gap shows under the
+  // terrace.
   const baseHeight = 0.5 + Math.max(0, y + 1.4 - WATER_Y - 0.9);
   const base = new THREE.Mesh(new THREE.BoxGeometry(width, baseHeight, depth), mat);
   base.position.y = 0.2 - baseHeight / 2;
@@ -364,18 +356,16 @@ export class KethraScene implements GameScene {
   /** Mid-points of the connecting ramps, kept clear of scattered boulders — see buildClutter. */
   private rampAnchors: THREE.Vector3[] = [];
   private heart!: CisternHeart;
-  /** MG3 Hush: the Heart's chamber, its moth and the Rite (hush/HushGame.ts). */
+  /** The Heart's chamber minigame and its moth (hush/HushGame.ts). */
   hush!: HushGame;
-  /** The grove's lights at full strength: they fall away inside the chamber. */
+  /** Scene lights with their full intensity (base) and the fraction kept inside the chamber (keep). */
   private lights: { light: THREE.Light; base: number; keep: number }[] = [];
   private wakeSkip: HoldToSkip | null = null;
   private canopy!: CanopyCeiling;
   /**
-   * The moon's shadow is drawn once, not every frame: nothing it shadows moves. Only the moth's
-   * gaze (hush/HushGame.ts) needs a live shadow, and only of the chamber, so in the frames the moon
-   * is not being repainted everything outside the chamber stops casting for the shadow pass.
-   * Measured at High: the moon's pass was 286 draw calls and ~595k triangles a frame, and the gaze's
-   * 153 and ~590k while it drew every tree it could see through the door.
+   * The moon's shadow map is drawn once, not every frame, since nothing it shadows moves. Only the
+   * moth's gaze (hush/HushGame.ts) needs a live shadow, and only of the chamber, so on frames the
+   * moon is not repainted everything outside the chamber stops casting shadows.
    */
   private moon: THREE.DirectionalLight | null = null;
   private moonDirty = true;
@@ -392,8 +382,7 @@ export class KethraScene implements GameScene {
   }
 
   async init(): Promise<void> {
-    // Signage and screens are drawn onto canvases in the game's own faces: wait for them, or the
-    // textures bake the fallback font for the whole visit.
+    // Canvas textures bake whatever font is loaded when drawn, so wait for the display fonts first.
     await displayFontsReady();
     // Same grove every visit: see resetGroveRandom in kit.ts for why the scatter is seeded.
     resetGroveRandom();
@@ -409,8 +398,8 @@ export class KethraScene implements GameScene {
     // Standing under a forest that makes its own light is the moment the concept means something.
     ShipLibrary.award(['lib_biolum']);
 
-    // Kethra builds under the cruise and the canopy (docs/DESIGN.md §5): each builder is its own
-    // task, so the shot playing above keeps its frames.
+    // The scene builds while a cutscene is on screen: yield after each builder so it keeps
+    // rendering.
     const builders = [
       () => this.buildGround(),
       () => this.buildTerraces(),
@@ -434,9 +423,8 @@ export class KethraScene implements GameScene {
     this.player.setFloorTargets(this.floorMeshes);
     this.player.setColliders(await this.colliders());
     this.player.teleport(new THREE.Vector3(0, 2, 18), 0);
-    // The terraces are raised islands with unguarded edges over the pool, with no way back up —
-    // walking off any edge was an unrecoverable soft lock. The reset is just above the water, so
-    // the player is caught as they slip, before they are seen to sink into it.
+    // Terrace edges are unguarded and there is no way back up from the water, so a fall respawns
+    // the player. The reset height is just above the water so they never visibly sink into it.
     this.player.setRespawn(new THREE.Vector3(0, 2, 18), 0);
     this.player.fallResetY = WATER_Y + 0.3;
     this.player.onFellOut = () => UIManager.toast('You slip into the dark water and wade back to the landing terrace.');
@@ -465,7 +453,7 @@ export class KethraScene implements GameScene {
       else for (const o of this.worldCasters) o.castShadow = true;
     };
 
-    // Awake already (a return visit): the wake has passed everything.
+    // On a return visit after the puzzle is solved, the wake starts finished.
     wake.origin.set(H.HEART.x, H.FLOOR_Y, H.HEART.z);
     if (gameState.hasFlag('kethra_mechanism_solved')) {
       wake.done();
@@ -485,9 +473,8 @@ export class KethraScene implements GameScene {
     this.scene.add(safetyNet);
     this.floorMeshes.push(safetyNet);
 
-    // The pool between the terraces: black, still, catching the lights as glints. The terraces
-    // used to stand over a void. It is not a floor: a step off an edge falls to the reset below.
-    // Rough enough that the moon's glint on it is a sheen, not a mirror-bright block under bloom.
+    // The water is not a floor target: stepping off an edge falls through to the respawn reset.
+    // Roughness keeps the moon's reflection a sheen rather than a bright block under bloom.
     const waterMat = new THREE.MeshStandardMaterial({ color: 0x040a09, roughness: 0.62, metalness: 0, envMapIntensity: 0.3 });
     addWake(waterMat, WAKE_GREEN.clone().multiplyScalar(0.05), 1.3);
     const water = new THREE.Mesh(new THREE.CircleGeometry(110, 64), waterMat);
@@ -496,7 +483,6 @@ export class KethraScene implements GameScene {
     water.receiveShadow = true;
     this.scene.add(water);
 
-    // The canopy the skiff came down through, overhead.
     this.canopy = buildCanopyCeiling();
     addWake(this.canopy.leaves, CANOPY_WAKE.clone().multiplyScalar(0.3), 1.6);
     this.scene.add(this.canopy.group);
@@ -646,8 +632,8 @@ export class KethraScene implements GameScene {
   }
 
   private buildFragments(): void {
-    // On the walking surfaces: the side terraces' tops are at 0.98 and the ledge's at 2.78. They
-    // used to stand 0.42 above them, floating.
+    // Pillar bases sit on the walking surfaces: the side terraces' tops are at 0.98, the ledge's at
+    // 2.78.
     const fragmentSpots: [number, number, number][] = [
       [-16, 0.98, -3],
       [16, 0.98, -3],
@@ -773,9 +759,8 @@ export class KethraScene implements GameScene {
   }
 
   /**
-   * The Cistern Heart's chamber (MG3 Hush, docs/DESIGN.md §4 slot 3): the Heart at its centre, the
-   * call-stone moved to the far side of the basin, and the carving on the gate. HushGame builds the
-   * room itself, its moth and its rules.
+   * Builds the Cistern Heart, its call-stone and the gate carving. HushGame builds the chamber
+   * room, its moth and its rules.
    */
   private buildHeartChamber(): void {
     // Kindling-cut stone: flat-shaded and untextured, because a tiled rock map smears into stripes
@@ -785,7 +770,7 @@ export class KethraScene implements GameScene {
     this.heart.root.position.set(H.HEART.x, H.HEART.y, H.HEART.z);
     this.heart.root.rotation.y = H.HEART_YAW;
     this.scene.add(this.heart.root);
-    // The call-stone faces the singer, who stands south of it looking over it to the Heart.
+    // Turned to face the player, who stands south of it looking over it toward the Heart.
     this.heart.callStone.position.set(H.STONE.x, H.STONE.y, H.STONE.z);
     this.heart.callStone.rotation.y = Math.PI;
     this.scene.add(this.heart.callStone);
@@ -800,7 +785,7 @@ export class KethraScene implements GameScene {
     });
     this.floorMeshes.push(this.hush.chamber.floor);
 
-    // The last Kindling carving, cut into the inner face of the gate's west pillar.
+    // Carving plaque on the inner face of the gate's west pillar.
     const carvingMat = new THREE.MeshStandardMaterial({ color: 0x1c1810, roughness: 0.9 });
     applyPbr(carvingMat, 'lichen_rock', [1, 1.5]);
     const carvingGroup = new THREE.Group();
@@ -840,9 +825,8 @@ export class KethraScene implements GameScene {
   }
 
   /**
-   * The win (docs/DESIGN.md §4, slot 3): the Heart wakes, the moth settles on it, and the light
-   * travels out of the chamber, up the terraces and into the canopy. The player's own camera is
-   * lifted off them for the shot and handed back after. Hold to skip.
+   * Plays the win cutscene: the wake spreads out from the Heart while the camera, detached from the
+   * player rig, flies out of the chamber. The camera is reattached when it ends or is skipped.
    */
   private stageWake(): void {
     const cam = this.camera;
@@ -867,7 +851,6 @@ export class KethraScene implements GameScene {
     );
     const LENGTH = 11.5;
     const move = this.fx.tween({ duration: LENGTH, ease: ease.standard, update: (e) => path.apply(cam, e) });
-    // The Heart takes a breath first, then the light goes out from it.
     const front = this.fx.tween({
       duration: 7.5,
       delay: 3.2,
@@ -906,10 +889,7 @@ export class KethraScene implements GameScene {
     this.wakeSkip.show();
   }
 
-  /**
-   * The Wren's skiff, parked on the landing terrace: it brought the player down through the canopy
-   * (MG2) and it is the way back up. It replaced a cylinder-and-torus pad.
-   */
+  /** The skiff parked on the landing terrace; interacting with it returns the player to the ship. */
   private buildReturnPad(): void {
     const skiff = buildSkiff();
     // Gear pads rest on the terrace's walking surface (0.38); they sit 0.46 below the hull origin.
@@ -1140,9 +1120,8 @@ export class KethraScene implements GameScene {
       const box = await kitInstanceBox(t.species, new THREE.Vector3(...t.position), t.yaw, t.scale);
       boxes.push(box);
     }
-    // The Heart's chamber: its own boxes, the same blocks the moth's sight is tested against.
+    // The chamber's colliders are also the blocks the moth's line of sight is tested against.
     boxes.push(...this.hush.colliders);
-    // The parked skiff.
     boxes.push(makeCollider(SKIFF_AT.x, SKIFF_AT.z, 1.5, 1.5, 1.2));
     // The moth flies between perches and the lantern rides the camera, so a box baked from where
     // either happens to be at load would block empty air a second later.
@@ -1154,7 +1133,8 @@ export class KethraScene implements GameScene {
     return boxes;
   }
 
-  /** Paints the moon's shadow again on the next frame (after the scene is built, or shadows return). */
+  /** Redraws the moon's shadow map on the next frame (after the build, or when shadows are
+   * re-enabled). */
   private repaintMoon(): void {
     if (!this.moon) return;
     this.moon.shadow.needsUpdate = true;
@@ -1171,12 +1151,13 @@ export class KethraScene implements GameScene {
     this.warden?.update(dt, elapsed, eye);
     this.archivist?.update(dt, elapsed, eye);
 
-    // The grove's own life steps down while the Heart wakes (the Conductor, docs/DESIGN.md §3).
+    // Ambient motion is scaled by motion.ambient, which the conductor ducks during the wake
+    // cutscene.
     const ambientDt = dt * motion.ambient;
     this.hush.update(dt, elapsed);
     this.heart.update(dt, elapsed);
-    // Inside the chamber the grove's light falls away and the lantern, the glowcaps and the moth's
-    // gaze are what you see by. Once the Heart is awake, it lights the room itself.
+    // Dim the grove lights inside the chamber; once the Heart is awake it lights the room, so dim
+    // less.
     const dark = this.hush.inside * (gameState.hasFlag('kethra_mechanism_solved') ? 0.55 : 1);
     for (const l of this.lights) l.light.intensity = THREE.MathUtils.lerp(l.base, l.base * l.keep, dark);
     this.scene.environmentIntensity = THREE.MathUtils.lerp(0.5, 0.08, dark);

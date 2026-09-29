@@ -19,9 +19,9 @@ export const KETHRA_MAP: PlanetMapConfig = {
     { id: 'cistern_heart', label: 'The Cistern Heart', kind: 'objective', x: 0, z: -21.8 },
     { id: 'kindling_carving', label: 'Last Kindling Carving', kind: 'lore', x: -4.1, z: -10.1, discoveredFlag: 'kethra_kindling_record' },
   ],
-  // Mirrors the slabs KethraScene.buildTerraces() places (makeTerrace(width, depth, x, y, z) and the
-  // makeRamp spans) and the Heart's chamber (hush/sim.ts: a ring of radius 12.5 about (0, -21.8),
-  // charted as its square), so the chart shows the grove's real shape. Update them together.
+  // Mirrors the slabs KethraScene.buildTerraces() places (makeTerrace(width, depth, x, y, z) and
+  // the makeRamp spans) and the Heart's chamber (hush/sim.ts: a ring of radius 12.5 about (0,
+  // -21.8), charted as its bounding square). Update them together.
   terrain: [
     { x: 0, z: 16, w: 10, d: 10, elevation: 0, kind: 'terrace', labelKey: 'map.kethra.region.landing' },
     { x: 0, z: 2, w: 16, d: 16, elevation: 0, kind: 'terrace', labelKey: 'map.kethra.region.plaza' },

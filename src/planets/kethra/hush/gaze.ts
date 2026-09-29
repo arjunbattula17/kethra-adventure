@@ -20,11 +20,9 @@ const AROUND = 22;
 const RAYS = 1 + RINGS * AROUND;
 
 /**
- * The moth's gaze made visible (docs/DESIGN.md §4, slot 3: "the gaze cones are volumetric light
- * shafts, so you can see where they end"). Every frame a fan of rays is cast through the cone
- * against the chamber's blocks, the same test sim.ts's `sees` makes. The shaft is the cone's hull
- * cut off where each ray stops; the pool is where the rays land, on the floor or on the face of
- * whatever stopped them. Cover casts a gaze-shadow on every quality tier, with no shadow map.
+ * Draws the moth's gaze cone. Each frame a fan of rays is cast against the chamber blocks (the same
+ * test as sim.ts `sees`); the shaft is the cone hull cut where rays stop, and the pool is where
+ * they land. Cover shadows the gaze on every quality tier without a shadow map.
  */
 export class GazeView {
   readonly group = new THREE.Group();
@@ -48,7 +46,7 @@ export class GazeView {
     this.shaftPos = new THREE.BufferAttribute(new Float32Array(AROUND * 3 * 3), 3);
     this.shaftAlong = new THREE.BufferAttribute(new Float32Array(AROUND * 3), 1);
     // Each vertex's outward direction across the cone: the hull glows where it is seen edge-on,
-    // which is what makes a cone of flat triangles read as a shaft of lit air.
+    // so a cone of flat triangles reads as a volumetric shaft.
     this.shaftOut = new THREE.BufferAttribute(new Float32Array(AROUND * 3 * 3), 3);
     shaftGeo.setAttribute('position', this.shaftPos);
     shaftGeo.setAttribute('aAlong', this.shaftAlong);
@@ -191,7 +189,7 @@ export class GazeView {
           land = 0.55;
         }
       }
-      // A ray over the wall top stops at the ring: the gaze belongs to the chamber, not the sky.
+      // Rays that clear the wall top stop at the wall ring instead of running out into the sky.
       const tr = ringExit(o, rx, rz, g.range);
       if (tr < t) {
         t = tr;

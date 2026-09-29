@@ -16,14 +16,14 @@ import { buildWickmoth } from '../grove';
 import type { Wickmoth } from '../grove';
 import * as L from './layout';
 
-/** Descent (m/s), braked with Shift; strafe acceleration and top speed across. */
+/** Descent speed and braked (Shift) descent speed in m/s; horizontal acceleration and top speed. */
 const DESCENT = 2.4;
 const BRAKED = 0.9;
 const ACCEL = 16;
 const MAX_ACROSS = 7;
-/** How far the lamp reaches and how long a pod it touches stays awake (perception 2: longer). */
+/** How far the lamp reaches, in metres. */
 const LAMP_RANGE = 28;
-/** Pods and other lights that can light the boughs around them at once (shader slots). */
+/** Maximum number of lights that glow onto nearby boughs at once; one shader uniform slot each. */
 const GLOW_SLOTS = 16;
 const GROVE = new THREE.Color(0x5cd1b0);
 const ASLEEP = new THREE.Color(0x0b2620);
@@ -36,10 +36,9 @@ const _up = new THREE.Vector3(0, 1, 0);
 const _c = new THREE.Color();
 
 /**
- * MG2 Canopy (docs/DESIGN.md §4, slot 2): fly the Wren's skiff down through Kethra's dark canopy.
- * Darkness is the obstacle: the lamp wakes the pods it touches, the pods light the boughs around
- * them for a few seconds, and the player steers through the gaps they have lit, lighting ahead and
- * steering at once. Five layers (layout.ts). Prepared under the cruise: init builds, onEnter starts.
+ * Canopy minigame: steer the skiff down through five layers of boughs (layout.ts). The lamp wakes
+ * the pods it touches, and lit pods light the nearby boughs for a few seconds. init builds the
+ * scene; onEnter starts play.
  */
 export class CanopyScene implements GameScene {
   readonly kind = 'CanopyScene';
@@ -47,7 +46,7 @@ export class CanopyScene implements GameScene {
   readonly grade = GRADES.kethra;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 900);
-  /** Touchdown and the establishing shot are done; the flow cuts to the level. */
+  /** Called after touchdown once the landing shot has finished. */
   onComplete: (() => void) | null = null;
 
   private fx = new MotionScope('game');
@@ -98,7 +97,7 @@ export class CanopyScene implements GameScene {
     const s = this.scene;
     s.background = new THREE.Color(0x020807);
     s.fog = new THREE.FogExp2(0x061510, 0.008);
-    // Almost nothing lights the canopy on its own: silhouettes, just, against the haze below.
+    // Very dim ambient so the canopy reads mostly as silhouettes.
     s.add(new THREE.HemisphereLight(0x2a4a44, 0x020403, 0.16));
 
     this.buildBoughs();
@@ -137,7 +136,7 @@ export class CanopyScene implements GameScene {
 
   // ------------------------------------------------------------------ building
 
-  /** Pods and lanterns light the boughs near them: an emissive term from up to GLOW_SLOTS lights. */
+  /** Standard material plus an emissive glow from up to GLOW_SLOTS nearby lights (pods, lanterns). */
   private glowMaterial(color: number): THREE.MeshStandardMaterial {
     const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0, flatShading: true });
     const slots = this.glowSlots;
@@ -167,7 +166,7 @@ export class CanopyScene implements GameScene {
     this.boughMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(this.boughMesh);
 
-    // Foliage clumps riding the limbs.
+    // Foliage clumps placed along each bough.
     const clumps: THREE.Matrix4[] = [];
     let k = 0;
     for (const b of this.boughs) {
@@ -216,7 +215,7 @@ export class CanopyScene implements GameScene {
     this.scene.add(trunks);
   }
 
-  /** The clearing: moss, the landing terrace with its amber lights, and the Aiveth lanterns. */
+  /** Ground, landing terrace with its lights, and the ring of lanterns. */
   private buildClearing(): void {
     const ground = new THREE.Mesh(new THREE.CircleGeometry(90, 40).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x0c1a14, roughness: 1 }));
     this.scene.add(ground);
@@ -234,7 +233,7 @@ export class CanopyScene implements GameScene {
     const pool = new THREE.PointLight(0xffb45a, 14, 18, 1.5);
     pool.position.set(0, 2, 0);
     this.scene.add(pool);
-    // Aiveth lanterns ring the clearing: tall, tapering, finned; their hoods turn to whoever lands.
+    // Ring of lanterns around the clearing.
     const post = new THREE.MeshStandardMaterial({ color: 0x3a4a44, roughness: 0.7, flatShading: true });
     const glow = new THREE.MeshStandardMaterial({ color: 0x0a2a22, emissive: 0x5cd1b0, emissiveIntensity: 1.8 });
     for (let i = 0; i < 5; i++) {
@@ -256,7 +255,7 @@ export class CanopyScene implements GameScene {
       const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), glow);
       lamp.position.x = 0.12;
       head.add(hood, lamp);
-      // Hoods face outward to begin with; they turn to the skiff at touchdown.
+      // Heads start facing outward; touchdown() turns them toward the skiff.
       head.rotation.y = -a;
       g.add(head);
       this.scene.add(g);
@@ -264,7 +263,7 @@ export class CanopyScene implements GameScene {
     }
   }
 
-  /** Layer 1: an Aiveth lantern swinging on its chain over the wide gap: learn to steer by it. */
+  /** Swinging lantern hung over the first layer's gap. */
   private buildLantern(): void {
     const gap = L.LAYERS[0].gap;
     const group = new THREE.Group();
@@ -313,7 +312,6 @@ export class CanopyScene implements GameScene {
     this.updateGlow();
     this.updateSparks(dt);
     this.placeCamera(dt, false);
-    // Atmospheric perspective: the haze thickens with depth.
     (this.scene.fog as THREE.FogExp2).density = 0.006 + 0.012 * (1 - Math.min(1, this.pos.y / L.START.y));
   }
 
@@ -324,7 +322,7 @@ export class CanopyScene implements GameScene {
     const blocked = PanelManager.isOpen;
     this.vel.x += (blocked ? 0 : ax) * ACCEL * dt;
     this.vel.z += (blocked ? 0 : az) * ACCEL * dt;
-    // Inertia: traversal 2 bleeds speed off faster, so the skiff answers the stick more tightly.
+    // Traversal 2 gives stronger damping, so the skiff responds more tightly.
     const damping = this.stats.traversal >= 2 ? 3.6 : 2.0;
     this.vel.x *= Math.exp(-damping * dt);
     this.vel.z *= Math.exp(-damping * dt);
@@ -332,7 +330,7 @@ export class CanopyScene implements GameScene {
     if (across > MAX_ACROSS) this.vel.multiplyScalar(MAX_ACROSS / across);
     const braking = h.has('ShiftLeft') || h.has('ShiftRight');
     this.vel.y = -(braking ? BRAKED : DESCENT);
-    // Below the last layer, a gentle hand toward the pad.
+    // Below the last layer, pull the skiff toward the landing pad at the origin.
     if (this.pos.y < L.LAYERS[L.LAYERS.length - 1].y - 3) {
       this.vel.x += -this.pos.x * 1.2 * dt;
       this.vel.z += -this.pos.z * 1.2 * dt;
@@ -353,7 +351,7 @@ export class CanopyScene implements GameScene {
     }
     this.scrapeCooldown -= dt;
 
-    // Progress: a layer passed is where a climb back returns to.
+    // The last passed layer is the checkpoint climbBack() returns to.
     for (const layer of L.LAYERS) {
       if (layer.index > this.passed && this.pos.y < layer.y - 4) {
         this.passed = layer.index;
@@ -374,7 +372,7 @@ export class CanopyScene implements GameScene {
     this.renderPanel();
   }
 
-  /** "Sparks mark the exact contact point, a heavy-spring camera kick, and the hull pip drops." */
+  /** Handles a bough hit: sparks, a camera kick, and one hull pip lost. */
   private scrape(contact: L.Contact): void {
     this.scrapeCooldown = 0.9;
     this.pips--;
@@ -382,7 +380,6 @@ export class CanopyScene implements GameScene {
     const p = new THREE.Vector3(contact.point.x, contact.point.y, contact.point.z);
     this.burstSparks(p, new THREE.Vector3(contact.normal.x, contact.normal.y, contact.normal.z));
     if (!motion.reduced) this.kickVel.set(-contact.normal.x * 6, -3, -contact.normal.z * 6);
-    // The bough you hit stays marked.
     const scar = new THREE.Sprite(this.scarMat);
     scar.position.copy(p);
     scar.scale.setScalar(0.9);
@@ -391,7 +388,7 @@ export class CanopyScene implements GameScene {
     if (this.pips <= 0) this.climbBack();
   }
 
-  /** Three scrapes: the skiff climbs back to the last layer it passed, hull restored. */
+  /** Moves the skiff back to the last passed layer's checkpoint and restores the hull. */
   private climbBack(): void {
     this.phase = 'climb';
     this.say('mg2.orion.climb');
@@ -414,7 +411,6 @@ export class CanopyScene implements GameScene {
     });
   }
 
-  /** "Touchdown. The landing gear squashes, a dust ring spreads, and the camera settles." */
   private touchdown(): void {
     this.phase = 'landed';
     this.pos.y = L.LANDING.y + 0.45;
@@ -423,7 +419,6 @@ export class CanopyScene implements GameScene {
     this.fx.tween({ duration: 0.5, update: (k) => this.skiff.gear.scale.set(1, 1 - 0.35 * Math.sin(k * Math.PI), 1) });
     this.burstSparks(new THREE.Vector3(this.pos.x, 0.7, this.pos.z), new THREE.Vector3(0, 1, 0), 0xb8b0a0, true);
     motion.conductor.duck(3);
-    // The Aiveth lanterns turn toward the skiff.
     for (const head of this.lanterns) {
       const world = head.getWorldPosition(new THREE.Vector3());
       const from = head.rotation.y;
@@ -439,10 +434,9 @@ export class CanopyScene implements GameScene {
   private placeSkiff(dt: number): void {
     const g = this.skiff.group;
     g.position.copy(this.pos);
-    // Bank into the strafe, pitch into the push: the skiff answers the stick.
     g.rotation.z = dt ? damp(g.rotation.z, -this.vel.x * 0.045, 6, dt) : g.rotation.z;
     g.rotation.x = dt ? damp(g.rotation.x, this.vel.z * 0.06, 6, dt) : g.rotation.x;
-    // The blob shadow lands on whatever is straight below.
+    // Blob shadow on the nearest bough straight below, or on the ground.
     this.ray.set(this.pos, _v.set(0, -1, 0));
     this.ray.far = 60;
     const hit = this.ray.intersectObject(this.boughMesh, false)[0];
@@ -451,7 +445,8 @@ export class CanopyScene implements GameScene {
     (this.shadowBlob.material as THREE.MeshBasicMaterial).opacity = 0.55 * THREE.MathUtils.clamp(1 - (this.pos.y - y) / 40, 0.15, 1);
   }
 
-  /** The mouse aims the lamp; keyboard-only, it follows the heading with a wider cone. */
+  /** The mouse aims the lamp if it moved in the last 3 s; otherwise it follows the heading with a
+   * wider cone. */
   private updateLamp(dt: number): void {
     const mouse = performance.now() - this.pointerAt < 3000;
     const aim = _v;
@@ -463,7 +458,7 @@ export class CanopyScene implements GameScene {
     dampVec3(this.lampTarget.position, aim, dt ? 10 : 1e3, dt || 1);
     this.lamp.angle = this.lampAngle(!mouse);
 
-    // Pods inside the cone wake; perception 2 keeps them lit longer.
+    // Pods inside the cone light up for `lit` seconds; perception 2 keeps them lit longer.
     const lit = this.stats.perception >= 2 ? 6.5 : 4;
     const origin = this.skiff.lampAnchor.getWorldPosition(new THREE.Vector3());
     const dir = this.lampTarget.position.clone().sub(origin).normalize();
@@ -481,7 +476,8 @@ export class CanopyScene implements GameScene {
     }
   }
 
-  /** The strongest lights near the skiff fill the glow slots; the pods show their own state. */
+  /** Updates pod colours and fills the glow slots with the strongest lights, weighted by distance
+   * to the skiff. */
   private updateGlow(): void {
     const candidates: { at: L.Vec; w: number }[] = [];
     for (let i = 0; i < this.pods.length; i++) {
@@ -519,14 +515,14 @@ export class CanopyScene implements GameScene {
     this.lantern.group.rotation.x = Math.sin(time * 0.8 + 1) * 0.12;
   }
 
-  /** Layer 4: the Wickmoth crosses below and lights the layer with its wings: a gift. */
+  /** The moth crosses layer 4 and counts as a glow light while visible. */
   private updateMoth(dt: number, time: number): void {
     const near = this.pos.y < L.LAYERS[2].y && this.pos.y > L.LAYERS[3].y - 12;
     this.moth.root.visible = near;
     if (!near) return;
     const k = ((time * 0.07) % 1) * 2 - 1;
     this.moth.root.position.set(k * 38, L.LAYERS[3].y - 5 + Math.sin(time * 0.9) * 1.5, 6 - k * 10);
-    // Head along its path (local +z is forward).
+    // Face along the path; local +z is forward.
     this.moth.root.rotation.y = Math.atan2(38, -10);
     this.moth.update(dt, time);
   }
@@ -562,8 +558,8 @@ export class CanopyScene implements GameScene {
   }
 
   /**
-   * Behind and above the skiff, looking ahead down the descent, spring-smoothed; it pulls in rather
-   * than pass through a bough. After touchdown it settles into the establishing shot.
+   * Damped follow camera behind and above the skiff; it pulls in to avoid boughs. After touchdown
+   * it moves to a fixed landing view.
    */
   private placeCamera(dt: number, snap: boolean): void {
     const cam = this.camera;
@@ -584,7 +580,7 @@ export class CanopyScene implements GameScene {
     }
     if (snap) cam.position.copy(want);
     else dampVec3(cam.position, want, this.phase === 'landed' ? 1.6 : 5, dt);
-    // The kick: a heavy spring back to rest.
+    // Camera kick decays as a damped spring.
     if (dt) {
       this.kickVel.addScaledVector(this.kick, -60 * dt).multiplyScalar(Math.exp(-7 * dt));
       this.kick.addScaledVector(this.kickVel, dt);
@@ -627,7 +623,7 @@ export class CanopyScene implements GameScene {
 
   // ------------------------------------------------------------------ tests and the debug harness
 
-  /** F2 in the harness: set down on the pad now. Safe to call again: it lands once. */
+  /** Debug win (F2): lands on the pad immediately; does nothing if already landed. */
   private debugWin(): void {
     if (this.phase === 'landed') return;
     this.pos.set(0, L.LANDING.y + 0.45, 0);

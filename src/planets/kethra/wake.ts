@@ -1,15 +1,9 @@
 import * as THREE from 'three';
 
 /**
- * The wake (docs/DESIGN.md §4, slot 3, "Win"): when the Heart wakes, light travels out from it
- * across the chamber, up the terraces and into the canopy, "light flooding back up the terraces"
- * (LORE.md). One shared front, a radius from the Heart that grows; every material it crosses glows
- * as the front passes and keeps a residual glow behind it. Height counts as extra distance, so the
- * ground under a tree lights before its crown.
- *
- * The residual is the whole of the awake look: for the canopy it is exactly the difference between
- * the dim and the bright emissive, so once the front has passed everything, the grove is in its
- * awake state with no switch and no pop.
+ * The wake: a front that spreads from the Heart as a growing radius, shared by every patched
+ * material. Each glows in a band as the front passes and keeps a residual emissive behind it, which
+ * is the whole awake look. Height counts as extra distance, so ground lights before tree crowns.
  */
 const shared = {
   uWakeOrigin: { value: new THREE.Vector3() },
@@ -25,11 +19,11 @@ export const wake = {
   set radius(r: number) {
     shared.uWakeRadius.value = r;
   },
-  /** Asleep: nothing lit. */
+  /** Resets the front so nothing is lit. */
   reset(): void {
     shared.uWakeRadius.value = -100;
   },
-  /** Awake everywhere: the front has passed the whole grove. */
+  /** Moves the front past everything, leaving only the residual glow. */
   done(): void {
     shared.uWakeRadius.value = 1e5;
   },

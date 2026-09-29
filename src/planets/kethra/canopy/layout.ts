@@ -1,8 +1,7 @@
 /**
- * MG2 Canopy's layout and collision (docs/DESIGN.md §4, slot 2), with no rendering in it: five
- * layers of boughs above Kethra's landing clearing, each open only through one gap, and the capsule
- * test the skiff flies against. Self-contained, so tools/test-canopy-layout.mjs can load it into
- * Node and prove every layer can be passed.
+ * The canopy descent's layout and collision, with no rendering: five layers of boughs above
+ * Kethra's landing clearing, each open only through one gap, and the capsule test the skiff flies
+ * against. Self-contained so tools/test-canopy-layout.mjs can load it into Node.
  *
  * Units are metres; y is up; the clearing is at y = 0 with the landing pad at the origin.
  */
@@ -15,7 +14,8 @@ export interface Vec {
 
 const v = (x: number, y: number, z: number): Vec => ({ x, y, z });
 
-/** A bough: a capsule from `a` to `b`. Swaying boughs turn about `pivot` (their root) in y. */
+/** A bough: a capsule from `a` to `b`. Swaying boughs turn about `a` (their root) around the
+ * vertical. */
 export interface Bough {
   a: Vec;
   b: Vec;
@@ -33,7 +33,7 @@ export interface Layer {
   gap: { x: number; z: number; r: number };
 }
 
-/** The ramp (DESIGN §4): a wide gap under a lantern; pods; swaying boughs; the Wickmoth; the drop. */
+/** Top to bottom: a wide gap under a lantern, pods, swaying boughs, the Wickmoth, the drop. */
 export const LAYERS: Layer[] = [
   { index: 0, kind: 'lantern', y: 150, gap: { x: 0, z: 0, r: 9 } },
   { index: 1, kind: 'pods', y: 118, gap: { x: 7, z: -5, r: 5.5 } },
@@ -105,7 +105,7 @@ export function buildBoughs(seed = 0xca40): Bough[] {
       out.push({ a: v(cx - Math.cos(t) * half, y, cz - Math.sin(t) * half), b: v(cx + Math.cos(t) * half, y + (rand() - 0.5) * 2, cz + Math.sin(t) * half), r: 0.7 + rand() * 0.8, layer: layer.index });
     }
     // The sway layer: two long limbs rooted out to the side swing through the gap and back, out of
-    // step, so the way opens and closes (timing).
+    // step, so the way opens and closes.
     if (layer.kind === 'sway') {
       for (let i = 0; i < 2; i++) {
         const ang = i * Math.PI + 0.5;
@@ -170,7 +170,7 @@ export function collide(p: Vec, radius: number, boughs: Bough[], time: number): 
   return best;
 }
 
-/** Pods hang under the limbs every few metres; the lamp wakes them. */
+/** Pod positions, hanging under the limbs every few metres, with each pod's layer and bough index. */
 export function podsFor(boughs: Bough[], seed = 0x90d5): { at: Vec; layer: number; bough: number }[] {
   const rand = mulberry32(seed);
   const out: { at: Vec; layer: number; bough: number }[] = [];

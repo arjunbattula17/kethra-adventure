@@ -127,17 +127,16 @@ export interface Wickmoth {
   body: THREE.Group;
   light: THREE.PointLight;
   /**
-   * The wing state its owner sets: `beat` in flaps per second (0 holds them still, gliding),
-   * `spread` from folded (0) to open (1), `glow` how brightly the stained glass burns (0..1).
+   * Wing controls set by the owner: `beat` in flaps per second (0 holds them still), `spread` from
+   * folded (0) to open (1), `glow` the wing emissive strength (0 to 1).
    */
   wings: { beat: number; spread: number; glow: number };
   update(dt: number, elapsed: number): void;
 }
 
 /**
- * The Wickmoth: "territorial, slow, wings like stained glass with the light still moving through
- * it" (LORE.md). A 2.6 m wingspan guardian. It has no mind of its own here: MG2 flies it across the
- * canopy and MG3 (hush/HushGame.ts) moves it between perches.
+ * The Wickmoth model (2.6 m wingspan). It has no behaviour of its own: CanopyScene and
+ * hush/HushGame.ts move it.
  */
 export function buildWickmoth(): Wickmoth {
   const root = new THREE.Group();
@@ -183,8 +182,8 @@ export function buildWickmoth(): Wickmoth {
     transparent: true,
     opacity: 0.92,
     side: THREE.DoubleSide,
-    // Transparent and double-sided draws in two passes (back, then front), and three.js marks the
-    // material for update on each: 8 program re-checks a frame for the four wings.
+    // Transparent double-sided materials draw in two passes (back, then front), and three.js marks
+    // the material for update on each pass; a single pass avoids the extra program checks.
     forceSinglePass: true,
     depthWrite: false,
   });
@@ -207,7 +206,7 @@ export function buildWickmoth(): Wickmoth {
   const light = new THREE.PointLight(0x7fe0d0, 1.1, 7, 2);
   light.position.y = 0.3;
   root.add(light);
-  // A guardian, not an insect: 2.6 m across.
+  // Scale to about a 2.6 m wingspan.
   body.scale.setScalar(1.45);
 
   const wings = { beat: 0.67, spread: 1, glow: 1 };
@@ -223,7 +222,7 @@ export function buildWickmoth(): Wickmoth {
       phase += dt * wings.beat * Math.PI * 2;
       spread = damp(spread, wings.spread, 6, dt);
       glow = damp(glow, wings.glow, 3, dt);
-      // Open, the wings beat through a heavy arc; folded, they close up over the back in a tent.
+      // spread 1 flaps through an arc; spread 0 folds the wings up over the back.
       const flap = Math.sin(phase);
       for (const h of hinges) {
         const open = h.side * (0.2 + 0.55 * (flap * 0.5 + 0.5)) * (h.hind ? 0.85 : 1);
@@ -243,11 +242,11 @@ export interface CisternHeart {
   water: THREE.Mesh;
   callStone: THREE.Group;
   setAwake(awake: boolean): void;
-  /** A breath of one colour: its glyph on the stone and its vane flare, then settle. */
+  /** Flares one colour's vane and its pad on the call stone, then fades. */
   breathe(colour: RiteColour): void;
-  /** The colours held so far in the Rite: their vanes stay lit, dimmer than a flare. */
+  /** Colours completed so far; their vanes stay lit, dimmer than a flare. */
   setHeld(colours: RiteColour[]): void;
-  /** A wrong colour: the water clouds over, then clears. */
+  /** Wrong-colour feedback: tints the water, fading over about 4 s. */
   sour(): void;
   update(dt: number, elapsed: number): void;
 }
@@ -416,7 +415,7 @@ export function buildCisternHeart(stone: THREE.Material): CisternHeart {
   face.position.set(0, 1.125, 0.03);
   face.rotation.x = -Math.PI / 2 - 0.35;
   callStone.add(face);
-  // A lit pad over each glyph, so a breath shows on the stone as well as at the Heart.
+  // A glowing pad over each glyph, so a breath also shows on the call stone.
   const pads = new Map<RiteColour, { mat: THREE.MeshBasicMaterial; flare: number }>();
   (['azure', 'amber', 'verdant'] as const).forEach((name, i) => {
     const tex = canvasTexture(128, (ctx, sz) => {
@@ -473,8 +472,8 @@ export function buildCisternHeart(stone: THREE.Material): CisternHeart {
       waterMat.emissiveIntensity = 0.08 + awake * 0.9 + soured * 0.35;
       waterMat.color.copy(awake > 0.5 ? awakeWater : clearWater).lerp(sourWater, soured);
       waterMat.emissive.copy(waterGlow).lerp(sourGlow, soured);
-      // On waking, the vanes light one after another in the true order of the Rite. Before that, a
-      // breath flares its vane and a held colour keeps it lit.
+      // On waking, the vanes light 0.7 s apart in the Rite's order. Before that, a breath flares
+      // its vane and a held colour keeps it lit.
       for (const c of crystals) {
         c.flare = Math.max(0, c.flare - dt / 1.2);
         const woken = awakeTarget > 0 ? THREE.MathUtils.clamp((wakeClock - c.order * 0.7) / 0.6, 0, 1) : awake;
