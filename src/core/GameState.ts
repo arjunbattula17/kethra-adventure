@@ -143,7 +143,11 @@ function migrateSave(raw: unknown): GameStateData {
 
   const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : d);
   const str = (v: unknown, d: string): string => (typeof v === 'string' ? v : d);
-  const arr = <T,>(v: unknown, d: T[]): T[] => (Array.isArray(v) ? (v as T[]) : d);
+  // Lists keep only elements of the right kind: a null or a number among the journal entries used
+  // to reach code that reads their fields, and threw.
+  const strs = (v: unknown, d: string[]): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : d);
+  const recs = <T,>(v: unknown, d: T[], ...keys: string[]): T[] =>
+    Array.isArray(v) ? (v.filter((x) => !!x && typeof x === 'object' && keys.every((k) => typeof (x as Record<string, unknown>)[k] === 'string')) as T[]) : d;
 
   base.scene = str(saved.scene, base.scene) as GameStateData['scene'];
   base.objective = str(saved.objective, base.objective);
@@ -153,12 +157,12 @@ function migrateSave(raw: unknown): GameStateData {
   // would make its loop never terminate.
   base.level = Math.max(1, Math.floor(num(saved.level, base.level)));
   base.unspentPoints = Math.max(0, Math.floor(num(saved.unspentPoints, base.unspentPoints)));
-  base.flags = arr<string>(saved.flags, base.flags);
-  base.inventory = arr<string>(saved.inventory, base.inventory);
-  base.journalLogs = arr<JournalLogEntry>(saved.journalLogs, base.journalLogs);
-  base.clues = arr<Clue>(saved.clues, base.clues);
-  base.clueConnections = arr<ClueConnection>(saved.clueConnections, base.clueConnections);
-  base.planetsUnlocked = arr<string>(saved.planetsUnlocked, base.planetsUnlocked);
+  base.flags = strs(saved.flags, base.flags);
+  base.inventory = strs(saved.inventory, base.inventory);
+  base.journalLogs = recs<JournalLogEntry>(saved.journalLogs, base.journalLogs, 'id');
+  base.clues = recs<Clue>(saved.clues, base.clues, 'id');
+  base.clueConnections = recs<ClueConnection>(saved.clueConnections, base.clueConnections, 'a', 'b');
+  base.planetsUnlocked = strs(saved.planetsUnlocked, base.planetsUnlocked);
 
   const pos = saved.playerPosition as GameStateData['playerPosition'];
   base.playerPosition =
