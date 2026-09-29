@@ -609,6 +609,8 @@ export class GameFlow {
     level.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
     this.levelSnapshot = { planetId, json: gameState.toJSON() };
     await this.engine.setScene(() => level, { prepared: true });
+    // The departure hid it (takeTheHelm); the level is first person again.
+    UIManager.setCrosshairVisible(true);
     await UIManager.fadeFromBlack();
     const card = LEVELS[planetId];
     UIManager.showChapterCard({ eyebrow: `Level ${card.number}`, title: card.title, lines: [card.line] });
