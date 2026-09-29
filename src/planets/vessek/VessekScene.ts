@@ -35,6 +35,7 @@ import { buildDressing } from './dressing';
 import type { Dressing } from './dressing';
 import * as L from './layout';
 import { LAMP_COLORS } from './anchorage';
+import { PLAYER } from '../../content/tuning';
 
 /**
  * Level 3: Vessek Anchorage.
@@ -844,6 +845,15 @@ export class VessekScene implements GameScene {
     ];
   }
 
+  /** Whether a door shutting now would close on the player. */
+  private inDoorway(door: Door): boolean {
+    const p = this.player.rig.position;
+    const b = door.closedBox;
+    const dx = p.x - THREE.MathUtils.clamp(p.x, b.min.x, b.max.x);
+    const dz = p.z - THREE.MathUtils.clamp(p.z, b.min.z, b.max.z);
+    return dx * dx + dz * dz < PLAYER.PLAYER_RADIUS * PLAYER.PLAYER_RADIUS && p.y < b.max.y;
+  }
+
   /** Keeps door and fan colliders in the player's list, empty while a door is open or the fans are
    * off. */
   private syncDoorColliders(): void {
@@ -1115,6 +1125,8 @@ export class VessekScene implements GameScene {
     for (const [door, t] of this.doorTimers) {
       const left = t - dt;
       if (left > 0) this.doorTimers.set(door, left);
+      // Never shut on the player: a closed collider around them blocks every move.
+      else if (this.inDoorway(door)) this.doorTimers.set(door, 0.5);
       else {
         this.doorTimers.delete(door);
         door.setOpen(false);
