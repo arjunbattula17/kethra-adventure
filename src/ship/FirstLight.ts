@@ -160,7 +160,9 @@ export class FirstLight {
     const d = point.clone().sub(eye);
     const toYaw = Math.atan2(-d.x, -d.z);
     const toPitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
-    const from = { yaw: player.yaw, pitch: player.pitch };
+    // Mouse-look winds yaw up by whole turns: start from the same heading within half a turn of the
+    // target, or the camera spins through every one of them.
+    const from = { yaw: toYaw + THREE.MathUtils.euclideanModulo(player.yaw - toYaw + Math.PI, Math.PI * 2) - Math.PI, pitch: player.pitch };
     return new Promise((resolve) => {
       this.fx.tween({
         duration: seconds,

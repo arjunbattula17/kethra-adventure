@@ -663,8 +663,11 @@ export class GameFlow {
   private async pushIntoViewport(ship: ShipInteriorScene): Promise<void> {
     const player = ship.player;
     const camera = ship.camera;
-    const from = { z: player.rig.position.z, eye: camera.position.y, pitch: player.pitch };
-    const to = { z: from.z - 1.1, eye: 1.95, pitch: 0.16 };
+    // First light leaves the view turned to the throttle: the push faces forward again (yaw 0,
+    // the monitors and the viewport), turning the short way round.
+    const yaw0 = THREE.MathUtils.euclideanModulo(player.yaw + Math.PI, Math.PI * 2) - Math.PI;
+    const from = { z: player.rig.position.z, eye: camera.position.y, pitch: player.pitch, yaw: yaw0 };
+    const to = { z: from.z - 1.1, eye: 1.95, pitch: 0.16, yaw: 0 };
     const DURATION = motion.reduced ? 0.01 : 1.3;
     await new Promise<void>((resolve) => {
       let elapsed = 0;
@@ -674,6 +677,8 @@ export class GameFlow {
         player.rig.position.z = THREE.MathUtils.lerp(from.z, to.z, k);
         camera.position.y = THREE.MathUtils.lerp(from.eye, to.eye, k);
         player.pitch = THREE.MathUtils.lerp(from.pitch, to.pitch, k);
+        player.yaw = THREE.MathUtils.lerp(from.yaw, to.yaw, ease.standard(Math.min(1, elapsed / DURATION)));
+        player.rig.rotation.set(0, player.yaw, 0);
         camera.rotation.set(player.pitch, 0, 0);
         if (elapsed >= DURATION) {
           ship.onTick = null;
