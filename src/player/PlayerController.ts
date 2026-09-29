@@ -138,13 +138,38 @@ export class PlayerController {
     return false;
   }
 
+  /**
+   * How deep the capsule at (x, z) sits inside the colliders it overlaps: 0 when clear. A centre
+   * inside a box counts the radius plus the distance to the nearest face, so it shrinks toward the
+   * way out.
+   */
+  private penetration(x: number, z: number, feetY: number): number {
+    const headY = feetY + (this.crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT);
+    const stepY = feetY + STEP_OVER;
+    let deepest = 0;
+    for (const { box } of this.colliders) {
+      if (box.max.y <= stepY || box.min.y >= headY) continue;
+      const inside = x > box.min.x && x < box.max.x && z > box.min.z && z < box.max.z;
+      const depth = inside
+        ? PLAYER_RADIUS + Math.min(x - box.min.x, box.max.x - x, z - box.min.z, box.max.z - z)
+        : PLAYER_RADIUS - Math.hypot(x - THREE.MathUtils.clamp(x, box.min.x, box.max.x), z - THREE.MathUtils.clamp(z, box.min.z, box.max.z));
+      if (depth > deepest) deepest = depth;
+    }
+    return deepest;
+  }
+
   private resolveCollisionXZ(desired: THREE.Vector3): THREE.Vector3 {
     const result = desired;
     const from = this.rig.position;
+    // A fall or a jump can end with the capsule already inside a collider (falling past a wall's top
+    // edge, landing on something low). Every move from there overlaps too, so a plain overlap test
+    // would refuse them all for good: while inside, any move that gets less deep is allowed.
+    const stuck = this.penetration(from.x, from.z, from.y);
+    const blocked = (x: number, z: number) => (stuck > 0 ? this.penetration(x, z, from.y) >= stuck : this.blockedAt(x, z, from.y));
     // Resolved one axis at a time so a blocked direction slides along the obstacle instead of
     // stopping dead.
-    if (this.blockedAt(result.x, from.z, from.y) || this.stepTooHigh(result.x, from.z, from.y)) result.x = from.x;
-    if (this.blockedAt(result.x, result.z, from.y) || this.stepTooHigh(result.x, result.z, from.y)) result.z = from.z;
+    if (blocked(result.x, from.z) || this.stepTooHigh(result.x, from.z, from.y)) result.x = from.x;
+    if (blocked(result.x, result.z) || this.stepTooHigh(result.x, result.z, from.y)) result.z = from.z;
     return result;
   }
 

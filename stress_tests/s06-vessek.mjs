@@ -56,7 +56,7 @@ if (!ONLY || ONLY === 'ves2') {
   await page.waitForTimeout(800);
   const landed = await pos(page);
   const free = await freedom(page);
-  check('VES-2: after the duct drop into the tanker the player can walk away', free > 0.3, `landed ${JSON.stringify(landed)}, moved ${free.toFixed(2)} m`);
+  check('BUG-010 (VES-2): after the duct drop into the tanker the player can walk away', free > 0.3, `landed ${JSON.stringify(landed)}, moved ${free.toFixed(2)} m`);
   await clean(page, errors, 'VES-2 duct drop');
   await context.close();
 }
