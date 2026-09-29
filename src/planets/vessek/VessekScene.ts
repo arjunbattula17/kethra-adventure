@@ -771,6 +771,8 @@ export class VessekScene implements GameScene {
       object: d.insideButton,
       label: 'Open the junction door',
       range: 2,
+      // In reach through the doorway from the tanker too: only from inside the junction.
+      enabled: () => this.player.rig.position.x > this.rooms.keypadDoor.closedBox.max.x,
       onInteract: () => {
         this.openFor(this.rooms.keypadDoor, 7);
         AudioSystem.playConfirm();
