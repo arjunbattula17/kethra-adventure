@@ -1050,7 +1050,9 @@ export class VessekScene implements GameScene {
 
   update(dt: number, elapsed: number): void {
     this.player.update(dt);
-    this.interaction.update(this.camera);
+    // No prompts and no E while a cutscene (the pulse) has the player disabled.
+    if (this.player.enabled) this.interaction.update(this.camera);
+    else this.interaction.release();
     this.player.camera.getWorldPosition(this.eye);
     this.sky.update(this.camera);
     this.varro.update(dt, elapsed, this.eye);

@@ -67,6 +67,16 @@ export class InteractionSystem {
     }
   }
 
+  /** Drops the current target and hides its prompt, for frames when E must do nothing (a
+   * cutscene); the next update picks the target up again. */
+  release(): void {
+    this.currentTarget = null;
+    if (this.currentLabel !== null) {
+      this.currentLabel = null;
+      this.onPromptChange(null);
+    }
+  }
+
   update(camera: THREE.Camera): void {
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
     const camPos = new THREE.Vector3();

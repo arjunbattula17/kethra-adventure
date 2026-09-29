@@ -1146,7 +1146,9 @@ export class KethraScene implements GameScene {
     if (shadows && !this.shadowsOn) this.repaintMoon();
     this.shadowsOn = shadows;
     this.player.update(dt);
-    this.interaction.update(this.camera);
+    // No prompts and no E while a cutscene (the wake, a gust) has the player disabled.
+    if (this.player.enabled) this.interaction.update(this.camera);
+    else this.interaction.release();
     const eye = this.player.getWorldPosition();
     this.warden?.update(dt, elapsed, eye);
     this.archivist?.update(dt, elapsed, eye);

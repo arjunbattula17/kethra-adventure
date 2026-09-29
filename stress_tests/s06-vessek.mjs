@@ -91,7 +91,7 @@ if (!ONLY || ONLY === 'pulse') {
   await press(page, 'KeyE');
   await page.waitForTimeout(700);
   const dialogue = await page.evaluate(() => document.getElementById('dialogue-panel')?.isConnected && getComputedStyle(document.getElementById('dialogue-panel')).display !== 'none');
-  check('UI-7: during the pulse cutscene E opens nothing and no prompt shows', cut === false && !dialogue && !p0, `player enabled ${cut}, prompt "${p0}", dialogue ${dialogue}`);
+  check('BUG-024 (UI-7): during the pulse cutscene E opens nothing and no prompt shows', cut === false && !dialogue && !p0, `player enabled ${cut}, prompt "${p0}", dialogue ${dialogue}`);
   for (let i = 0; i < 3 && dialogue; i++) { await press(page, 'Escape'); await page.waitForTimeout(400); }
   await page.waitForTimeout(8000);
   check('the pulse fired', await flag(page, 'vessek_pulse'));
