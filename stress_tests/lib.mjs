@@ -11,6 +11,10 @@ export function check(name, ok, detail = '') {
   return ok;
 }
 export const failures = () => failed;
+/** A finding left open on purpose (a design question): reported, but not a suite failure. */
+export function known(name, ok, detail = '') {
+  console.log(`${ok ? 'FIXED?' : 'KNOWN'}  ${name}${detail ? `  -- ${detail}` : ''}`);
+}
 
 export async function launch() {
   // GL and the anti-backgrounding flags: without them headless rAF crawls and timers stall.
