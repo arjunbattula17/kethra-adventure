@@ -393,9 +393,10 @@ export class GameFlow {
       ({ GalaxyRevealScene } = await import('../galaxy/GalaxyRevealScene'));
     } catch {
       // Same guard as travelToPlanet. The reveal is the only route out of the opening, so skip
-      // straight to the state it would have left behind rather than stranding the player.
+      // straight to the state it would have left behind rather than stranding the player. This runs
+      // inside the transition to 'reveal', which would refuse a nested one: finish once it ends.
       await UIManager.fadeFromBlack();
-      void this.completeReveal(null);
+      setTimeout(() => void this.completeReveal(null));
       return;
     }
     const reveal = new GalaxyRevealScene();
