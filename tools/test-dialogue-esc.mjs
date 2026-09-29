@@ -43,8 +43,7 @@ await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'vessek'
 await completeTrip(page, 'VessekScene');
 await page.waitForTimeout(3000);
 
-// The pulse now follows the junction's report (docs/DESIGN.md §6, Ten): the deal struck and the
-// junction back on the bus, the player tells Varro, and her line ends in the pulse.
+// With these flags set, Varro's closing line starts the pulse.
 await page.evaluate(() => { for (const f of ['vessek_varro_met', 'vessek_school_lit', 'vessek_junction_reset']) window.__DEBUG__.gameState.setFlag(f); });
 await teleport(-2.6, 0.2, 0.2, 0);
 await press('KeyE');

@@ -1,7 +1,6 @@
-// Vessek Anchorage's plan (docs/DESIGN.md §6) against the design: four compartments joined by tubes,
-// Dace's ducts as crawl-only shortcuts with ladders and one-way vents, the bus's levers and
-// lockouts where the routes reach them, and no way to be shut in a room. Loads the TypeScript module
-// straight into Node; no browser.
+// Checks the Vessek layout: compartments joined by tubes, crawl-only ducts with ladders and one-way
+// drops, lever and lockout placement, and no room the player can get shut in. Loads the TypeScript
+// module straight into Node; no browser.
 //
 //   node tools/test-vessek-layout.mjs
 import * as L from '../src/planets/vessek/layout.ts';
@@ -18,12 +17,11 @@ const solid = shell.filter((b) => b.kind !== 'floor');
 const inBox = (p, b) => p.x > b.min.x && p.x < b.max.x && p.y > b.min.y && p.y < b.max.y && p.z > b.min.z && p.z < b.max.z;
 const crouched = PLAYER.CROUCH_HEIGHT ?? 1.1;
 
-// "Crawl (crouch finally matters) through Dace's ducts."
 check('the ducts are too low to stand in', L.DUCT_HEIGHT < PLAYER.PLAYER_HEIGHT, `${L.DUCT_HEIGHT} < ${PLAYER.PLAYER_HEIGHT}`);
 check('and high enough to crawl', L.DUCT_HEIGHT > crouched, `${L.DUCT_HEIGHT} > ${crouched}`);
 check('and wide enough for the player', L.DUCT_WIDTH > PLAYER.PLAYER_RADIUS * 2 + 0.3);
 
-// Nothing stands across a duct's way, corners included; and its sides are closed.
+// Each duct's path is clear, corners included, and its sides are walled.
 for (const d of L.DUCTS) {
   let blocked = null;
   let open = null;
@@ -49,7 +47,7 @@ for (const d of L.DUCTS) {
     }
   }
   check(`the ${d.id} duct is clear all the way through, corners included`, !blocked, blocked ? JSON.stringify(blocked) : '');
-  // And in through each mouth from the room: from 0.6 m inside the room to 0.6 m into the duct.
+  // Each mouth is clear from 0.6 m inside the room to 0.6 m into the duct.
   for (const m of d.mouths) {
     const r = d.runs.find((run) => [run.from, run.to].some((p) => L.bayPoint(m.bay).x === p.x || L.bayPoint(m.bay).z === p.z) && run.from.y === m.y);
     const face = L.bayPoint(m.bay);
@@ -78,7 +76,7 @@ for (const t of L.TUBES) check(`the ${t.id} tube joins plain wall bays`, !L.isCo
 const bays = [...L.TUBES.flatMap((t) => [t.a, t.b]), ...L.DUCTS.flatMap((d) => d.mouths.map((m) => m.bay))];
 check('no bay carries two openings', new Set(bays.map((b) => `${b.room}/${b.wall}/${b.at}`)).size === bays.length);
 
-// The bus in the world: every lever inside its room, clear of the walls; each lockout in its duct.
+// Every lever sits inside its room, clear of the walls; each lockout sits in its duct.
 for (const [id, lv] of Object.entries(L.LEVERS)) {
   const f = L.faces(L.ROOMS[lv.room]);
   const r = PLAYER.PLAYER_RADIUS;
@@ -132,9 +130,8 @@ for (const room of Object.keys(L.ROOMS)) {
   }
 }
 check('no room is a dead end: from each, in every state, there is a way back to the hall', deadEnds.length === 0, deadEnds.join('; '));
-// "Stats change the route, not whether you can win": traversal 2 opens the short duct, insight 2
-// trades for the aft junction's code. Without either, the way from the tanker to the junction runs
-// back through the hall; with either, it doesn't.
+// Traversal 2 opens the short duct and insight 2 gets the junction code; with either, the tanker
+// reaches the junction without passing back through the hall.
 check('with no stats, the tanker reaches the junction only back through the hall', !reachable('tanker', crisis, 'hall').has('junction'));
 check('traversal 2 opens a way from the tanker to the junction that skips the hall', reachable('tanker', { ...crisis, traversal: true }, 'hall').has('junction'));
 check('so does the junction code (insight 2)', reachable('tanker', { ...crisis, code: true }, 'hall').has('junction'));

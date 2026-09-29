@@ -72,7 +72,7 @@ await record('02_traversal', async (page) => {
   await page.waitForTimeout(600);
 });
 
-// Clip 3: environmental puzzle-solving (MG3 Hush: the Rite at the call-stone, and the wake).
+// Clip 3: puzzle solving (the Hush minigame's win at the call-stone, and the wake).
 await record('03_puzzle_solving', async (page) => {
   await page.goto(baseUrl + '?skipIntro=1&unlockKethra=1', { waitUntil: 'load' });
   await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 10000 });
@@ -85,8 +85,8 @@ await record('03_puzzle_solving', async (page) => {
     gameState.setFlag('kethra_fragment_2_read');
     gameState.setFlag('kethra_fragment_3_read');
   });
-  // At the call-stone, lantern hooded; the Rite is sung through the harness hook (tools/test-mg3-flow.mjs
-  // plays it breath by breath) so the clip is the wake: the Heart, the moth, the light up the terraces.
+  // At the call-stone with the lantern hooded, win through the harness hook so the clip shows the
+  // wake cutscene (tools/test-mg3-flow.mjs plays the minigame for real).
   await teleport(page, 0, 1.6, -29.45);
   await page.keyboard.down('KeyF');
   await page.waitForTimeout(1500);

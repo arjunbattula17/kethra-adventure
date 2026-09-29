@@ -1,7 +1,5 @@
-// The Anchorage's ring bus (docs/DESIGN.md §6) against the design: six units, trips that drop
-// everything but the regulator, dependencies, the auto-reset circuits that come back by themselves
-// and trip the bus after the pulse, lockouts, the frost clock and its kind retry. Loads the
-// TypeScript module straight into Node; no browser.
+// Tests the ring bus rules in src/planets/vessek/bus.ts: capacity and trips, dependencies,
+// auto-resets and lockouts, and the frost clock. Loads the TypeScript module into Node; no browser.
 //
 //   node tools/test-bus-sim.mjs
 import * as B from '../src/planets/vessek/bus.ts';
@@ -17,8 +15,7 @@ const run = (bus, seconds, step = 0.1) => {
   return events;
 };
 
-// Ki: "Light the school's lamps by switching something else off. Learn the six-unit bus with no
-// timer and no risk."
+// Before the pulse.
 let bus = new B.RingBus();
 check('before the pulse the ring runs at 5 of 6 units', bus.load() === 5, `${bus.load()}`);
 let e = bus.throwLever('school', true);
@@ -43,11 +40,11 @@ bus.throwLever('heaters', true);
 bus.throwLever('pumps', false);
 check('switching off the pumps drops the heaters with them', !bus.isOn('heaters'));
 
-// Ten: "Every grid browns out ... Auto-reset circuits come back by themselves and trip the bus."
+// The pulse, and auto-resets tripping the bus.
 bus = new B.RingBus();
 bus.pulse();
 check('the pulse leaves only the regulator', bus.load() === 1 && bus.phase === 'crisis');
-// By the time anyone reaches the junction, the dock lights and hall lamps are back: 4 units.
+// Within 25 s the dock lights and hall lamps reset themselves: 4 units.
 let events = run(bus, 25);
 check('left alone, the dock lights and hall lamps relight themselves', bus.isOn('dock') && bus.isOn('lamps') && bus.load() === 4, events.map((x) => x.kind + ':' + (x.id ?? '')).join(' '));
 bus.throwLever('pumps', true);
@@ -56,7 +53,7 @@ e = bus.throwLever('heaters', true);
 check('so the pumps fit but the heaters trip the bus', e.kind === 'trip' && bus.load() === 1);
 check('a trip during the crisis costs the bay warmth', Math.abs(bus.frost.remaining - (before - B.TRIP_PENALTY)) < 1e-6);
 
-// Ketsu: "lock the auto-resets out, and bring up pumps → heaters → scrubbers inside the bus limit."
+// The solution: lock out the auto-resets, then bring up pumps, heaters and scrubbers.
 bus = new B.RingBus();
 bus.pulse();
 bus.lockOut('dock');
@@ -69,7 +66,7 @@ bus.throwLever('scrubbers', true);
 events = run(bus, 0.5);
 check('pumps, heaters and scrubbers in the limit save the bay: exactly 6', events.some((x) => x.kind === 'restored') && bus.load() === 6 && bus.phase === 'restored');
 check('and the frost stops', (() => { const r = bus.frost.remaining; run(bus, 10); return bus.frost.remaining === r; })());
-// Persuasion 3: Varro shuts her own hall lamps before the pulse: one lockout fewer to find.
+// Persuasion 3: the hall lamps are locked out and off before the pulse.
 bus = new B.RingBus();
 bus.lockOut('lamps');
 bus.throwLever('lamps', false);
@@ -78,7 +75,7 @@ bus.lockOut('dock');
 for (const id of ['pumps', 'heaters', 'scrubbers']) bus.throwLever(id, true);
 events = run(bus, 1);
 check('with the hall lamps locked before the pulse, one lockout and the essentials do it', bus.phase === 'restored' && !bus.isOn('lamps'));
-// Switching an auto-reset off by hand only buys time.
+// An auto-reset circuit switched off by hand still resets itself.
 bus = new B.RingBus();
 bus.pulse();
 run(bus, 15);
@@ -87,7 +84,7 @@ bus.throwLever('dock', false);
 run(bus, 10);
 check('switched off by hand, they are back again in a while', !bus.isOn('dock') && (run(bus, 5), bus.isOn('dock')));
 
-// The frost: "the kind frost fail with an instant retry."
+// The frost clock and its retry.
 bus = new B.RingBus();
 bus.pulse();
 bus.lockOut('dock');

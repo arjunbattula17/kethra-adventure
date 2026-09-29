@@ -5,8 +5,8 @@
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
 //   node tools/measure-scene.mjs <ship|kethra|hush|vessek|dock|reveal|intro|ending> [baseUrl] [--tier=low|medium|high] [--cpu=1]
 //
-// `hush` is Kethra from just inside the Heart's chamber door, looking in (MG3's budget, DESIGN.md §8).
-// `dock` is the cruise to Vessek at its last shot, the Wren docked at the Anchorage (the space budget).
+// `hush` is Kethra from just inside the Heart's chamber door, looking in.
+// `dock` is the cruise to Vessek at its last shot, docked at the Anchorage.
 import { chromium } from 'playwright';
 
 const args = process.argv.slice(2);

@@ -1,7 +1,6 @@
-// MG3 Hush's chamber and rules against the design (docs/DESIGN.md §4, slot 3): light draws the
-// moth, hooding hides you, cover is real (line of sight, not distance), height matters, crossing
-// the open floor is timing, and the Rite can only be breathed while it looks away. Loads the
-// TypeScript module straight into Node; no browser.
+// Checks the Hush chamber's geometry and the moth's rules: light draws it, a hooded lantern hides,
+// cover is line of sight, height matters, and a breath is seen only while it looks at the stone.
+// Loads the TypeScript module straight into Node; no browser.
 //
 //   node tools/test-hush-sim.mjs
 import * as h from '../src/planets/kethra/hush/sim.ts';
@@ -14,7 +13,7 @@ function check(name, ok, detail = '') {
 
 const blocks = h.chamberBlocks();
 const P = h.PERCHES;
-const RADIUS = 0.35; // the player's (src/content/tuning.ts)
+const RADIUS = 0.35; // Player radius, as in src/content/tuning.ts.
 const at = (x, z) => ({ x, y: h.FLOOR_Y, z });
 /** Over one full sweep of `perch`, how many moments see a light of `strength` at `p`? */
 function seenMoments(perch, p, strength) {
@@ -64,7 +63,7 @@ for (const [name, a] of [['north', Math.PI / 2], ['east', 0], ['west', Math.PI]]
   check(`the rim’s ${name} gap can be walked through`, clear(p, RADIUS));
 }
 
-// --- 1. "One glowcap and a distant moth. Brush it, the moth turns, then settles." -------------
+// --- 1. A glowcap and the far moth ------------------------------------------------------------
 const g0 = { ...h.GLOWCAPS[0], y: h.FLOOR_Y + 0.3 };
 check('the first glowcap is in the far moth’s sight and range, so a flare turns it', h.lineOfSight(P.arch.at, g0, blocks) && Math.hypot(g0.x - P.arch.at.x, g0.y - P.arch.at.y, g0.z - P.arch.at.z) < P.arch.range);
 const pathIn = h.lanternAt(at(1.2, -12.2), false);
@@ -72,18 +71,17 @@ let r = seenMoments(P.arch, pathIn, h.LIGHT.open);
 check('an open lantern on the path in is seen for part of the sweep', r.some, `${r.seen}/${r.n}`);
 check('the same lantern hooded is never seen', seenMoments(P.arch, pathIn, h.LIGHT.hooded).never);
 
-// --- 2. "Cross the open floor between its sweeps. Timing." -----------------------------------
+// --- 2. Crossing the open floor ---------------------------------------------------------------
 r = seenMoments(P.arch, h.lanternAt(at(5.2, -13.2), false), h.LIGHT.open);
 check('the open floor is swept: seen some of the time, not all', r.some, `${r.seen}/${r.n}`);
-// "Crouch finally matters": against a root mound, crouched you are hidden from the arch; standing, not.
+// Crouched behind a root mound you are hidden from the arch; standing, you are not.
 for (const [x, z] of h.MOUNDS.slice(0, 2)) {
   const feet = behind(blockAt('mound', x, z), P.arch.at);
   check(`crouched behind the mound at (${x}, ${z}), the arch cannot see you`, seenMoments(P.arch, h.lanternAt(feet, true), h.LIGHT.open).never);
   check(`standing there, it can`, seenMoments(P.arch, h.lanternAt(feet, false), h.LIGHT.open).seen > 0);
 }
 
-// --- 3. "It moves to the high perch and sees over low cover. Use the root tunnels and the basin
-//        rim: height matters." ---------------------------------------------------------------
+// --- 3. The high perch sees over low cover; tunnels and the rim still hide --------------------
 for (const z of [-16, -19.5, -23]) {
   const tunnel = h.lanternAt(at(roof.x, z), false);
   check(`inside a root tunnel (z ${z}), standing with the lantern open, the ledge cannot see you`, seenMoments(P.ledge, tunnel, h.LIGHT.open).never);
@@ -101,7 +99,7 @@ for (const a of [-Math.PI / 2 - 0.62, -Math.PI / 2 + 0.62, -Math.PI / 2 - 1.0]) 
 r = seenMoments(P.ledge, h.lanternAt(at(1.2, -25.5), true), h.LIGHT.open);
 check('inside the rim there is no hiding from the ledge', r.seen > 0, `${r.seen}/${r.n}`);
 
-// --- 4. "The Rite at the call-stone ... you breathe only while it's turned away." -------------
+// --- 4. Breaths at the call-stone -------------------------------------------------------------
 for (const id of h.RITE_PERCHES) {
   r = seenMoments(P[id], h.BREATH_AT, h.LIGHT.breath);
   check(`from the ${id} perch, a breath at the stone is seen some of the time, not all`, r.some, `${r.seen}/${r.n}`);
@@ -124,8 +122,6 @@ function run(moth, seconds, sense, onFrame) {
 const feetA = at(1.2, -12.2);
 const openAt = (feet) => ({ lantern: h.lanternAt(feet, false), strength: h.LIGHT.open, feet, flares: [] });
 
-// "Light in its gaze draws it ... with a readable wing-beat of anticipation first. If it reaches
-// you it fans its wings, and a gust carries you back."
 let moth = new h.Moth(P.arch, blocks);
 let log = run(moth, 30, openAt(feetA), (t, m, ev) => ev === 'gust');
 const modes = log.map((e) => e.mode);
@@ -161,7 +157,6 @@ log = run(moth, 12, (t) => (Math.abs(t - 1) < DT / 2 ? { ...hooded, flares: [{ a
 check('brushing a glowcap turns its gaze onto the flare', turned);
 check('with your lantern hooded it settles: it never lifts off', log.every((e) => e.mode === 'perched') && moth.attention === null);
 
-// "Each breath flares through the Heart ... so you breathe only while it's turned away."
 const breath = [{ at: h.BREATH_AT, strength: h.LIGHT.breath, breath: true }];
 const stoneSense = { lantern: h.lanternAt(h.SINGER, false), strength: h.LIGHT.hooded, feet: h.SINGER, flares: [] };
 for (const want of [true, false]) {

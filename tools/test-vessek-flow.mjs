@@ -1,7 +1,6 @@
-// Level 3 (Vessek Anchorage, docs/DESIGN.md §6) and the ending, end to end through player-facing
-// controls: the map's Set Course button, E to interact, number keys in dialogue, the ring bus's
-// levers and lockout boxes, crawling and climbing the hall duct, and the repair station. Long moves
-// between sites teleport; the duct is walked. Every step asserts.
+// End-to-end test of level 3 (Vessek) and the ending through player-facing controls: Set Course,
+// E to interact, number keys in dialogue, bus levers and lockout boxes, the hall duct crawl and
+// climb, and the repair station. Long moves teleport; the duct is walked.
 //
 //   npx vite preview   (in another terminal)
 //   node tools/test-vessek-flow.mjs [baseUrl]
@@ -58,9 +57,8 @@ if (vessekHit) await page.mouse.click(vessekHit.x, vessekHit.y);
 await page.waitForTimeout(500);
 check('dossier shows Vessek Anchorage', (await page.textContent('.map-dossier-name'))?.includes('Vessek'));
 await page.click('.map-btn.primary');
-// The trip: First light's throttle, then the cruise, held to skip. The skip lands on the docking
-// arrival (DESIGN.md §5, the Vessek variant): the title "Vessek Anchorage" over the Wren coming to
-// rest at the Lantern Bay's collar, before the cut to the level.
+// Hold Space through the throttle, then hold to skip the cruise. The skip lands on the docking
+// arrival, which shows the title before cutting to the level.
 await page.waitForSelector('.first-light-hint', { timeout: 60000 });
 await page.keyboard.down('Space');
 await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.power?.stage === 'full', null, { timeout: 30000, polling: 100 });
@@ -81,7 +79,7 @@ await page.waitForTimeout(2500);
 check('Set Course lands at the Anchorage', (await kind()) === 'VessekScene');
 check('arrival card names level 3', (await page.textContent('.chapter-card').catch(() => ''))?.includes('Level 3'));
 
-// 2. Varro, and the deal: it sends you to the aft junction (docs/DESIGN.md §6, Shō).
+// 2. Varro's deal, which sends you to the aft junction.
 await teleport(-2.6, 0.2, 0.2, 0);
 await press('KeyE');
 check('Varro talks', (await speaker()) === 'Harbormaster Ilse Varro');
@@ -95,7 +93,7 @@ await press('Digit1'); // I'll get it back on the bus
 check('the deal is struck, and no pulse yet', (await flag('vessek_varro_met')) && !(await flag('vessek_pulse')));
 check('the objective sends you to Dace for the ducts', (await page.textContent('#objective-text'))?.includes('Dace'));
 
-// 3. Ki: Dace's lamp board. "Light the school's lamps by switching something else off."
+// 3. Dace's lamp board: light the school by switching something else off.
 await teleport(-15.4, 0.2, 6.5, Math.PI / 2);
 await press('KeyE');
 check('Dace talks, in the school hold', (await speaker()) === 'Dace');
@@ -112,7 +110,7 @@ b = await busState();
 check('on a quiet bus they light, and the school is lit', b.on.includes('school') && (await flag('vessek_school_lit')), JSON.stringify(b));
 check('the trip took the duct fans off: the ducts are open', !b.on.includes('fans'));
 
-// 4. Shō, through the hall duct: crawl, climb the ladder, and drop into the junction.
+// 4. Through the hall duct: crawl, climb the ladder, and drop into the junction.
 const pos = () => page.evaluate(() => { const p = window.__DEBUG__.engine.getCurrentScene().player.rig.position; return { x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) }; });
 const face = (yaw) => page.evaluate((yaw) => { window.__DEBUG__.engine.getCurrentScene().player.yaw = yaw; }, yaw);
 async function walk(ms) {
@@ -154,7 +152,7 @@ await teleport(-2, 0.2, -18, Math.PI);
 await walk(2600);
 check('the tanker hatch is open before the pulse', (await pos()).z > -11, JSON.stringify(await pos()));
 
-// 5. Ten: tell Varro, and the rehearsal pulse.
+// 5. Tell Varro, which starts the pulse.
 await teleport(-2.6, 0.2, 0.2, 0);
 await press('KeyE');
 check('Varro hears the junction is back', (await page.textContent('#dialogue-text'))?.includes('junction'));
@@ -167,7 +165,7 @@ await teleport(-2, 0.2, -10.4, 0);
 await walk(1800);
 check('the pulse sealed the tanker hatch from the hall side', (await pos()).z > -16.3, JSON.stringify(await pos()));
 
-// 6. Ketsu. Load the bus with the auto-resets still live: they come back and trip it.
+// 6. Load the bus with the auto-resets still live: they switch back on and trip it.
 await teleport(22.2, 0.2, -27.5, -Math.PI / 2);
 await press('KeyE'); // pumps
 await teleport(22.2, 0.2, -29, -Math.PI / 2);
@@ -203,7 +201,7 @@ check('pumps, heaters and scrubbers in six units: the bay is saved', await flag(
 check('frost meter hidden', !(await page.isVisible('.hud-meter.visible')));
 await page.waitForTimeout(4500);
 
-// 7. The ledger, then Varro's reversal and the alloy.
+// 7. The ledger, then Varro hands over the alloy.
 await teleport(-4.2, 0.2, 1.4, 1.57);
 await press('KeyE');
 check('the ledger opens as a readable document', (await page.textContent('.doc-panel h2').catch(() => ''))?.includes('Ledger'));
@@ -219,7 +217,7 @@ check('alloy handed over', s5.flags.includes('vessek_alloy_given') && s5.shipSys
 await page.waitForTimeout(600);
 check('level 3 complete card', (await page.textContent('.chapter-card').catch(() => ''))?.includes('Level 3 complete'));
 
-// 8. Home, comms, the ending.
+// 8. Back to the Wren, repair comms, and the ending.
 await teleport(2, 0.2, 10.4, Math.PI);
 await press('KeyE');
 await waitScene('ShipInteriorScene');

@@ -12,7 +12,7 @@ function check(name, ok, detail = '') {
   if (!ok) failed++;
 }
 
-// "d = v·t, visible": one tick a day, 8 Mkm apart.
+// One tick per day, 8 Mkm apart.
 {
   const dir = s.norm(s.sub(s.kethraAt(6), s.TRANSFER_START));
   const a = s.transferAt(dir, 1);

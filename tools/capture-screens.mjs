@@ -204,7 +204,7 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
     await shot(page, 'vessek-dialogue-stat-gates');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(400);
-    // The pulse follows the junction's report (tools/test-vessek-flow.mjs plays up to it).
+    // Set the flags that precede the pulse directly (tools/test-vessek-flow.mjs plays up to it).
     await page.evaluate(() => { for (const f of ['vessek_varro_met', 'vessek_school_lit', 'vessek_junction_reset']) window.__DEBUG__.gameState.setFlag(f); });
     await pressE(page);
     await page.keyboard.press('Digit1');
@@ -212,7 +212,7 @@ const has = (page, sel) => page.$(sel).then((e) => !!e);
     await shot(page, 'vessek-pulse');
     await page.waitForTimeout(6000);
     await shot(page, 'vessek-blackout-hud');
-    // The hall's levers under the gauge: the hall lamps back on by themselves, then a trip.
+    // At the hall levers under the gauge: wait for the hall lamps to come back on, then for a trip.
     await teleport(page, 5.8, 0.2, -9.6, 0);
     await page.waitForTimeout(24000);
     await shot(page, 'vessek-bus-gauge');

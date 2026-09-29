@@ -88,15 +88,15 @@ s = await state();
 check('valve realigned', s.flags.includes('kethra_helped_with_valve'));
 check('shrine record in the journal', s.journalLogs.some((l) => l.id === 'kethra_ritual_record' && l.unlocked));
 
-// 5. The Heart's chamber (MG3 Hush, docs/DESIGN.md §4 slot 3): walking through the gate begins it.
+// 5. Walking through the gate into the Heart's chamber begins the Hush.
 await teleport(0, 1.6, -8.4);
 await page.keyboard.down('KeyW');
 await page.waitForTimeout(1200);
 await page.keyboard.up('KeyW');
 check('walking into the Heart’s chamber begins the Hush', await page.waitForSelector('.hush-panel', { timeout: 5000 }).then(() => true, () => false));
 
-// 6. The Rite, sung through the harness hook (tools/test-mg3-flow.mjs breathes it with 1/2/3), then
-// the wake, held to skip.
+// 6. Win the Hush through the debug hook (tools/test-mg3-flow.mjs plays it with real input), then
+// hold Space to skip the wake.
 await page.evaluate(() => window.__DEBUG__.miniGame()?.win());
 await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene().hush.state().phase === 'won', null, { timeout: 5000 }).catch(() => {});
 await page.waitForTimeout(1500);
@@ -116,8 +116,8 @@ s = await state();
 check('carving deciphered (map survey flag set)', s.flags.includes('kethra_kindling_record'));
 check('re-reading the carving grants no more insight', s.attributes.insight === insight);
 
-// 8. Home, and the crystals go into the ship. The skiff on the landing terrace is the way back
-//    (docs/DESIGN.md §4, slot 2): stand beside it, facing it.
+// 8. Return by the skiff on the landing terrace (stand beside it, facing it), then spend the
+//    crystals on repairs.
 await teleport(1.4, 2, 18.4);
 await page.evaluate(() => {
   const s = window.__DEBUG__.engine.getCurrentScene();

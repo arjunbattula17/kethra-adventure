@@ -1,6 +1,6 @@
-// MG2 Canopy, flown with real input (docs/DESIGN.md §4, slot 2): WASD steers, Shift brakes, the
-// mouse aims the lamp that wakes the pods, a scrape costs a hull pip, three climb back, and the
-// whole descent is flown to touchdown by steering at each layer's gap (src/planets/kethra/canopy).
+// Browser test of the Canopy minigame (MG2) with real input: WASD steers, Shift brakes, the mouse
+// aims the lamp, a scrape costs a hull pip and three trigger a climb back, and the descent is flown
+// to touchdown by steering at each layer's gap (src/planets/kethra/canopy).
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
 //   node tools/test-mg2-flow.mjs [baseUrl]
@@ -18,7 +18,7 @@ const browser = await chromium.launch({
 });
 const until = (page, fn, ms) => page.waitForFunction(fn, null, { timeout: ms, polling: 100 }).then(() => true, () => false);
 
-/** From the Wren to the canopy: the short departure, the cruise held to skip. */
+/** Starts a new game and travels to Kethra, skipping the cruise, until the canopy scene is flying. */
 async function reachCanopy(page, attrs = {}) {
   await page.goto(`${BASE}?newGame=1&skipIntro=1&unlockKethra=1&tier=low&seed=7`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene' && !window.__DEBUG__.flow.isTransitioning(), null, { timeout: 240000, polling: 250 });
@@ -44,7 +44,6 @@ const state = () => page.evaluate(() => window.__DEBUG__.engine.getCurrentScene(
 const put = (x, y, z) => page.evaluate(([x, y, z]) => { const s = window.__DEBUG__.engine.getCurrentScene(); s.pos.set(x, y, z); s.vel.set(0, 0, 0); }, [x, y, z]);
 
 await reachCanopy(page);
-// "Control passes to the player: MG2 starts with no cut" (the cruise hands the skiff over).
 check('after the cruise, the skiff is above the canopy and flying', (await state()).pos.y > 160);
 check('the plate shows layer 1 of 5 and a full hull', /layer 1 of 5/.test(await page.textContent('.canopy-panel')) && (await page.$$('.canopy-pip.on')).length === 3);
 
@@ -64,7 +63,7 @@ const braked = s0.pos.y - (await state()).pos.y;
 await page.keyboard.up('ShiftLeft');
 check('Shift brakes the descent', braked < free * 0.6, `${braked.toFixed(2)} m braked vs ${free.toFixed(2)} m free, per second`);
 
-// "Your lamp wakes the pods": aim it ahead and down.
+// Aim the lamp ahead and down.
 await page.mouse.move(900, 560);
 await page.waitForTimeout(1200);
 const lit = (await state()).lit;
@@ -77,7 +76,7 @@ const target = boughs.find((b) => b.layer === 1 && !b.sway && Math.hypot(b.a.x -
 await put(target.a.x, target.a.y + 2.2, target.a.z);
 check('dropping onto a bough scrapes: a pip drops', await until(page, () => window.__DEBUG__.engine.getCurrentScene().state().pips === 2, 8000));
 check('the scrape shows on the plate', (await page.$$('.canopy-pip.on')).length === 2);
-// "Three scrapes and the skiff climbs back to the last lit layer."
+// Force two more scrapes to reach three.
 for (let i = 0; i < 2; i++) {
   await page.evaluate(() => window.__DEBUG__.miniGame()?.fail());
   await page.waitForTimeout(1000);
@@ -85,7 +84,7 @@ for (let i = 0; i < 2; i++) {
 check('three scrapes climb back', await until(page, () => window.__DEBUG__.engine.getCurrentScene().state().phase === 'climb', 3000));
 check('the climb ends above a gap with the hull restored', await until(page, () => { const s = window.__DEBUG__.engine.getCurrentScene().state(); return s.phase === 'fly' && s.pips === 3; }, 8000));
 
-// The whole descent, flown: steer at the next layer's gap, lamp ahead.
+// Fly the whole descent by steering at the next layer's gap.
 await put(layout.START.x, layout.START.y, layout.START.z);
 await page.evaluate(() => { const s = window.__DEBUG__.engine.getCurrentScene(); s.passed = -1; s.pips = 3; });
 const held = new Set();
@@ -122,7 +121,6 @@ for (const k of [...held]) await page.keyboard.up(k);
 const end = await state();
 check('the descent can be flown to touchdown by steering through the gaps', end.phase === 'landed', `${end.phase} at y ${end.pos.y.toFixed(1)}, ${((Date.now() - flightStart) / 1000).toFixed(0)} s, ${scrapes} scrapes`);
 
-// "The skiff stays on the landing terrace as the level's return pad."
 check('then Kethra, with the skiff as the way back', await until(page, () => window.__DEBUG__.engine.getCurrentScene()?.kind === 'KethraScene' && !window.__DEBUG__.flow.isTransitioning(), 240000));
 check('the skiff is parked on the terrace', await page.evaluate(() => !!window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName('skiff')));
 const after = await page.evaluate(() => ({ flown: window.__DEBUG__.gameState.hasFlag('canopy_flown'), traversal: window.__DEBUG__.gameState.data.attributes.traversal }));
@@ -146,7 +144,6 @@ clearInterval(watch);
 check('a later arrival skips the descent', !sawCanopy);
 check('no page or console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 
-// Stats: "engineering 2: a wider lamp".
 const page2 = await browser.newPage({ viewport: { width: 1366, height: 768 } });
 await reachCanopy(page2, { engineering: 2 });
 const wide = await page2.evaluate(() => window.__DEBUG__.engine.getCurrentScene().state().lampAngle);

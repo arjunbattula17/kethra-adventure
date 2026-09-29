@@ -75,9 +75,9 @@ check('a new game opens on the intro cinematic', await until(async () =>
   await page.evaluate(() => window.__DEBUG__?.engine?.getCurrentScene?.()?.kind === 'IntroScene'), 180000));
 await shot('00_intro');
 await page.waitForTimeout(600);
-// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up. The intro offers it
-// only when its clock starts, after the interior has built under the loading screen: about 30 s
-// under the software rasteriser, so this waits as long as the intro's own arrival does.
+// Cinematics skip on a held key (src/ui/HoldToSkip.ts) once the hint is up. The intro shows the
+// hint only after the interior has built under the loading screen, which is slow under software
+// rendering, so this uses the same long timeout as the intro's arrival.
 await page.waitForSelector('.hold-skip', { timeout: 180000 });
 await page.keyboard.down('Space');
 await page.waitForTimeout(1100);
@@ -94,7 +94,7 @@ await page.evaluate(() => window.__DEBUG__.engine.setManualQualityTier('low'));
 check('tutorial reaches its first step', await until(async () => (await cardTitle()) !== null, 120000));
 check('tutorial card is the first thing shown', (await cardTitle()) === 'Take the helm', (await cardTitle()) ?? 'no card');
 check('first game does not auto-start on load', !(await page.evaluate(() => !!window.__DEBUG__?.engine.getCurrentScene()?.ship)));
-// The Wren's lighting arc (docs/DESIGN.md §2): emergency power until navigation boots.
+// Emergency power until the navigation console boots.
 check('the Wren wakes on emergency power', (await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().power?.stage)) === 'emergency');
 // This browser profile has never finished the opening, so the whole-tutorial skip must not be
 // offered (the cold-open caption skip hint has its own label and is gone by the time the first
@@ -216,7 +216,7 @@ const leftovers = await page.evaluate(() => {
 });
 check('tutorial cleans itself up at the handover', !Object.values(leftovers).some(Boolean), JSON.stringify(leftovers));
 
-// 8. The reveal is MG1's opening (docs/DESIGN.md §1): its camera move ends on the navigation plot
+// 8. The reveal is MG1's opening: its camera move ends on the navigation plot
 //    and MG1 Intercept begins in the same scene: ORION's hop, then one choice (where to meet
 //    Kethra). tools/test-intercept-sim.mjs proves the answer, tools/test-mg1-flow.mjs plays it through.
 check('the reveal hands over to MG1 in the same scene', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.intercept?.state().phase === 'plot'), 180000));
@@ -257,9 +257,9 @@ await page.goto(baseUrl + '/?newGame=1', { waitUntil: 'load' });
 // The intro cinematic plays for returning players too (and stays skippable for everyone).
 await until(async () => await page.evaluate(() => window.__DEBUG__?.engine?.getCurrentScene?.()?.kind === 'IntroScene'), 180000);
 await page.waitForTimeout(600);
-// Cinematics skip on a held key (src/ui/HoldToSkip.ts), once the hint is up. The intro offers it
-// only when its clock starts, after the interior has built under the loading screen: about 30 s
-// under the software rasteriser, so this waits as long as the intro's own arrival does.
+// Cinematics skip on a held key (src/ui/HoldToSkip.ts) once the hint is up. The intro shows the
+// hint only after the interior has built under the loading screen, which is slow under software
+// rendering, so this uses the same long timeout as the intro's arrival.
 await page.waitForSelector('.hold-skip', { timeout: 180000 });
 await page.keyboard.down('Space');
 await page.waitForTimeout(1100);

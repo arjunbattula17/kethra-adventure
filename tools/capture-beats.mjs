@@ -1,7 +1,6 @@
-// Screenshots of scenes at exact beats, at several resolutions and quality tiers: the verification
-// matrix in docs/BRIEF.md (<verification>). Each shot waits for the scene's own clock to reach the
-// beat, freezes the game clock through the debug harness, shoots, and unfreezes, so a beat is the
-// same frame on a fast or slow run.
+// Screenshots of scenes at exact beats (scene times in seconds), at several resolutions and quality
+// tiers. Each shot waits for the scene clock to reach the beat, freezes the game clock through the
+// debug harness, shoots and unfreezes, so a beat gives the same frame on a fast or slow run.
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
 //   node tools/capture-beats.mjs <outDir> [baseUrl] [--only=intro,reveal] [--sizes=1920x1080,1280x720]
@@ -20,8 +19,8 @@ const ONLY = opt('only', '').split(',').filter(Boolean);
 const FORMAT = opt('format', 'png');
 mkdirSync(OUT, { recursive: true });
 
-// clock: the scene's own seconds, read in the page. `sceneTime` is game time since the scene
-// became current (tracked by this tool); scenes with a private clock say so.
+// clock: which time the beats are measured in. `sceneTime` is game time since the scene became
+// current (tracked by this tool); 's.elapsed' reads the scene's own clock.
 const SCENES = [
   { name: 'intro', query: '?newGame=1', kind: 'IntroScene', clock: 's.elapsed', beats: [2, 7.0, 14, 19] },
   { name: 'reveal', query: '?newGame=1&skipTutorial=1', kind: 'GalaxyRevealScene', clock: 'sceneTime', beats: [1.5, 5.8, 8.2, 13] },

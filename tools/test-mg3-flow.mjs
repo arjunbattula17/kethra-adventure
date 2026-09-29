@@ -1,8 +1,6 @@
-// MG3 Hush (docs/DESIGN.md §4, slot 3) in the browser, with real input: walking into the chamber,
-// hooding the lantern with F and with the right mouse button, being seen and gusted back to the
-// last lamp, the glowcap lesson, the move to the high perch, and the Rite at the call-stone
-// breathed with 1/2/3 while the moth looks away, through the wake to the chapter card. The moth's
-// rules themselves are covered by tools/test-hush-sim.mjs.
+// Browser test of the Hush minigame (MG3) with real input: hooding the lantern, being gusted back
+// to a lamp, the glowcap, the perch change, and the Rite at the call-stone through to the chapter
+// card. The moth's rules are covered by tools/test-hush-sim.mjs.
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
 //   node tools/test-mg3-flow.mjs [baseUrl]
@@ -46,18 +44,17 @@ await page.goto(`${BASE}?newGame=1&skipIntro=1&unlockKethra=1&tier=low&seed=7`, 
 await until(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene' && !window.__DEBUG__.flow.isTransitioning(), 240000);
 await page.evaluate(() => window.__DEBUG__.flow.debugGo('kethra'));
 await until(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'KethraScene' && !window.__DEBUG__.flow.isTransitioning(), 240000);
-// The order of the Rite comes from the inscriptions (read in test-kethra-flow); here, one is read.
+// Mark one inscription as read; reading them for real is covered by test-kethra-flow.
 await page.evaluate(() => window.__DEBUG__.gameState.setFlag('kethra_fragment_1_read'));
 await page.waitForTimeout(1500);
 
-// "The chamber is new": walk up the ramp and through the door.
+// Walk up the ramp and through the chamber door.
 await place(0, -7.5, 0);
 check('outside the chamber, the Hush has not begun', (await hush()).phase === 'outside' && !(await page.$('.hush-panel')));
 await walk(1400);
 check('walking through the door begins the Hush: its plate and the lantern lesson', await until(() => !!document.querySelector('.hush-panel') && /hood the lantern/i.test(document.querySelector('.cinematic-caption')?.textContent ?? ''), 5000));
 check('and the moth watches from the far arch', (await hush()).perch === 'arch');
 
-// "Hold right mouse (or F) to hood the lantern. You see less and move slower."
 await place(0, -11.4, 0);
 const open = await walk(1000);
 await page.keyboard.down('KeyF');
@@ -74,7 +71,6 @@ check('holding the right mouse button hoods it too', (await hush()).hooded);
 await page.mouse.up({ button: 'right' });
 await page.waitForTimeout(150);
 check('letting go opens it', !(await hush()).hooded);
-// Traversal 2: quicker when hooded.
 await page.evaluate(() => { window.__DEBUG__.gameState.data.attributes.traversal = 2; });
 await place(0, -11.4, 0);
 await page.keyboard.down('KeyF');
@@ -82,7 +78,6 @@ const trained = await walk(1000);
 await page.keyboard.up('KeyF');
 check('traversal 2: quicker with the lantern hooded', trained > hoodedDist * 1.2, `${trained.toFixed(2)} m vs ${hoodedDist.toFixed(2)} m`);
 
-// "Open, you see, but the moth's gaze finds you ... a gust carries you back to the last lantern post."
 await place(1.2, -12.4, 0);
 check('an open lantern in its sweep draws it, and it fans you back', await until(() => window.__DEBUG__.engine.getCurrentScene().hush.state().gusts >= 1, 40000));
 check('the retry is instant: you are set down at the door’s lamp, in control', await until(() => {
@@ -90,7 +85,6 @@ check('the retry is instant: you are set down at the door’s lamp, in control',
   const p = s.player.rig.position;
   return s.player.enabled && Math.hypot(p.x - 0, p.z - -11.1) < 0.4;
 }, 3000));
-// Hooded, the same spot is safe for a full sweep.
 await place(1.2, -12.4, 0);
 await page.keyboard.down('KeyF');
 await until(() => window.__DEBUG__.engine.getCurrentScene().hush.state().mode === 'perched', 20000);
@@ -99,19 +93,18 @@ await page.waitForTimeout(10000);
 const after = await hush();
 check('hooded, it looks straight past you for a whole sweep', after.gusts === gustsBefore && after.alert === 0, `alert ${after.alert.toFixed(2)}`);
 
-// "One glowcap ... Brush it, the moth turns, then settles."
 await place(1.6, -12.5, 0);
 await walk(500);
 check('brushing the glowcap turns its gaze to the flare', await until(() => window.__DEBUG__.engine.getCurrentScene().hush.state().attention, 3000));
 check('and with the lantern hooded, it settles again', await until(() => { const s = window.__DEBUG__.engine.getCurrentScene().hush.state(); return !s.attention && s.mode === 'perched'; }, 8000));
 await page.keyboard.up('KeyF');
 
-// "It moves to the high perch": reaching the root tunnel's lamp sends it up to the gate.
+// Reaching the root tunnel's lamp moves the moth up to the gate perch.
 await place(-9.2, -15.8, 0);
 check('reaching the tunnel’s lamp lights it', (await hush()).post === 'west');
 check('and the moth flies up to the gate arch', await until(() => { const s = window.__DEBUG__.engine.getCurrentScene().hush.state(); return s.perch === 'ledge' && s.mode === 'perched'; }, 20000));
 
-// "The Rite at the call-stone": three breaths in the true order, only while it looks away.
+// The Rite at the call-stone: three breaths in order, each while the moth looks away.
 await page.keyboard.down('KeyF');
 await place(0, -29.45, Math.PI);
 check('at the call-stone the Rite begins and its keys are shown', (await hush()).phase === 'rite' && !!(await page.$('.hush-rite')) && (await hush()).post === 'stone');
@@ -119,24 +112,22 @@ const stateNow = () => window.__DEBUG__.engine.getCurrentScene().hush.state();
 async function whenLooking(away) {
   return until((a) => {
     const s = window.__DEBUG__.engine.getCurrentScene().hush.state();
-    // Away: the cone's edge clear of the stone, as it swings to the end of its sweep.
+    // Looking away means the gaze cone's edge is clear of the stone by a margin.
     return s.mode === 'perched' && (a ? s.stoneMargin > 0.06 : s.stoneMargin < -0.12);
   }, 40000, away);
 }
-// A breath in its gaze: it comes for you.
 await whenLooking(false);
 let gusts = (await hush()).gusts;
 await page.keyboard.press('Digit1');
 check('a breath while it looks at the stone brings it down on you', await until((g) => window.__DEBUG__.engine.getCurrentScene().hush.state().gusts > g, 15000, gusts));
 check('back to the stone’s lamp, the Rite from the start', (await hush()).step === 0 && (await hush()).post === 'stone');
-// A wrong colour sours the water and startles it.
 await until(() => window.__DEBUG__.engine.getCurrentScene().hush.state().mode === 'perched', 20000);
 await place(0, -29.45, Math.PI);
 await whenLooking(true);
 gusts = (await hush()).gusts;
 await page.keyboard.press('Digit3');
 check('a wrong colour startles it: a gust back to the stone’s lamp', await until((g) => window.__DEBUG__.engine.getCurrentScene().hush.state().gusts > g, 8000, gusts));
-// The true order, azure, amber, verdant: keys 1, 2, 3, each while it looks away.
+// The correct order is azure, amber, verdant: keys 1, 2, 3, each while the moth looks away.
 await place(0, -29.45, Math.PI);
 for (const [i, key] of ['Digit1', 'Digit2', 'Digit3'].entries()) {
   await whenLooking(true);
@@ -147,7 +138,6 @@ for (const [i, key] of ['Digit1', 'Digit2', 'Digit3'].entries()) {
 }
 await page.keyboard.up('KeyF');
 
-// "Win: the third breath wakes the Heart ... Then the light travels up the terraces."
 check('the third breath wakes the Heart: the scene takes the camera', await until(() => document.body.classList.contains('conducting') && window.__DEBUG__.engine.getCurrentScene().hush.state().phase === 'won', 5000));
 let s0 = await page.evaluate(() => JSON.parse(JSON.stringify(window.__DEBUG__.gameState.data)));
 check('the Heart’s reward: the flag, three resonant crystals', s0.flags.includes('kethra_mechanism_solved') && s0.shipSystems.navigation.haveAmount === 3);

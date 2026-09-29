@@ -1,6 +1,6 @@
-// MG2 Canopy's layout against its design (docs/DESIGN.md §4, slot 2): each layer is a floor with
-// one way through, the swaying layer's way opens and closes, pods light every layer, and the final
-// drop lands on the pad. Loads the TypeScript module straight into Node; no browser.
+// Checks the Canopy minigame (MG2) layout: each layer is a floor with one gap, the swaying layer's
+// gap opens and closes, every layer has pods, and the final drop lands on the pad. Loads the
+// TypeScript module directly in Node; no browser.
 //
 //   node tools/test-canopy-layout.mjs
 import * as c from '../src/planets/kethra/canopy/layout.ts';
@@ -22,7 +22,6 @@ const blocked = (x, z, layer, time) => {
 for (const layer of c.LAYERS) {
   const { x, z, r } = layer.gap;
   if (layer.kind === 'sway') {
-    // "Swaying boughs: timing." The gap is open at some moments and closed at others.
     let open = 0;
     let closed = 0;
     for (let t = 0; t < 12; t += 0.25) blocked(x, z, layer, t) ? closed++ : open++;
@@ -44,8 +43,8 @@ for (const layer of c.LAYERS) {
   check(`layer ${layer.index + 1}: pods to light`, pods >= 10, `${pods} pods`);
 }
 
-// Between layers the way is open: from one gap to the next is a strafe the skiff can make in the
-// time the descent gives it (2.4 m/s down, 7 m/s across at full thrust).
+// Each next gap must be reachable by strafing during the descent between layers (2.4 m/s down,
+// 7 m/s across at full thrust).
 for (let i = 1; i < c.LAYERS.length; i++) {
   const a = c.LAYERS[i - 1];
   const b = c.LAYERS[i];
@@ -54,7 +53,6 @@ for (let i = 1; i < c.LAYERS.length; i++) {
   check(`layer ${i} → ${i + 1}: the next gap is reachable in the descent`, across / seconds < 7 * 0.5, `${across.toFixed(1)} m across in ${seconds.toFixed(0)} s`);
 }
 
-// "A narrow final drop into the clearing, where the landing lights wait."
 const last = c.LAYERS[c.LAYERS.length - 1];
 check('the final drop is the narrowest gap', c.LAYERS.every((l) => l.gap.r >= last.gap.r));
 check('the final drop is over the landing pad', Math.hypot(last.gap.x, last.gap.z) < c.LANDING.r);

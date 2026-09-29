@@ -1,5 +1,5 @@
-// The whole journey in one command: every flow test, in the order a player meets them, against one
-// build. Exits non-zero if any fails. Each test launches its own browser, so they run one at a time.
+// Runs every flow test, in the order a player meets them, against one build. Exits non-zero if any
+// fails. Each test launches its own browser, so they run one at a time.
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
 //   node tools/run-journey.mjs [baseUrl]
