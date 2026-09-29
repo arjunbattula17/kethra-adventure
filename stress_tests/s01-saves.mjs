@@ -100,6 +100,22 @@ for (const raw of ['null', '[]', '42', '"hello"']) {
   await context.close();
 }
 
+// F. A save whose xp is far past its level's threshold (BUG-035): the next xp gain must not hang.
+{
+  const huge = JSON.stringify({ flags: ['tutorial_battle_complete', 'galaxy_revealed'], planetsUnlocked: ['kethra'], xp: 1e20, level: 1 });
+  const { page, context, errors } = await openPage(browser, '?seed=3', { init: seed(huge) });
+  await page.waitForSelector('.title-btn', { timeout: 60000 });
+  await page.locator('.title-btn', { hasText: /continue/i }).first().click();
+  await settled(page, 'ShipInteriorScene');
+  const done = await Promise.race([
+    page.evaluate(() => { window.__DEBUG__.gameState.addAttributeXp('insight', 1); return true; }),
+    new Promise((r) => setTimeout(() => r(false), 10000)),
+  ]);
+  check('BUG-035: a save with an absurd xp does not hang the next level-up', done === true);
+  if (done) await clean(page, errors, 'absurd xp');
+  await context.close();
+}
+
 await browser.close();
 console.log(failures() ? `\n${failures()} failed` : '\nall passed');
 process.exit(failures() ? 1 : 0);

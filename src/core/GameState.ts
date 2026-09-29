@@ -156,6 +156,9 @@ function migrateSave(raw: unknown): GameStateData {
   // Clamped to at least 1: gainXp's threshold is level * 100, so a level of 0 from a corrupt save
   // would make its loop never terminate.
   base.level = Math.max(1, Math.floor(num(saved.level, base.level)));
+  // gainXp levels up whenever xp reaches level * 100, so a real save never holds more; a huge one
+  // (xp 1e20: subtracting 100 doesn't change it) would keep that loop going for good.
+  base.xp = Math.min(base.xp, base.level * 100 - 1);
   base.unspentPoints = Math.max(0, Math.floor(num(saved.unspentPoints, base.unspentPoints)));
   base.flags = strs(saved.flags, base.flags);
   base.inventory = strs(saved.inventory, base.inventory);
