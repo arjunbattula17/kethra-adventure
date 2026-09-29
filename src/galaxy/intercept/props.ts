@@ -6,13 +6,13 @@ import { BELT_RADIUS } from './sim';
 import { INK, toV3 } from './instrument';
 
 /**
- * The bodies MG1 plays against, at plot scale (1 unit = 1 Mkm): the belt the sim tests against,
- * the Wren's own debris, and ORION's buoy. Each is one or two draw calls.
+ * The Intercept scene's bodies at plot scale (1 unit = 1 Mkm): the belt the sim tests against, the
+ * Wren's debris, and ORION's buoy. Each is one or two draw calls.
  */
 
 export interface Belt {
   group: THREE.Group;
-  /** 0 = only the thin dust the first scan picked up; 1 = the clumps resolved (leg 3). */
+  /** 0 = only the thin dust; 1 = the rock clumps fully shown. */
   setResolved(k: number): void;
   /** Perception 2: the clumps' extent shown as a faint shaded volume. */
   setDensityVisible(on: boolean): void;
@@ -134,7 +134,7 @@ export function buildBelt(clumps: Clump[], seed = 0xbe17): Belt {
   };
 }
 
-/** The white sky's leftovers around the Wren: shards of hull plating, drifting. Decoration only. */
+/** Drifting shards of hull plating around the Wren. Decoration only. */
 export function buildDrift(center: Vec, seed = 0xd21f7): { group: THREE.Group; update(dt: number): void } {
   const rand = mulberry32(seed);
   const count = 48;
@@ -176,10 +176,7 @@ export function buildDrift(center: Vec, seed = 0xd21f7): { group: THREE.Group; u
   };
 }
 
-/**
- * ORION's buoy: a squat beacon the Wren left on the last survey, with an amber lamp that blinks
- * because it's reporting something (DESIGN §2: status lights blink only when they report).
- */
+/** ORION's buoy: a squat beacon with a blinking amber lamp. */
 export function buildBuoy(at: Vec): { group: THREE.Group; update(time: number): void } {
   const group = new THREE.Group();
   group.position.set(at.x, at.y, at.z);

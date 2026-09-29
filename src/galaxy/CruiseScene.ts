@@ -28,16 +28,14 @@ import type { Anchorage } from '../planets/vessek/anchorage';
 
 export interface CruiseOptions {
   destination: 'kethra' | 'vessek';
-  /** The plot's figures (GameState.course), which the day counter and ORION quote. */
+  /** Trip length in days, from GameState.course; shown by the day counter and captions. */
   days: number;
   cells: number;
 }
 
-/** When each beat starts, in seconds of the cruise (docs/DESIGN.md §5). */
+/** Start time of each beat, in seconds from the start of the cruise. */
 const BEAT = {
-  /** First light's beat 4: out through the viewport to the stern as the plumes bloom. */
   stern: 0,
-  /** Beat 5 and the cruise's departure: a locked-off wide from the belt side. */
   departure: 3.5,
   acceleration: 10,
   transit: 16,
@@ -47,11 +45,11 @@ const BEAT = {
   end: 49,
 } as const;
 
-/** At Vessek, when the Wren's nose meets the Lantern Bay's collar. */
+/** Time in seconds when the ship reaches its berth at Vessek. */
 const DOCKED = BEAT.handoff + 1.2;
 
-/** The Wren's speed along her line (units per second) at key times: at rest, the burn, the cruise.
- * Over Kethra she keeps way on for the skiff's drop; at Vessek she slows to rest at her berth. */
+/** Ship speed keyframes as [time in s, units per second], linearly interpolated. At Kethra the ship
+ * keeps moving for the skiff drop; at Vessek it stops at the berth. */
 const SPEED: Record<CruiseOptions['destination'], [number, number][]> = {
   kethra: [[0, 0], [0.8, 0], [BEAT.acceleration, 9], [BEAT.transit, 70], [BEAT.reveal, 70], [BEAT.entry, 25]],
   vessek: [[0, 0], [0.8, 0], [BEAT.acceleration, 9], [BEAT.transit, 70], [BEAT.reveal, 70], [BEAT.entry, 14], [BEAT.handoff - 1, 2.2], [DOCKED, 0]],
@@ -66,7 +64,8 @@ function speedAt(time: number, speeds: [number, number][]): number {
   return speeds[speeds.length - 1][1];
 }
 
-/** Distance along the line at `time`: the speed curve integrated, so a skip lands in the right place. */
+/** Distance travelled along +x at `time`, integrated from the speed curve so a skip lands in the
+ * right place. */
 function distanceAt(time: number, speeds: [number, number][]): number {
   let x = 0;
   const step = 1 / 30;
@@ -80,12 +79,9 @@ const smooth = (a: number, b: number, x: number) => {
 };
 
 /**
- * First light's exterior and the cruise to a planet (docs/DESIGN.md §5): the plumes bloom, the Wren
- * leaves the belt, the days pass as the sun turns around the hull, the destination's night side
- * fills the frame; for Kethra the skiff drops through the cloud to the canopy, and at Vessek the
- * Wren slows in through the Anchorage's lashed hulls to dock at the Lantern Bay. The level it
- * arrives at builds underneath (the flow passes `arrival`); if it isn't ready when the title is up,
- * the last shot holds until it is.
+ * Exterior cutscene of the ship's cruise to a planet: launch, transit, planet reveal, then the
+ * skiff's descent at Kethra or the docking at Vessek. The last shot holds until prepareArrival
+ * resolves.
  */
 export class CruiseScene implements GameScene {
   readonly kind = 'CruiseScene';
@@ -93,10 +89,10 @@ export class CruiseScene implements GameScene {
   readonly grade: GradeProfile = { ...GRADES.space, cool: [...GRADES.space.cool], warm: [...GRADES.space.warm] };
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.05, 20000);
-  /** Called once the title is up and the level underneath is ready: the flow cuts to it. */
+  /** Called once the title is shown and the destination level is ready. */
   onArrive: (() => void) | null = null;
-  /** Starts building the destination; called when the title goes up, so its long first build
-   * lands on a held shot rather than mid-flight. The last beat holds until it settles. */
+  /** Builds the destination level. Called when the title appears, so the slow first build happens
+   * during a held shot; the scene waits for the promise before calling onArrive. */
   prepareArrival: (() => Promise<unknown>) | null = null;
 
   private readonly opts: CruiseOptions;
@@ -114,7 +110,7 @@ export class CruiseScene implements GameScene {
   private clouds: ReturnType<typeof buildCloudLayer> | null = null;
   private canopy: THREE.Group | null = null;
   private anchorage: Anchorage | null = null;
-  /** Where the Wren comes to rest at Vessek; the Anchorage and the world are set around it. */
+  /** Ship's resting position at Vessek; the Anchorage and planet are placed relative to it. */
   private readonly berth = new THREE.Vector3();
   private readonly speeds: [number, number][];
   private engineLight!: THREE.PointLight;
@@ -141,7 +137,7 @@ export class CruiseScene implements GameScene {
     this.sky = buildSpaceSky({ seed: 0xc2 });
     this.scene.add(this.sky.group);
 
-    // The sun: huge and dim behind the belt's haze at the start; its light is the key on the hull.
+    // The sun's light is the key light on the hull.
     this.sun = buildSun({ radius: 90 });
     this.sun.group.position.set(-2600, 260, -1400);
     this.scene.add(this.sun.group, this.sun.light, this.sun.light.target);
@@ -151,7 +147,7 @@ export class CruiseScene implements GameScene {
     this.hull.parts.windows.emissive.setHex(0xffb45a);
     this.hull.parts.windows.emissiveIntensity = 0.9;
     this.scene.add(this.hull.group);
-    // The hull lit by its own engines for the first time: a warm key from behind.
+    // Warm engine light behind the hull; its intensity follows the drive level.
     this.engineLight = new THREE.PointLight(0xffa25a, 0, 40, 1.6);
     this.hull.group.add(this.engineLight);
     this.engineLight.position.set(-7, 0.4, 0);
@@ -170,7 +166,6 @@ export class CruiseScene implements GameScene {
     this.scene.add(this.rocks);
     this.scene.add(this.streaks.object);
 
-    // MG1's course, running ahead of the ship: the shared element from the desk chart.
     const courseGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(3000, 0, 0)]);
     courseGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array([0.85, 0.64, 0.25, 0, 0, 0]), 3));
     this.course = new THREE.Line(courseGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
@@ -205,7 +200,7 @@ export class CruiseScene implements GameScene {
     this.titleEl.className = 'cruise-title';
     root.append(this.dayEl, this.titleEl);
 
-    // Out through the viewport and back along the hull to the stern (ship-relative).
+    // From the viewport back along the hull to the stern, in ship-relative coordinates.
     this.sternPath = new CameraPath(
       [
         { position: new THREE.Vector3(7.2, 1.5, 3.4), target: new THREE.Vector3(3.2, 0.7, 0), fov: 50 },
@@ -214,7 +209,7 @@ export class CruiseScene implements GameScene {
       ],
       { pace: 'keys' },
     );
-    // Past the nose to the planet ahead (ship-relative; the planet is placed on the line).
+    // Sweep past the nose toward the planet, in ship-relative coordinates.
     this.sweepPath = new CameraPath(
       [
         { position: new THREE.Vector3(-4, 2.4, 12), target: new THREE.Vector3(2, 0, 0), fov: 50 },
@@ -227,7 +222,8 @@ export class CruiseScene implements GameScene {
     this.update(0);
   }
 
-  /** The cruise starts when it is on screen: it is prepared while First light is still playing. */
+  /** The timeline starts here, not in init(): the scene is built while the previous one still
+   * plays. */
   onEnter(): void {
     UIManager.showLetterbox(true);
     this.skip = new HoldToSkip({ onSkip: () => this.skipToArrival() });
@@ -245,7 +241,7 @@ export class CruiseScene implements GameScene {
     UIManager.showCaption(t(key, vars), 4200);
   }
 
-  /** The four pods light in turn, each with its shockwave: force, not flash. */
+  /** Staggered ignition tone per engine; the plumes and rings are driven by time in update(). */
   private ignite(): void {
     this.rings.forEach((_, i) => this.fx.after(i * 0.16, () => AudioSystem.playTone(48 + i * 7, 0.7, 'triangle', 0.08)));
   }
@@ -259,7 +255,7 @@ export class CruiseScene implements GameScene {
     playKineticTitle(this.titleEl, title, 'rgba(92, 209, 176, 0.95)');
     motion.conductor.duck(3);
     AudioSystem.playLevelStart();
-    // The last beat holds until the level underneath is ready; then the flow cuts to it.
+    // Hold on the title until the destination level is built.
     const ready = this.prepareArrival?.() ?? Promise.resolve();
     void ready.then(() => this.fx.after(motion.reduced ? 0.3 : 2.4, () => this.finish()));
   }
@@ -272,7 +268,6 @@ export class CruiseScene implements GameScene {
     this.onArrive?.();
   }
 
-  /** Hold-to-skip: straight to the arrival beat, never to black. */
   private skipToArrival(): void {
     this.skip?.dispose();
     this.skip = null;
@@ -287,8 +282,7 @@ export class CruiseScene implements GameScene {
     const S = this.shipPos.set(distanceAt(time, this.speeds), 0, 0);
     this.hull.group.position.copy(S);
 
-    // The drive: four plumes bloom at ignition and settle to the cruise; for the docking they go
-    // out, and she coasts in.
+    // Drive level: ramps up at ignition, eases down in transit, and fades to zero before docking.
     const coast = this.anchorage ? 1 - smooth(BEAT.reveal, BEAT.entry, time) : 1;
     const drive = time < 0.35 ? 0 : Math.min(1, (time - 0.35) / 0.6) * (1 - 0.35 * smooth(BEAT.transit, BEAT.transit + 4, time)) * coast;
     this.plumes.forEach((p, i) => p.set(time < 0.35 + i * 0.16 ? 0 : drive));
@@ -296,7 +290,7 @@ export class CruiseScene implements GameScene {
     this.hull.parts.engines.emissiveIntensity = 2.4 * drive;
     this.engineLight.intensity = 26 * drive;
 
-    // The sun's light turns around the hull once a day through the transit: that is how days read.
+    // During transit the sun rotates around the hull once per in-game day.
     const dayProgress = smooth(BEAT.transit + 0.5, BEAT.reveal - 1, time) * this.opts.days;
     const sunAngle = dayProgress * Math.PI * 2;
     const sunDir = _sunDir.copy(SUN_DIR).applyAxisAngle(_x, sunAngle);
@@ -311,16 +305,14 @@ export class CruiseScene implements GameScene {
     this.course.position.copy(S);
     this.rocks.visible = time < BEAT.transit + 2;
 
-    // The destination waits on the line ahead, out of sight until the sweep turns to it: six days
-    // out it would be a point, and the reveal is its first look. Vessek stays put beyond the
-    // Anchorage, so it grows as the Wren slows in.
+    // The planet follows the ship at a fixed offset so it keeps its size; at Vessek it is fixed
+    // relative to the berth instead, so it grows as the ship approaches.
     this.planet.group.position.copy(this.anchorage ? this.berth : S).add(_planetOffset);
-    // Kethra gives way to the skiff's entry.
+    // At Kethra the planet is hidden once the skiff is in the air.
     this.planet.group.visible = time > BEAT.reveal - 0.5 && (time < BEAT.entry + 2 || !this.skiff);
     this.planet.group.rotation.y += dt * 0.01;
-    // For the reveal the sun sits straight behind the planet from where the sweep starts, a little
-    // high: a black disc whose rim lights, and a terminator that crawls as the camera moves. Placed
-    // before the planet reads it.
+    // From the reveal on, the sun sits behind the planet and slightly above so it is backlit. Set
+    // before planet.update(), which reads the sun position.
     if (time > BEAT.reveal - 0.5) {
       const behind = _behind.copy(this.planet.group.position).sub(S).normalize().multiplyScalar(2600).add(this.planet.group.position);
       behind.y += 420;
@@ -336,12 +328,11 @@ export class CruiseScene implements GameScene {
     this.anchorage?.setDocked(smooth(DOCKED - 0.2, DOCKED + 0.4, time));
     this.updateCamera(time, S);
 
-    // Stars stretch with speed during the climb, then relax into the cruise.
     const streak = smooth(BEAT.acceleration, BEAT.acceleration + 2, time) * (1 - smooth(BEAT.transit - 1, BEAT.transit + 3, time));
     this.streaks.update(this.camera, _x, streak * 9);
     this.sky.update(this.camera);
     this.sun.update(this.camera, dt);
-    // Only once current: while it is being prepared behind the Wren, the Wren's grade stands.
+    // Set the grade only once this scene is current; update() also runs while it preloads.
     const engine = getActiveEngine();
     if (engine?.getCurrentScene() === this) engine.setGrade(this.grade);
   }
@@ -349,7 +340,6 @@ export class CruiseScene implements GameScene {
   private updateEntry(time: number, dt: number): void {
     if (!this.skiff || !this.clouds || !this.canopy) return;
     const inAir = time >= BEAT.entry + 2;
-    // Space is left behind for the last two beats: a new sky, the cloud deck, the canopy.
     this.sky.group.visible = !inAir;
     this.hull.group.visible = !inAir;
     this.sun.group.visible = !inAir;
@@ -357,7 +347,7 @@ export class CruiseScene implements GameScene {
     this.canopy.visible = inAir;
     this.scene.fog = inAir ? _fog : null;
     this.scene.background = inAir ? _night : _space;
-    // The skiff: separates from the belly, then drops through the cloud to hang above the canopy.
+    // The skiff separates from the hull, then descends through the cloud layer.
     this.skiff.group.visible = time >= BEAT.entry - 0.2;
     if (!inAir) {
       const k = smooth(BEAT.entry - 0.2, BEAT.entry + 2, time);
@@ -369,7 +359,6 @@ export class CruiseScene implements GameScene {
       this.skiff.group.position.set(k * 40, THREE.MathUtils.lerp(260, 60, k), 0);
       this.skiff.group.rotation.set(0, 0, THREE.MathUtils.lerp(-0.45, -0.05, k));
       this.skiff.heat.uniforms.uHeat.value = 1 - smooth(BEAT.entry + 2.5, BEAT.handoff - 1, time);
-      // Clouds rush up past the skiff as it drops through them.
       for (const cl of this.clouds.clouds) {
         cl.position.y += dt * 60 * (1 - k * 0.8);
         if (cl.position.y > this.skiff.group.position.y + 60) cl.position.y -= 240;
@@ -387,19 +376,19 @@ export class CruiseScene implements GameScene {
       this.sternPath.targetAt(reduced ? 1 : time / BEAT.departure, this.look).add(S);
       cam.lookAt(this.look);
     } else if (time < BEAT.acceleration) {
-      // Locked off from the belt side; the camera holds, then turns to follow the ship out.
+      // Fixed camera that pans to follow the ship.
       cam.position.set(18, 6, 64);
       this.look.set(0, 0, 0).lerp(S, smooth(BEAT.departure + 1.5, BEAT.acceleration, time));
       cam.lookAt(this.look);
       this.setFov(46);
     } else if (time < BEAT.transit) {
-      // Chase: behind and above, the field of view opening with the speed (a cut under reduced motion).
+      // Chase camera behind and above; the FOV widens with speed.
       const k = smooth(BEAT.acceleration, BEAT.transit, time);
       cam.position.copy(S).add(new THREE.Vector3(THREE.MathUtils.lerp(-26, -19, k), THREE.MathUtils.lerp(7, 4.5, k), 3));
       cam.lookAt(this.look.copy(S).add(new THREE.Vector3(25, 0, 0)));
       this.setFov(reduced ? 62 : THREE.MathUtils.lerp(50, 62, k));
     } else if (time < BEAT.reveal) {
-      // A slow orbit round the ship, then stillness: time passing.
+      // Slow orbit around the ship that eases to a stop.
       const k = reduced ? 1 : ease.decelerate(THREE.MathUtils.clamp((time - BEAT.transit) / 8, 0, 1));
       const a = THREE.MathUtils.lerp(-2.2, -0.6, k);
       cam.position.copy(S).add(new THREE.Vector3(Math.cos(a) * 17, 3.2, Math.sin(a) * 17));
@@ -412,16 +401,15 @@ export class CruiseScene implements GameScene {
       this.sweepPath.targetAt(k, this.look).add(S);
       cam.lookAt(this.look);
     } else if (this.skiff) {
-      // Behind and above the skiff through the cloud, settling over the canopy for the handoff.
+      // Follow the skiff from behind and above as it descends.
       const k = smooth(BEAT.entry + 2, BEAT.handoff + 2, time);
       const sk = this.skiff.group.position;
       cam.position.copy(sk).add(new THREE.Vector3(THREE.MathUtils.lerp(-7, -9, k), THREE.MathUtils.lerp(3, 4.5, k), 1.5));
       cam.lookAt(this.look.copy(sk).add(new THREE.Vector3(8, -4 - k * 6, 0)));
       this.setFov(52);
     } else if (this.anchorage) {
-      // Behind her and a little above as she coasts in between the moored hulls, the camera
-      // falling back as she slows, to settle on the Lantern Bay with the ring rising beyond. Under
-      // reduced motion it holds the first position and she crosses the frame.
+      // Docking camera behind and above the ship, settling on the berth; reduced motion holds the
+      // start position.
       const k = reduced ? 0 : smooth(BEAT.entry + 2, DOCKED + 0.6, time);
       const settle = reduced ? 1 : smooth(BEAT.entry + 3, DOCKED, time);
       cam.position.copy(_dockCamFrom).lerp(_dockCamTo, k).add(this.berth);
@@ -449,7 +437,8 @@ export class CruiseScene implements GameScene {
     this.titleEl.remove();
     UIManager.showLetterbox(false);
     UIManager.clearCaption();
-    // The hull's geometry is the cached template's; what this scene hung on it is its own.
+    // The hull shares the cached template's geometry, so it is removed before disposal; only the
+    // plumes and rings added here are disposed.
     for (const part of [...this.plumes, ...this.rings]) {
       part.mesh.geometry.dispose();
       (part.mesh.material as THREE.Material).dispose();

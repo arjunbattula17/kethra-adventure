@@ -677,7 +677,7 @@ class MapControllerImpl {
     this.hitTargets.push({ x: pos.x, y: pos.y, r: Math.max(radius * 2, 30 * dpr), id: p.id, onClick: () => this.selectWorld(p.id) });
   }
 
-  /** Four amber corner ticks around the selection. Still: nothing idles (docs/DESIGN.md §2). */
+  /** Four static amber corner ticks around the selection. */
   private drawBrackets(x: number, y: number, r: number, dpr: number): void {
     const ctx = this.ctx;
     const s = r;

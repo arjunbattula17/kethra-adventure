@@ -84,7 +84,6 @@ export class EndingScene implements GameScene {
       this.ship = hull.group;
       this.ship.rotation.set(0.12, -0.5, 0.05);
       this.scene.add(this.ship);
-      // Awake now: every port and the canopy lit, where the opening had them dark.
       hull.parts.windows.emissiveIntensity = 1.4;
       // Lit and awake now: the crew glow in every port, where the opening had it dark.
       const glow = new THREE.PointLight(0xffc27a, 3, 16);

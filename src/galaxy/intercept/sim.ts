@@ -1,5 +1,5 @@
 /**
- * MG1 Intercept's model (docs/DESIGN.md §4, slot 1), with no rendering in it: the Kessic system
+ * The Intercept mini-game's model, with no rendering in it: the Kessic system
  * in plot units (1 unit = 1 Mkm, the sun at the origin, the ecliptic is y = 0), the transfer to
  * Kethra, and the numbers the chart shows. Self-contained on purpose, so
  * tools/test-intercept-sim.mjs can load it straight into Node and prove the game has exactly one
@@ -22,7 +22,7 @@ export const SPEED = 8;
 export const DAYS_PER_CELL = 2;
 /** How close counts as meeting Kethra. */
 export const CAPTURE = 3;
-/** The Wren's parking orbit after the white sky, and where it sits on it. */
+/** The Wren's position when the minigame starts. */
 export const WREN_START: Vec = { x: 12, y: 0, z: 0 };
 
 export const v = (x: number, y: number, z: number): Vec => ({ x, y, z });

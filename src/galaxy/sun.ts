@@ -2,14 +2,13 @@ import * as THREE from 'three';
 import { blackbody } from './spaceSky';
 
 /**
- * The system's star, for every space scene that shows it (docs/DESIGN.md §2): a photosphere with
- * limb darkening, a corona, and the hard 5800 K key light the Wren is lit by. The corona holds
- * still: idle pulsing was one of the defaults the design removed (§2, Defaults audit).
+ * The system's star for space scenes: a limb-darkened photosphere, a static corona, and a 5800 K
+ * directional key light.
  */
 export interface Sun {
   /** Position this; the disc and corona are centred on it. */
   group: THREE.Group;
-  /** The key: directional, sun-coloured. Place it and its target, and add both to the scene. */
+  /** Sun-coloured directional key light. Place it and its target, and add both to the scene. */
   light: THREE.DirectionalLight;
   /** Keeps the corona facing the camera and drifts the granulation. */
   update(camera: THREE.Camera, dt: number): void;
@@ -118,7 +117,7 @@ export function buildSun(opts: { radius: number }): Sun {
     light,
     update(camera, dt) {
       corona.quaternion.copy(camera.quaternion);
-      // Slow drift, so the granulation isn't a frozen photograph.
+      // Slow UV drift so the surface texture doesn't look static.
       surface.uniforms.uDrift.value += dt * 0.004;
     },
   };

@@ -1,16 +1,15 @@
 import * as THREE from 'three';
 
 /**
- * The Wren's skiff (docs/DESIGN.md §4, slot 2): a short, flat lander in the ship's shape language,
- * chamfered plates in the same paint with the amber livery stripe, two thruster pods and a lamp
- * under the nose. It carries the player down through Kethra's canopy (MG2) and then stays on the
- * landing terrace as the level's return pad. Local axes as the Wren: +X nose, +Y up.
+ * The skiff model: a small flat lander with two thruster pods and a lamp under the nose, used in
+ * the canopy descent (MG2) and as the return pad on Kethra's landing terrace. Local axes: +X nose,
+ * +Y up.
  */
 export interface Skiff {
   group: THREE.Group;
-  /** The entry-heat shell (the cruise): 0 cold, 1 at the peak of the burn. */
+  /** The entry-heat shell material; its uHeat uniform runs from 0 (cold) to 1 (peak burn). */
   heat: THREE.ShaderMaterial;
-  /** Where the lamp sits under the nose; MG2 hangs its spotlight here. */
+  /** The lamp position under the nose, for attaching a spotlight. */
   lampAnchor: THREE.Object3D;
   /** The landing gear, scaled for the touchdown squash. */
   gear: THREE.Group;
@@ -37,7 +36,7 @@ export function buildSkiff(): Skiff {
   const hull = new THREE.Mesh(wedge([[-1.3, -0.75], [0.7, -0.62], [1.45, -0.2], [1.45, 0.2], [0.7, 0.62], [-1.3, 0.75]], 0.36, 0.06), paint);
   hull.position.y = 0.24;
   group.add(hull);
-  // The livery stripe down each flank, as on the Wren.
+  // The livery stripe down each flank.
   for (const z of [-0.69, 0.69]) {
     const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.06, 0.02), livery);
     stripe.position.set(-0.2, 0.06, z);
@@ -79,7 +78,7 @@ export function buildSkiff(): Skiff {
   }
   group.add(gear);
 
-  // Entry heat: an orange fresnel shell over the leading underside (the cruise).
+  // Entry heat: an orange fresnel shell over the leading underside.
   const heat = new THREE.ShaderMaterial({
     uniforms: { uHeat: { value: 0 } },
     vertexShader: /* glsl */ `

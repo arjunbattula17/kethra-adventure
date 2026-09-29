@@ -25,19 +25,18 @@ import type { Belt } from './intercept/props';
 import { InterceptGame, LEG1_FOCUS, LEG1_VIEW, orbitPosition } from './intercept/InterceptGame';
 import type { InterceptResult } from './intercept/InterceptGame';
 
-/** The Wren's length in plot units: a few pixels in the plot, a hero up close. */
+/** Ship length in plot units. */
 const WREN_LENGTH = 0.5;
 /** Planets are drawn larger than life at plot scale, or they'd be single pixels. */
 const PLANET_SCALE = 0.33;
-/** The ping's shell: how far it reaches and how long it takes. */
+/** Ping shell reach (plot units) and duration (seconds). */
 const PING_REACH = 150;
 const PING_SECONDS = 5.2;
 
 /**
- * The reveal, rebuilt as MG1's opening (docs/DESIGN.md §1): the scanner's ping resolves the
- * system in 3D around the Wren, and the shot it ends on is the navigation plot MG1 is played in.
- * One scene, no cut. The system is at plot scale (1 unit = 1 Mkm, src/galaxy/intercept/sim.ts),
- * so what the player sees during the reveal is exactly what they plot against afterwards.
+ * Opening reveal for the Intercept minigame: a scanner ping resolves the system around the ship,
+ * and the camera ends on the navigation plot with no cut. Plot scale: 1 unit = 1 Mkm
+ * (intercept/sim.ts).
  */
 export class GalaxyRevealScene implements GameScene {
   /** Stable identity for the harnesses in tools/ (constructor names are mangled in production). */
@@ -46,7 +45,7 @@ export class GalaxyRevealScene implements GameScene {
   readonly grade = GRADES.space;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.002, 3000);
-  /** MG1, once the reveal hands over; public for the tools. */
+  /** The Intercept minigame, set once the reveal hands over; public for tools/. */
   intercept: InterceptGame | null = null;
   onPlotted: ((result: InterceptResult) => void) | null = null;
 
@@ -61,7 +60,7 @@ export class GalaxyRevealScene implements GameScene {
   private buoy!: ReturnType<typeof buildBuoy>;
   private shell!: THREE.Mesh;
   private readonly reveal: Reveal = { uOrigin: { value: toV3(sim.WREN_START) }, uRadius: { value: 0 } };
-  /** Bodies the ping resolves as its shell passes them: they grow in from nothing. */
+  /** Objects that scale in as the ping shell reaches them; `at` is their distance from the ship. */
   private resolving: { obj: THREE.Object3D; at: number; scale: number }[] = [];
   private readonly lookTarget = new THREE.Vector3();
   private skip: HoldToSkip | null = null;
@@ -71,7 +70,7 @@ export class GalaxyRevealScene implements GameScene {
     UIManager.setLookPromptEnabled(false);
     this.scene.background = new THREE.Color(0x02030a);
     this.scene.environment = getSharedEnvironment();
-    // Enough for the hull's metals to have something to reflect, low enough to stay vacuum-dark.
+    // Enough for the hull's metals to reflect something, low enough that space stays dark.
     this.scene.environmentIntensity = 0.25;
 
     this.sky = buildSpaceSky();
@@ -79,7 +78,7 @@ export class GalaxyRevealScene implements GameScene {
 
     this.sun = buildSun({ radius: 1.7 });
     this.scene.add(this.sun.group);
-    // The key: the sun's light on the Wren. A faint cool bounce is the only fill (DESIGN §2).
+    // Key light from the sun, aimed at the ship; a faint cool ambient is the only fill.
     const wren = toV3(sim.WREN_START);
     this.sun.light.position.set(0, 0, 0);
     this.sun.light.target.position.copy(wren);
@@ -87,13 +86,12 @@ export class GalaxyRevealScene implements GameScene {
 
     const hull = await buildShipHull();
     this.ship = hull.group;
-    // Emergency power since the white sky: the ports glow the ship's own amber, low.
     hull.parts.windows.emissive.setHex(0xffb45a);
     hull.parts.windows.emissiveIntensity = 0.55;
     const size = new THREE.Box3().setFromObject(this.ship).getSize(new THREE.Vector3());
     this.ship.scale.setScalar(WREN_LENGTH / Math.max(size.x, size.z));
     this.ship.position.copy(wren);
-    // Nose (+X) along the first burn's rough heading, so the hero pass sees it underway-ready.
+    // Point the nose (+X) roughly along the first burn's heading.
     this.ship.rotation.y = -0.2;
     this.scene.add(this.ship);
 
@@ -126,7 +124,7 @@ export class GalaxyRevealScene implements GameScene {
     }
     for (const r of this.resolving) r.obj.scale.setScalar(0.001);
 
-    // The ping itself: a thin shell of the Wren's light, brightest at its rim.
+    // Ping shell: an additive sphere, brightest at its silhouette rim.
     this.shell = new THREE.Mesh(
       new THREE.IcosahedronGeometry(1, 5),
       new THREE.ShaderMaterial({
@@ -165,7 +163,7 @@ export class GalaxyRevealScene implements GameScene {
     const mid = W.clone().lerp(B, LEG1_FOCUS);
     // MG1's first view: the framing ORION's hop starts from, so the handover has no jump.
     const end = orbitPosition(mid, LEG1_VIEW);
-    // The wide the ping resolves: the whole approach, sun to Kethra's orbit.
+    // Wide shot framing the sun out to Kethra's orbit.
     const wideTarget = new THREE.Vector3(24, 0, 24);
     const wide = orbitPosition(wideTarget, { yaw: 0.55, pitch: 0.66, dist: 125 });
     const path = new CameraPath([
@@ -189,7 +187,7 @@ export class GalaxyRevealScene implements GameScene {
       AudioSystem.playTone(880, 1.6, 'sine', 0.05);
       this.fx.tween({
         duration: motion.reduced ? 0.2 : PING_SECONDS,
-        // Constant speed, like light: the shell's band sweeps the grid visibly from the wide.
+        // Linear easing, so the shell expands at constant speed.
         ease: (k) => k,
         update: (k) => this.setPing(k),
       });
@@ -200,7 +198,7 @@ export class GalaxyRevealScene implements GameScene {
       { at: 6.6, run: () => UIManager.showCaption(t('reveal.caption.truth'), 4200) },
       { at: MOVE + 0.2, state: true, run: () => this.beginPlot() },
     ]);
-    // Hold to skip lands on the plot, fully resolved: skipping cuts to the arrival state.
+    // Skipping jumps to the end state: camera on the plot, ping fully resolved.
     this.skip = new HoldToSkip({
       onSkip: () => {
         move.finish();
@@ -211,7 +209,7 @@ export class GalaxyRevealScene implements GameScene {
     this.skip.show();
   }
 
-  /** The ping at `k` of its reach: the shell grows and fades, and what it passes resolves. */
+  /** Sets the ping to fraction `k` (0 to 1) of its reach and scales in what the shell has passed. */
   private setPing(k: number): void {
     const r = PING_REACH * k;
     this.reveal.uRadius.value = k >= 1 ? 1e5 : r;
@@ -255,7 +253,8 @@ export class GalaxyRevealScene implements GameScene {
     this.drift.update(ambientDt);
     this.buoy.update(this.elapsed);
     this.intercept?.update(dt);
-    // The near plane follows the shot, from a hull a metre away to a system 100 Mkm across.
+    // Scale the near plane with focus distance so depth precision holds from hull close-ups to the
+    // full system.
     const focus = this.intercept?.focus ?? this.lookTarget;
     const near = THREE.MathUtils.clamp(this.camera.position.distanceTo(focus) * 0.004, 0.002, 0.5);
     if (Math.abs(near - this.camera.near) / this.camera.near > 0.1) {
@@ -275,8 +274,6 @@ export class GalaxyRevealScene implements GameScene {
     this.intercept?.dispose();
     UIManager.showLetterbox(false);
     UIManager.clearCaption();
-    // This scene owns everything it loaded: free it all. The hull is the exception: its clones
-    // share the cached template's geometry.
     this.scene.remove(this.ship);
     disposeSceneFully(this.scene);
   }

@@ -143,7 +143,8 @@ export function buildPlanetInstance(
   const group = new THREE.Group();
   group.position.copy(position);
 
-  // Kept current in update(): MG1 moves Kethra along its orbit, and its lit side has to follow.
+  // Kept current in update(): a planet can move (the intercept minigame), and its lit side must
+  // follow.
   const sunDir = sunPosition.clone().sub(position).normalize();
   const atmoColor = new THREE.Color(def.color).lerp(new THREE.Color(0xbfd9ff), 0.5);
   const cloudAmount = CLOUDY[def.id] ?? 0;

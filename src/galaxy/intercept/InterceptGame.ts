@@ -11,7 +11,7 @@ import * as sim from './sim';
 import { Dots, INK, Labels, Lines, toV3 } from './instrument';
 
 /**
- * MG1 Intercept (docs/DESIGN.md §4, slot 1): plot the burn to Kethra in the real 3D system, drawn
+ * The Intercept mini-game: plot the burn to Kethra in the real 3D system, drawn
  * through the Wren's navigation instrument.
  *
  * One choice. ORION hops the Wren out of its own debris to the buoy on its own (which also shows
@@ -293,7 +293,7 @@ export class InterceptGame {
     const days = Math.round(this.solution.days);
     const cells = sim.cellsFor(days);
     this.placeRun(this.solution.days);
-    // The signature wavefront: the course draws itself outward from the Wren.
+    // Animates the course drawing itself outward from the Wren (see drawWave).
     this.wave = { course, k: 0 };
     this.fx.tween({ duration: motion.reduced ? 0.2 : 1.4, update: (k) => { if (this.wave) this.wave.k = k; this.dirty = true; } });
     this.panel.innerHTML = `<div class="eyebrow">${t('mg1.win.eyebrow')}</div>
@@ -305,7 +305,7 @@ export class InterceptGame {
     }
     this.say('mg1.win.orion');
     AudioSystem.playChime();
-    // The chart eases to a hero angle on the whole course.
+    // Ease the camera out to frame the whole course.
     const mid = new THREE.Vector3();
     for (const p of course) mid.add(p);
     this.goalTarget.copy(mid.divideScalar(course.length));

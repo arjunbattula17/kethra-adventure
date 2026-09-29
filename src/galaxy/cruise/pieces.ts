@@ -3,11 +3,11 @@ import { mulberry32 } from '../../core/rng';
 import { getPointSprite } from '../spaceDressing';
 
 /**
- * The cruise's parts (docs/DESIGN.md §5): what the Wren's drive puts out, what streams past a ship
- * under way, and what waits at the bottom of Kethra's sky. Each is one or two draw calls.
+ * Visual pieces for the cruise: engine plumes, shock rings, passing rocks, speed streaks, cloud
+ * sprites and Kethra's canopy lights. Each is one or two draw calls.
  */
 
-/** One engine plume: a soft cone of the drive's light, brightest at the bell, with a hot core. */
+/** An additive engine plume cone, brightest at the bell; set(k) scales its intensity and width. */
 export function buildPlume(): { mesh: THREE.Mesh; set(k: number): void } {
   const geo = new THREE.ConeGeometry(0.42, 5.5, 20, 1, true).rotateZ(Math.PI / 2).translate(-2.75, 0, 0);
   const mat = new THREE.ShaderMaterial({
@@ -27,7 +27,6 @@ export function buildPlume(): { mesh: THREE.Mesh; set(k: number): void } {
       varying float vAlong;
       varying float vRim;
       void main() {
-        // White-hot at the bell, drive-orange down the length, gone by the tip.
         vec3 hot = vec3(1.0, 0.93, 0.8);
         vec3 warm = vec3(1.0, 0.55, 0.22);
         // Clamped here, not only in the vertex shader: MSAA can sample a varying just outside the
@@ -54,7 +53,7 @@ export function buildPlume(): { mesh: THREE.Mesh; set(k: number): void } {
   };
 }
 
-/** A shockwave ring off an igniting pod: it grows and thins, communicating force. */
+/** A shockwave ring for a pod ignition; set(age) grows and fades it over 0.9 s. */
 export function buildShockRing(): { mesh: THREE.Mesh; set(age: number): void } {
   const mat = new THREE.MeshBasicMaterial({ color: 0xffd9a8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false });
   const mesh = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), mat);
@@ -72,7 +71,7 @@ export function buildShockRing(): { mesh: THREE.Mesh; set(age: number): void } {
   };
 }
 
-/** Rocks along the first stretch of the burn: foreground for the departure, parallax for the climb. */
+/** Instanced rocks along the start of the burn, for foreground and parallax. */
 export function buildPassingRocks(seed = 0x7e11): THREE.InstancedMesh {
   const rand = mulberry32(seed);
   const count = 260;
@@ -100,9 +99,8 @@ export function buildPassingRocks(seed = 0x7e11): THREE.InstancedMesh {
 }
 
 /**
- * Stars stretched by speed: short lines around the camera, each drawn from where a point of light
- * was to where the ship's motion has carried it. Length follows velocity, so they relax as the
- * burn settles into the cruise.
+ * Speed streaks: line segments around the camera, each stretched along -velocity by the length
+ * passed to update().
  */
 export class Streaks {
   readonly object: THREE.LineSegments;
@@ -145,7 +143,7 @@ export class Streaks {
   }
 }
 
-/** Cloud banks for the entry: soft sprites the skiff drops through, streaming past. */
+/** Soft cloud sprites spread downward from y = 0, for the descent. */
 export function buildCloudLayer(seed = 0xc10d): { group: THREE.Group; clouds: THREE.Sprite[] } {
   const rand = mulberry32(seed);
   const size = 128;
@@ -178,7 +176,7 @@ export function buildCloudLayer(seed = 0xc10d): { group: THREE.Group; clouds: TH
   return { group, clouds };
 }
 
-/** Kethra's canopy from above at night: dark, with scattered living lights. */
+/** Kethra's canopy seen from above: a dark ground disc with scattered point lights. */
 export function buildCanopyLights(seed = 0xca9): THREE.Group {
   const rand = mulberry32(seed);
   const group = new THREE.Group();
@@ -192,7 +190,6 @@ export function buildCanopyLights(seed = 0xca9): THREE.Group {
   const col = new Float32Array(count * 3);
   const c = new THREE.Color();
   for (let i = 0; i < count; i++) {
-    // Clustered, as pods on boughs are: a few lights around each of a scatter of centres.
     const cx = (rand() - 0.5) * 1200;
     const cz = (rand() - 0.5) * 1200;
     pos.set([cx + (rand() - 0.5) * 18, 2 + rand() * 10, cz + (rand() - 0.5) * 18], i * 3);

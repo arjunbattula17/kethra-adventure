@@ -2,14 +2,9 @@ import * as THREE from 'three';
 import { mulberry32 } from '../core/rng';
 
 /**
- * The sky every space scene shares (docs/DESIGN.md §2): near-black with a faint galactic band, and
- * a sparse field of stars with a real spread of brightness and colour. The Kessic Drift is sparse
- * by canon, so the sky is darker and emptier than the usual space backdrop, and stars never
- * twinkle (there is no air). It replaces a 4096×2048 JPEG (1.3 MB) and the uniform white-dot
- * point fields.
- *
- * Both parts follow the camera, so they sit at infinity, and draw before everything else with no
- * depth, so anything in the scene draws over them.
+ * The procedural sky shared by the space scenes: a dark dome with a faint galactic band, and a
+ * sparse star field. Both follow the camera, so they sit at infinity, and draw first with no depth
+ * test, so everything in the scene draws over them.
  */
 
 /** Approximate linear RGB of a black body at `kelvin` (Tanner Helland's fit, normalised). */
@@ -57,7 +52,7 @@ const domeFragment = /* glsl */ `
   void main() {
     vec3 d = normalize(vDir);
     float lat = dot(d, uPole);
-    // A soft band with an uneven, dusty edge: two octaves of noise break the gradient up.
+    // Two octaves of noise give the band an uneven edge.
     float n = noise(d * 3.1) * 0.6 + noise(d * 7.3) * 0.4;
     float band = exp(-lat * lat / (0.05 + 0.03 * n)) * (0.55 + 0.45 * n);
     vec3 col = uVoid + uBand * band;
@@ -99,7 +94,7 @@ export interface SpaceSky {
   group: THREE.Group;
   /** Call every frame with the camera, so the sky stays at infinity. */
   update(camera: THREE.Camera): void;
-  /** Multiplies the whole sky (the intro swells it under the white sky). */
+  /** Multiplies the brightness of the dome and the stars. */
   setBrightness(k: number): void;
 }
 

@@ -4,10 +4,8 @@ import type { Orbit, Vec } from './sim';
 import { orbitAt } from './sim';
 
 /**
- * The navigation instrument's drawing kit (docs/DESIGN.md §2, "Instruments are drawn in the world's
- * own line language"): 1 px Steel and amber hairlines in space, day ticks as screen-sized dots,
- * and numerals set in the UI's own face. Everything here is additive and writes no depth, so it
- * overlays the system like a projection on the Wren's glass rather than objects in it.
+ * Drawing helpers for the navigation instrument: 1 px hairlines, screen-sized dots and DOM labels.
+ * Everything is additive and writes no depth, so it draws as an overlay on the scene.
  */
 
 export const INK = {
@@ -33,9 +31,9 @@ function hairline(): THREE.LineBasicMaterial {
 }
 
 /**
- * The scanner's reveal for static hairlines: lines show only inside a sphere of `uRadius` around
- * `uOrigin`, with a bright band where the ping's shell is passing. Set the radius huge once the
- * scan is done.
+ * Uniforms for revealing static hairlines: lines show only within `uRadius` of `uOrigin`, with a
+ * bright band at that edge. Once the scan is done, set the radius above 1e4 to show everything
+ * and hide the band.
  */
 export interface Reveal {
   uOrigin: { value: THREE.Vector3 };
@@ -64,7 +62,7 @@ export function revealHairline(reveal: Reveal): THREE.ShaderMaterial {
       void main() {
         float d = distance(vWorld, uOrigin);
         float shown = 1.0 - smoothstep(uRadius - 4.0, uRadius, d);
-        // The bright band rides the shell only while the ping is out.
+        // Show the edge band only while the scan is expanding (0.5 <= uRadius <= 1e4).
         float band = (d - uRadius) / 1.6;
         float edge = exp(-band * band) * step(0.5, uRadius) * step(uRadius, 1e4);
         gl_FragColor = vec4(vColor * (shown + edge * 3.0), 1.0);
@@ -77,8 +75,8 @@ export function revealHairline(reveal: Reveal): THREE.ShaderMaterial {
 }
 
 /**
- * A pool of line segments rebuilt whenever what they show changes (the aim moved, a day passed).
- * Colour is per vertex, so dimming a line is darkening it: under additive blending, dark is gone.
+ * A fixed-size pool of line segments, rebuilt when their content changes. Colour is per vertex;
+ * with additive blending a darker colour draws a dimmer line, and black draws nothing.
  */
 export class Lines {
   readonly object: THREE.LineSegments;
@@ -188,7 +186,7 @@ export class Dots {
 
 /**
  * The ecliptic grid: rings every 10 Mkm and a spoke every 30°, fading with distance from the sun.
- * The classic orrery height cue: every body and tick drops a hairline onto it.
+ * It is the height reference that bodies and ticks drop hairlines onto.
  */
 export function eclipticGrid(maxR: number, material?: THREE.Material): THREE.LineSegments {
   const lines = new Lines(2000, 1, material);
@@ -228,9 +226,8 @@ export function orbitLoop(orbit: Orbit, color: number, brightness: number, mater
 }
 
 /**
- * Numerals and short notes pinned to points in the system: DOM text in the UI's face (crisp at any
- * size, tabular figures), repositioned each frame from the camera. A pool, so nothing is created
- * per frame.
+ * A pool of DOM text labels pinned to world points and repositioned from the camera each frame.
+ * DOM text keeps the UI font crisp at any size; the pool avoids creating elements per frame.
  */
 export class Labels {
   readonly root: HTMLDivElement;

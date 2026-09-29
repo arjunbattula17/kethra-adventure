@@ -4,31 +4,21 @@ import { mulberry32 } from '../core/rng';
 import { displayFontsReady } from '../core/loadFonts';
 
 /**
- * The Wren, built in code (docs/DESIGN.md §2, and the licensing decision in §10): an ARK Ltd survey
- * freighter with, per LORE.md, a long spine, four engine pods, stern hex panels, Airlock 04 and
- * the cold-sleep section 4-B sealed behind a breach. Everything patched.
- *
- * Shape language is ARK Ltd's: rectangles with 45° chamfers. Every module is a side profile with
- * chamfered corners, extruded with a one-segment bevel so its edges catch light, and flat-shaded.
- * Paint and structure get world-scale panel UVs, so the seam and bolt detail has the same density
- * on every part. Vertex colours carry the patching (a few plates repainted a different shade) and
- * the soot that builds toward the engines. Everything merges into one mesh per material (about
- * nine draw calls).
- *
- * It replaces a CC BY freighter model that could only ever look like a toy: flat colour slots on
- * palette UVs that no texture could use.
+ * Procedural freighter hull: chamfered side profiles extruded with a one-segment bevel,
+ * flat-shaded. World-scale panel UVs keep texture density equal across parts; vertex colours carry
+ * patch tint and engine soot. Parts merge into one mesh per material.
  */
 
-/** Local ship axes: +X nose, -X aft/engines, +Y up, +Z port (the red light). */
+/** Local ship axes: +X nose, -X aft (engines), +Y up, +Z port. */
 export interface ShipHull {
   group: THREE.Group;
-  /** World-facing exhaust points at the mouth of each engine bell, in the group's local space. */
+  /** Exhaust points at the mouth of each engine bell, in the group's local space. */
   engineLocalPositions: THREE.Vector3[];
-  /** The materials a cinematic drives. Each is this hull's own instance. */
+  /** Materials that scenes animate. Each is owned by this hull, not shared. */
   parts: {
-    /** The bridge canopy and the crew-section ports: the light of people aboard. */
+    /** Bridge canopy and side port glass; emissive intensity starts at 0. */
     windows: THREE.MeshStandardMaterial;
-    /** The four engine throats: dark until the drive lights. */
+    /** The four engine throat discs; emissive intensity starts at 0. */
     engines: THREE.MeshStandardMaterial;
     /** The stern's hex heat-shield tiles. */
     stern: THREE.MeshStandardMaterial;
@@ -40,7 +30,7 @@ export interface ShipHull {
 }
 
 export interface HullOptions {
-  /** A different freighter of the same class: livery and proportions vary (the Anchorage's hulls). */
+  /** Seed for livery and proportions; 0 is the base hull. */
   variant?: number;
 }
 
@@ -48,7 +38,7 @@ const LENGTH_HALF = 4.75;
 const PANEL = 1.6; // world units per tile of the panel texture
 
 // ---------------------------------------------------------------------------------------------
-// Textures, cached per session: one tiling panel sheet and one stencil atlas.
+// Textures: one tiling panel sheet (cached for the session) and one stencil atlas.
 
 let panelTex: { map: THREE.CanvasTexture; rough: THREE.CanvasTexture; normal: THREE.CanvasTexture } | null = null;
 
@@ -96,7 +86,7 @@ function panelTextures(): { map: THREE.CanvasTexture; rough: THREE.CanvasTexture
   a.fillRect(0, 0, size, size);
   r.fillStyle = '#8a8a8a';
   r.fillRect(0, 0, size, size);
-  // Plates in staggered courses, four per tile each way; every plate a hair different.
+  // Staggered plates, four per tile each way, each a slightly different shade.
   const rows = 4;
   const cols = 4;
   const ph = size / rows;
@@ -153,7 +143,7 @@ function panelTextures(): { map: THREE.CanvasTexture; rough: THREE.CanvasTexture
   return panelTex;
 }
 
-/** Stencil lettering in ARK Ltd's face (Rajdhani, the same face as the UI; docs/DESIGN.md §2). */
+/** Stencil lettering atlas, drawn in Rajdhani (the UI font). */
 function stencilAtlas(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 1024;
@@ -253,8 +243,8 @@ function finish(part: Part, rand: () => number, soot = true): THREE.BufferGeomet
     const h = ((cell >>> 0) % 1000) / 1000;
     const patch = h > 0.9 ? 0.7 + rand() * 0.08 : 0.94 + h * 0.08;
     const aft = soot ? Math.min(1, Math.max(0, (-cx - 2.6) / 2.1)) : 0;
-    // Form: faces turned to the belly sit in the hull's own shadow; the lower third wears the
-    // darker half of the two-tone livery.
+    // Darken downward-facing faces (fake self-shadow) and everything below y = -0.3 (two-tone
+    // livery).
     const belly = nrm.getY(i) < -0.3 ? 0.62 : cy < -0.3 ? 0.74 : 1;
     const shade = base * patch * belly * (1 - 0.55 * aft * aft);
     for (let k = 0; k < 3; k++) {
@@ -324,12 +314,12 @@ function quad(w: number, h: number, at: THREE.Vector3, normal: THREE.Vector3, up
 // ---------------------------------------------------------------------------------------------
 
 export async function buildShipHull(opts: HullOptions = {}): Promise<ShipHull> {
-  // The stencils are drawn in Rajdhani; drawing before the face has loaded would bake the fallback.
+  // Stencils are drawn in Rajdhani; drawing before the font loads bakes in the fallback font.
   await displayFontsReady();
   const variant = opts.variant ?? 0;
   const rand = mulberry32(0x3e11 + variant * 977);
   const vr = variant ? mulberry32(variant * 131) : () => 0.5;
-  // Proportions: the Wren herself at variant 0; other hulls of her class stretch and shrink.
+  // Variant 0 keeps the base proportions; other variants vary length, height and width.
   const deckLen = 2.9 + (vr() - 0.5) * 1.0;
   const deckH = 1.36 + (vr() - 0.5) * 0.3;
   const deckW = 1.72 + (vr() - 0.5) * 0.3;
@@ -342,8 +332,7 @@ export async function buildShipHull(opts: HullOptions = {}): Promise<ShipHull> {
   const tiles: THREE.BufferGeometry[] = [];
   const stencils: THREE.BufferGeometry[] = [];
 
-  // --- The command module: bridge and main deck, the room the player walks. Its side profile
-  // rises to a brow above a chamfered chin; seen from above, the prow narrows.
+  // --- Command module: side profile with a raised brow over a chamfered chin, tapered toward the nose.
   const noseX = LENGTH_HALF;
   const aftX = noseX - deckLen;
   const top = deckH / 2 + 0.02;
@@ -358,8 +347,7 @@ export async function buildShipHull(opts: HullOptions = {}): Promise<ShipHull> {
   );
   taperNose(cmd, noseX - 1.6, noseX, 0.62, 0.9, 0);
   paint.push(finish({ geo: cmd }, rand));
-  // The amber livery band: the Wren's own colour, painted, never lit. It shares the paint material;
-  // its vertex colour turns the pale paint into a worn amber (#b0842f-ish after the paint map).
+  // Amber livery band: shares the paint material and takes its colour from vertex colours.
   const band = finish({ geo: placed(chamferBox(deckLen * 0.62, 0.09, deckW + 0.02, 0.02), aftX + deckLen * 0.36, bot + 0.42, 0) }, rand, false);
   const bandColour = band.getAttribute('color') as THREE.BufferAttribute;
   for (let i = 0; i < bandColour.count; i++) bandColour.setXYZ(i, 0.62, 0.36, 0.08);
@@ -379,11 +367,11 @@ export async function buildShipHull(opts: HullOptions = {}): Promise<ShipHull> {
     }
   }
 
-  // --- Section 4-B: cold sleep, sealed behind the breach. A shorter module aft of the deck.
+  // --- Section 4-B: a shorter module aft of the command module.
   const sbLen = 1.0;
   const sbX = aftX - sbLen / 2 + 0.05;
   paint.push(finish({ geo: placed(chamferBox(sbLen, deckH * 0.8, deckW * 0.84, 0.16), sbX, 0.04, 0), tint: 0.96 }, rand));
-  // The breach, patched: a darker plate bolted over the tear on the port side, and bent shards.
+  // Breach patch: a darker plate on the port side, plus bent shards.
   const patch = chamferBox(0.72, 0.48, 0.05, 0.05);
   placed(patch, sbX + 0.08, 0.1, deckW * 0.42 + 0.01);
   structure.push(finish({ geo: patch, tint: 0.62 }, rand, false));
@@ -403,7 +391,7 @@ export async function buildShipHull(opts: HullOptions = {}): Promise<ShipHull> {
     const x = spineAft + 0.15 + i * ((spineLen - 0.3) / 7);
     structure.push(finish({ geo: placed(octPrism(0.4, 0.08), x, 0, 0), tint: 0.85 }, rand));
   }
-  // Survey racks: two either side, one starboard slot empty (only its clamps remain).
+  // Survey racks: four per side; one starboard slot is empty, leaving only its clamps.
   const racks: [number, number, boolean][] = [];
   for (const x of [spineMid + 1.15, spineMid + 0.35, spineMid - 0.45, spineMid - 1.2]) {
     racks.push([x, 1, true], [x, -1, !(x === spineMid - 0.45)]);
@@ -420,7 +408,7 @@ export async function buildShipHull(opts: HullOptions = {}): Promise<ShipHull> {
     placed(fin, spineMid - 0.1, side * 0.6, 0);
     structure.push(finish({ geo: fin, tint: 0.55 }, rand));
   }
-  // The Deep Scanner: a mast and a hexagonal array, tilted forward. The ping comes from here.
+  // Deep Scanner: a mast and a hexagonal dish, tilted forward.
   const scanX = spineMid + 0.2;
   structure.push(finish({ geo: placed(new THREE.CylinderGeometry(0.045, 0.06, 0.62, 8), scanX, 0.58, 0) }, rand));
   const dish = new THREE.CylinderGeometry(0.46, 0.46, 0.05, 6);
@@ -466,7 +454,7 @@ export async function buildShipHull(opts: HullOptions = {}): Promise<ShipHull> {
     bell.rotateZ(Math.PI / 2);
     placed(bell, bellX, y, z);
     bells.push(finish({ geo: bell }, rand, false));
-    // The throat: a recessed disc that glows when the drive runs.
+    // Throat: a recessed disc that glows when the engines run.
     const throat = new THREE.CircleGeometry(0.25, 12);
     throat.rotateY(-Math.PI / 2);
     placed(throat, bellX - 0.02, y, z);

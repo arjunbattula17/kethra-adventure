@@ -76,7 +76,7 @@ const LEVEL = {
   envStart: 0.08,
   envEnd: 0.35,
   window: 0.9,
-  // The stern's hex heat-shield tiles; kept faint so they never outshine the crew section's ports.
+  // Stern hex tiles; kept faint so they don't outshine the crew-section ports.
   sternPanels: 0.07,
   crewGlow: 4,
   /** Stern ignition light at a pulse peak of 1 (ENGINE_PULSES scales it). */
@@ -84,7 +84,7 @@ const LEVEL = {
   /** Engines idling before the white sky, as a fraction of a cough's peak. */
   engineRunning: 0.55,
   beacon: 1.4,
-  /** The shared space sky's brightness before the white sky (it's already dark by design). */
+  /** Base space-sky brightness; the white sky raises it toward whiteSkyBackground. */
   sky: 0.8,
   /** The white sky's peak: sky, and an ambient term for "light from everywhere at once". */
   whiteSkyBackground: 2.6,
@@ -121,7 +121,7 @@ const LOOK_PATH = [
   [0.9, 0.25, 1.4],
 ] as const;
 
-// Just outside the port-side windows: the crew section's light spilling out, not a lamp on the roof.
+// Just outside the port-side windows, so the light reads as coming from inside the crew section.
 const CREW_GLOW_OFFSET = new THREE.Vector3(2.6, 0.2, 1.4);
 // Just aft and to the camera side of the engine bells, so engine light reaches the stern
 // structure the camera can actually see (the bells themselves face away from every shot).
@@ -304,7 +304,7 @@ export class IntroScene implements GameScene {
 
   }
 
-  /** Sparse near dust the camera trucks through: the parallax layer between it and the hull. */
+  /** Sparse near-field dust between the camera and the hull, for parallax. */
   private buildDust(count: number): THREE.Points {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
@@ -335,7 +335,7 @@ export class IntroScene implements GameScene {
   /** Index what the timeline drives. The ship starts running: lights on, engines idling. */
   private collectHullMaterials(parts: ShipHull['parts']): void {
     for (const name of ['nav-light-port', 'nav-light-starboard']) {
-      // At this scene's closing distance the full-size beacons read as coloured balls.
+      // Full-size nav lights look like coloured balls at this scene's closest camera distance.
       this.ship.getObjectByName(name)?.scale.setScalar(NAV_LIGHT_SCALE);
     }
     this.navPort = parts.navPort;
@@ -408,8 +408,8 @@ export class IntroScene implements GameScene {
     // the main thread for ~2-2.5s right as the intro starts. The clock waits on the opening shot
     // (a quiet wide frame, where a stalled frame is invisible) until a third of a second of steady
     // frames arrives or the wall-clock cap passes, so the choreography starts on smooth frames.
-    // Steady means no frame over 50 ms, measured in time rather than frames: counting 20 frames
-    // under 25 ms never passed at the low-battery 30 fps cap and meant 0.14 s at 144 Hz.
+    // Steady means no frame over 50 ms, measured in seconds rather than frame counts so the gate
+    // behaves the same at any refresh rate.
     if (!this.started) {
       const now = performance.now();
       if (this.settleStartedAt === 0) this.settleStartedAt = now;
