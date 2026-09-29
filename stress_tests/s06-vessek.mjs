@@ -72,6 +72,20 @@ if (!ONLY || ONLY === 'ves5') {
   await page.waitForTimeout(800);
   const open = await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().rooms.keypadDoor.open);
   check('VES-5: the junction door\'s inside button does not work from the tanker side', !open, `prompt "${p}", door open ${open}`);
+  // BUG-034: the lever tags show loads at engineering 2; the level itself raises engineering.
+  const tagMaps = () => page.evaluate(() => {
+    const out = [];
+    window.__DEBUG__.engine.getCurrentScene().scene.traverse((o) => {
+      const g = o.geometry?.parameters;
+      if (g && g.width === 0.42 && g.height === 0.21 && o.material?.map) out.push(o.material.map.uuid);
+    });
+    return out;
+  });
+  const before = await tagMaps();
+  await page.evaluate(() => { const g = window.__DEBUG__.gameState; while (g.data.attributes.engineering < 2) g.addAttributeXp('engineering', 1); });
+  await page.waitForTimeout(300);
+  const after = await tagMaps();
+  check('BUG-034: reaching engineering 2 mid-level redraws the lever tags', before.length === 8 && after.every((u, i) => u !== before[i]), `${before.length} tags, ${after.filter((u, i) => u !== before[i]).length} redrawn`);
   await clean(page, errors, 'VES-5 inside button');
   await context.close();
 }

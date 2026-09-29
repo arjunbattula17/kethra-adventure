@@ -30,6 +30,7 @@ interface Lever {
   id: CircuitId;
   handle: THREE.Object3D;
   lamp: THREE.MeshBasicMaterial;
+  tag: THREE.MeshStandardMaterial;
   angle: number;
 }
 
@@ -141,6 +142,16 @@ export class BusWorld {
     for (const lo of L.LOCKOUTS) this.buildLockout(lo.id, lo.at);
   }
 
+  /** Redraws the lever tags for the current stats: the level itself raises engineering. */
+  refreshTags(): void {
+    const a = gameState.data.attributes;
+    for (const lever of this.levers) {
+      lever.tag.map?.dispose();
+      lever.tag.map = tagTexture(lever.id, a.engineering >= 2, a.perception >= 2);
+      lever.tag.needsUpdate = true;
+    }
+  }
+
   private buildLever(id: CircuitId, at: L.Vec, yaw: number, engineering: boolean, perception: boolean): Lever {
     const g = new THREE.Group();
     // `at` is at the wall's foot; the lever faces the player standing a step back from it.
@@ -163,13 +174,14 @@ export class BusWorld {
     const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), lampMat);
     lamp.position.set(0.12, 1.52, -0.27);
     g.add(lamp);
-    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.21), new THREE.MeshStandardMaterial({ map: tagTexture(id, engineering, perception), roughness: 0.8 }));
+    const tagMat = new THREE.MeshStandardMaterial({ map: tagTexture(id, engineering, perception), roughness: 0.8 });
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.21), tagMat);
     tag.position.set(0, 0.86, -0.275);
     g.add(tag);
     this.host.scene.add(g);
     g.traverse((o) => this.host.noMerge.add(o));
     this.host.animated.add(lampMat);
-    const lever: Lever = { id, handle: pivot, lamp: lampMat, angle: 0 };
+    const lever: Lever = { id, handle: pivot, lamp: lampMat, tag: tagMat, angle: 0 };
     this.host.interaction.register({
       object: g,
       label: () => `${this.host.bus.isOn(id) ? 'Switch off' : 'Switch on'} the ${CIRCUITS[id].name.toLowerCase()}`,

@@ -220,6 +220,9 @@ export class VessekScene implements GameScene {
     this.stopMusic = AudioSystem.startMusic('vessek');
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
     this.unsub.push(bus.on('player:shake', (amount: number) => this.player.addShake(amount)));
+    this.unsub.push(bus.on('attribute:changed', (e: { key: string }) => {
+      if (e.key === 'engineering' || e.key === 'perception') this.busWorld.refreshTags();
+    }));
 
     this.player.rig.traverse((o) => this.noMerge.add(o));
     for (const f of [this.varro, this.dace]) f.group.traverse((o) => this.noMerge.add(o));
