@@ -781,7 +781,8 @@ export class VessekScene implements GameScene {
       object: d.crank,
       label: 'Crank the hatch open',
       range: 2.2,
-      enabled: () => !this.rooms.hatch.open,
+      // In reach through the hatch from the hall side too: only from the tanker's side.
+      enabled: () => !this.rooms.hatch.open && this.player.rig.position.z < this.rooms.hatch.closedBox.min.z,
       onInteract: () => {
         gameState.setFlag('vessek_hatch_open');
         this.rooms.hatch.setOpen(true);
