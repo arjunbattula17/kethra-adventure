@@ -1,17 +1,7 @@
 /**
- * The Anchorage's ring bus (docs/DESIGN.md §6, "the ring bus, in the world"), with no rendering in
- * it: the circuits, their loads and dependencies, the physical levers' rules, the auto-reset
- * circuits and their lockouts, the rehearsal pulse and the frost clock. The scene turns levers in
- * the world into calls here and draws what this reports. Self-contained, so tools/test-bus-sim.mjs
- * can load it into Node.
- *
- * The rules an engineer would face on a real overloaded bus:
- *  - The bus carries CAPACITY units. Asking for more trips it, and everything but the regulator
- *    drops.
- *  - A circuit won't close without the circuits it needs.
- *  - Two circuits (the dock lights and the Lantern Bay's hall lamps, the lamps of twenty-one ships)
- *    switch themselves back on a while after they go off, unless they are locked out at their
- *    junction boxes in the ducts. That is what trips the bus after the pulse.
+ * The ring bus puzzle's rules, with no rendering: circuits, loads and dependencies, levers,
+ * auto-reset circuits and their lockouts, the pulse and the frost clock. Self-contained so
+ * tools/test-bus-sim.mjs can load it in Node.
  */
 export type CircuitId = 'regulator' | 'lamps' | 'dock' | 'fans' | 'school' | 'pumps' | 'heaters' | 'scrubbers';
 
@@ -38,12 +28,13 @@ export const CIRCUITS: Record<CircuitId, Circuit> = {
 };
 export const CIRCUIT_IDS = Object.keys(CIRCUITS) as CircuitId[];
 
-/** The ring before the pulse: 5 of 6 units, so the school's lamps need something else switched off. */
+/** Circuits on before the pulse: 5 of the 6 units. */
 export const NORMAL: CircuitId[] = ['regulator', 'lamps', 'dock', 'fans'];
-/** Saving the bay: the heaters (and the pumps they need) and the scrubbers, together exactly 6. */
+/** Circuits that must be on to win; with the regulator and the pumps the heaters need, exactly 6
+ * units. */
 export const GOAL: CircuitId[] = ['heaters', 'scrubbers'];
 export const FROST_SECONDS = 150;
-/** A trip during the crisis costs the bay this much warmth. */
+/** Seconds taken off the frost clock by a trip during the crisis. */
 export const TRIP_PENALTY = 10;
 
 export type BusEvent =
@@ -59,7 +50,7 @@ export type BusPhase = 'normal' | 'crisis' | 'restored';
 export class RingBus {
   phase: BusPhase = 'normal';
   on = new Set<CircuitId>(NORMAL);
-  /** Auto-reset circuits locked out at their junction boxes: they stay off. */
+  /** Auto-reset circuits locked out at their junction boxes; they never switch themselves back on. */
   locked = new Set<CircuitId>();
   /** Seconds until each auto-reset circuit that is off switches itself back on. */
   timers = new Map<CircuitId, number>();
@@ -80,7 +71,7 @@ export class RingBus {
     return GOAL.every((id) => this.on.has(id));
   }
 
-  /** What a lever does when it is thrown to `on`. */
+  /** Throws a circuit's lever to `on` or off; returns what happened. */
   throwLever(id: CircuitId, on: boolean): BusEvent {
     if (!on) {
       if (!this.on.has(id)) return { kind: 'off', id };
@@ -128,10 +119,8 @@ export class RingBus {
     this.timers.delete(id);
   }
 
-  /**
-   * The rehearsal pulse: every grid browns out; the regulator survives. The auto-reset circuits
-   * start counting back, and the bay starts to freeze.
-   */
+  /** Starts the crisis: only the regulator stays on, the auto-reset timers start and the frost
+   * clock resets. */
   pulse(): void {
     this.phase = 'crisis';
     this.on = new Set<CircuitId>(['regulator']);
@@ -140,7 +129,7 @@ export class RingBus {
     this.frost.remaining = this.frost.total;
   }
 
-  /** The kind failure: the backup warmers buy another try. Back to just after the pulse; lockouts stay. */
+  /** Restarts the crisis after a failure; lockouts are kept. */
   retry(): void {
     this.pulse();
   }

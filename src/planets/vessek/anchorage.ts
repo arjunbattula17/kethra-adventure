@@ -4,22 +4,20 @@ import { mulberry32 } from '../../core/rng';
 import { buildShipHull } from '../../galaxy/shipHull';
 import { getPointSprite } from '../../galaxy/spaceDressing';
 
-/** Every ship's grid is a little different, so every lamp is a different colour of white. */
 export const LAMP_COLORS = [0xffd8a8, 0xd6e6ff, 0xffbe7a, 0xeef2ff, 0xffe2b8];
 
 /**
- * Vessek Anchorage from outside, for the cruise's docking arrival (docs/DESIGN.md §5, the Vessek
- * variant): the broken Kindling ring, the freighters lashed nose-in around it, their lamps
- * blinking out of sync, and the Lantern Bay's berth between two of them.
+ * Vessek Anchorage seen from outside, for the cruise's docking arrival: a broken ring, freighters
+ * moored nose-in around it with blinking lamps, and the Lantern Bay's berth.
  *
- * Local frame: the origin is where the Wren rests when docked, +X her heading, as in shipHull. The
- * ring's plane is tilted to that line so the approach sees it as an ellipse, not edge-on, and every
- * moored hull is the Wren's berth turned about the ring's axis: they all nose into the ring alike.
- * Ten draw calls: the moored hulls and the Bay are merged by material.
+ * Local frame: the origin is where the Wren rests when docked, +X the ship's heading, as in
+ * shipHull. The ring's plane is tilted to that line so the approach sees it as an ellipse, not
+ * edge-on, and every moored hull is the Wren's berth turned about the ring's axis. The moored hulls
+ * and the Bay are merged by material.
  */
 export interface Anchorage {
   group: THREE.Group;
-  /** 0 on approach, 1 made fast: the collar's lamp turns from amber to green. */
+  /** 0 on approach, 1 when docked: blends the collar lamp from amber to green. */
   setDocked(k: number): void;
   update(time: number): void;
 }
@@ -27,7 +25,7 @@ export interface Anchorage {
 const RADIUS = 40;
 const TUBE = 0.9;
 const TILT = 0.45;
-/** The Lantern Bay: the oldest hull, lying along the ring with the collar amidships on its flank. */
+/** The Lantern Bay's hull lies along the ring, with the docking collar amidships on its flank. */
 const BAY_SCALE = 2.2;
 const COLLAR = { from: 4.9, to: 7.2 };
 const BAY = new THREE.Vector3(COLLAR.from + 1.9 + 0.86 * BAY_SCALE, 0, -3.3 * BAY_SCALE);
@@ -40,20 +38,18 @@ const AXIS = new THREE.Vector3().crossVectors(U, W);
 const CENTER = NEAR.clone().addScaledVector(U, RADIUS);
 /** The ring's "up", the side the berths are on. */
 const UP = AXIS.clone().negate();
-/** The Wren docks high, at the Bay's collar; the others ride lower, close over the ring. */
+/** How far below the Wren's docked height the other hulls ride, close over the ring. */
 const MOORED_DROP = new THREE.Vector3().sub(NEAR).dot(UP) - 2.4;
 /** Broken arcs [start, length] in radians; the berth is at π. */
 const ARCS: [number, number][] = [[1.95, 2.45], [4.7, 1.0], [6.0, 1.3], [1.25, 0.4]];
-/** Ring angles of the moored hulls along the arcs: close either side of the berth (one across it
- * from the Bay's long body), then round the far side. */
+/** Ring angles of the moored hulls: clustered either side of the berth, then round the far side. */
 const SLOTS = [
   Math.PI - 1.05, Math.PI - 0.8, Math.PI - 0.52, Math.PI + 0.21, Math.PI + 0.45, Math.PI + 0.74, Math.PI + 1.05,
   4.8, 5.05, 5.3, 5.55,
   6.1, 0.067, 0.317, 0.567, 0.817,
   1.45,
 ];
-/** Slots (indices) with a second hull rafted outboard: twenty moored, and the Bay makes the ring's
- * twenty-one. */
+/** Slot indices that get a second hull rafted outboard. */
 const RAFTED = [1, 8, 13];
 const RAFT_OFFSET = 15;
 const VARIANTS = 5;
@@ -80,9 +76,8 @@ export async function buildAnchorage(): Promise<Anchorage> {
   group.add(new THREE.Mesh(mergeGeometries(arcs)!, ringMat));
   for (const g of arcs) g.dispose();
 
-  // The moored freighters: a few variants of the Wren's class, each placed several times at its own
-  // scale and set, then merged by material with the Lantern Bay's. Engines cold, windows lit:
-  // people live aboard.
+  // The moored hulls: a few ship variants, each placed several times with a jittered scale and set,
+  // then merged by material with the Lantern Bay's.
   const hulls = await Promise.all(Array.from({ length: VARIANTS + 1 }, (_, i) => buildShipHull({ variant: i + 1 })));
   const byMaterial = new Map<string, { mat: THREE.MeshStandardMaterial; geos: THREE.BufferGeometry[] }>();
   const lamps: { at: THREE.Vector3; color: number; steady?: boolean }[] = [];
@@ -137,8 +132,8 @@ export async function buildAnchorage(): Promise<Anchorage> {
   merge(hulls[VARIANTS], bayPlaced);
   for (let k = 0; k < 5; k++) lamps.push({ at: new THREE.Vector3(2.0 + k * 0.6, 0.78, k % 2 ? 0.5 : -0.5).applyMatrix4(bayPlaced), color: 0xffd8a8, steady: true });
   for (const [name, { mat, geos }] of byMaterial) {
-    // Weathered matte: the panel sheet's glossiest texels, back-lit by the sun at a grazing angle,
-    // spiked into a blaze under the bloom (the Bay's brow, at its size, catches exactly that angle).
+    // Floor roughness and drop the roughness map: back-lit at grazing angles, glossy texels spike
+    // into a blaze under bloom.
     mat.roughnessMap = null;
     mat.roughness = Math.max(mat.roughness, 0.8);
     if (name === 'hull-paint') {
@@ -147,7 +142,7 @@ export async function buildAnchorage(): Promise<Anchorage> {
       mat.emissiveIntensity = 0.04;
     }
     if (name === 'hull-windows') {
-      // Lit from inside, and matte like the rest: mirror glass glinted the same way.
+      // Emissive and fully matte: glossy glass spikes under bloom the same way.
       mat.emissive.setHex(0xffc88a);
       mat.emissiveIntensity = 0.8;
       mat.roughness = 1;
@@ -180,7 +175,7 @@ export async function buildAnchorage(): Promise<Anchorage> {
   for (const g of fittings) g.dispose();
   const collarMat = new THREE.MeshBasicMaterial({ color: 0xffa640 });
   group.add(new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.05, 6, 24).rotateY(Math.PI / 2).translate(COLLAR.from - 0.02, 0, 0), collarMat));
-  // The Bay's floodlight on the berth: the only light that falls on the Wren's nose as she comes in.
+  // Floodlight on the berth: the only light on the Wren's nose during the approach.
   const flood = new THREE.PointLight(0xffc88a, 7, 20, 1.6);
   flood.position.set(2.5, 3.6, 2.8);
   group.add(flood);
@@ -222,8 +217,7 @@ export async function buildAnchorage(): Promise<Anchorage> {
         vColor = color * (0.15 + 0.85 * on);
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * mv;
-        // A lamp's size in the world, but never smaller than a few pixels: from far out the ring
-        // still reads as a ring of lights.
+        // World-space size, clamped to a few pixels minimum so distant lamps stay visible.
         gl_PointSize = clamp(0.45 * uScale / -mv.z, 3.0, 22.0);
       }
     `,

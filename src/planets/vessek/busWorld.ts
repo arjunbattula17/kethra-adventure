@@ -9,13 +9,9 @@ import * as L from './layout';
 import { LEVER_NOTES } from './vessekLore';
 
 /**
- * The ring bus in the world (docs/DESIGN.md §6): a lever for every circuit in the compartment it
- * serves, analogue gauges that read the bus's load, conduits along the ceilings whose light runs
- * with the flow, and the auto-reset lockout boxes in the ducts. The rules are bus.ts's; this is
- * what the player sees and touches.
- *
- * Stats show more, never decide: engineering 2 reads the load stamped on each lever; perception 2
- * spots which circuits reset themselves, and hears them about to.
+ * The ring bus's in-world objects: levers, load gauges, ceiling conduits and duct lockout boxes.
+ * The rules live in bus.ts. Engineering 2 shows each lever's load; perception 2 marks auto-reset
+ * circuits and warns before they reset.
  */
 
 export interface BusWorldHost {
@@ -24,7 +20,7 @@ export interface BusWorldHost {
   bus: RingBus;
   noMerge: Set<THREE.Object3D>;
   animated: Set<THREE.Material>;
-  /** Whether a lever can be thrown now (the pulse's own beat holds them). */
+  /** Whether levers can be thrown now; they are held while the pulse plays. */
   leversLive(): boolean;
   /** A lever was thrown, a box locked out, or the bus did something by itself. */
   onEvent(e: BusEvent | { kind: 'lockout'; id: CircuitId }): void;
@@ -58,7 +54,8 @@ function canvasTex(w: number, h: number, draw: (ctx: CanvasRenderingContext2D) =
   return t;
 }
 
-/** A lever's tag: the circuit's name in a crew's stencil, and, if you can read it, its load. */
+/** A lever's tag texture: the circuit name, its load with engineering, and a reset mark with
+ * perception. */
 function tagTexture(id: CircuitId, engineering: boolean, perception: boolean): THREE.CanvasTexture {
   const c = CIRCUITS[id];
   return canvasTex(256, 128, (ctx) => {
@@ -84,7 +81,7 @@ function tagTexture(id: CircuitId, engineering: boolean, perception: boolean): T
   });
 }
 
-/** A gauge's face: 0 to 8 units, the red band past the bus's six. */
+/** A gauge face: 0 to GAUGE_MAX units, with a red band past CAPACITY. */
 function gaugeFace(): THREE.CanvasTexture {
   return canvasTex(512, 512, (ctx) => {
     ctx.fillStyle = '#e8dcc4';
@@ -136,7 +133,7 @@ export class BusWorld {
     for (const [id, lv] of Object.entries(L.LEVERS) as [CircuitId, (typeof L.LEVERS)[CircuitId]][]) {
       this.levers.push(this.buildLever(id, lv.at, lv.yaw, a.engineering >= 2, a.perception >= 2));
     }
-    // A face looks along +z; turned to face into its room from the wall it hangs on.
+    // A gauge face looks along +z; the yaw turns it to face into its room.
     this.gauges.push(this.buildGauge(L.GAUGE, 0, 1.1));
     this.gauges.push(this.buildGauge({ x: -12.4, y: 2.2, z: 3.8 }, -Math.PI / 2, 0.55));
     this.gauges.push(this.buildGauge({ x: 23.5, y: 2.2, z: -25.8 }, -Math.PI / 2, 0.55));
@@ -214,7 +211,7 @@ export class BusWorld {
     return SWEEP / 2 - (SWEEP * Math.min(load, GAUGE_MAX)) / GAUGE_MAX;
   }
 
-  /** Conduits along the ceilings of every compartment and tube: the bus's flow, made visible. */
+  /** Ceiling conduits whose dash speed and brightness follow the bus load. */
   private buildConduits(): void {
     const mat = new THREE.ShaderMaterial({
       uniforms: this.conduitUniforms,
@@ -278,7 +275,7 @@ export class BusWorld {
     });
   }
 
-  /** Perception 2: an auto-reset about to fire is heard coming (a relay ticking), four seconds out. */
+  /** With perception 2, warns once when an auto-reset is under four seconds away. */
   private warn(): void {
     if (gameState.data.attributes.perception < 2) return;
     for (const [id, t] of this.host.bus.timers) {
@@ -302,7 +299,6 @@ export class BusWorld {
     const load = bus.load();
     for (const g of this.gauges) {
       g.angle += (this.needleAngle(load) - g.angle) * Math.min(1, dt * 4);
-      // A live needle trembles with the bus.
       g.needle.rotation.z = g.angle + (load > 0 ? Math.sin(elapsed * 23) * 0.006 : 0);
     }
     this.conduitUniforms.uTime.value = elapsed;

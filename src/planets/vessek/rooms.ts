@@ -5,11 +5,9 @@ import { applyPbr } from '../../core/TextureLibrary';
 import * as L from './layout';
 
 /**
- * Vessek's new compartments, tubes and ducts (docs/DESIGN.md §6), built from layout.ts: the school
- * hold, the hydroponics tanker and the aft junction in the Wren's kit, like the hall; the tubes
- * between hulls; Dace's ducts with their ladders; and the three doors the level turns on: the tanker
- * hatch (sealed by the pulse, cranked open from inside), the junction's keypad door, and the short
- * duct's bent grate (traversal 2). The hall itself is VessekScene's, with its openings cut here.
+ * Vessek's school hold, tanker and junction rooms, the tubes and ducts between them, and the three
+ * doors (tanker hatch, keypad door, bent duct grate), built from layout.ts. VessekScene builds the
+ * hall itself; hallOpenings() adds its door frames, vent and colliders.
  */
 
 export interface Door {
@@ -55,7 +53,7 @@ export function isOpenBay(bay: L.Bay): boolean {
   return openingAt(bay) !== null;
 }
 
-/** Everything that opens a bay: tube doors and duct mouths. */
+/** The opening in a bay (a tube door or a duct mouth), or null. */
 function openingAt(bay: L.Bay): { kind: 'door' } | { kind: 'vent'; y: number } | null {
   const same = (b: L.Bay) => b.room === bay.room && b.wall === bay.wall && b.at === bay.at;
   if (L.TUBES.some((t) => same(t.a) || same(t.b))) return { kind: 'door' };
@@ -63,7 +61,7 @@ function openingAt(bay: L.Bay): { kind: 'door' } | { kind: 'vent'; y: number } |
   return null;
 }
 
-/** The kit's straight-wall placement for a bay (the hall's own table, walls.ts). */
+/** Kit straight-wall position and yaw for a bay; matches the hall's table in walls.ts. */
 function bayPlacement(room: L.Room, wall: L.Bay['wall'], at: number): { pos: [number, number, number]; yaw: number } {
   if (wall === 'west') return { pos: [room.x0 + 2, 0, at], yaw: 0 };
   if (wall === 'east') return { pos: [room.x1 - 2, 0, at], yaw: Math.PI };
@@ -92,7 +90,7 @@ export async function buildRooms(scene: THREE.Scene, mats: { wall: THREE.MeshSta
   const cornerYaw: Record<string, number> = { '-1,-1': 0, '-1,1': Math.PI / 2, '1,-1': -Math.PI / 2, '1,1': Math.PI };
   for (const room of [L.ROOMS.school, L.ROOMS.tanker, L.ROOMS.junction]) {
     floorSlab(room.x0, room.z0, room.x1, room.z1);
-    // Deck plating per 4 m cell; the tanker's aisles in the dark finish.
+    // Deck plating per 4 m cell; the tanker's centre aisle uses the dark plates.
     for (let x = room.x0 + 2; x < room.x1; x += 4) {
       for (let z = room.z0 + 2; z < room.z1; z += 4) {
         place(room.id === 'tanker' && Math.abs(x) < 3 ? 'Platform_DarkPlates' : room.id === 'junction' ? 'Platform_Metal' : 'Platform_Simple', [x, 0.001, z]);
@@ -112,7 +110,7 @@ export async function buildRooms(scene: THREE.Scene, mats: { wall: THREE.MeshSta
     for (const wall of ['north', 'south', 'east', 'west'] as const) roomWall(scene, room, wall, mats.wall, colliders, place, true);
   }
 
-  // The tubes between hulls: a short corridor face to face, with a strip light down its roof.
+  // Tube corridors between hulls, with a strip light along the roof.
   const tubeMat = mats.wall;
   const stripMat = new THREE.MeshStandardMaterial({ color: 0x1a1d20, emissive: 0xe8e2d0, emissiveIntensity: 0.9 });
   for (const t of L.TUBES) {
@@ -209,7 +207,7 @@ export async function buildRooms(scene: THREE.Scene, mats: { wall: THREE.MeshSta
     open: false,
     setOpen(open) {
       this.open = open;
-      // Bent aside for good: the two middle bars fold to the walls.
+      // One-way: the two middle bars fold aside and are not restored on close.
       grateObj.children.forEach((b, i) => {
         if (open && i >= 2 && i <= 3) b.rotation.z = 1.3 * (i === 2 ? -1 : 1);
       });
@@ -287,7 +285,7 @@ function wallCollider(out: THREE.Box3[], alongX: boolean, face: number, dir: num
   push(at, hi + 1, 0, H);
 }
 
-/** A bay's wall with a duct's hole in it, in the ship's own panelling, and a frame round the hole. */
+/** Wall panels around a duct opening in a bay, plus a frame around the hole. */
 function ventPanel(scene: THREE.Scene, mat: THREE.MeshStandardMaterial, room: L.Room, wall: L.Bay['wall'], at: number, face: number, dir: number, y: number): void {
   const alongX = wall === 'north' || wall === 'south';
   const hw = L.DUCT_WIDTH / 2 + L.DUCT_WALL;
@@ -307,7 +305,7 @@ function ventPanel(scene: THREE.Scene, mat: THREE.MeshStandardMaterial, room: L.
   add(at + hw, at + 2, 0, room.ceiling);
   add(at - hw, at + hw, 0, bottom);
   add(at - hw, at + hw, top, room.ceiling);
-  // A chalk-white stencilled frame round the mouth, so a duct reads from across the room.
+  // Light frame around the opening so a duct is visible from across the room.
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xd8d2c0, roughness: 0.7 });
   const inner = face - dir * 0.02;
   for (const [a, b, y0, y1] of [[at - hw, at + hw, top - 0.06, top], [at - hw, at + hw, bottom, bottom + 0.06], [at - hw, at - hw + 0.06, bottom, top], [at + hw - 0.06, at + hw, bottom, top]] as const) {

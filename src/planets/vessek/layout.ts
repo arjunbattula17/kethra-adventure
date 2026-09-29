@@ -1,12 +1,11 @@
 /**
- * Vessek Anchorage's plan (docs/DESIGN.md §6), with no rendering in it: four compartments in four
- * lashed hulls joined by short tubes, and Dace's ducts running in the gaps between them. The same
- * numbers build the rooms, the player's collision and the tests' route checks
- * (tools/test-vessek-layout.mjs).
+ * Vessek Anchorage's floor plan, with no rendering: four rooms joined by short tubes, and ducts in
+ * the gaps between them. The same numbers build the rooms, the player's collision and the route
+ * checks in tools/test-vessek-layout.mjs.
  *
- * Kethra-style coordinates: y up, floors at y = 0. Rooms sit on the ship kit's 4 m grid (like the
- * Wren's interior): a room spanning grid lines x0..x1 has its inner wall faces 0.435 inside them.
- * The docking collar to the Wren is on the hall's south wall.
+ * Coordinates: y up, floors at y = 0. Rooms sit on the ship kit's 4 m grid: a room spanning grid
+ * lines x0..x1 has its inner wall faces 0.435 inside them. The docking collar is on the hall's
+ * south wall.
  */
 
 export interface Vec {
@@ -32,13 +31,13 @@ export interface Room {
 export const FACE = 0.435;
 
 export const ROOMS: Record<RoomId, Room> = {
-  // The Lantern Bay: the town hall, Varro's desk and ledger, the bus gauge.
+  // The Lantern Bay: Varro's desk and ledger, the bus gauge.
   hall: { id: 'hall', x0: -8, x1: 8, z0: -12, z1: 12, ceiling: 5 },
-  // The school hold, west, in a cargo hull: Dace's lamp board, the chalkboard, the drawings.
+  // The school hold, west: Dace's lamp board, the chalkboard, the drawings.
   school: { id: 'school', x0: -24, x1: -12, z0: 0, z1: 12, ceiling: 5 },
-  // The hydroponics tanker, north: grow tables under grow light; the scrubbers.
+  // The hydroponics tanker, north: grow tables and the scrubbers.
   tanker: { id: 'tanker', x0: -8, x1: 8, z0: -36, z1: -16, ceiling: 5 },
-  // The aft junction, north-east: the pumps and heaters, the regulator. Sealed; reached by ducts.
+  // The aft junction, north-east: pumps, heaters and the regulator. Sealed; reached by ducts.
   junction: { id: 'junction', x0: 12, x1: 24, z0: -36, z1: -20, ceiling: 5 },
 };
 
@@ -99,7 +98,7 @@ export interface Duct {
   ladders: { x: number; z: number }[];
   /** Where it opens into rooms: `drop` vents let you fall out and never climb back in. */
   mouths: { bay: Bay; y: number; drop: boolean }[];
-  /** The short duct is a squeeze through a bent grate: traversal 2. */
+  /** A squeeze through a bent grate; needs traversal 2. */
   squeeze?: boolean;
 }
 
@@ -136,7 +135,7 @@ export const DUCTS: Duct[] = [
       { bay: { room: 'junction', wall: 'south', at: 18 }, y: UPPER, drop: true },
     ],
   },
-  // The short duct, tanker to junction, low: a bent grate only a practised climber squeezes past.
+  // The short duct, tanker to junction at floor level, through a bent grate.
   {
     id: 'short',
     runs: [{ from: v(7.565, 0, -26), to: v(12.435, 0, -26) }],
@@ -158,14 +157,11 @@ export const LEVERS: Record<LeverId, { at: Vec; room: RoomId; yaw: number }> = {
   // In the hall, beside the bus gauge on the north wall.
   lamps: { at: v(5.2, 0, -11.2), room: 'hall', yaw: 0 },
   dock: { at: v(6.4, 0, -11.2), room: 'hall', yaw: 0 },
-  // Dace's lamp board in the school hold.
   school: { at: v(-12.9, 0, 3.2), room: 'school', yaw: -Math.PI / 2 },
   fans: { at: v(-12.9, 0, 4.4), room: 'school', yaw: -Math.PI / 2 },
-  // The junction.
   regulator: { at: v(23.1, 0, -24), room: 'junction', yaw: -Math.PI / 2 },
   pumps: { at: v(23.1, 0, -27.5), room: 'junction', yaw: -Math.PI / 2 },
   heaters: { at: v(23.1, 0, -29), room: 'junction', yaw: -Math.PI / 2 },
-  // The tanker's scrubber stack.
   scrubbers: { at: v(-7.1, 0, -20), room: 'tanker', yaw: Math.PI / 2 },
 };
 
@@ -257,8 +253,8 @@ function rectsOf(grid: Uint8Array, nx: number, nz: number, ox: number, oz: numbe
  * Every duct's shell as boxes. Per level (the floor and the upper runs), the runs' footprints are
  * rasterised; walls go round the outline, except across a mouth into a room; floors and roofs fill
  * it, open over each ladder shaft (the lower roof and the upper floor). The shafts are walled
- * between the levels. Corners, tees and dead ends come out right with no special cases: per-run
- * boxes left a run's inner wall across the next run's way at every corner.
+ * between the levels. Rasterising, rather than boxing each run, keeps a run's inner wall from
+ * blocking the next run at corners and tees.
  */
 export function ductShell(): Box[] {
   const out: Box[] = [];

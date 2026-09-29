@@ -37,18 +37,13 @@ import * as L from './layout';
 import { LAMP_COLORS } from './anchorage';
 
 /**
- * Level 3: Vessek Anchorage, expanded (LORE.md, "Level 3"; docs/DESIGN.md §6).
+ * Level 3: Vessek Anchorage.
  *
- * The Lantern Bay, the oldest hull in a ring of twenty-one stranded ships, is the town hall; the
- * school hold, the hydroponics tanker and the aft junction are lashed hulls around it, joined by
- * tubes, with Dace's ducts in the gaps. One ring bus carries six units for all of it (bus.ts), and
- * its levers, gauges and conduits are in the rooms they serve (busWorld.ts). The beats:
- *   Ki   Dace's lamp board: light the school by switching something else off.
- *   Shō  Varro's deal: get the aft junction back on the bus, through the ducts.
- *   Ten  The rehearsal pulse, two years early: every grid browns out, and the lamps that reset
- *        themselves trip the bus whenever it's loaded. The frost clock starts.
- *   Ketsu Lock the auto-resets out in the ducts, bring up pumps, heaters and scrubbers inside six
- *        units, and the grow lights come back deck by deck. Then the ledger and the alloy.
+ * Four rooms (hall, school hold, hydroponics tanker, aft junction) joined by tubes and crawl ducts.
+ * One six-unit power bus runs all of them (bus.ts); its levers, gauges and conduits are placed in
+ * the rooms they serve (busWorld.ts). Order of play: light the school, reset the aft junction
+ * through the ducts, then, after the brown-out, lock out the self-resetting lamps and restore the
+ * pumps, heaters and scrubbers before the frost timer runs out.
  */
 
 const HALF_W = 8;
@@ -56,10 +51,11 @@ const HALF_D = 12;
 const WALL_FACE_X = 7.565;
 const WALL_FACE_Z = 11.565;
 const SPAWN = new THREE.Vector3(L.SPAWN.x, L.SPAWN.y, L.SPAWN.z);
-/** The pulse's own beat, before the player has control back and the frost starts. */
+/** Length of the pulse cutscene in seconds, before the player regains control and the frost timer
+ * starts. */
 const PULSE_BEAT = 6.2;
 
-/** Lamp groups: most follow a circuit; the grow lights follow the bay's power, the junction its reset. */
+/** Most lamp groups follow the bus circuit of the same name; goalFor() drives the rest. */
 type LampGroup = 'lamps' | 'dock' | 'school' | 'grow' | 'junction' | 'emergency';
 
 interface Lamp {
@@ -71,7 +67,7 @@ interface Lamp {
   glow: number;
   goal: number;
   level: number;
-  /** Seconds before it starts toward a new goal (the pulse browns the ring out deck by deck). */
+  /** Seconds to wait before moving toward a new goal; staggers the pulse brown-out. */
   delay: number;
   phase: number;
 }
@@ -125,7 +121,7 @@ export class VessekScene implements GameScene {
   private sky!: SpaceSky;
   readonly staticShadows = true;
   onDepart: (() => void) | null = null;
-  /** Public for the tests and the harness: the ring's bus, and its frost clock. */
+  /** Public so tests and the debug harness can drive the bus and its frost timer. */
   readonly bus = new RingBus();
 
   private floor!: THREE.Mesh;
@@ -148,9 +144,9 @@ export class VessekScene implements GameScene {
   private dace!: Figure;
   private timeline: TimelineStep[] = [];
   private timelineClock = 0;
-  /** The pulse's beat is playing; the frost waits for it. */
+  /** True while the pulse cutscene plays; the bus and frost timer are paused. */
   private pulseBeat = false;
-  /** The grow lights coming back row by row after the bay is saved (seconds since). */
+  /** Seconds since power was restored, for the row-by-row grow light fade-in; -1 before that. */
   private dawn = -1;
   private doorTimers = new Map<Door, number>();
   private unsub: Array<() => void> = [];
@@ -165,8 +161,7 @@ export class VessekScene implements GameScene {
   }
 
   async init(): Promise<void> {
-    // Signage and screens are drawn onto canvases in the game's own faces: wait for them, or the
-    // textures bake the fallback font for the whole visit.
+    // Wait for the display fonts: canvas textures drawn before they load bake in the fallback font.
     await displayFontsReady();
     UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x020308);
@@ -225,7 +220,6 @@ export class VessekScene implements GameScene {
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
     this.unsub.push(bus.on('player:shake', (amount: number) => this.player.addShake(amount)));
 
-    // Merge the static kit and dressing into batches, as the Wren does.
     this.player.rig.traverse((o) => this.noMerge.add(o));
     for (const f of [this.varro, this.dace]) f.group.traverse((o) => this.noMerge.add(o));
     batchStaticGeometry({ scene: this.scene, noMerge: this.noMerge, animatedMaterials: this.animated });
@@ -236,7 +230,7 @@ export class VessekScene implements GameScene {
     bus.emit('scene:vessek:ready');
   }
 
-  /** The bus as the save left it: before the pulse, in it (with the lockouts thrown), or after. */
+  /** Rebuilds the bus state from save flags: before, during or after the pulse. */
   private restoreBus(): void {
     const b = this.bus;
     if (gameState.hasFlag('vessek_deal_message') || gameState.hasFlag('vessek_lockout_lamps')) b.lockOut('lamps');
@@ -300,8 +294,8 @@ export class VessekScene implements GameScene {
         place(name, [x, 0.001, z]);
       }
     }
-    // Long walls: west is solid hull with hanging cable runs (and the tube to the school); east is
-    // the window gallery.
+    // Long walls: solid with cable runs on the west (except the school opening), windows on the
+    // east.
     for (const z of [-6, -2, 2, 6]) {
       if (!open('west', z)) {
         place('WallAstra_Straight', [-(HALF_W - 2), 0, z], 0);
@@ -310,8 +304,8 @@ export class VessekScene implements GameScene {
       place('WallWindow_Straight', [HALF_W - 2, 0, z], Math.PI);
       place('TopWindow_Straight', [HALF_W - 2, 0, z], Math.PI);
     }
-    // End walls. The north wall opens on the tanker's tube and the hall duct; the south wall's east
-    // bay is the docking collar's airlock to the Wren.
+    // End walls. North has openings for the tanker tube and the hall duct; south's east bay is the
+    // airlock door.
     for (const x of [-2, 2]) {
       if (open('north', x)) continue;
       place('WallAstra_Straight', [x, 0, -(HALF_D - 2)], -Math.PI / 2);
@@ -357,7 +351,6 @@ export class VessekScene implements GameScene {
     sign.position.set(2, 4.35, WALL_FACE_Z - 0.3);
     sign.rotation.y = Math.PI;
     this.scene.add(sign);
-    // The hall's own name, painted over the old Lantern Bay registry; and each hatch's.
     const signs: [string, string, number, number, number, number][] = [
       ['LANTERN BAY', 'HARBORMASTER · LEDGER · ALL CREWS', -WALL_FACE_X + 0.05, 3.7, -1, Math.PI / 2],
       ['SCHOOL', 'THE HOLD · MIND THE LITTLE ONES', -WALL_FACE_X + 0.05, 3.9, 6, Math.PI / 2],
@@ -385,7 +378,6 @@ export class VessekScene implements GameScene {
     place('Prop_AccessPoint', [-1.4, -0.4, -1.4], Math.PI / 2);
     place('Prop_Crate3', [-5.9, 0.5, -3.2], 0.4);
     place('Prop_Barrel_Large', [-6.6, 0, -2.2]);
-    // Cargo along the collar and in the north-west, where the grow tables stood before the tanker.
     for (const [x, z, yaw] of [[-6.4, 9.8, 0.2], [-5.3, 10.4, 0.8], [6.3, 8.4, 0.5], [-6.5, -9.4, 0.3], [-5.2, -10.4, -0.5]] as const) {
       place('Prop_Crate3', [x, 0.5, z], yaw);
     }
@@ -402,7 +394,6 @@ export class VessekScene implements GameScene {
     this.buildRingPlate();
   }
 
-  /** The Kindling ring plate, under a floor grate by the north wall. */
   private buildRingPlate(): void {
     const plate = new THREE.Mesh(
       new THREE.CircleGeometry(0.7, 8),
@@ -551,9 +542,7 @@ export class VessekScene implements GameScene {
       arc.position.copy(ringCenter);
       this.scene.add(arc);
     }
-    // Lashed hulls around the ring, each with its own mismatched running lights: every one its own
-    // freighter of the Wren's class (a seeded variant), since twenty-one ships pulled in over the
-    // years were never going to match.
+    // Background ship hulls around the ring, each a seeded hull variant with its own lamp colour.
     const count = 8;
     const hulls = await Promise.all(Array.from({ length: count }, (_, i) => buildShipHull({ variant: i + 1 })));
     for (let i = 0; i < count; i++) {
@@ -571,8 +560,6 @@ export class VessekScene implements GameScene {
         if (!m.isMesh) return;
         m.castShadow = false;
         const mat = m.material as THREE.MeshStandardMaterial;
-        // Moored for decades: engines cold. What light they have is their own grid's, each a
-        // different white, washing faintly over the plating.
         mat.emissive.copy(lampColor);
         mat.emissiveIntensity = mat.name === 'hull-paint' ? 0.07 : 0.02;
         mat.metalness = Math.min(mat.metalness, 0.4);
@@ -592,9 +579,8 @@ export class VessekScene implements GameScene {
   }
 
   /**
-   * The ring's light, on a budget: eight point lights for four compartments (every point light is
-   * written into every shader). Each circuit's fixtures glow on their own; one light per circuit
-   * carries the room.
+   * Point lights are capped at eight because every point light is compiled into every shader.
+   * Fixtures glow through their emissive materials; one point light per circuit lights the room.
    */
   private buildLighting(): void {
     const hemi = new THREE.HemisphereLight(0x8a9bb0, 0x3a3128, 0.35);
@@ -621,7 +607,7 @@ export class VessekScene implements GameScene {
       if (mat) this.animated.add(mat);
       this.lamps.push({ group, light, mat, base, glow, goal: 1, level: 1, delay: 0, phase });
     };
-    // Hall lamps down the concourse, each fixture a different white; three lights carry them.
+    // Five hall lamp fixtures; only the first three get a point light.
     const lampGeo = new THREE.BoxGeometry(1.3, 0.08, 0.3);
     [[0, 5.5], [0, 0.5], [0, -4.5], [-3.5, -1], [3.5, 2.5]].forEach(([x, z], i) => {
       const mat = new THREE.MeshStandardMaterial({ color: 0x33363a, emissive: LAMP_COLORS[i % LAMP_COLORS.length], emissiveIntensity: 1.5 });
@@ -644,7 +630,7 @@ export class VessekScene implements GameScene {
     const junction = new THREE.PointLight(0x9fd0ff, 1.2, 14, 1.6);
     junction.position.set(18, 3.8, -28);
     lamp('junction', junction, null, 1.2, 0, 2.2);
-    // Emergency strips at knee height round the hall, and one light: off until the pulse.
+    // Emergency strips and their point light, dark until the pulse.
     for (const [x, z, len, yaw] of [[-WALL_FACE_X + 0.1, 0, 20, Math.PI / 2], [WALL_FACE_X - 0.35, 0, 20, -Math.PI / 2]] as const) {
       const mat = new THREE.MeshStandardMaterial({ color: 0x331a08, emissive: 0xff9a40, emissiveIntensity: 0.05 });
       const strip = new THREE.Mesh(new THREE.BoxGeometry(len, 0.05, 0.05), mat);
@@ -668,7 +654,6 @@ export class VessekScene implements GameScene {
     });
     this.varro.group.position.set(L.PEOPLE.varro.x, 0, L.PEOPLE.varro.z);
     this.scene.add(this.varro.group);
-    // Dace: twelve, oversized jacket, headlamp, pockets full of tools. In the school, by her board.
     this.dace = new Figure({
       kind: 'human', height: 1.42, build: 0.9, seed: 9,
       skin: 0xc49a7c, garment: 0x6b4f2e, trim: 0x9aa3a8, coat: 0.55,
@@ -680,7 +665,7 @@ export class VessekScene implements GameScene {
     this.scene.add(this.dace.group);
   }
 
-  /** The school, tanker and junction's working parts: lamps that follow their circuits, doors. */
+  /** Registers the dressing's lamps and animated materials, and sets doors from save flags. */
   private wireDressing(): void {
     const d = this.dressing;
     for (const [i, mat] of d.growBars.entries()) {
@@ -700,7 +685,7 @@ export class VessekScene implements GameScene {
     d.scrubberFan.traverse((o) => this.noMerge.add(o));
     for (const o of [d.resetPanel, d.keypad, d.insideButton, d.crank]) o.traverse((x) => this.noMerge.add(x));
     if (gameState.hasFlag('vessek_junction_reset')) d.resetLever.rotation.x = -0.9;
-    // Doors as the save left them.
+    // Restore door states from save flags.
     const sealed = gameState.hasFlag('vessek_pulse') && !gameState.hasFlag('vessek_hatch_open') && !gameState.hasFlag('vessek_power_restored');
     this.rooms.hatch.setOpen(!sealed);
     this.rooms.keypadDoor.setOpen(false);
@@ -715,7 +700,7 @@ export class VessekScene implements GameScene {
       onInteract: () => {
         const reporting = gameState.hasFlag('vessek_junction_reset') && !gameState.hasFlag('vessek_pulse');
         DialogueSystem.start(varroDialogue(), () => {
-          // Persuasion 3: she threw her own hall lamps' lockout.
+          // The persuasion 3 deal includes Varro locking out the hall lamps.
           if (gameState.hasFlag('vessek_deal_message') && !this.bus.locked.has('lamps')) this.bus.lockOut('lamps');
           gameState.setObjective(this.currentObjective());
           if (reporting && !gameState.hasFlag('vessek_pulse')) this.startPulse();
@@ -748,7 +733,7 @@ export class VessekScene implements GameScene {
     });
 
     const d = this.dressing;
-    // Shō: the junction's reset.
+    // Junction reset lever.
     this.interaction.register({
       object: d.resetPanel,
       label: () => (gameState.hasFlag('vessek_junction_reset') ? 'The junction is on the bus' : 'Put the junction back on the bus'),
@@ -766,7 +751,7 @@ export class VessekScene implements GameScene {
         gameState.setObjective(this.currentObjective());
       },
     });
-    // The junction door: a keypad outside, a button inside. It closes itself behind you.
+    // Junction door: keypad outside, button inside; it closes again after 7 seconds.
     this.interaction.register({
       object: d.keypad,
       label: () => (gameState.hasFlag('vessek_junction_code') ? 'Enter the junction code: 4-1-7' : 'A keypad on the junction door'),
@@ -790,7 +775,7 @@ export class VessekScene implements GameScene {
         AudioSystem.playConfirm();
       },
     });
-    // The tanker hatch: the pulse seals it; it only cranks open from the tanker's side.
+    // Tanker hatch: sealed by the pulse, and only opens from the tanker side.
     this.interaction.register({
       object: d.crank,
       label: 'Crank the hatch open',
@@ -813,7 +798,7 @@ export class VessekScene implements GameScene {
       enabled: () => !this.rooms.hatch.open,
       onInteract: () => UIManager.toast('Pressure seal: the pulse shut it. It cranks open from the tanker’s side only.'),
     });
-    // The short duct's bent grate: traversal 2.
+    // Bent grate in the short duct; needs traversal 2.
     this.interaction.register({
       object: this.rooms.grate.object,
       label: () => (gameState.data.attributes.traversal >= 2 ? 'Squeeze past the bent grate' : 'A bent grate (traversal 2)'),
@@ -832,7 +817,7 @@ export class VessekScene implements GameScene {
         AudioSystem.playConfirm();
       },
     });
-    // The duct fans: running, they close the ducts.
+    // Running duct fans block the ducts.
     for (const f of d.ductFans) {
       this.interaction.register({
         object: f.blades,
@@ -859,7 +844,8 @@ export class VessekScene implements GameScene {
     ];
   }
 
-  /** Doors and fans in the player's colliders exactly while they are shut or running. */
+  /** Keeps door and fan colliders in the player's list, empty while a door is open or the fans are
+   * off. */
   private syncDoorColliders(): void {
     const r = this.rooms;
     const all = this.player.colliders;
@@ -912,7 +898,7 @@ export class VessekScene implements GameScene {
       default:
         break;
     }
-    // Ki: the school's lamps lit for the first time.
+    // The school lamps are on for the first time.
     if (!gameState.hasFlag('vessek_school_lit') && this.bus.phase === 'normal' && this.bus.isOn('school')) {
       gameState.setFlag('vessek_school_lit');
       gameState.addAttributeXp('engineering', 1);
@@ -923,7 +909,7 @@ export class VessekScene implements GameScene {
     gameState.setObjective(this.currentObjective());
   }
 
-  /** Where each lamp group should be, from the bus and the level's state. */
+  /** Target level (0 to 1) for a lamp group, from the bus and level flags. */
   private goalFor(group: LampGroup): number {
     const b = this.bus;
     const restored = b.phase === 'restored';
@@ -935,7 +921,6 @@ export class VessekScene implements GameScene {
       case 'school':
         return b.isOn('school') ? 1 : 0;
       case 'grow':
-        // The bay runs on its own reserve cells until the pulse drains them.
         return b.phase === 'normal' ? 1 : restored ? 1 : 0;
       case 'junction':
         return gameState.hasFlag('vessek_junction_reset') && b.isOn('regulator') ? 1 : 0.12;
@@ -944,7 +929,7 @@ export class VessekScene implements GameScene {
     }
   }
 
-  /** Snap every lamp to where it should be (loading, and a save resumed mid-level). */
+  /** Snaps every lamp to its goal with no transition, for scene load. */
   private settleLamps(): void {
     for (const l of this.lamps) {
       l.goal = l.level = this.goalFor(l.group);
@@ -963,11 +948,11 @@ export class VessekScene implements GameScene {
     gameState.setFlag('vessek_pulse');
     this.player.enabled = false;
     this.pulseBeat = true;
-    // A cinematic beat: the HUD steps out and the ring's idle motion ducks until control returns.
+    // Hide the HUD and duck ambient motion for the length of the cutscene.
     motion.conductor.hold('vessek-pulse');
     motion.conductor.duck(PULSE_BEAT);
     this.bus.pulse();
-    // The grids go deck by deck: the tanker first, then the collar, the hall, the school.
+    // Stagger the brown-out: each group in this order starts 0.7 s after the previous one.
     const order: LampGroup[] = ['grow', 'dock', 'lamps', 'school'];
     for (const l of this.lamps) {
       const i = order.indexOf(l.group);
@@ -1006,7 +991,7 @@ export class VessekScene implements GameScene {
     ];
   }
 
-  /** Ketsu: the bay holds. The grow lights come back row by row, then the rest of the ring. */
+  /** Power-restored sequence: grow lights come back row by row, then the rest of the ring. */
   private powerRestored(): void {
     UIManager.setMeter(null, 0);
     gameState.setFlag('vessek_power_restored');
@@ -1065,7 +1050,7 @@ export class VessekScene implements GameScene {
       this.timelineClock += dt;
       while (this.timeline.length && this.timeline[0].at <= this.timelineClock) this.timeline.shift()!.run();
     }
-    // The bus runs on its own: auto-resets count back, and during the crisis the bay freezes.
+    // The bus ticks its own timers (auto-resets, frost); it is paused during the pulse cutscene.
     if (!this.pulseBeat) for (const e of this.bus.update(dt)) this.onBusEvent(e);
     this.busWorld.update(dt, elapsed);
     this.updateFrost();
@@ -1076,7 +1061,7 @@ export class VessekScene implements GameScene {
     this.skyMat.opacity = damp(this.skyMat.opacity, skyTarget, 6, dt);
     this.whiteSky.visible = this.skyMat.opacity > 0.01;
 
-    // The grow lights come back row by row after the bay is saved: light travels.
+    // After power is restored, grow bars turn on one row every 0.6 s.
     if (this.dawn >= 0) this.dawn += dt;
     let growRow = 0;
     for (const l of this.lamps) {
@@ -1091,7 +1076,7 @@ export class VessekScene implements GameScene {
       const diff = l.goal - l.level;
       if (Math.abs(diff) > 0.001) {
         l.level += Math.sign(diff) * Math.min(Math.abs(diff), dt * 1.8);
-        // ~2.4 Hz: slow enough to stay under three flashes a second (docs/DESIGN.md §3, flash guard).
+        // About 2.4 Hz, under the three-flashes-per-second photosensitivity limit.
         const stutter = Math.abs(diff) > 0.05 && Math.sin(elapsed * 15 + l.phase * 13) > 0.3 ? 0.25 : 1;
         this.applyLamp(l, stutter);
       } else {
@@ -1115,12 +1100,11 @@ export class VessekScene implements GameScene {
       for (const m of this.hullMats) if (m.userData.lit !== undefined) m.emissiveIntensity = damp(m.emissiveIntensity, m.userData.lit, 1.5, dt);
     }
 
-    // Machines: the duct fans and the scrubber turn while they have power; the heaters glow.
     const d = this.dressing;
     const fans = this.bus.isOn('fans');
     for (const f of d.ductFans) {
       f.blades.rotation.z += dt * (fans ? 14 : 0);
-      // The fan light strobes slowly through the blades, well under three flashes a second.
+      // Slow pulse (about 0.6 Hz), well under three flashes a second.
       f.light.emissiveIntensity = fans ? 0.35 + 0.3 * Math.max(0, Math.sin(elapsed * 4)) : 0.08;
     }
     d.scrubberFan.rotation.y += dt * (this.bus.isOn('scrubbers') || this.bus.phase === 'normal' ? 5 : 0);
@@ -1140,7 +1124,7 @@ export class VessekScene implements GameScene {
     for (const door of [this.rooms.hatch, this.rooms.keypadDoor]) door.update(dt);
   }
 
-  /** The frost: the HUD's meter, and the seedlings frosting over as the bay cools. */
+  /** Updates the HUD frost meter and tints the plant materials toward frost as the timer runs down. */
   private updateFrost(): void {
     const crisis = this.bus.phase === 'crisis' && !this.pulseBeat;
     const f = Math.max(0, this.bus.frost.remaining / this.bus.frost.total);
@@ -1152,7 +1136,7 @@ export class VessekScene implements GameScene {
     }
   }
 
-  /** F2 in the harness, and the tests: save the bay now (the crisis), or fail it (a trip). */
+  /** Registers the debug win/fail hooks (F2 in the harness, and tests) while the crisis is live. */
   private registerHarness(): void {
     const live = this.bus.phase === 'crisis' && !this.pulseBeat;
     if (live && !this.unregister) {

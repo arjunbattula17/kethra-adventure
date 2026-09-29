@@ -35,10 +35,7 @@ export const VESSEK_ENTRIES: JournalLogEntry[] = [
   },
 ];
 
-/**
- * The notes on the bus's levers, each written by a different ship's crew (the ring is a patchwork).
- * busWorld.ts shows each one the first time its lever is thrown: they are how the ring teaches you.
- */
+/** Note text per bus lever; busWorld.ts shows each one the first time its lever is thrown. */
 export const LEVER_NOTES = {
   regulator: 'REGULATOR. First on, or nothing holds. —Lantern Bay',
   pumps: 'Circulation pumps. Needs the regulator. —Mireille crew',

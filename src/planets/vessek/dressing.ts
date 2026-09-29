@@ -3,13 +3,11 @@ import { buildInstancedKit } from '../kethra/kit';
 import * as L from './layout';
 
 /**
- * What the new compartments hold (docs/DESIGN.md §6, "Environmental storytelling"): the school's
- * chalkboard and the children's drawings of stars they've never seen; the tanker's grow tables,
- * heater coils and scrubber stack; the junction's regulator, pumps and reset panel; the duct fans
- * and Dace's chalk arrows. Returns the pieces the scene animates.
+ * Set dressing for the Vessek school, tanker, junction and ducts: the pieces buildDressing returns
+ * for the scene to animate and interact with.
  */
 export interface Dressing {
-  /** Emissive grow bars, row by row (north to south), so the light can come back deck by deck. */
+  /** Emissive grow-bar materials, one per row from north to south, so rows can light in order. */
   growBars: THREE.MeshStandardMaterial[];
   heaterMat: THREE.MeshStandardMaterial;
   schoolMat: THREE.MeshStandardMaterial;
@@ -37,7 +35,6 @@ function canvasTex(w: number, h: number, draw: (ctx: CanvasRenderingContext2D) =
   return t;
 }
 
-/** The school's chalkboard: Dace's lesson on other stars, in chalk. */
 function chalkboard(): THREE.CanvasTexture {
   return canvasTex(1024, 512, (ctx) => {
     ctx.fillStyle = '#23302a';
@@ -75,7 +72,7 @@ function chalkboard(): THREE.CanvasTexture {
   });
 }
 
-/** A child's drawing: a sun in some colour over the ring and its ships, crayon on scrap. */
+/** A child's drawing texture: a `sun`-coloured disc over the ring of ships, laid out from `seed`. */
 function drawing(seed: number, sun: string): THREE.CanvasTexture {
   let r = seed * 9301 + 49297;
   const rand = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
@@ -99,7 +96,7 @@ function drawing(seed: number, sun: string): THREE.CanvasTexture {
   });
 }
 
-/** Dace's chalk arrow, on a duct wall. */
+/** The chalk-arrow texture for the duct walls, built once and shared. */
 let arrowTex: THREE.CanvasTexture | null = null;
 function arrow(): THREE.CanvasTexture {
   arrowTex ??= canvasTex(128, 64, (ctx) => {
@@ -151,7 +148,7 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
     d.rotation.z = (i % 3 - 1) * 0.06;
     d.castShadow = false;
   });
-  // Low desks made of cargo lids, and stools.
+  // Desks and stools.
   for (const [x, z] of [[-20.5, 4], [-20.5, 7], [-17.5, 4], [-17.5, 7]] as const) {
     mesh(new THREE.BoxGeometry(1.6, 0.08, 0.8), wood, x, 0.62, z);
     mesh(new THREE.BoxGeometry(1.4, 0.58, 0.6), darkSteel, x, 0.29, z);
@@ -159,7 +156,7 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
     mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.42, 8), steel, x + 0.4, 0.21, z + 0.75);
     solid(x - 0.8, z - 0.4, x + 0.8, z + 0.4, 0.7);
   }
-  // The school lamps: a string of mismatched bulbs across the hold.
+  // The school lamps: a string of bulbs across the hold.
   const schoolMat = new THREE.MeshStandardMaterial({ color: 0x3a3228, emissive: 0xffc27a, emissiveIntensity: 1.6 });
   for (let i = 0; i < 7; i++) mesh(new THREE.SphereGeometry(0.1, 10, 8), schoolMat, -22.5 + i * 1.5, 4.2 - Math.sin((i / 6) * Math.PI) * 0.4, 6 + Math.cos(i) * 0.4);
 
@@ -249,7 +246,7 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
   keypad.position.set(L.KEYPAD.x, L.KEYPAD.y, L.KEYPAD.z);
   add(keypad);
 
-  // --- The ducts: a fan behind each mouth, and Dace's chalk arrows ---
+  // --- The ducts: a fan behind each mouth, and the chalk arrows ---
   const ductFans: Dressing['ductFans'] = [];
   const fanSpots = [
     { x: -18, z: -1.4, alongZ: true },
@@ -277,7 +274,8 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
     const closed = new THREE.Box3(new THREE.Vector3(f.x - 0.65, 0, f.z - 0.1), new THREE.Vector3(f.x + 0.65, L.DUCT_HEIGHT, f.z + 0.1));
     ductFans.push({ blades, collider: closed.clone(), closed, light });
   }
-  // Each arrow on a duct's inner wall: where it is, the wall's normal into the duct, and the way on.
+  // Each arrow: its position on a duct's inner wall, the wall normal into the duct, and its
+  // direction.
   const wallIn = L.DUCT_WIDTH / 2 - 0.01;
   const arrows: [number, number, number, [number, number], [number, number]][] = [
     [-18 + wallIn, 0.8, -2.8, [-1, 0], [0, -1]],
@@ -292,7 +290,7 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
   const basis = new THREE.Matrix4();
   for (const [x, y, z, [nx, nz], [dx, dz]] of arrows) {
     const a = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), arrowMat);
-    // The plane's +x runs the way on, its +z faces into the duct.
+    // The plane's +x points along the arrow's direction and its +z faces into the duct.
     const right = new THREE.Vector3(dx, 0, dz);
     const normal = new THREE.Vector3(nx, 0, nz);
     a.quaternion.setFromRotationMatrix(basis.makeBasis(right, new THREE.Vector3().crossVectors(normal, right), normal));

@@ -7,10 +7,9 @@
 //   vessek_dace_met           first conversation with Dace
 //   vessek_dace_stars         the player told Dace what other stars look like
 //   vessek_varro_met          the deal is struck; Varro sends the player to the aft junction
-//   vessek_deal_message       persuasion route: the Wren carries the ledger home, and Varro locks
-//                             her own hall lamps out of their auto-reset (VessekScene applies it)
-//   vessek_deal_knowledge     insight route: the player trades what they learned on Kethra, and
-//                             gets the junction door's code
+//   vessek_deal_message       persuasion route: Varro's hall lamps skip their auto-reset
+//                             (VessekScene applies it)
+//   vessek_deal_knowledge     insight route: the player also gets the junction door's code
 //   vessek_deal_repair        engineering route: the player fixes the ring's bus
 //   vessek_junction_code      the player knows the junction keypad's code
 //   vessek_alloy_given        the reward has been handed over
