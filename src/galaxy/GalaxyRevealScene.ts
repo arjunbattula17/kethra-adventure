@@ -155,6 +155,11 @@ export class GalaxyRevealScene implements GameScene {
     this.scene.add(this.shell);
 
     this.kethra.group.position.copy(toV3(sim.orbitAt(sim.KETHRA, 0)));
+  }
+
+  /** The reveal starts once the scene is on screen: from init it ran behind the compile and the
+   * loading cover, so a slow machine missed its opening seconds (or all of it). */
+  onEnter(): void {
     this.playReveal();
   }
 
