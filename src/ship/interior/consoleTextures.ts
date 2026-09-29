@@ -543,11 +543,9 @@ export function buildScuffDecalTexture(): THREE.CanvasTexture {
 
 
 /**
- * The hero readout laid into the console deck, and the brightest thing in its frame. It shows real
- * state (docs/DESIGN.md §2, "Screens show real state"): the approach to Kethra drawn top-down from
- * MG1's system, the belt as the no-burn band it is in the plane, and, once MG1 is flown, the
- * player's own course with a day tick every 8 Mkm and an elevation inset for the climb that the
- * top-down view hides. Before the plot, the same chart waits for one.
+ * The chart texture on the console deck: the approach to Kethra seen from above, with the belt as
+ * the no-burn band. With a plotted course it also draws the course (a day tick every 8 Mkm) and an
+ * elevation inset for the climb the top-down view hides.
  */
 export function buildDeskMapTexture(course: PlottedCourse | null): THREE.CanvasTexture {
   const key = course ? `${course.points.map((n) => n.toFixed(2)).join(',')}|${course.days}|${course.cells}` : 'none';
@@ -560,7 +558,7 @@ export function buildDeskMapTexture(course: PlottedCourse | null): THREE.CanvasT
   return tex;
 }
 
-/** Repaints a desk chart with the course drawn `progress` of the way (First light redraws it). */
+/** Repaints a desk chart with the course drawn `progress` (0 to 1) of the way along. */
 export function repaintDeskMap(tex: THREE.CanvasTexture, course: PlottedCourse | null, progress: number): void {
   const canvas = tex.image as HTMLCanvasElement;
   const ctx = canvas.getContext('2d')!;
@@ -668,7 +666,7 @@ function paintDeskMap(ctx: CanvasRenderingContext2D, course: PlottedCourse | nul
   }
   const arrived = progress >= 0.999;
   if (pts.length > 1) {
-    // The course, in the Wren's amber, with a tick every day (8 Mkm along the real 3D path).
+    // The course, with a tick every day (8 Mkm along the 3D path).
     ctx.shadowColor = 'rgba(216,166,58,0.8)';
     ctx.shadowBlur = 12;
     ctx.strokeStyle = 'rgba(240,196,110,0.98)';
@@ -744,7 +742,7 @@ function paintDeskMap(ctx: CanvasRenderingContext2D, course: PlottedCourse | nul
     ctx.fillText('ELEVATION ×3', ix + 10, iy + 14);
   }
 
-  // Telemetry: the plot's own figures.
+  // Telemetry box.
   const rows: [string, string][] = course
     ? [['DEST', 'KETHRA'], ['DAYS', String(course.days)], ['CELLS', String(course.cells)], ['CRUISE', '8 MKM/DAY']]
     : [['DEST', '—'], ['PLOT', 'AWAITING'], ['CRUISE', '8 MKM/DAY'], ['POWER', 'RESERVE']];
@@ -766,7 +764,7 @@ function paintDeskMap(ctx: CanvasRenderingContext2D, course: PlottedCourse | nul
   ctx.font = 'bold 14px "Atkinson Hyperlegible", sans-serif';
   ctx.fillText(course ? 'NAV PLOT // ORION · KETHRA TRANSFER' : 'NAV PLOT // ORION · NO COURSE', 24, h - 22);
 
-  // Smeared fingerprints: the glass is a surface people touch.
+  // Faint fingerprint smears.
   ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < 14; i++) {
     const x = rand() * w;

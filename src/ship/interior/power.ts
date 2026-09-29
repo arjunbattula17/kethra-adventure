@@ -1,17 +1,9 @@
 import * as THREE from 'three';
 
 /**
- * The Wren's power, in three stages (docs/DESIGN.md §2, "The Wren (inside)"):
- * - emergency: from the white sky until navigation boots. The room is dark, lamps and screens are
- *   down, and the deck strips burn the Wren's lamp amber, low.
- * - navigation: after the boot and the plot. The screens are up (the cool fill), the room is low.
- * - full: after First light, the rig as built.
- *
- * Rather than tag hundreds of parts, the stage sorts what the room holds by what it is, once the
- * room is built: room light (the global rig, and the faint self-glow that stands in for bounce),
- * practicals (warm lamps, their pools and halos), screens (cool emissives and the console wash), and
- * the deck strips. Alarms, a fault bulb that runs its own flicker and the view outside keep their
- * own light (ctx.ownLight).
+ * Ship interior power stages. Instead of tagging parts, collect() sorts the built room's lights and
+ * emissive materials into roles (room, practical, screen, strip), and each stage scales each role.
+ * Anything in ctx.ownLight keeps its own light.
  */
 export type PowerStage = 'emergency' | 'navigation' | 'full';
 type Role = 'room' | 'practical' | 'screen' | 'strip';
@@ -21,11 +13,11 @@ const LEVELS: Record<PowerStage, Record<Role, number>> = {
   navigation: { room: 0.45, practical: 0.3, screen: 1, strip: 1 },
   full: { room: 1, practical: 1, screen: 1, strip: 1 },
 };
-/** The emergency strips' colour: the Wren's lamp amber. */
+/** Deck strip colour in the emergency stage. */
 const EMERGENCY_AMBER = new THREE.Color(0xd98a2e);
 
 export function powerStageFor(hasFlag: (flag: string) => boolean): PowerStage {
-  // First light is the first departure; the debug harness's jumps leave without it.
+  // Debug jumps set left_wren without first_light, so either flag means full power.
   if (hasFlag('first_light') || hasFlag('left_wren')) return 'full';
   if (hasFlag('tutorial_battle_complete')) return 'navigation';
   return 'emergency';
@@ -33,12 +25,12 @@ export function powerStageFor(hasFlag: (flag: string) => boolean): PowerStage {
 
 interface Entry {
   role: Role;
-  /** Where it sits along the ship (world z), for the things First light's wave passes one by one. */
+  /** World z, set for point and spot lights so setWave() switches them as the front passes. */
   z?: number;
   apply(k: number, stage: PowerStage): void;
 }
 
-/** The ship's length as the wave runs it: from the stern (aft, +z) to the helm (fore, -z). */
+/** World z range of the power wave, from the stern (aft, +z) to the helm (fore, -z). */
 export const WAVE_AFT = 7.5;
 export const WAVE_FORE = -5.5;
 
@@ -67,7 +59,7 @@ export class ShipPower {
     for (const mat of strips) {
       const base = mat.emissiveIntensity;
       const color = mat.emissive.clone();
-      // The strips are merged into a few meshes, so First light's wave switches them per pixel.
+      // The strips are merged into a few meshes, so the power wave switches them per pixel.
       const wave: StripWave = { uFront: { value: WAVE_AFT }, uWave: { value: 0 }, uFrom: { value: new THREE.Color() }, uTo: { value: new THREE.Color() } };
       mat.onBeforeCompile = (shader) => {
         Object.assign(shader.uniforms, wave);
@@ -126,8 +118,8 @@ export class ShipPower {
       const base = std.emissiveIntensity;
       const glow = luminance(std.emissive) * base;
       if (glow <= 0) return null;
-      // A screen glows white through its map; anything else by its colour. A faint glow is the
-      // stand-in for bounce light, so it follows the room.
+      // Screens glow white through their emissive map; anything else glows by colour. Faint glows
+      // stand in for bounce light, so they follow the room level.
       const white = std.emissive.r > 0.95 && std.emissive.g > 0.95 && std.emissive.b > 0.95;
       const role: Role = glow < 0.15 ? 'room' : (std.emissiveMap && white) || isCool(std.emissive) ? 'screen' : 'practical';
       return { role, apply: (k) => (std.emissiveIntensity = base * k) };
@@ -136,7 +128,7 @@ export class ShipPower {
     // Painted light (pools, halos, cones): additive, so dimming its colour dims the light.
     if ((basic.isMeshBasicMaterial || (mat as THREE.SpriteMaterial).isSpriteMaterial) && mat.blending === THREE.AdditiveBlending && !mat.vertexColors) {
       const base = basic.color.clone();
-      if (base.r > 0.8 && base.g < 0.45 && base.b < 0.45) return null; // alarm red reports, it isn't lighting
+      if (base.r > 0.8 && base.g < 0.45 && base.b < 0.45) return null; // Alarm red is a status indicator, not lighting.
       const role: Role = isCool(base) ? 'screen' : 'practical';
       return { role, apply: (k) => basic.color.copy(_c.copy(base).multiplyScalar(k)) };
     }
@@ -157,9 +149,9 @@ export class ShipPower {
   }
 
   /**
-   * First light's power wave, from `from` to `to`, its front at world z `front` travelling from the
-   * stern to the helm (docs/DESIGN.md §5, beat 3). Lights switch as the front passes them, the deck
-   * strips switch per pixel, and surfaces with no one place follow the front's progress.
+   * Power wave from stage `from` to `to` with its front at world z `front`, running stern to helm.
+   * Point lights switch as the front passes them, deck strips switch per pixel, and everything else
+   * follows the wave's overall progress.
    */
   setWave(front: number, from: PowerStage, to: PowerStage): void {
     const a = LEVELS[from];

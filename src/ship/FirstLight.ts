@@ -15,12 +15,10 @@ const HOLD_SECONDS = 3.5;
 const IGNITIONS = [0.25, 0.5, 0.75, 1];
 
 /**
- * First light (docs/DESIGN.md §5): the Wren has made no light of its own since the white sky. The
- * plot is committed; the survey lead takes the throttle. The cabin falls to its emergency strips,
- * the desk chart draws the course again, and the player holds the lever forward: four ignitions,
- * each a real kick, with power travelling down the deck as light, stern to helm, strip by strip.
- * Letting go spools the current step back; nothing fails. `play()` resolves once the fourth pod is
- * lit and the wave has reached the helm; the flow then pushes out through the viewport.
+ * The engine start sequence: the cabin drops to emergency lighting, the desk chart redraws the
+ * course, and the player holds Space or the mouse button to push the throttle through four
+ * ignitions while a power wave runs from stern to helm. Releasing spools back to the last lit pod.
+ * `play()` resolves once all four pods are lit and the wave has reached the helm.
  */
 export class FirstLight {
   private readonly ship: ShipInteriorScene;
@@ -42,8 +40,8 @@ export class FirstLight {
     const player = ship.player;
     const course = gameState.data.course;
 
-    // Beat 1: the cabin falls to its emergency strips (from the helm aft), the desk chart draws the
-    // course again, and the view eases toward the glass.
+    // Drop the cabin to emergency lighting from the helm aft, redraw the course on the desk chart,
+    // and ease the view forward.
     UIManager.showCaption(t('firstlight.orion.plot', { cells: String(course?.cells ?? 4) }), 3200);
     AudioSystem.playTone(55, 1.6, 'sine', 0.07);
     const fromZ = player.rig.position.z;
@@ -66,7 +64,7 @@ export class FirstLight {
     await this.fx.wait(motion.reduced ? 0.4 : 2.8);
     ship.power.apply('emergency');
 
-    // Beat 2: hold on the lever. After a second of stillness it offers itself.
+    // Turn to the throttle, pause for a second, then light its rim and arm the hold input.
     await this.turnTo(ship.throttle.focus, motion.reduced ? 0.01 : 1);
     await this.fx.wait(1);
     this.fx.tween({ duration: 0.5, update: (k) => ship.throttle.setRim(k) });
@@ -78,7 +76,6 @@ export class FirstLight {
     window.addEventListener('pointerdown', this.onPointerDown);
     window.addEventListener('pointerup', this.onPointerUp);
 
-    // Beat 3: the hold.
     await new Promise<void>((resolve) => {
       ship.onTick = (dt) => {
         this.tick(dt);
@@ -111,7 +108,6 @@ export class FirstLight {
   private ignite(i: number): void {
     this.ship.throttle.setPod(i, 2);
     AudioSystem.playTone(46 + i * 9, 0.9, 'triangle', 0.1);
-    // Each ignition is a real impact: one of the only camera kicks in the game (DESIGN §3).
     this.ship.player.addShake(0.35 + i * 0.05);
     motion.conductor.duck(1.5);
     if (i === IGNITIONS.length - 1) this.shakeDust();

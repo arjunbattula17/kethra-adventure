@@ -85,11 +85,11 @@ export class ShipInteriorScene implements GameScene {
   private starfield: THREE.Points | null = null;
   private emergencyLight: THREE.PointLight | null = null;
   private readonly ownLight = new Set<object>();
-  /** The Wren's power stage; First light animates it from here. */
+  /** Ship power stage; FirstLight animates it. */
   readonly power = new ShipPower();
-  /** The drive throttle and its pod lamps (First light). */
+  /** The drive throttle and its pod lamps, used by FirstLight. */
   throttle!: Throttle;
-  /** The nav chart on the deck, which First light redraws. */
+  /** The desk nav chart texture; FirstLight redraws it. */
   deskChart: THREE.CanvasTexture | null = null;
   private statusLights: StatusLight[] = [];
   private animated: ((elapsed: number, dt: number) => void)[] = [];
@@ -128,8 +128,7 @@ export class ShipInteriorScene implements GameScene {
   }
 
   async init(): Promise<void> {
-    // Signage and screens are drawn onto canvases in the game's own faces: wait for them, or the
-    // textures bake the fallback font for the whole visit.
+    // Wait for the display fonts: canvas textures drawn before they load bake in the fallback font.
     await displayFontsReady();
     UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x03040a);
@@ -159,7 +158,6 @@ export class ShipInteriorScene implements GameScene {
     // as unbatched, unmerged individual draw calls, with each piece's load/parse/GPU-upload landing
     // as a hitch on whatever frame happened to be running when it resolved.
     await Promise.all([buildWalls(ctx), buildAirlock(ctx), buildDetailProps(ctx)]);
-    // The steady levels the old per-frame pulse used to force these to (it centred on them).
     for (const light of this.consoleGlow) light.intensity = 1.5;
     for (const mat of this.floorLedMats) mat.emissiveIntensity = 0.9;
     // Read colliders off the props *before* batching: the merge pass collapses every mesh sharing a
@@ -197,7 +195,7 @@ export class ShipInteriorScene implements GameScene {
     if (getActiveEngine()?.getQualityTier() === 'low') downscaleCanvasTextures(this.scene, 1024);
 
     this.applyLightBudget(getActiveEngine()?.getQualityTier() === 'low' ? 8 : POINT_LIGHT_BUDGET);
-    // The Wren's power stage (power.ts), read off the save: emergency until navigation boots.
+    // Apply the power stage from save flags (power.ts): emergency until navigation is restored.
     if (this.starfield) this.ownLight.add(this.starfield).add(this.starfield.material as THREE.Material);
     this.power.collect(this.scene, this.ownLight, this.floorLedMats);
     this.power.apply(powerStageFor((f) => gameState.hasFlag(f)));
@@ -238,10 +236,8 @@ export class ShipInteriorScene implements GameScene {
   }
 
   /**
-   * The room's blinking status LEDs, about 78 of them across eleven modules, each built as its own
-   * mesh with its own material (so the blink loop could drive it): one draw call apiece. Here they
-   * become one merged, unlit mesh (an LED is its own light) with a colour per vertex; a blink
-   * rewrites only that LED's vertex range, and only when it flips.
+   * Merges the status LED meshes into one unlit mesh with a colour per vertex, instead of one draw
+   * call per LED. A blink rewrites only that LED's vertex range, and only when it flips.
    */
   private instanceStatusLights(): void {
     if (!this.statusLights.length) return;
@@ -292,12 +288,12 @@ export class ShipInteriorScene implements GameScene {
 
   update(dt: number, elapsed: number): void {
     this.player.update(dt);
-    // While a scripted pose holds the player (seated, leaning over the chart), nothing is on offer.
+    // No interaction prompts while a scripted pose has the player disabled.
     if (this.player.enabled) this.interaction.update(this.camera);
     if (this.starfield) this.starfield.rotation.y += dt * 0.0015;
     if (this.emergencyLight) {
-      // A spike in roughly one of every eight 1/6 s slots: decided per slot of time, not per frame,
-      // so it flickers at the same rate at 30 Hz and 144 Hz. Seeded, so frame diffs stay stable.
+      // A spike in about one in eight 1/6 s slots. Decided per time slot, not per frame, so the
+      // flicker rate is the same at any frame rate; seeded so frame diffs stay stable.
       const slot = Math.floor(elapsed * 6);
       const spike = hash01(slot + this.flickerSeed) < 0.12 ? 0.4 : 0;
       this.emergencyLight.intensity = 1.1 + Math.sin(elapsed * 3.1) * 0.2 + spike;

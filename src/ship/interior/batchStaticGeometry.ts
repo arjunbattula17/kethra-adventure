@@ -74,13 +74,11 @@ function materialSignature(mat: THREE.Material): string | null {
 }
 
 /**
- * Points meshes whose materials are identical at the same material object. The room's modules each
- * make their own copies (every decal a new material, each kit file its own trim material, each
- * crate face its own), and batching only merges meshes that share the *object*. Animated materials
- * are left alone (ctx.animatedMaterials). Also: a double-sided transparent material is drawn in two
- * passes by default; for thin glows and decals one pass looks the same.
+ * Points meshes with identical materials at one shared material object, since batching only merges
+ * meshes that share the object. Skips ctx.animatedMaterials. Also sets forceSinglePass on
+ * double-sided transparent materials; for thin glows and decals one pass looks the same as two.
  */
-/** What batching needs from a scene's context: the Wren's InteriorCtx, or any scene's own three fields. */
+/** The context fields batching needs; InteriorCtx satisfies it, and so can any scene's own object. */
 export type BatchCtx = Pick<InteriorCtx, 'scene' | 'noMerge' | 'animatedMaterials'>;
 
 function shareIdenticalMaterials(ctx: BatchCtx, meshes: THREE.Mesh[]): number {
@@ -161,8 +159,8 @@ export function batchStaticGeometry(ctx: BatchCtx): void {
     if (list) list.push(m);
     else groups.set(key, [m]);
   }
-  // Instanced meshes join a group only where it already has company: alone, one is already a
-  // single draw call and expanding it would only cost memory.
+  // An instanced mesh joins a group only if that yields two or more members; on its own it is
+  // already one draw call, and expanding it would only cost memory.
   const instancedByKey = new Map<string, THREE.InstancedMesh[]>();
   for (const im of instanced) {
     const key = keyOf(im);

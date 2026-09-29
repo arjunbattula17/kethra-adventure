@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
 /**
- * Draws many sprites that share one SpriteMaterial as a single mesh. three.js issues a draw call per
- * Sprite; here each becomes a quad whose corners are pushed out in view space by the vertex shader,
- * which is what a sprite is. Same texture, colour, opacity, blending and fog. Sprites must be static
- * (position and scale are baked) and unrotated.
+ * Replaces every Sprite using `material` with one mesh of quads expanded in view space by the
+ * vertex shader, so they draw in a single call instead of one per Sprite. Sprites must be static
+ * (position and scale are baked) and unrotated. Returns how many were batched (0 if fewer than
+ * two).
  */
 export function batchSprites(scene: THREE.Scene, material: THREE.SpriteMaterial): number {
   const sprites: THREE.Sprite[] = [];

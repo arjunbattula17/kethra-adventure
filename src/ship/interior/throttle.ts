@@ -2,9 +2,8 @@ import * as THREE from 'three';
 import type { InteriorCtx } from './ctx';
 
 /**
- * The drive throttle at the helm, and the four pod lamps beside it (docs/DESIGN.md §5, First light):
- * a physical lever the player holds forward to relight the engines. It moves, so it stays out of
- * the room's static batching.
+ * The drive throttle at the helm and the four pod lamps beside it: a lever the player holds forward
+ * to relight the engines. It moves, so it stays out of the room's static batching.
  */
 export interface Throttle {
   group: THREE.Group;
@@ -12,13 +11,13 @@ export interface Throttle {
   focus: THREE.Vector3;
   /** 0 = back at idle, 1 = full forward. */
   setLever(k: number): void;
-  /** The grip's amber rim: lit when the lever is there to be used. */
+  /** Glow of the grip's amber rim, 0 to 1; lit while the lever can be used. */
   setRim(k: number): void;
   /** Pod lamp `i`: 0 dark, 1 armed (amber), 2 lit (white). */
   setPod(i: number, state: 0 | 1 | 2): void;
 }
 
-/** Beside the chart on the deck's right, where a seated pilot's hand falls. */
+/** Beside the chart on the deck's right, within a seated pilot's reach. */
 const AT = { x: 0.62, y: 1.02, z: -4.49 };
 
 export function buildThrottle(ctx: InteriorCtx): Throttle {

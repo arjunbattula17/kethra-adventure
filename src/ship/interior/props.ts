@@ -1003,7 +1003,6 @@ function buildReadoutPanel(k: Kit, wallX: number, y: number, z: number, sign: 1 
 
   // Trimmed from 0.5 for round 5 — the measured p95 sits above the reference, and two of these
   // full-white-emissive screens were a large share of the frame's brightest-quartile pixels.
-  // Steady: the idle pulse it used to run said nothing.
   mat.emissiveIntensity = 0.4;
 }
 

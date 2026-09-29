@@ -1,15 +1,10 @@
 import * as THREE from 'three';
 
 /**
- * Two ways to let meshes that each have their own material share one, so batchStaticGeometry can
- * merge them into a single draw call (docs/DESIGN.md §7, "Getting the Wren under budget"):
- *
- * - atlasCanvasMaterials: meshes whose only texture is their own generated canvas (placards,
- *   labels, crate faces, stencils) get their canvases packed into shared atlas pages, UVs remapped.
- * - mergeTints: meshes that share a texture but differ only in colour or opacity carry those in
- *   vertex colour (RGBA) instead, with one white, opaque-1 material.
- *
- * Both skip animated materials, custom shaders and anything whose texture repeats or tiles.
+ * Lets meshes that each have their own material share one, so batchStaticGeometry can merge them.
+ * atlasCanvasMaterials packs per-mesh canvas textures into shared atlas pages; mergeTints moves
+ * colour and opacity into RGBA vertex colours. Both skip animated, custom-shader and tiling
+ * materials.
  */
 
 const PAGE = 2048;

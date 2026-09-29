@@ -51,8 +51,8 @@ const DESK_FRONT_Z = DESK_Z + 0.37;
 export const CONSOLE_APPROACH = { x: 0, z: DESK_Z + 1.8 };
 /** Centre of the monitor bank's screen grid — the thing the tutorial hands the first game over on. */
 export const MONITOR_ANCHOR = { x: 0, y: 1.6, z: DESK_Z - 0.52 };
-/** The centre of the nav chart laid into the deck (buildDeckSurface: the deck at 1.09 m, tilted
- * 0.22 rad, the chart 0.13 m back on it), where the seated player looks to see MG1's course. */
+/** Centre of the nav chart on the deck, from buildDeckSurface's placement (deck at 1.09 m, tilted
+ * 0.22 rad, chart 0.13 m back on it). */
 export const DESK_CHART_ANCHOR = { x: 0, y: 1.18, z: DESK_Z - 0.17 };
 /** The pilot chair's centre and the eye height of someone settled into it — where the handover
  * cinematic seats the player before the navigation boot plays out. Matches buildChair()'s
@@ -727,7 +727,7 @@ function buildDeckSurface(ctx: InteriorCtx, kit: Kit, parent: THREE.Group): void
     metalness: 0,
   });
   mesh(deck, flatPlane(2.2, 0.4), mapMat, 0, 0.062, -0.13);
-  // First light redraws the course on it, so it keeps its own texture (out of the atlas).
+  // The course is redrawn on it at runtime, so it keeps its own texture (out of the atlas).
   ctx.animatedMaterials.add(mapMat);
   ctx.deskChart = mapMat.map as THREE.CanvasTexture;
   // Same glass treatment as the monitor bank's screens — the deck chart is the single brightest
@@ -835,7 +835,6 @@ function buildDeckSurface(ctx: InteriorCtx, kit: Kit, parent: THREE.Group): void
   const handle = mesh(deck, new THREE.TorusGeometry(0.028, 0.007, 6, 12), kit.bone, -1.28, 0.075, 0.06);
   handle.rotation.y = Math.PI / 2;
 
-  // Steady light: an idle pulse told the player nothing (docs/DESIGN.md §2, defaults audit).
   mapMat.emissiveIntensity = 1.72;
   ctx.animated.push((elapsed) => {
     sweep.position.x = Math.sin(elapsed * 0.42) * 1.02;
@@ -939,7 +938,6 @@ function buildMonitorBank(ctx: InteriorCtx, kit: Kit): THREE.Group {
     mesh(g, chamferBox(0.06, 0.05, 0.05, 0.01), kit.steel, -0.75 + i * 0.5, 1.02, -0.56);
   }
 
-  // Held at the level their old idle pulse centred on.
   for (const face of faces) face.emissiveIntensity = 1.18;
 
   return g;

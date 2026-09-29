@@ -64,10 +64,6 @@ export interface InteriorCtx {
  * the size of the group, parented to it, becomes the hit target: the raycaster ignores visibility,
  * an invisible material draws nothing, and buildInteriorColliders skips MeshBasicMaterial. The
  * group itself stays registered, so the proximity fallback still measures from its origin.
- *
- * It used to keep the whole subtree out of batching instead: about 230 meshes (the desk, the
- * journal terminal, the repair station), each its own draw call, and a per-frame recursive
- * raycast through all of them.
  */
 export function addInteractionProxy(ctx: InteriorCtx, group: THREE.Object3D, pad = 0.02): void {
   group.updateWorldMatrix(true, true);
