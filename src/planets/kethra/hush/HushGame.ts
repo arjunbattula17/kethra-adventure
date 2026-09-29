@@ -126,7 +126,7 @@ export class HushGame {
   get inside(): number {
     const p = this.host.player.rig.position;
     const d = Math.hypot(p.x - H.CENTER.x, p.z - H.CENTER.z);
-    return THREE.MathUtils.smoothstep(H.RADIUS + 3, H.RADIUS - 2.5, d);
+    return 1 - THREE.MathUtils.smoothstep(d, H.RADIUS - 2.5, H.RADIUS + 3);
   }
 
   /** Puts the moth at rest on the Heart with no gaze, for a save where the puzzle is solved. */
