@@ -1,12 +1,13 @@
 /**
  * MG1 Intercept's model (docs/DESIGN.md §4, slot 1), with no rendering in it: the Kessic system
- * in plot units (1 unit = 1 Mkm, the sun at the origin, the ecliptic is y = 0), the three legs,
- * and the simulation that runs a plotted course. Self-contained on purpose, so
- * tools/test-intercept-sim.mjs can load it straight into Node and prove every leg is solvable.
+ * in plot units (1 unit = 1 Mkm, the sun at the origin, the ecliptic is y = 0), the transfer to
+ * Kethra, and the numbers the chart shows. Self-contained on purpose, so
+ * tools/test-intercept-sim.mjs can load it straight into Node and prove the game has exactly one
+ * answer.
  *
- * The navigation is d = v·t made visible: the Wren cruises at SPEED along each burn's line, one
- * tick per day, and a reserve cell buys DAYS_PER_CELL days of drive. Kethra moves along an
- * inclined orbit, so the answer is where Kethra *will be* on the day the Wren arrives.
+ * The navigation is d = v·t made visible: the Wren cruises at SPEED, one tick per day. Kethra moves
+ * along an inclined orbit while the Wren flies, so the only place to meet it is the point Kethra
+ * reaches on the same day the Wren does.
  */
 
 export interface Vec {
@@ -17,8 +18,9 @@ export interface Vec {
 
 /** Cruise speed, Mkm per day (the same figure the galaxy map uses, src/content/tuning.ts NAV). */
 export const SPEED = 8;
+/** A reserve cell buys this many days of drive. */
 export const DAYS_PER_CELL = 2;
-/** How close counts as meeting the buoy or Kethra. */
+/** How close counts as meeting Kethra. */
 export const CAPTURE = 3;
 /** The Wren's parking orbit after the white sky, and where it sits on it. */
 export const WREN_START: Vec = { x: 12, y: 0, z: 0 };
@@ -30,16 +32,12 @@ export const scale = (a: Vec, k: number): Vec => v(a.x * k, a.y * k, a.z * k);
 export const len = (a: Vec): number => Math.hypot(a.x, a.y, a.z);
 export const dist = (a: Vec, b: Vec): number => len(sub(a, b));
 export const norm = (a: Vec): Vec => scale(a, 1 / (len(a) || 1));
+export const lerp = (a: Vec, b: Vec, k: number): Vec => add(a, scale(sub(b, a), k));
 
 /** A unit direction from azimuth (around y, from +x toward +z) and elevation (above the ecliptic). */
 export function direction(azimuth: number, elevation: number): Vec {
   const c = Math.cos(elevation);
   return v(c * Math.cos(azimuth), Math.sin(elevation), c * Math.sin(azimuth));
-}
-
-export function anglesOf(dir: Vec): { azimuth: number; elevation: number } {
-  const d = norm(dir);
-  return { azimuth: Math.atan2(d.z, d.x), elevation: Math.asin(Math.max(-1, Math.min(1, d.y))) };
 }
 
 /** A circular orbit about the sun, tilted `inclination` about the line of nodes at angle `node`. */
@@ -68,20 +66,15 @@ export function orbitAt(o: Orbit, day: number): Vec {
   return v(lx * cn - lz * sn, ly, lx * sn + lz * cn);
 }
 
-/** Kethra: the first orbit past the belt, inclined enough that height is part of every answer. */
+/** Kethra: the first orbit past the belt, inclined, so the course climbs as it goes. */
 export const KETHRA: Orbit = { radius: 60, inclination: (14 * Math.PI) / 180, node: 0.812, phase: -0.282, rate: 0.072 };
 
-/** A belt clump: the sim tests the Wren's path against these spheres. */
+/** A belt clump. The belt is scenery now: the transfer passes over the dust the first scan found. */
 export interface Clump {
   c: Vec;
   r: number;
 }
 
-/**
- * The belt, as the sim sees it: a ring of overlapping clumps, a thin wall standing across the whole
- * plane between the inner system and Kethra. It reads as a wall only side-on. Over it and under it
- * are open, which is why leg 3 has no answer in the plane.
- */
 export const BELT_RADIUS = 42.5;
 export function beltWall(): Clump[] {
   const out: Clump[] = [];
@@ -93,86 +86,61 @@ export function beltWall(): Clump[] {
   return out;
 }
 
-export interface Burn {
-  dir: Vec;
-  cells: number;
-}
-
-export type Target = { kind: 'buoy'; at: Vec } | { kind: 'kethra' };
-
-export interface Leg {
-  id: 1 | 2 | 3;
-  start: Vec;
-  startDay: number;
-  target: Target;
-  burns: number;
-  /** Cells available across the leg's burns (engineering 2 adds one). */
-  budget: number;
-  belt: boolean;
-}
-
+/** ORION's buoy, one cell out of the Wren's own debris. */
 export const BUOY: Vec = add(WREN_START, scale(direction((20 * Math.PI) / 180, 0), 16));
 
-export function legs(engineering: number): Leg[] {
-  const budget = 4 + (engineering >= 2 ? 1 : 0);
-  return [
-    { id: 1, start: WREN_START, startDay: 0, target: { kind: 'buoy', at: BUOY }, burns: 1, budget, belt: false },
-    { id: 2, start: BUOY, startDay: 2, target: { kind: 'kethra' }, burns: 1, budget, belt: false },
-    { id: 3, start: BUOY, startDay: 2, target: { kind: 'kethra' }, burns: 2, budget, belt: true },
-  ];
+/** ORION's housekeeping hop out of the drift to the buoy: one cell, two days, before the transfer. */
+export const HOP_DAYS = DAYS_PER_CELL;
+export const HOP_CELLS = 1;
+
+/** Where the Wren is `day` days into the hop. */
+export function hopAt(day: number): Vec {
+  return lerp(WREN_START, BUOY, Math.min(1, Math.max(0, day / HOP_DAYS)));
 }
 
-export function targetAt(target: Target, day: number): Vec {
-  return target.kind === 'buoy' ? target.at : orbitAt(KETHRA, day);
+/** The transfer starts at the buoy when the hop ends. Days on the chart count from here. */
+export const TRANSFER_START = BUOY;
+
+/** Kethra `day` days into the transfer (day 0 is where it is when the choice is made). */
+export function kethraAt(day: number): Vec {
+  return orbitAt(KETHRA, HOP_DAYS + day);
 }
 
-export type Outcome =
-  | { kind: 'arrive'; day: number; at: Vec }
-  | { kind: 'contact'; day: number; at: Vec; clump: Clump }
-  | { kind: 'miss'; day: number; at: Vec; targetAt: Vec; distance: number };
+/** The meeting days the chart offers: 0 (Kethra now) through this. */
+export const MAX_MEET_DAY = 10;
+/** How far apart the two arrival times may be and still count as meeting. */
+export const MATCH_TOLERANCE = 0.4;
 
-/** Where the Wren is on `day` along a plotted course, and whether the burns have run out by then. */
-export function wrenAt(leg: Leg, burns: Burn[], day: number): { at: Vec; done: boolean } {
-  let p = leg.start;
-  let t = leg.startDay;
-  for (const b of burns) {
-    const span = b.cells * DAYS_PER_CELL;
-    if (day <= t + span) return { at: add(p, scale(b.dir, SPEED * (day - t))), done: false };
-    p = add(p, scale(b.dir, SPEED * span));
-    t += span;
-  }
-  return { at: p, done: true };
+/** One candidate meeting point: where Kethra is on `day`, and how long the Wren takes to get there. */
+export interface Meeting {
+  day: number;
+  at: Vec;
+  /** From the buoy, in Mkm. */
+  distance: number;
+  /** distance / SPEED: the Wren's flight time to this point. */
+  wrenDays: number;
 }
 
-export function endDay(leg: Leg, burns: Burn[]): number {
-  return leg.startDay + burns.reduce((s, b) => s + b.cells * DAYS_PER_CELL, 0);
+export function meeting(day: number): Meeting {
+  const at = kethraAt(day);
+  const distance = dist(at, TRANSFER_START);
+  return { day, at, distance, wrenDays: distance / SPEED };
 }
 
-/**
- * Runs the course in small steps: the first clump touched, the first moment within CAPTURE of the
- * target, or (when the burns run out) the closest approach, reported as a miss.
- */
-export function simulate(leg: Leg, burns: Burn[], clumps: Clump[]): Outcome {
-  const end = endDay(leg, burns);
-  const step = 1 / 96;
-  let best = { day: leg.startDay, distance: Infinity, at: leg.start, targetAt: targetAt(leg.target, leg.startDay) };
-  for (let day = leg.startDay; day <= end + 1e-9; day += step) {
-    const { at } = wrenAt(leg, burns, day);
-    if (leg.belt) {
-      for (const clump of clumps) if (dist(at, clump.c) < clump.r) return { kind: 'contact', day, at, clump };
-    }
-    const tp = targetAt(leg.target, day);
-    const d = dist(at, tp);
-    if (d < CAPTURE) return { kind: 'arrive', day, at };
-    if (d < best.distance) best = { day, distance: d, at, targetAt: tp };
-  }
-  return { kind: 'miss', day: best.day, at: best.at, targetAt: best.targetAt, distance: best.distance };
+/** Every point the chart offers, day 0 through MAX_MEET_DAY. */
+export function meetings(): Meeting[] {
+  return Array.from({ length: MAX_MEET_DAY + 1 }, (_, day) => meeting(day));
+}
+
+/** Whether the Wren and Kethra reach this point on the same day. */
+export function matches(m: Meeting): boolean {
+  return Math.abs(m.wrenDays - m.day) < MATCH_TOLERANCE;
 }
 
 /**
- * For a burn from `from` on `fromDay`, the direction that meets Kethra and the day it does: the
- * first day d where Kethra is exactly SPEED·(d − fromDay) away. Used for the reference solutions
- * (the debug harness's win, the tests) and for ORION's hints; the player never sees it.
+ * For a burn from `from` on `fromDay` (days since the hop began), the direction that meets Kethra
+ * and the day it does: the first day d where Kethra is exactly SPEED·(d − fromDay) away. The chart's
+ * matching tick is within a few hundredths of a day of this; the committed course uses it exactly.
  */
 export function leadTo(from: Vec, fromDay: number): { dir: Vec; day: number } {
   let lo = fromDay;
@@ -187,27 +155,34 @@ export function leadTo(from: Vec, fromDay: number): { dir: Vec; day: number } {
   return { dir: norm(sub(orbitAt(KETHRA, day), from)), day };
 }
 
-/** The fewest cells for the last burn that still arrive, keeping the earlier burns as they are. */
-function fewestCells(leg: Leg, burns: Burn[]): Burn[] {
-  const last = burns[burns.length - 1];
-  const spent = burns.slice(0, -1).reduce((n, b) => n + b.cells, 0);
-  for (let cells = 1; cells <= leg.budget - spent; cells++) {
-    const plan = [...burns.slice(0, -1), { dir: last.dir, cells }];
-    if (simulate(leg, plan, beltWall()).kind === 'arrive') return plan;
+/** The intercept: the transfer's exact direction and flight time, in transfer days. */
+export function intercept(): { dir: Vec; days: number; at: Vec } {
+  const lead = leadTo(TRANSFER_START, HOP_DAYS);
+  const days = lead.day - HOP_DAYS;
+  return { dir: lead.dir, days, at: add(TRANSFER_START, scale(lead.dir, SPEED * days)) };
+}
+
+/** Where the Wren is `day` transfer-days along a straight course from the buoy. */
+export function transferAt(dir: Vec, day: number): Vec {
+  return add(TRANSFER_START, scale(dir, SPEED * day));
+}
+
+/** Cells the whole plot spends: the hop, plus the transfer rounded up to whole cells. */
+export function cellsFor(transferDays: number): number {
+  return HOP_CELLS + Math.ceil(transferDays / DAYS_PER_CELL - 1e-6);
+}
+
+/**
+ * Flies a straight course from the buoy toward `toward` for `days`, in small steps: 'arrive' at the
+ * first moment within CAPTURE of Kethra, otherwise the closest approach, as a miss.
+ */
+export function fly(toward: Vec, days: number): { kind: 'arrive' | 'miss'; day: number; distance: number } {
+  const dir = norm(sub(toward, TRANSFER_START));
+  let best = { day: 0, distance: Infinity };
+  for (let day = 0; day <= days + 1e-9; day += 1 / 96) {
+    const d = dist(transferAt(dir, day), kethraAt(day));
+    if (d < CAPTURE) return { kind: 'arrive', day, distance: d };
+    if (d < best.distance) best = { day, distance: d };
   }
-  return burns;
+  return { kind: 'miss', ...best };
 }
-
-/** A reference course for each leg. */
-export function solution(leg: Leg): Burn[] {
-  if (leg.target.kind === 'buoy') return fewestCells(leg, [{ dir: norm(sub(leg.target.at, leg.start)), cells: 1 }]);
-  if (leg.burns === 1) return fewestCells(leg, [{ dir: leadTo(leg.start, leg.startDay).dir, cells: leg.budget }]);
-  // Over the wall: a one-cell hop up and toward Kethra, then the lead from the top of the hop.
-  const toward = anglesOf(sub(orbitAt(KETHRA, leg.startDay + 7), leg.start));
-  const hop: Burn = { dir: direction(toward.azimuth, HOP_ELEVATION), cells: 1 };
-  const top = add(leg.start, scale(hop.dir, SPEED * DAYS_PER_CELL));
-  return fewestCells(leg, [hop, { dir: leadTo(top, leg.startDay + DAYS_PER_CELL).dir, cells: leg.budget - 1 }]);
-}
-
-/** The reference hop's climb over the wall, in radians. */
-export const HOP_ELEVATION = (40 * Math.PI) / 180;

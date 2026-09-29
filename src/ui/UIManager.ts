@@ -66,7 +66,7 @@ class UIManagerImpl {
     this.lookPrompt.innerHTML = `<div class="look-prompt-inner"><span class="keycap">Click</span><span>to look around</span></div>`;
     this.loadingEl.innerHTML = `<div class="loading-title">Loading</div><div class="loading-bar"><div class="loading-fill"></div></div><div class="loading-text"></div><div class="loading-lore"></div>`;
     this.fadeEl.innerHTML = `<div class="scan-cover"></div><div class="scan-line"></div>`;
-    this.objectiveTracker.innerHTML = `<div class="eyebrow"><span class="hud-icon">${ICON_OBJECTIVE}</span>Objective</div><div id="objective-text"></div>`;
+    this.objectiveTracker.innerHTML = `<div class="eyebrow"><span class="hud-icon">${ICON_OBJECTIVE}</span>Objective</div><div id="objective-text"></div><div id="objective-note"></div>`;
     this.meterEl.innerHTML = `<div class="meter-label"></div><div class="bar"><div class="bar-fill"></div></div>`;
 
     document.body.appendChild(this.root);
@@ -95,7 +95,7 @@ class UIManagerImpl {
     });
     PanelManager.onOpenChange = (open) => this.refreshLookPrompt(open);
 
-    bus.on('objective:changed', (text: string) => this.setObjective(text));
+    bus.on('objective:changed', (text: string) => this.setObjective(text, gameState.data.objectiveNote));
     bus.on('level:up', (level: number) => {
       this.refreshStatusBar();
       this.toast(`Level ${level}. You have a skill point to spend (Tab).`, 'learn');
@@ -112,13 +112,13 @@ class UIManagerImpl {
     });
     bus.on('xp:changed', () => this.refreshStatusBar());
     bus.on('state:loaded', () => {
-      this.setObjective(gameState.data.objective);
+      this.setObjective(gameState.data.objective, gameState.data.objectiveNote);
       this.refreshStatusBar();
     });
     // A write that localStorage refuses would otherwise only reach the console, and the player
     // would keep playing believing their progress was being kept.
     bus.on('save:failed', () => this.toast('Could not save your progress: browser storage is full.', 'fail'));
-    this.setObjective(gameState.data.objective);
+    this.setObjective(gameState.data.objective, gameState.data.objectiveNote);
     this.refreshStatusBar();
     this.refreshLookPrompt();
   }
@@ -208,10 +208,13 @@ class UIManagerImpl {
   }
   private quietTimers: Partial<Record<'objective' | 'status', { cancel(): void }>> = {};
 
-  setObjective(text: string): void {
+  /** The objective, and an optional quieter line under it (what else there is to do, if wanted). */
+  setObjective(text: string, note = ''): void {
     const target = document.getElementById('objective-text');
-    if (!target || target.textContent === text) return;
+    const noteEl = document.getElementById('objective-note');
+    if (!target || (target.textContent === text && (noteEl?.textContent ?? '') === note)) return;
     target.textContent = text;
+    if (noteEl) noteEl.textContent = note;
     this.wake(this.objectiveTracker, 'objective');
     // A changed objective gets a brief amber edge so the eye finds it, then settles.
     this.objectiveTracker.classList.remove('updated');

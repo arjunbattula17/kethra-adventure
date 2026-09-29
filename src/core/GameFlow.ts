@@ -12,6 +12,7 @@ import { CONSOLE_SEAT, DESK_CHART_ANCHOR, MONITOR_ANCHOR } from '../ship/interio
 import { AudioSystem } from '../audio/AudioSystem';
 import type { InterceptResult } from '../galaxy/intercept/InterceptGame';
 import { FirstLight } from '../ship/FirstLight';
+import { ConsoleGuide } from '../ship/ConsoleGuide';
 import { ShipLibrary } from '../journal/shipLibrary';
 import { PanelManager } from '../ui/PanelManager';
 import type { GameScene } from './Engine';
@@ -69,6 +70,8 @@ export class GameFlow {
   tutorial: TutorialSequence | null = null;
   /** Interior scene being prepared behind the intro cinematic; consumed at the handover. */
   private pendingShip: Promise<ShipInteriorScene> | null = null;
+  /** The markers pointing at the navigation console between MG1 and the first departure. */
+  private consoleGuide: ConsoleGuide | null = null;
 
   /** The save as it stood when the player entered the current level: "Restart this level" returns here. */
   private levelSnapshot: { planetId: string; json: string } | null = null;
@@ -419,7 +422,7 @@ export class GameFlow {
     this.poseSeated(this.shipScene);
     UIManager.setLookPromptEnabled(false);
     // MG1 showed its own objectives; back aboard, the saved one stands until the next is set.
-    UIManager.setObjective(gameState.data.objective);
+    UIManager.setObjective(gameState.data.objective, gameState.data.objectiveNote);
     await UIManager.fadeFromBlack();
     if (result) await this.lookAtChart();
     await this.completeCalibration();
@@ -438,7 +441,7 @@ export class GameFlow {
     const lean = { z: DESK_CHART_ANCHOR.z + 0.95, eye: 1.62 };
     const from = { z: player.rig.position.z, eye: camera.position.y, pitch: player.pitch };
     const toPitch = Math.atan2(DESK_CHART_ANCHOR.y - lean.eye, Math.abs(DESK_CHART_ANCHOR.z - lean.z));
-    const DURATION = motion.reduced ? 0.01 : 1.4;
+    const DURATION = motion.reduced ? 0.01 : 1.2;
     await new Promise<void>((resolve) => {
       let elapsed = 0;
       scene.onTick = (dt) => {
@@ -454,7 +457,7 @@ export class GameFlow {
         }
       };
     });
-    await this.wait(2.2);
+    await this.wait(1.6);
   }
 
   /** The plot is the calibration: award it, stand up, hand control back. */
@@ -523,12 +526,13 @@ export class GameFlow {
       SaveSystem.save();
       return;
     }
-    gameState.setObjective('Review the travel logs, repair the ship, and chart a course to Kethra.');
-    UIManager.toast('Travel Logs restored.');
-    await this.wait(1.3);
-    UIManager.toast('Ship Repair interface online.');
-    await this.wait(1.3);
-    UIManager.toast('Galaxy Map calibrated — Kethra is in range.');
+    // The course is plotted and saved on the desk chart: the one thing to do next is go. Logs and
+    // repairs stay on offer as a quieter second line, and the console lights up to say where.
+    gameState.setObjective(t('objective.exploreKethra'), t('objective.exploreKethra.note'));
+    if (gameState.hasFlag('galaxy_revealed') && !gameState.hasFlag('left_wren') && this.shipScene) {
+      this.consoleGuide?.dispose();
+      this.consoleGuide = new ConsoleGuide(this.shipScene);
+    }
     SaveSystem.save();
   }
 

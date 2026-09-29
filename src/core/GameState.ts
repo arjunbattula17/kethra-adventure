@@ -71,6 +71,8 @@ export interface GameStateData {
   clues: Clue[];
   clueConnections: ClueConnection[];
   objective: string;
+  /** A quieter second line under the objective: what else is there, if the player wants it. */
+  objectiveNote: string;
   planetsUnlocked: string[];
   playerPosition: { x: number; y: number; z: number } | null;
   /** The course MG1 plotted to Kethra: flat x,y,z triples in Mkm, and its figures. The desk screen
@@ -114,6 +116,7 @@ function defaultState(): GameStateData {
     clues: [],
     clueConnections: [],
     objective: 'Systems rebooting...',
+    objectiveNote: '',
     planetsUnlocked: [],
     playerPosition: null,
     course: null,
@@ -145,6 +148,7 @@ function migrateSave(raw: unknown): GameStateData {
 
   base.scene = str(saved.scene, base.scene) as GameStateData['scene'];
   base.objective = str(saved.objective, base.objective);
+  base.objectiveNote = str(saved.objectiveNote, base.objectiveNote);
   base.xp = Math.max(0, num(saved.xp, base.xp));
   // Clamped to at least 1: gainXp's threshold is level * 100, so a level of 0 from a corrupt save
   // would make its loop never terminate.
@@ -199,8 +203,10 @@ export class GameState {
     }
   }
 
-  setObjective(text: string): void {
+  /** Sets the objective and its optional second line; a new objective without one clears the old. */
+  setObjective(text: string, note = ''): void {
     this.data.objective = text;
+    this.data.objectiveNote = note;
     bus.emit('objective:changed', text);
   }
 

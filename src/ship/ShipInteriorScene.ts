@@ -67,6 +67,18 @@ export class ShipInteriorScene implements GameScene {
    */
   onTick: ((dt: number, elapsed: number) => void) | null = null;
 
+  /**
+   * A standing per-frame job from outside the room (the console guide), alongside whatever onTick is
+   * choreographing. Returns the call that removes it. Pauses with the engine, like onTick.
+   */
+  addFrameHook(hook: (elapsed: number, dt: number) => void): () => void {
+    this.animated.push(hook);
+    return () => {
+      const i = this.animated.indexOf(hook);
+      if (i >= 0) this.animated.splice(i, 1);
+    };
+  }
+
   private floorMeshes: THREE.Object3D[] = [];
   private consoleGlow: THREE.PointLight[] = [];
   private floorLedMats: THREE.MeshStandardMaterial[] = [];

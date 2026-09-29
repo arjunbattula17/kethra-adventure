@@ -129,6 +129,12 @@ export class TutorialBeacon {
     }
   }
 
+  /** Hides both markers (they come back with the next show call). */
+  hide(): void {
+    this.pillar.visible = false;
+    this.bracket.visible = false;
+  }
+
   /** Stands the light column on the deck at (x, z). Hides the bracket. */
   showPillarAt(x: number, z: number): void {
     this.pillar.position.set(x, 0, z);

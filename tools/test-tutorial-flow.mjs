@@ -217,28 +217,17 @@ const leftovers = await page.evaluate(() => {
 check('tutorial cleans itself up at the handover', !Object.values(leftovers).some(Boolean), JSON.stringify(leftovers));
 
 // 8. The reveal is MG1's opening (docs/DESIGN.md §1): its camera move ends on the navigation plot
-//    and MG1 Intercept begins in the same scene. The controls below are the spec's (§4, slot 1);
-//    tools/test-intercept-sim.mjs proves the legs, tools/test-mg1-flow.mjs plays them through.
+//    and MG1 Intercept begins in the same scene: ORION's hop, then one choice (where to meet
+//    Kethra). tools/test-intercept-sim.mjs proves the answer, tools/test-mg1-flow.mjs plays it through.
 check('the reveal hands over to MG1 in the same scene', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.intercept?.state().phase === 'plot'), 180000));
-await shot('10_mg1_leg1');
+await shot('10_mg1_choice');
 const mg1 = () => page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().intercept.state());
-const aimBefore = (await mg1()).plans[0].azimuth;
-await page.keyboard.down('Shift');
 await page.keyboard.press('ArrowRight');
-await page.keyboard.up('Shift');
-check('Shift + arrow turns the burn', (await mg1()).plans[0].azimuth > aimBefore);
-await page.keyboard.press('BracketRight');
-check('] lengthens the burn by a cell', (await mg1()).plans[0].cells === 2);
-await page.keyboard.press('BracketLeft');
+check('→ moves the meeting point a day later', (await mg1()).meet === 1);
 await page.keyboard.press('Space');
-check('running a plot that misses stops and says by how much', await until(async () => {
-  const s = await mg1();
-  return s.phase === 'result' && s.outcome?.kind === 'miss' && s.outcome.distance > 0;
-}, 15000));
-await shot('11a_mg1_miss');
-await page.keyboard.press('KeyR');
-check('R rewinds to plotting at no cost', (await mg1()).phase === 'plot');
-// The harness's win (F2 in ?debug) flies the reference course for every remaining leg.
+check('Space before the days match launches nothing', (await mg1()).phase === 'plot');
+await shot('11a_mg1_refused');
+// The harness's win (F2 in ?debug) commits the intercept and goes straight to the win.
 await page.evaluate(() => window.__DEBUG__.miniGame()?.win());
 check('winning MG1 returns to the Wren, leaning over the chart', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene'), 60000));
 check('the plotted course is saved for the desk screen', await page.evaluate(() => (window.__DEBUG__.gameState.data.course?.points.length ?? 0) >= 9));

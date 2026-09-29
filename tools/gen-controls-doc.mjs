@@ -51,8 +51,9 @@ Rite. Buttons in every menu work with the mouse, or with \`Tab\` and \`Enter\`.
 
 ## How to play
 - **Level 1, the Wren.** A short tutorial teaches looking, moving, the character sheet and the
-  console. Booting navigation reveals the system, and you plot the course to Kethra: aim each burn
-  (\`Shift\` + arrows, or drag), run the plot, and meet Kethra on the same day, over the debris belt.
+  console. Booting navigation reveals the system, and you plot the course to Kethra: Kethra keeps
+  moving, so pick where to meet it (\`←\` \`→\`, or point with the mouse) until you and Kethra arrive
+  on the same day, then \`Space\` to launch. Back aboard, the console is lit: set course there.
 - **First light and the cruise.** Hold \`Space\` at the throttle to fire the drive, then ride the
   cruise to Kethra (hold \`Space\` to skip it).
 - **The canopy.** Fly the Wren's skiff down through Kethra's lantern-tree canopy: \`WASD\` steers,

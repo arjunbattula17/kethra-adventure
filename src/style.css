@@ -213,6 +213,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   line-height: 1.4;
 }
 #objective-tracker .eyebrow { margin-bottom: 4px; color: var(--accent); }
+/* The optional second line: quieter, and absent when there's nothing optional to say. */
+#objective-note { margin-top: 4px; font-size: calc(13px * var(--text-scale)); color: var(--ink-dim); }
+#objective-note:empty { display: none; }
 #objective-tracker.updated { animation: objective-updated 1.6s var(--ease-decelerate); }
 @keyframes objective-updated { 0%, 40% { --edge: var(--accent); } 100% { --edge: var(--line); } }
 
@@ -1518,15 +1521,39 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .intercept-readouts > div, .intercept-win > div { display: flex; flex-direction: column; }
 .intercept-readouts .label, .intercept-win .label { font-size: calc(12px * var(--text-scale)); color: var(--ink-dim); }
 .intercept-readouts .num { font-size: calc(17px * var(--text-scale)); }
-.intercept-burns { display: flex; gap: 14px; margin: 6px 0; color: var(--ink-dim); }
-.intercept-burns .on { color: var(--accent); }
-.intercept-burns .keycap, .intercept-keys .keycap { margin-right: 5px; }
+.intercept-keys .keycap { margin-right: 5px; }
+.intercept-readouts .wren .num { color: var(--accent); }
+.intercept-readouts .kethra .num { color: var(--grove); }
+.intercept-readouts.matched .wren .num, .intercept-readouts.matched .kethra .num { color: var(--success); }
+/* The one sentence that says what the choice means: late, early, or the intercept. */
+.intercept-status { margin: 8px 0 4px; padding: 8px 10px; border-left: 2px solid var(--line); background: rgba(0, 0, 0, 0.25); color: var(--ink); }
+.intercept-status.late, .intercept-status.early { border-left-color: var(--accent); }
+.intercept-status.match { border-left-color: var(--success); color: var(--success); }
+.intercept-status.flash { animation: intercept-refuse 0.4s var(--ease-decelerate); }
+@keyframes intercept-refuse {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); border-left-color: var(--warn); }
+  75% { transform: translateX(5px); }
+}
+.intercept-nudge { display: block; margin-top: 4px; color: var(--accent); font-size: calc(13px * var(--text-scale)); }
+.intercept-nudge .keycap { margin-right: 5px; }
+.intercept-panel .intercept-launch {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 10px; padding: 10px 12px;
+  background: var(--success); color: var(--void);
+  font-family: var(--font-display); font-weight: 700; font-size: calc(19px * var(--text-scale)); letter-spacing: 0.04em;
+  animation: intercept-launch-pulse 1.6s ease-in-out infinite;
+}
+.intercept-panel .intercept-launch .keycap { color: var(--void); background: rgba(255, 255, 255, 0.25); border-color: rgba(7, 8, 10, 0.45); box-shadow: none; }
+.intercept-panel .intercept-launch:hover, .intercept-panel .intercept-launch:focus-visible { color: var(--void); filter: brightness(1.12); }
+@keyframes intercept-launch-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(124, 191, 124, 0.45); } 50% { box-shadow: 0 0 0 7px rgba(124, 191, 124, 0); } }
+.intercept-panel .intercept-auto { display: block; margin-top: 10px; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+body.reduced-motion .intercept-panel .intercept-launch { animation: none; }
 .intercept-stats { margin: 6px 0; padding: 0; list-style: none; color: var(--grove); font-size: calc(13px * var(--text-scale)); }
 .intercept-keys { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; color: var(--ink-dim); font-size: calc(13px * var(--text-scale)); }
 .intercept-panel button { pointer-events: auto; cursor: pointer; font: inherit; color: inherit; background: none; border: 0; padding: 0; }
 .intercept-panel button.keycap { padding: 0 6px; }
 .intercept-panel button:hover, .intercept-panel button:focus-visible { color: var(--accent-hover); }
-.intercept-burns button.on { color: var(--accent); }
 .intercept-win { display: flex; gap: 32px; margin-top: 6px; }
 .intercept-win .big { font-size: calc(36px * var(--text-scale)); line-height: 1.1; color: var(--ink); }
 .intercept-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
@@ -1544,10 +1571,18 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .intercept-label.wren { color: var(--accent); }
 .intercept-label.kethra { color: var(--grove); }
 .intercept-label.match { color: var(--ink); font-weight: 700; }
+.intercept-label.kethra.chosen { color: var(--ink); font-weight: 700; font-size: calc(14px * var(--text-scale)); }
+.intercept-label.kethra.match, .intercept-label.wren.match { color: var(--success); }
+.intercept-label.kethra.hint { color: var(--grove); font-weight: 700; }
 .intercept-label.body { color: var(--ink); font-size: calc(13px * var(--text-scale)); margin: -22px 0 0 8px; }
-.intercept-label.body.kethra { color: var(--grove); }
+/* Kethra's name sits under the planet, clear of the day ticks running off to its right. */
+.intercept-label.body.kethra { color: var(--grove); margin: 18px 0 0 -26px; }
 .intercept-label.note { background: var(--panel-bg); padding: 3px 8px; margin: -32px 0 0 10px; font-size: calc(13px * var(--text-scale)); }
 .intercept-label.warn { color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
+/* The chosen point's chip rides above the day numbers, so it never hides the neighbouring ticks. */
+.intercept-label.note.chosen-note { margin: -50px 0 0 -30px; }
+.intercept-label.note.warn { color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-dim); }
+.intercept-label.note.match { color: var(--success); box-shadow: inset 0 0 0 1px var(--success); font-weight: 700; }
 
 /* =============================================================================================
    The plate (docs/DESIGN.md §2, "How the UI derives from the world"): every framed surface takes

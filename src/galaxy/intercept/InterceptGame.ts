@@ -1,20 +1,26 @@
 import * as THREE from 'three';
-import { MotionScope, motion, damp, dampVec3, DUR } from '../../motion';
+import { MotionScope, motion, damp, dampVec3, DUR, ease } from '../../motion';
 import { UIManager } from '../../ui/UIManager';
 import { PanelManager } from '../../ui/PanelManager';
 import { registerMiniGame } from '../../debug/hooks';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { t } from '../../content/strings';
 import type { StringKey } from '../../content/strings';
+import { MG1 } from '../../content/tuning';
 import * as sim from './sim';
 import { Dots, INK, Labels, Lines, toV3 } from './instrument';
-import type { Belt } from './props';
 
 /**
  * MG1 Intercept (docs/DESIGN.md §4, slot 1): plot the burn to Kethra in the real 3D system, drawn
- * through the Wren's navigation instrument. Three legs in one session: clear the drift to ORION's
- * buoy, lead Kethra, then take the course over the belt. The model and its numbers live in ./sim;
- * this is the instrument, the input and the choreography.
+ * through the Wren's navigation instrument.
+ *
+ * One choice. ORION hops the Wren out of its own debris to the buoy on its own (which also shows
+ * what a plotted day looks like), then asks where to meet Kethra. Kethra's next ten days are ticks
+ * along its orbit; the player picks one (pointer or ← →), the course aims itself there, and the
+ * plate says how long the Wren needs to get there against the day Kethra does. Only one tick has
+ * the two agreeing. Holding it locks the course; Space launches the fast-forward; the win hands the
+ * course to the Wren. The model and its numbers live in ./sim; this is the instrument, the input
+ * and the choreography.
  */
 
 export interface InterceptWorld {
@@ -24,10 +30,9 @@ export interface InterceptWorld {
   wren: THREE.Object3D;
   /** Kethra; the game moves it along its orbit as plotted days pass. */
   kethra: THREE.Object3D;
-  belt: Belt;
   /** Where pointer input lands (the renderer's canvas). */
   surface: HTMLElement;
-  stats: { insight: number; perception: number; engineering: number };
+  stats: { insight: number };
 }
 
 export interface InterceptResult {
@@ -37,20 +42,23 @@ export interface InterceptResult {
   cells: number;
 }
 
-interface Plan {
-  azimuth: number;
-  elevation: number;
-  cells: number;
-}
+type Phase = 'hop' | 'plot' | 'locked' | 'run' | 'won';
 
-type Phase = 'plot' | 'run' | 'result' | 'between' | 'won';
-
-/** Leg 1's opening view: from the sun's side, looking out along the hop, so the sun is behind the
- * camera and the buoy reads against dark space. The reveal ends its camera move exactly here, so
+/** The reveal's last framing, about a point between the Wren and the buoy: the hop starts here, so
  * the handover has no jump. */
 export const LEG1_VIEW = { yaw: -2.1, pitch: 0.7, dist: 24 } as const;
-/** Leg 1 looks at a point a little nearer the Wren than the buoy, keeping both clear of the captions. */
+/** How far from the Wren toward the buoy that framing looks. */
 export const LEG1_FOCUS = 0.42;
+
+/**
+ * The plot's one framing: from the sun's side of the system, looking out past the buoy at Kethra's
+ * next ten days. Kethra's ticks run left to right in the order the days count (→ is "later" on
+ * screen as well as on the keys), and the Wren sits low in the frame with its course climbing
+ * away. There's no camera control: nothing to learn, nothing to lose.
+ */
+const PLOT_VIEW = { yaw: Math.PI + 0.52, pitch: 0.86, dist: 66, shift: 16 } as const;
+/** While ORION flies the hop: close on the Wren, already turned toward the plot. */
+const HOP_VIEW = { pitch: 0.5, dist: 20 } as const;
 
 /** The orbit camera's position for a view about `target`. */
 export function orbitPosition(target: THREE.Vector3, view: { yaw: number; pitch: number; dist: number }, out = new THREE.Vector3()): THREE.Vector3 {
@@ -58,52 +66,58 @@ export function orbitPosition(target: THREE.Vector3, view: { yaw: number; pitch:
   return out.set(target.x + view.dist * cp * Math.sin(view.yaw), target.y + view.dist * Math.sin(view.pitch), target.z + view.dist * cp * Math.cos(view.yaw));
 }
 
-const DEG = Math.PI / 180;
-/** How many days of Kethra's future the ghost shows; insight 2 shows three more. */
-const KETHRA_GHOST_DAYS = 8;
-
 const c = (hex: number, k = 1) => new THREE.Color(hex).multiplyScalar(k);
 const AMBER = c(INK.amber);
 const AMBER_DIM = c(INK.amber, 0.35);
 const GROVE = c(INK.grove, 0.9);
 const GROVE_DIM = c(INK.grove, 0.28);
 const STEEL = c(INK.steel, 0.5);
-const WARN = c(INK.warn);
 const INK_BRIGHT = c(INK.ink);
+const WARN = c(INK.warn);
+const GROVE_FAINT = c(INK.grove, 0.14);
+const AMBER_FAINT = c(INK.amber, 0.1);
+/** The match: the success green of the rest of the UI. */
+const MATCH = c(0x7cbf7c, 1.25);
 
 export class InterceptGame {
   onComplete: ((result: InterceptResult) => void) | null = null;
 
   private readonly w: InterceptWorld;
   private readonly fx = new MotionScope('game');
-  private readonly legs: sim.Leg[];
-  private readonly clumps = sim.beltWall();
-  private legIndex = 0;
-  private plans: Plan[] = [];
-  private selected = 0;
-  private phase: Phase = 'between';
-  private outcome: sim.Outcome | null = null;
-  /** The plot's clock while a run plays, in days. */
+  private phase: Phase = 'hop';
+  /** Every day the chart offers, 0 (Kethra now) to sim.MAX_MEET_DAY. */
+  private readonly meetings = sim.meetings();
+  /** The exact intercept the matching day locks onto. */
+  private readonly solution = sim.intercept();
+  private readonly solutionDay = this.meetings.find((m) => sim.matches(m))!.day;
+  /** The same points as vectors, kept: labels are pinned to them every frame. */
+  private readonly meetPoints = this.meetings.map((m) => toV3(m.at));
+  /** Kethra's path over the days on offer, four points a day. */
+  private readonly arcPoints = Array.from({ length: sim.MAX_MEET_DAY * 4 + 1 }, (_, i) => toV3(sim.kethraAt(i / 4)));
+  private readonly hopPoints = Array.from({ length: sim.HOP_DAYS }, (_, i) => toV3(sim.hopAt(i + 1)));
+  /** Course day ticks, reused: at most one per day of the longest flight on offer. */
+  private readonly coursePoints = Array.from({ length: 12 }, () => new THREE.Vector3());
+  /** The chosen meeting day. Starts on Kethra now: the natural first guess, and the one to learn from. */
+  private meet = 0;
+  private held = 0;
+  /** Seconds spent choosing, for ORION's help. */
+  private choosing = 0;
+  private hinted = false;
+  private autoOffered = false;
+  private hopDay = 0;
   private runDay = 0;
-  private runFrom = 0;
-  private runTo = 0;
-  private runSeconds = 1;
-  private hitStop = 0;
-  /** Legs already flown, as polylines: they stay drawn as the committed course. */
-  private committed: THREE.Vector3[][] = [];
+  private flashAt = -1;
 
   private readonly instrument = new THREE.Group();
-  private readonly staticLines = new Lines(400, 3);
-  private readonly ghost = new Lines(600, 12);
-  private readonly ticks = new Dots(200, 7);
-  private readonly bodies = new Dots(16, 11, 13);
+  private readonly staticLines = new Lines(600, 3);
+  private readonly ticks = new Dots(64, 7);
+  private readonly bodies = new Dots(8, 11, 13);
+  private readonly halo = new Dots(2, 34, 12);
   private readonly course = new Lines(64, 14);
   private readonly labels = new Labels();
-  private readonly arrow: THREE.Group;
-  private readonly arrowCones: THREE.Mesh[] = [];
   private dirty = true;
 
-  // Camera: an orbit around a target, every value eased toward its goal.
+  // Camera: an orbit about a target, every value eased toward its goal.
   private readonly target = new THREE.Vector3();
   private readonly goalTarget = new THREE.Vector3();
   private yaw = 0;
@@ -112,37 +126,29 @@ export class InterceptGame {
   private goalYaw = 0;
   private goalPitch = 0.5;
   private goalDist = 30;
-  private readonly held = new Set<string>();
-  private drag: { mode: 'orbit' | 'aim'; x: number; y: number } | null = null;
 
   private readonly panel: HTMLDivElement;
   private readonly unregister: () => void;
-  private resultNote: { at: THREE.Vector3; text: string } | null = null;
-  private resultLine: [THREE.Vector3, THREE.Vector3] | null = null;
+  private wave: { course: THREE.Vector3[]; k: number } | null = null;
 
   constructor(world: InterceptWorld) {
     this.w = world;
-    this.legs = sim.legs(world.stats.engineering);
     this.instrument.name = 'intercept-instrument';
-    for (const obj of [this.staticLines.object, this.ghost.object, this.ticks.object, this.bodies.object, this.course.object]) this.instrument.add(obj);
-    this.arrow = this.buildArrow();
-    this.instrument.add(this.arrow);
+    for (const obj of [this.staticLines.object, this.ticks.object, this.bodies.object, this.halo.object, this.course.object]) this.instrument.add(obj);
     world.scene.add(this.instrument);
+    // Insight 2 reads Kethra's motion at a glance: the meeting day is marked from the start.
+    this.hinted = world.stats.insight >= 2;
 
     this.panel = document.createElement('div');
     this.panel.className = 'intercept-panel';
-    // Every key on the plate is also a button, so the plot can be flown with the mouse alone.
+    this.panel.setAttribute('aria-live', 'polite');
     this.panel.addEventListener('click', this.onPanelClick);
     const root = document.getElementById('ui-root')!;
     root.append(this.labels.root, this.panel);
-    world.belt.setDensityVisible(world.stats.perception >= 2);
 
     window.addEventListener('keydown', this.onKeyDown);
-    window.addEventListener('keyup', this.onKeyUp);
+    world.surface.addEventListener('pointermove', this.onPointerMove);
     world.surface.addEventListener('pointerdown', this.onPointerDown);
-    window.addEventListener('pointermove', this.onPointerMove);
-    window.addEventListener('pointerup', this.onPointerUp);
-    world.surface.addEventListener('wheel', this.onWheel, { passive: true });
     this.unregister = registerMiniGame({ name: 'intercept', win: () => this.debugWin(), fail: () => this.debugFail() });
   }
 
@@ -151,201 +157,142 @@ export class InterceptGame {
     return this.target;
   }
 
-  /** Begins leg 1, with the camera where the reveal left it. */
+  /** Begins with ORION's hop, the camera starting where the reveal left it. */
   start(fromCamera: THREE.Vector3, fromTarget: THREE.Vector3): void {
     this.target.copy(fromTarget);
     const off = fromCamera.clone().sub(fromTarget);
     this.dist = off.length();
     this.pitch = Math.asin(THREE.MathUtils.clamp(off.y / this.dist, -1, 1));
     this.yaw = Math.atan2(off.x, off.z);
-    this.beginLeg(0);
+    // During the hop the camera stays on the Wren; the pull-out to the plot is what reveals the choice.
+    this.goalTarget.copy(this.w.wren.position);
+    this.goalYaw = PLOT_VIEW.yaw;
+    this.goalPitch = HOP_VIEW.pitch;
+    this.goalDist = HOP_VIEW.dist;
+
+    this.phase = 'hop';
+    this.placeHop(0);
+    this.say('mg1.hop.orion');
+    UIManager.setObjective(t('mg1.objective'));
+    this.renderPanel();
+    this.hop = this.fx.tween({
+      duration: motion.reduced ? 0.01 : MG1.HOP_SECONDS,
+      ease: ease.standard,
+      update: (k) => this.placeHop(k * sim.HOP_DAYS),
+      done: () => this.beginChoosing(),
+    });
   }
+  private hop: { cancel(): void } | null = null;
 
-  // ------------------------------------------------------------------ legs
-
-  private get leg(): sim.Leg {
-    return this.legs[this.legIndex];
-  }
-
-  private beginLeg(index: number, plans?: Plan[]): void {
-    this.legIndex = index;
-    const leg = this.leg;
-    this.selected = 0;
-    this.outcome = null;
-    this.resultNote = null;
-    this.resultLine = null;
-    if (plans) this.plans = plans;
-    else if (leg.id === 1) {
-      // Pointed well off the buoy, so the first thing the player does is aim.
-      const toBuoy = sim.anglesOf(sim.sub(sim.BUOY, leg.start));
-      this.plans = [{ azimuth: toBuoy.azimuth - 40 * DEG, elevation: 0, cells: 1 }];
-    } else {
-      // Straight at where Kethra is now: the natural first try, and the miss leg 2 teaches from.
-      const now = sim.anglesOf(sim.sub(sim.orbitAt(sim.KETHRA, leg.startDay), leg.start));
-      this.plans = [{ azimuth: now.azimuth, elevation: now.elevation, cells: 3 }];
-    }
-    this.frameLeg();
+  private beginChoosing(): void {
+    if (this.phase !== 'hop') return;
     this.phase = 'plot';
+    this.framePlot();
     this.dirty = true;
-    this.placeBodies(leg.startDay);
+    this.placeChoice();
+    this.say('mg1.orion');
     this.renderPanel();
-    this.say(`mg1.leg${leg.id}.orion` as StringKey);
-    UIManager.setObjective(t(`mg1.leg${leg.id}.objective` as StringKey));
-  }
-
-  private frameLeg(): void {
-    const leg = this.leg;
-    if (leg.id === 1) {
-      this.goalTarget.lerpVectors(toV3(leg.start), toV3(sim.BUOY), LEG1_FOCUS);
-      this.goalDist = LEG1_VIEW.dist;
-      this.goalPitch = LEG1_VIEW.pitch;
-      this.goalYaw = LEG1_VIEW.yaw;
-    } else if (leg.id === 2) {
-      this.goalTarget.copy(toV3(scaleMid(leg.start, sim.orbitAt(sim.KETHRA, leg.startDay + 6))));
-      this.goalDist = 92;
-      this.goalPitch = 0.72;
-      this.goalYaw = 0.25;
-    } else {
-      // Side-on to the belt, from inside the ring behind the buoy: the only angle the wall reads as
-      // a wall, with the near side of the ring behind the camera.
-      this.goalTarget.copy(toV3(scaleMid(leg.start, sim.orbitAt(sim.KETHRA, leg.startDay + 6))));
-      this.goalDist = 44;
-      this.goalPitch = 0.12;
-      this.goalYaw = 3.1;
-    }
-  }
-
-  private toBurns(plans = this.plans): sim.Burn[] {
-    return plans.map((p) => ({ dir: sim.direction(p.azimuth, p.elevation), cells: p.cells }));
-  }
-
-  private budgetLeft(): number {
-    return this.leg.budget - this.plans.reduce((n, p) => n + p.cells, 0);
-  }
-
-  // ------------------------------------------------------------------ running
-
-  private run(): void {
-    if (this.phase !== 'plot') return;
-    const leg = this.leg;
-    this.outcome = sim.simulate(leg, this.toBurns(), this.clumps);
-    this.runFrom = leg.startDay;
-    this.runDay = leg.startDay;
-    this.runTo = this.outcome.day;
-    // "A six-second fast-forward of the voyage", shorter for a short hop.
-    this.runSeconds = THREE.MathUtils.clamp((this.runTo - this.runFrom) * 0.8, 1.4, 6);
-    this.phase = 'run';
-    this.dirty = true;
-    UIManager.clearCaption();
-    AudioSystem.playTone(110, 0.5, 'sine', 0.06);
-    this.renderPanel();
-  }
-
-  private rewind(): void {
-    if (this.phase !== 'result' && this.phase !== 'run') return;
-    this.phase = 'plot';
-    this.outcome = null;
-    this.resultNote = null;
-    this.resultLine = null;
-    this.placeBodies(this.leg.startDay);
-    this.frameLeg();
-    this.dirty = true;
-    UIManager.clearCaption();
-    AudioSystem.playUiClick();
-    this.renderPanel();
-  }
-
-  private finishRun(): void {
-    const o = this.outcome!;
-    const leg = this.leg;
-    if (o.kind === 'arrive') {
-      AudioSystem.playSuccess();
-      this.committed.push(this.flownPath(o.day));
-      this.phase = 'between';
-      this.dirty = true;
-      if (leg.id === 1) {
-        this.say('mg1.leg1.done');
-        this.fx.after(2.2, () => this.beginLeg(1));
-      } else if (leg.id === 2) this.resolveBelt();
-      else this.win(o.day);
-      this.renderPanel();
-      return;
-    }
-    // A readable fail (DESIGN §4): stop, look at what went wrong, say by how much. R retries.
-    this.phase = 'result';
-    AudioSystem.playFail();
-    const at = toV3(o.at);
-    if (o.kind === 'contact') {
-      this.hitStop = 0.06;
-      this.resultNote = { at, text: t('mg1.fail.contact', { day: String(Math.ceil(o.day)) }) };
-      this.goalTarget.copy(at);
-      this.goalDist = Math.min(this.goalDist, 34);
-    } else {
-      const there = toV3(o.targetAt);
-      this.resultLine = [at, there];
-      const miss = String(Math.round(o.distance));
-      const day = String(Math.round(o.day));
-      this.resultNote = {
-        at: there,
-        text: leg.target.kind === 'buoy' ? t('mg1.fail.buoy', { miss }) : t('mg1.fail.kethra', { day, miss }),
-      };
-      this.goalTarget.lerpVectors(at, there, 0.5);
-      this.goalDist = THREE.MathUtils.clamp(at.distanceTo(there) * 2.4, 18, this.goalDist);
-      if (leg.target.kind === 'kethra') this.say('mg1.hint.lead');
-    }
-    this.dirty = true;
-    this.renderPanel();
-  }
-
-  /** Where the Wren went on this leg, up to `day`, as a polyline through each burn's corner. */
-  private flownPath(day: number): THREE.Vector3[] {
-    const leg = this.leg;
-    const pts = [toV3(leg.start)];
-    let t0 = leg.startDay;
-    for (const b of this.toBurns()) {
-      const span = b.cells * sim.DAYS_PER_CELL;
-      if (day <= t0 + span) break;
-      t0 += span;
-      pts.push(toV3(sim.wrenAt(leg, this.toBurns(), t0).at));
-    }
-    pts.push(toV3(sim.wrenAt(leg, this.toBurns(), day).at));
-    return pts;
   }
 
   /**
-   * Leg 2 landed. ORION finishes resolving the belt, and the line the player just flew turns out
-   * to go straight through it: that is leg 3's problem, found by the scan, not announced.
+   * The plot's framing: the buoy, where the course starts, and Kethra's next ten days, nudged left of
+   * centre so the plate at the top right never covers a tick.
    */
-  private resolveBelt(): void {
-    this.say('mg1.leg2.done');
-    const flown = this.committed.pop()!;
-    const straight = this.plans[0];
-    this.fx.tween({ duration: 1.6, update: (k) => this.w.belt.setResolved(k) });
-    this.fx.after(1.9, () => {
-      const blocked = sim.simulate(this.legs[2], this.toBurns([straight]), this.clumps);
-      if (blocked.kind === 'contact') {
-        this.resultNote = { at: toV3(blocked.at), text: t('mg1.fail.contact', { day: String(Math.ceil(blocked.day)) }) };
-        this.resultLine = [flown[0], toV3(blocked.at)];
-        AudioSystem.playError();
-      }
-      this.dirty = true;
-    });
-    this.fx.after(4.2, () => {
-      const hop: Plan = { ...straight, cells: 1 };
-      const rest: Plan = { ...straight, cells: Math.max(1, straight.cells - 1) };
-      this.beginLeg(2, [hop, rest]);
-    });
+  private framePlot(): void {
+    const box = new THREE.Box3().expandByPoint(toV3(sim.TRANSFER_START));
+    for (const p of this.meetPoints) box.expandByPoint(p);
+    box.getCenter(this.goalTarget);
+    // A little toward the buoy, so the Wren sits clear of the captions at the bottom of the frame.
+    this.goalTarget.lerp(toV3(sim.TRANSFER_START, _a), 0.15);
+    this.goalTarget.x += Math.cos(PLOT_VIEW.yaw) * PLOT_VIEW.shift;
+    this.goalTarget.z -= Math.sin(PLOT_VIEW.yaw) * PLOT_VIEW.shift;
+    this.goalYaw = PLOT_VIEW.yaw;
+    this.goalPitch = PLOT_VIEW.pitch;
+    this.goalDist = PLOT_VIEW.dist;
   }
 
-  // ------------------------------------------------------------------ the win
+  // ------------------------------------------------------------------ the choice
 
-  private win(day: number): void {
+  private get chosen(): sim.Meeting {
+    return this.meetings[this.meet];
+  }
+
+  private select(day: number): void {
+    const next = THREE.MathUtils.clamp(day, 0, sim.MAX_MEET_DAY);
+    if (this.phase !== 'plot' || next === this.meet) return;
+    this.meet = next;
+    this.held = 0;
+    AudioSystem.playHover();
+    this.placeChoice();
+    this.dirty = true;
+    this.renderPanel();
+  }
+
+  /** The chosen day matched for long enough: the course locks, and only launching is left. */
+  private lock(): void {
+    if (this.phase !== 'plot') return;
+    this.meet = this.solutionDay;
+    this.phase = 'locked';
+    this.dirty = true;
+    this.placeChoice();
+    this.swell(0.2);
+    AudioSystem.playSuccess();
+    this.say('mg1.locked.orion');
+    this.renderPanel();
+    this.panel.querySelector<HTMLButtonElement>('[data-act="launch"]')?.focus({ preventScroll: true });
+  }
+
+  /** Space before the days match: nothing runs. Say why, and bring ORION's hint forward. */
+  private refuse(): void {
+    AudioSystem.playError();
+    this.flashAt = motion.gameTime;
+    if (!this.hinted) {
+      this.hinted = true;
+      this.say('mg1.hint.lead');
+    }
+    this.dirty = true;
+    this.renderPanel();
+  }
+
+  private autoPlot(): void {
+    if (this.phase !== 'plot') return;
+    this.lock();
+  }
+
+  // ------------------------------------------------------------------ the run and the win
+
+  private launch(): void {
+    if (this.phase !== 'locked') return;
+    this.phase = 'run';
+    this.runDay = 0;
+    this.dirty = true;
+    UIManager.clearCaption();
+    AudioSystem.playTone(110, 0.5, 'sine', 0.06);
+    AudioSystem.playConfirm();
+    this.renderPanel();
+  }
+
+  private arrive(): void {
+    this.swell(0.35);
+    this.win();
+  }
+
+  /** Kethra answers the plot: a brief swell when the course locks on it, a bigger one on arrival. */
+  private swell(amount: number): void {
+    if (motion.reduced) return;
+    const k = this.w.kethra;
+    const base = this.kethraScale ?? (this.kethraScale = k.scale.x);
+    this.fx.tween({ duration: 0.9, update: (_e, raw) => k.scale.setScalar(base * (1 + amount * Math.sin(Math.PI * raw))) });
+  }
+  private kethraScale: number | null = null;
+
+  private win(): void {
     this.phase = 'won';
     motion.conductor.duck(3);
-    const course = this.committed.flat().filter((p, i, all) => i === 0 || p.distanceTo(all[i - 1]) > 1e-6);
-    // The transfer's own figures, from the buoy: what First light and the cruise quote back.
-    const cells = this.plans.reduce((n, p) => n + p.cells, 0);
-    const days = Math.ceil(day - this.leg.startDay);
+    const course = [toV3(sim.WREN_START), toV3(sim.BUOY), toV3(this.solution.at)];
+    const days = Math.round(this.solution.days);
+    const cells = sim.cellsFor(days);
+    this.placeRun(this.solution.days);
     // The signature wavefront: the course draws itself outward from the Wren.
     this.wave = { course, k: 0 };
     this.fx.tween({ duration: motion.reduced ? 0.2 : 1.4, update: (k) => { if (this.wave) this.wave.k = k; this.dirty = true; } });
@@ -362,81 +309,91 @@ export class InterceptGame {
     const mid = new THREE.Vector3();
     for (const p of course) mid.add(p);
     this.goalTarget.copy(mid.divideScalar(course.length));
-    this.goalDist = 96;
+    this.goalDist = 78;
     this.goalPitch = 0.55;
-    this.goalYaw = 0.6;
-    this.fx.after(4.4, () => this.onComplete?.({ course, days, cells }));
+    this.goalYaw = PLOT_VIEW.yaw + 0.5;
+    this.fx.after(motion.reduced ? 1.2 : MG1.WIN_HOLD, () => this.onComplete?.({ course, days, cells }));
   }
-  private wave: { course: THREE.Vector3[]; k: number } | null = null;
 
   // ------------------------------------------------------------------ frame
 
   update(dt: number): void {
-    if (this.hitStop > 0) {
-      this.hitStop -= dt;
-      dt = 0;
-    }
-    this.orbitFromKeys(dt);
-
-    if (this.phase === 'run') {
-      this.runDay = Math.min(this.runTo, this.runDay + ((this.runTo - this.runFrom) / this.runSeconds) * dt);
-      this.placeBodies(this.runDay);
+    if (this.phase === 'plot') {
+      this.choosing += dt;
+      if (sim.matches(this.chosen)) {
+        this.held += dt;
+        if (this.held >= MG1.LOCK_DWELL) this.lock();
+      }
+      if (!this.hinted && this.choosing >= MG1.HINT_AFTER) {
+        this.hinted = true;
+        this.say('mg1.hint.lead');
+      }
+      if (!this.autoOffered && this.choosing >= MG1.AUTOPLOT_AFTER) {
+        this.autoOffered = true;
+        this.renderPanel();
+      }
+      // The hint's pulse and the selection's breathing redraw every frame (a few hundred vertices).
       this.dirty = true;
-      if (this.runDay >= this.runTo) this.finishRun();
-    } else if (this.phase === 'plot') {
-      // The Wren turns to face the selected burn: the ship answers the aim.
-      this.placeBodies(this.leg.startDay);
+    } else if (this.phase === 'locked') {
+      this.dirty = true;
+    } else if (this.phase === 'run') {
+      const to = this.solution.days;
+      const seconds = motion.reduced ? 0.6 : MG1.RUN_SECONDS;
+      const before = Math.floor(this.runDay);
+      this.runDay = Math.min(to, this.runDay + (to / seconds) * dt);
+      this.placeRun(this.runDay);
+      // The camera leans in on the two converging: the Wren and the point they'll meet at.
+      this.goalTarget.lerpVectors(this.w.wren.position, this.meetPoints[this.solutionDay], 0.5);
+      this.goalDist = 44;
+      if (Math.floor(this.runDay) !== before) this.renderPanel();
+      this.dirty = true;
+      if (this.runDay >= to) this.arrive();
     }
 
-    // Camera.
+    // Camera: eased to its goal, with a slow drift so the instrument never looks frozen.
     dampVec3(this.target, this.goalTarget, 3.2, dt);
-    this.yaw = this.dampAngle(this.yaw, this.goalYaw, dt);
+    const drift = this.phase === 'won' ? 0 : Math.sin(motion.ambientTime * 0.18) * 0.035;
+    this.yaw = this.dampAngle(this.yaw, this.goalYaw + drift, dt);
     this.pitch = damp(this.pitch, this.goalPitch, 3.2, dt);
     this.dist = damp(this.dist, this.goalDist, 3.2, dt);
     const cam = this.w.camera;
     orbitPosition(this.target, { yaw: this.yaw, pitch: this.pitch, dist: this.dist }, cam.position);
     cam.lookAt(this.target);
 
-    this.layoutArrow();
     if (this.dirty) this.redraw();
     this.drawLabels();
   }
 
-  /** Eases yaw the short way round, then lets the goal follow, so dragging past ±π never spins. */
+  /** Eases yaw the short way round. */
   private dampAngle(from: number, to: number, dt: number): number {
     const d = THREE.MathUtils.euclideanModulo(to - from + Math.PI, Math.PI * 2) - Math.PI;
     return from + d * (1 - Math.exp(-3.2 * dt));
   }
 
-  private orbitFromKeys(dt: number): void {
-    const h = this.held;
-    const rate = 1.4 * dt;
-    if (h.has('KeyA') || (h.has('ArrowLeft') && !h.has('Shift'))) this.goalYaw -= rate;
-    if (h.has('KeyD') || (h.has('ArrowRight') && !h.has('Shift'))) this.goalYaw += rate;
-    if (h.has('KeyW') || (h.has('ArrowUp') && !h.has('Shift'))) this.goalPitch = Math.min(1.45, this.goalPitch + rate);
-    if (h.has('KeyS') || (h.has('ArrowDown') && !h.has('Shift'))) this.goalPitch = Math.max(-1.2, this.goalPitch - rate);
-    if (h.has('Equal') || h.has('NumpadAdd')) this.goalDist = Math.max(6, this.goalDist * Math.exp(-1.2 * dt));
-    if (h.has('Minus') || h.has('NumpadSubtract')) this.goalDist = Math.min(220, this.goalDist * Math.exp(1.2 * dt));
+  // ------------------------------------------------------------------ placing the bodies
+
+  private placeHop(day: number): void {
+    this.hopDay = day;
+    this.w.kethra.position.copy(toV3(sim.orbitAt(sim.KETHRA, day)));
+    this.placeWren(sim.hopAt(day), sim.sub(sim.BUOY, sim.WREN_START));
+    if (this.phase === 'hop') this.goalTarget.copy(this.w.wren.position);
+    this.dirty = true;
   }
 
-  /** Puts the Wren and Kethra where they are on `day` of the plot. */
-  private placeBodies(day: number): void {
-    const leg = this.leg;
-    const k = sim.orbitAt(sim.KETHRA, day);
-    this.w.kethra.position.set(k.x, k.y, k.z);
-    const burns = this.toBurns();
-    const { at } = sim.wrenAt(leg, burns, day);
+  /** Kethra where it is now; the Wren at the buoy, nose on the chosen point. */
+  private placeChoice(): void {
+    this.w.kethra.position.copy(toV3(sim.kethraAt(0)));
+    const to = this.phase === 'locked' ? this.solution.at : this.chosen.at;
+    this.placeWren(sim.TRANSFER_START, sim.sub(to, sim.TRANSFER_START));
+  }
+
+  private placeRun(day: number): void {
+    this.w.kethra.position.copy(toV3(sim.kethraAt(day)));
+    this.placeWren(sim.transferAt(this.solution.dir, day), this.solution.dir);
+  }
+
+  private placeWren(at: sim.Vec, dir: sim.Vec): void {
     this.w.wren.position.set(at.x, at.y, at.z);
-    // Facing: the burn being flown (or aimed).
-    let t0 = leg.startDay;
-    let dir = burns[this.phase === 'run' ? 0 : this.selected]?.dir ?? burns[0].dir;
-    if (this.phase === 'run') {
-      for (const b of burns) {
-        dir = b.dir;
-        t0 += b.cells * sim.DAYS_PER_CELL;
-        if (day <= t0) break;
-      }
-    }
     _look.set(at.x + dir.x, at.y + dir.y, at.z + dir.z);
     this.w.wren.lookAt(_look);
     // lookAt aims local +Z; the hull's nose is +X.
@@ -447,78 +404,119 @@ export class InterceptGame {
 
   private redraw(): void {
     this.dirty = false;
-    const leg = this.leg;
-    const burns = this.toBurns();
-
-    // The committed course and the static marks: buoy ring, drop lines for the bodies.
     const lines = this.staticLines.clear();
     const bodies = this.bodies.clear();
-    const buoy = toV3(sim.BUOY);
-    lines.add(buoy, _a.set(buoy.x, 0, buoy.z), STEEL);
-    bodies.add(buoy, leg.id === 1 ? AMBER : AMBER_DIM);
-    const kNow = this.w.kethra.position;
-    lines.add(kNow.clone(), _a.set(kNow.x, 0, kNow.z).clone(), GROVE_DIM);
+    const ticks = this.ticks.clear();
+    const halo = this.halo.clear();
+    const course = this.course.clear();
+    this.tickLabels.length = 0;
+
+    // Drop lines to the ecliptic for the bodies: the orrery's height cue.
     const wren = this.w.wren.position;
     bodies.add(wren, INK_BRIGHT);
-    lines.add(wren.clone(), _a.set(wren.x, 0, wren.z).clone(), STEEL);
-    if (this.resultLine) lines.dashed(this.resultLine[0], this.resultLine[1], WARN, 0.9, 0.7);
-    if (this.resultNote) bodies.add(this.resultNote.at, WARN);
+    lines.add(wren, ground(wren), STEEL);
+    const kNow = this.w.kethra.position;
+    lines.add(kNow, ground(kNow), GROVE_DIM);
 
-    const course = this.course.clear();
-    if (this.wave) {
-      // The win: the course draws itself outward from the Wren in amber, a bright head leading.
-      const pts = this.wave.course;
-      const total = pts.slice(1).reduce((s, p, i) => s + p.distanceTo(pts[i]), 0);
-      let left = total * this.wave.k;
-      for (let i = 1; i < pts.length && left > 0; i++) {
-        const seg = pts[i].distanceTo(pts[i - 1]);
-        const end = seg <= left ? pts[i] : _b.lerpVectors(pts[i - 1], pts[i], left / seg).clone();
-        course.add(pts[i - 1], end, AMBER);
-        left -= seg;
-        if (left <= 0 && this.wave.k < 1) bodies.add(end, INK_BRIGHT);
-      }
-    } else for (const path of this.committed) course.path(path, AMBER);
+    // ORION's hop, drawn as it's flown and then kept: two days, 8 Mkm apart.
+    if (!this.wave) course.add(toV3(sim.WREN_START, _a), toV3(this.phase === 'hop' ? sim.hopAt(this.hopDay) : sim.BUOY, _b), AMBER_DIM);
+    this.hopPoints.forEach((p, i) => {
+      if (this.phase === 'hop' && i + 1 > this.hopDay + 1e-6) return;
+      ticks.add(p, AMBER_DIM);
+      if (this.phase === 'hop') this.tickLabels.push({ at: p, text: String(i + 1), cls: 'wren' });
+    });
 
-    // The plan: the ghost line and its day ticks, and Kethra's ghost ticks.
-    const ghost = this.ghost.clear();
-    const ticks = this.ticks.clear();
-    this.tickLabels.length = 0;
-    const planning = this.phase === 'plot' || this.phase === 'result' || this.phase === 'run';
-    if (planning) {
-      let start = toV3(leg.start);
-      burns.forEach((b, i) => {
-        const end = toV3(sim.add(start, sim.scale(b.dir, sim.SPEED * b.cells * sim.DAYS_PER_CELL)));
-        ghost.add(start, end, i === this.selected ? AMBER : AMBER_DIM);
-        start = end;
-      });
-      const endDay = sim.endDay(leg, burns);
-      for (let d = Math.floor(leg.startDay) + 1; d <= endDay + 1e-6; d++) {
-        const p = toV3(sim.wrenAt(leg, burns, d).at);
-        const target = sim.targetAt(leg.target, d);
-        const match = sim.dist(p, target) < sim.CAPTURE * 1.3;
-        ticks.add(p, match ? INK_BRIGHT : AMBER);
-        ghost.add(p, _a.set(p.x, 0, p.z).clone(), c(INK.amber, 0.12));
-        this.tickLabels.push({ at: p, text: String(d), cls: match ? 'wren match' : 'wren' });
-        if (match && leg.target.kind === 'kethra') ghost.add(p, toV3(target), INK_BRIGHT);
-      }
-      if (leg.target.kind === 'kethra') {
-        const extra = this.w.stats.insight >= 2 ? 3 : 0;
-        for (let d = Math.floor(leg.startDay) + 1; d <= leg.startDay + KETHRA_GHOST_DAYS + extra; d++) {
-          const p = toV3(sim.orbitAt(sim.KETHRA, d));
-          const wr = sim.wrenAt(leg, burns, d);
-          const match = !wr.done && sim.dist(wr.at, p) < sim.CAPTURE * 1.3;
-          ticks.add(p, match ? INK_BRIGHT : GROVE);
-          ghost.add(p, _a.set(p.x, 0, p.z).clone(), GROVE_DIM);
-          this.tickLabels.push({ at: p, text: String(d), cls: match ? 'kethra match' : 'kethra' });
-        }
-      }
-    }
+    if (this.phase === 'plot' || this.phase === 'locked') this.drawChoice(lines, ticks, halo, course);
+    else if (this.phase === 'run') this.drawRun(lines, ticks, halo, course);
+    else if (this.wave) this.drawWave(bodies, course);
+
     lines.commit();
     bodies.commit();
-    course.commit();
-    ghost.commit();
     ticks.commit();
+    halo.commit();
+    course.commit();
   }
+
+  private drawChoice(lines: Lines, ticks: Dots, halo: Dots, course: Lines): void {
+    const locked = this.phase === 'locked';
+    const time = motion.gameTime;
+    const chosen = this.chosen;
+    const matched = locked || sim.matches(chosen);
+
+    // Kethra's next ten days: its path brightened, a tick per day, each dropped to the grid.
+    for (let i = 1; i < this.arcPoints.length; i++) lines.add(this.arcPoints[i - 1], this.arcPoints[i], GROVE_DIM);
+    const pulse = 0.55 + 0.45 * Math.sin(time * 5);
+    for (const m of this.meetings) {
+      const p = this.meetPoints[m.day];
+      const isChosen = m.day === this.meet;
+      const hint = this.hinted && m.day === this.solutionDay && !isChosen;
+      lines.add(p, ground(p), GROVE_FAINT);
+      if (m.day === 0) continue;
+      ticks.add(p, isChosen ? (matched ? MATCH : INK_BRIGHT) : hint ? _c.setHex(INK.grove).multiplyScalar(0.6 + 0.9 * pulse) : GROVE);
+      if (isChosen) continue;
+      this.tickLabels.push({ at: p, text: String(m.day), cls: `kethra${isChosen ? ' chosen' : ''}${isChosen && matched ? ' match' : ''}${hint ? ' hint' : ''}` });
+    }
+
+    // The course: from the buoy to the chosen point, one amber tick per day of flight.
+    const from = toV3(sim.TRANSFER_START, _a);
+    const to = locked ? toV3(this.solution.at, _end) : this.meetPoints[this.meet];
+    const breathe = locked ? 1 : 0.8 + 0.2 * Math.sin(time * 3);
+    course.add(from, to, _c.copy(matched ? MATCH : AMBER).multiplyScalar(breathe));
+    const dir = _b.copy(to).sub(from).normalize();
+    const flight = locked ? this.solution.days : chosen.wrenDays;
+    const days = Math.min(this.coursePoints.length, Math.floor(flight + 1e-6));
+    for (let d = 1; d <= days; d++) {
+      const p = this.coursePoints[d - 1].copy(from).addScaledVector(dir, sim.SPEED * d);
+      ticks.add(p, matched ? MATCH : AMBER);
+      lines.add(p, ground(p), AMBER_FAINT);
+      this.tickLabels.push({ at: p, text: String(d), cls: `wren${matched ? ' match' : ''}` });
+    }
+
+    // The chosen point, ringed: amber while the days disagree, green once they meet.
+    const flash = this.flashAt >= 0 && time - this.flashAt < 0.4;
+    halo.add(to, matched ? MATCH : flash ? WARN : _c.setHex(INK.amber).multiplyScalar(0.55 + 0.25 * Math.sin(time * 4)));
+    const w = chosen.wrenDays.toFixed(1);
+    const note = matched
+      ? t('mg1.note.match', { day: String(this.solutionDay) })
+      : this.meet === 0
+        ? t('mg1.note.now', { w })
+        : t('mg1.note.day', { day: String(this.meet), w });
+    this.tickLabels.push({ at: this.meetPoints[this.meet], text: note, cls: `note chosen-note ${matched ? 'match' : 'warn'}` });
+  }
+
+  private drawRun(lines: Lines, ticks: Dots, halo: Dots, course: Lines): void {
+    // Both count the same days: the Wren's ticks fill in behind it, Kethra's ahead of it go by.
+    const day = Math.floor(this.runDay + 1e-6);
+    for (const m of this.meetings) {
+      if (m.day === 0 || m.day > this.solutionDay) continue;
+      const p = this.meetPoints[m.day];
+      ticks.add(p, m.day <= day ? GROVE_DIM : GROVE);
+      lines.add(p, ground(p), GROVE_FAINT);
+      if (m.day > day) this.tickLabels.push({ at: p, text: String(m.day), cls: `kethra${m.day === this.solutionDay ? ' match' : ''}` });
+    }
+    const from = toV3(sim.TRANSFER_START, _a);
+    const to = toV3(this.solution.at, _end);
+    course.add(from, to, MATCH);
+    halo.add(to, _c.copy(MATCH).multiplyScalar(0.6 + 0.4 * Math.sin(motion.gameTime * 6)));
+    const dir = _b.copy(to).sub(from).normalize();
+    for (let d = 1; d <= day; d++) ticks.add(_c3.copy(from).addScaledVector(dir, sim.SPEED * d), MATCH);
+  }
+
+  private drawWave(bodies: Dots, course: Lines): void {
+    // The win: the course draws itself outward from the Wren in amber, a bright head leading.
+    const wave = this.wave!;
+    const pts = wave.course;
+    const total = pts.slice(1).reduce((s, p, i) => s + p.distanceTo(pts[i]), 0);
+    let left = total * wave.k;
+    for (let i = 1; i < pts.length && left > 0; i++) {
+      const seg = pts[i].distanceTo(pts[i - 1]);
+      const end = seg <= left ? pts[i] : _b.lerpVectors(pts[i - 1], pts[i], left / seg).clone();
+      course.add(pts[i - 1], end, AMBER);
+      left -= seg;
+      if (left <= 0 && wave.k < 1) bodies.add(end, INK_BRIGHT);
+    }
+  }
+
   private tickLabels: { at: THREE.Vector3; text: string; cls: string }[] = [];
 
   private drawLabels(): void {
@@ -526,238 +524,127 @@ export class InterceptGame {
     const L = this.labels;
     L.begin();
     for (const l of this.tickLabels) L.add(l.at, l.text, l.cls, cam);
-    L.add(toV3(sim.BUOY), t('mg1.label.buoy'), 'body', cam);
-    if (this.legIndex > 0 || this.phase === 'won') L.add(this.w.kethra.position, t('mg1.label.kethra'), 'body kethra', cam);
-    if (this.resultNote) L.add(this.resultNote.at, this.resultNote.text, 'note warn', cam);
-    if (this.phase === 'run') L.add(this.w.wren.position, t('mg1.label.day', { day: String(Math.floor(this.runDay)) }), 'body wren', cam);
+    // Kethra-now's chip already names it; at the win the two bodies share a point, and Kethra's name wins.
+    const choosingNow = (this.phase === 'plot' || this.phase === 'locked') && this.meet === 0;
+    if (!choosingNow) L.add(this.w.kethra.position, t('mg1.label.kethra'), 'body kethra', cam);
+    if (this.phase !== 'won') L.add(this.w.wren.position, this.phase === 'run' ? t('mg1.label.day', { day: String(Math.max(1, Math.ceil(this.runDay))) }) : t('mg1.label.wren'), 'body wren', cam);
     L.end();
-  }
-
-  private buildArrow(): THREE.Group {
-    const group = new THREE.Group();
-    group.name = 'aim-arrows';
-    for (let i = 0; i < 2; i++) {
-      const cone = new THREE.Mesh(
-        new THREE.ConeGeometry(0.2, 0.55, 12).rotateX(Math.PI / 2).translate(0, 0, 0.275),
-        new THREE.MeshBasicMaterial({ color: INK.amber, toneMapped: false, transparent: true, depthWrite: false }),
-      );
-      cone.renderOrder = 15;
-      this.arrowCones.push(cone);
-      group.add(cone);
-    }
-    return group;
-  }
-
-  /** Arrow length: a steady size on screen, whatever the zoom. */
-  private arrowLength(at: THREE.Vector3): number {
-    return this.w.camera.position.distanceTo(at) * 0.075;
-  }
-
-  private burnStart(i: number): THREE.Vector3 {
-    const leg = this.leg;
-    const burns = this.toBurns();
-    let p = leg.start;
-    for (let k = 0; k < i; k++) p = sim.add(p, sim.scale(burns[k].dir, sim.SPEED * burns[k].cells * sim.DAYS_PER_CELL));
-    return toV3(p);
-  }
-
-  private layoutArrow(): void {
-    const show = this.phase === 'plot';
-    this.arrowCones.forEach((cone, i) => {
-      const plan = this.plans[i];
-      cone.visible = show && !!plan;
-      if (!cone.visible) return;
-      const start = this.burnStart(i);
-      const L = this.arrowLength(start);
-      const dir = toV3(sim.direction(plan.azimuth, plan.elevation));
-      cone.position.copy(start).addScaledVector(dir, L);
-      cone.lookAt(_a.copy(cone.position).add(dir));
-      cone.scale.setScalar(L * 0.55);
-      (cone.material as THREE.MeshBasicMaterial).opacity = i === this.selected ? 1 : 0.4;
-    });
   }
 
   // ------------------------------------------------------------------ input
 
   private blocked(): boolean {
-    return PanelManager.isOpen || this.phase === 'won' || this.phase === 'between';
+    return PanelManager.isOpen;
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === 'Shift') this.held.add('Shift');
-    this.held.add(e.code);
     if (this.blocked()) return;
-    const plan = this.plans[this.selected];
-    const step = (e.altKey ? 0.25 : 1) * DEG;
-    if (e.shiftKey && this.phase === 'plot' && plan) {
-      if (e.code === 'ArrowLeft') this.aimBy(-step, 0);
-      else if (e.code === 'ArrowRight') this.aimBy(step, 0);
-      else if (e.code === 'ArrowUp') this.aimBy(0, step);
-      else if (e.code === 'ArrowDown') this.aimBy(0, -step);
-      if (e.code.startsWith('Arrow')) e.preventDefault();
+    if (this.phase === 'plot') {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        e.preventDefault();
+        this.select(this.meet - 1);
+        return;
+      }
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        e.preventDefault();
+        this.select(this.meet + 1);
+        return;
+      }
     }
-    if (e.repeat) return;
-    if (e.code === 'BracketLeft' || e.code === 'BracketRight') this.changeCells(e.code === 'BracketRight' ? 1 : -1);
-    else if (e.code === 'Space') {
-      e.preventDefault();
-      this.run();
-    } else if (e.code === 'KeyR') this.rewind();
-    else if ((e.code === 'Digit1' || e.code === 'Digit2') && this.plans.length > 1 && this.phase === 'plot') {
-      this.selected = e.code === 'Digit1' ? 0 : 1;
-      this.dirty = true;
-      this.renderPanel();
+    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+      // A Space still held from skipping the reveal must not launch or refuse anything.
+      if (e.repeat) return;
+      if (this.phase === 'locked') {
+        e.preventDefault();
+        this.launch();
+      } else if (this.phase === 'plot') {
+        e.preventDefault();
+        this.refuse();
+      }
     }
   };
 
   private onPanelClick = (e: MouseEvent): void => {
     const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
     if (!act || this.blocked()) return;
-    if (act === 'run') this.run();
-    else if (act === 'rewind') this.rewind();
-    else if (act === 'less' || act === 'more') this.changeCells(act === 'more' ? 1 : -1);
-    else if (act.startsWith('burn') && this.phase === 'plot') {
-      this.selected = Number(act.slice(4));
-      this.dirty = true;
-      this.renderPanel();
-    }
-  };
-
-  private onKeyUp = (e: KeyboardEvent): void => {
-    if (e.key === 'Shift') this.held.delete('Shift');
-    this.held.delete(e.code);
-  };
-
-  private aimBy(dAz: number, dEl: number): void {
-    const plan = this.plans[this.selected];
-    plan.azimuth += dAz;
-    plan.elevation = THREE.MathUtils.clamp(plan.elevation + dEl, -80 * DEG, 80 * DEG);
-    this.dirty = true;
-    this.renderPanel();
-  }
-
-  private changeCells(delta: number): void {
-    if (this.phase !== 'plot') return;
-    const plan = this.plans[this.selected];
-    const next = plan.cells + delta;
-    if (next < 1 || (delta > 0 && this.budgetLeft() <= 0)) {
-      AudioSystem.playError();
-      return;
-    }
-    plan.cells = next;
-    AudioSystem.playUiClick();
-    this.dirty = true;
-    this.renderPanel();
-  }
-
-  private readonly ray = new THREE.Raycaster();
-  private readonly ndc = new THREE.Vector2();
-
-  private onPointerDown = (e: PointerEvent): void => {
-    if (this.blocked() || e.button !== 0) return;
-    // Grab an arrow if the press is on one (screen distance to its tip); otherwise orbit.
-    let grab = -1;
-    if (this.phase === 'plot') {
-      this.arrowCones.forEach((cone, i) => {
-        if (!cone.visible) return;
-        const p = _a.copy(cone.position).project(this.w.camera);
-        const x = ((p.x + 1) / 2) * window.innerWidth;
-        const y = ((1 - p.y) / 2) * window.innerHeight;
-        if (Math.hypot(x - e.clientX, y - e.clientY) < 30 && (grab < 0 || i === this.selected)) grab = i;
-      });
-    }
-    if (grab >= 0) {
-      this.selected = grab;
-      this.renderPanel();
-    }
-    this.drag = { mode: grab >= 0 ? 'aim' : 'orbit', x: e.clientX, y: e.clientY };
+    if (act === 'launch') this.launch();
+    else if (act === 'autoplot') this.autoPlot();
   };
 
   private onPointerMove = (e: PointerEvent): void => {
-    if (!this.drag) return;
-    if (this.drag.mode === 'orbit') {
-      this.goalYaw -= (e.clientX - this.drag.x) * 0.006;
-      this.goalPitch = THREE.MathUtils.clamp(this.goalPitch + (e.clientY - this.drag.y) * 0.006, -1.2, 1.45);
-    } else this.aimAtPointer(e.clientX, e.clientY);
-    this.drag.x = e.clientX;
-    this.drag.y = e.clientY;
+    if (this.phase === 'plot' && !this.blocked()) this.pick(e.clientX, e.clientY);
   };
 
-  private onPointerUp = (): void => {
-    this.drag = null;
+  private onPointerDown = (e: PointerEvent): void => {
+    if (this.blocked() || e.button !== 0) return;
+    if (this.phase === 'plot') this.pick(e.clientX, e.clientY);
+    else if (this.phase === 'locked') this.launch();
   };
 
-  private onWheel = (e: WheelEvent): void => {
-    if (this.blocked()) return;
-    this.goalDist = THREE.MathUtils.clamp(this.goalDist * Math.exp(e.deltaY * 0.0012), 6, 220);
-  };
+  /** Selects the tick nearest the pointer on screen: the selection follows the mouse, no clicking. */
+  private pick(x: number, y: number): void {
+    let best = this.meet;
+    let bestD = Infinity;
+    for (const m of this.meetings) {
+      const s = this.toClient(m.at);
+      if (!s) continue;
+      const d = Math.hypot(s.x - x, s.y - y);
+      if (d < bestD) {
+        bestD = d;
+        best = m.day;
+      }
+    }
+    this.select(best);
+  }
 
-  /** Drags the selected arrow around a sphere about its burn's start. */
-  private aimAtPointer(x: number, y: number): void {
-    const plan = this.plans[this.selected];
-    const center = this.burnStart(this.selected);
-    const R = this.arrowLength(center);
-    this.ndc.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
-    this.ray.setFromCamera(this.ndc, this.w.camera);
-    const r = this.ray.ray;
-    const oc = _a.copy(r.origin).sub(center);
-    const b = oc.dot(r.direction);
-    const cc = oc.lengthSq() - R * R;
-    const disc = b * b - cc;
-    let point: THREE.Vector3;
-    if (disc >= 0) {
-      // Of the two crossings, the one on the side the arrow is already pointing.
-      const cur = toV3(sim.direction(plan.azimuth, plan.elevation));
-      const p1 = r.at(-b - Math.sqrt(disc), new THREE.Vector3());
-      const p2 = r.at(-b + Math.sqrt(disc), new THREE.Vector3());
-      point = p1.clone().sub(center).dot(cur) >= p2.clone().sub(center).dot(cur) ? p1 : p2;
-    } else point = r.at(-b, new THREE.Vector3());
-    const dir = point.sub(center);
-    if (dir.lengthSq() < 1e-9) return;
-    const a = sim.anglesOf(dir);
-    plan.azimuth = a.azimuth;
-    plan.elevation = THREE.MathUtils.clamp(a.elevation, -80 * DEG, 80 * DEG);
-    this.dirty = true;
-    this.renderPanel();
+  private toClient(p: sim.Vec): { x: number; y: number } | null {
+    const v = _a.set(p.x, p.y, p.z).project(this.w.camera);
+    if (v.z > 1 || v.z < -1) return null;
+    return { x: ((v.x + 1) / 2) * window.innerWidth, y: ((1 - v.y) / 2) * window.innerHeight };
   }
 
   // ------------------------------------------------------------------ the plate
 
   private renderPanel(): void {
     if (this.phase === 'won') return;
-    const leg = this.leg;
-    const plan = this.plans[this.selected];
-    const used = this.plans.reduce((n, p) => n + p.cells, 0);
-    const days = used * sim.DAYS_PER_CELL;
-    const burnTabs =
-      this.plans.length > 1
-        ? `<div class="intercept-burns">${this.plans.map((_, i) => `<button type="button" data-act="burn${i}" class="${i === this.selected ? 'on' : ''}"><span class="keycap">${i + 1}</span>${t('mg1.burn', { n: String(i + 1) })}</button>`).join('')}</div>`
-        : '';
-    const az = Math.round(THREE.MathUtils.euclideanModulo(plan.azimuth / DEG, 360));
-    const el = Math.round(plan.elevation / DEG);
-    const statNotes = [
-      this.w.stats.insight >= 2 && leg.target.kind === 'kethra' ? t('mg1.stat.insight') : '',
-      this.w.stats.perception >= 2 && leg.belt ? t('mg1.stat.perception') : '',
-      this.w.stats.engineering >= 2 ? t('mg1.stat.engineering') : '',
-    ].filter(Boolean);
-    const action =
-      this.phase === 'result'
-        ? `<button type="button" data-act="rewind"><span class="keycap">R</span>${t('mg1.key.rewind')}</button>`
-        : this.phase === 'run'
-          ? `<span class="num">${t('mg1.label.day', { day: String(Math.floor(this.runDay)) })}</span>`
-          : `<button type="button" data-act="run"><span class="keycap">Space</span>${t('mg1.key.run')}</button>`;
-    this.panel.innerHTML = `
-      <div class="eyebrow">${t('mg1.eyebrow', { n: String(leg.id) })}</div>
-      <h3>${t(`mg1.leg${leg.id}.title` as StringKey)}</h3>
-      <p>${t(`mg1.leg${leg.id}.how` as StringKey)}</p>
-      ${burnTabs}
-      <div class="intercept-readouts">
-        <div><span class="label">${t('mg1.readout.heading')}</span><span class="num">${az}° / ${el >= 0 ? '+' : ''}${el}°</span></div>
-        <div><span class="label">${t('mg1.readout.cells')}</span><span class="num"><button type="button" class="keycap" data-act="less" aria-label="${t('mg1.key.less')}">[</button> ${plan.cells} <button type="button" class="keycap" data-act="more" aria-label="${t('mg1.key.more')}">]</button></span></div>
-        <div><span class="label">${t('mg1.readout.budget')}</span><span class="num">${used} / ${leg.budget}</span></div>
-        <div><span class="label">${t('mg1.readout.days')}</span><span class="num">${days}</span></div>
+    const head = `<div class="eyebrow">${t('mg1.eyebrow')}</div><h3>${t('mg1.title')}</h3>`;
+    if (this.phase === 'hop') {
+      this.panel.innerHTML = `${head}<p>${t('mg1.hop.how')}</p>`;
+      return;
+    }
+    if (this.phase === 'run') {
+      const day = Math.max(1, Math.ceil(this.runDay));
+      this.panel.innerHTML = `${head}<div class="intercept-status match">${t('mg1.status.run', { day: String(day), days: String(Math.round(this.solution.days)) })}</div>`;
+      return;
+    }
+    const locked = this.phase === 'locked';
+    const m = locked ? { ...this.meetings[this.solutionDay], wrenDays: this.solution.days } : this.chosen;
+    const matched = locked || sim.matches(m);
+    const w = m.wrenDays.toFixed(1);
+    const status: [StringKey, string] = matched
+      ? ['mg1.status.match', 'match']
+      : m.day === 0
+        ? ['mg1.status.now', 'late']
+        : m.wrenDays > m.day
+          ? ['mg1.status.late', 'late']
+          : ['mg1.status.early', 'early'];
+    const nudge = matched ? '' : status[1] === 'late' ? `<span class="keycap">→</span> ${t('mg1.nudge.later')}` : `<span class="keycap">←</span> ${t('mg1.nudge.sooner')}`;
+    const flash = this.flashAt >= 0 && motion.gameTime - this.flashAt < 0.5 ? ' flash' : '';
+    const action = locked
+      ? `<button type="button" class="intercept-launch" data-act="launch"><span class="keycap">Space</span>${t('mg1.key.launch')}</button>`
+      : `<div class="intercept-keys"><span><span class="keycap">${t('mg1.key.mouse')}</span> ${t('mg1.key.or')} <span class="keycap">←</span><span class="keycap">→</span> ${t('mg1.key.choose')}</span><span><span class="keycap">Space</span> ${t('mg1.key.launch')}</span></div>`;
+    const auto = !locked && this.autoOffered ? `<button type="button" class="intercept-auto" data-act="autoplot">${t('mg1.autoplot')}</button>` : '';
+    const stat = this.w.stats.insight >= 2 && !locked ? `<ul class="intercept-stats"><li>${t('mg1.stat.insight')}</li></ul>` : '';
+    this.panel.innerHTML = `${head}
+      <p>${t('mg1.how')}</p>
+      <div class="intercept-readouts${matched ? ' matched' : ''}">
+        <div><span class="label">${t('mg1.readout.distance')}</span><span class="num">${Math.round(m.distance)} Mkm</span></div>
+        <div><span class="label">${t('mg1.readout.speed')}</span><span class="num">${sim.SPEED} Mkm/day</span></div>
+        <div class="wren"><span class="label">${t('mg1.readout.wren')}</span><span class="num">${w} ${t('mg1.readout.days')}</span></div>
+        <div class="kethra"><span class="label">${t('mg1.readout.kethra')}</span><span class="num">${m.day === 0 ? t('mg1.readout.now') : `${t('mg1.readout.day')} ${m.day}`}</span></div>
       </div>
-      ${statNotes.length ? `<ul class="intercept-stats">${statNotes.map((s) => `<li>${s}</li>`).join('')}</ul>` : ''}
-      <div class="intercept-keys">${action}<span><span class="keycap">Shift</span>+<span class="keycap">←↑↓→</span>${t('mg1.key.aim')}</span><span>${t('mg1.key.orbit')}</span></div>`;
+      <div class="intercept-status ${status[1]}${flash}">${t(status[0], { day: String(m.day), w })}${nudge ? `<span class="intercept-nudge">${nudge}</span>` : ''}</div>
+      ${stat}${action}${auto}`;
   }
 
   private say(key: StringKey): void {
@@ -766,44 +653,55 @@ export class InterceptGame {
 
   // ------------------------------------------------------------------ debug harness and tests
 
-  /** F2 in the harness: fly every remaining leg with its reference course. */
+  /** F2 in the harness: commit the intercept and go straight to the win. */
   private debugWin(): void {
     if (this.phase === 'won') return;
-    for (let i = this.legIndex; i < this.legs.length; i++) {
-      const leg = this.legs[i];
-      this.legIndex = i;
-      const burns = sim.solution(leg);
-      this.plans = burns.map((b) => ({ ...sim.anglesOf(b.dir), cells: b.cells }));
-      const o = sim.simulate(leg, burns, this.clumps);
-      if (leg.id !== 2) this.committed.push(this.flownPath(o.day));
-      if (i === this.legs.length - 1) {
-        this.w.belt.setResolved(1);
-        this.win(o.day);
-      }
-    }
+    this.hop?.cancel();
+    this.meet = this.solutionDay;
+    this.win();
   }
 
-  /** F3: run a course that misses. */
+  /** F3: try to launch on Kethra-now. */
   private debugFail(): void {
     if (this.phase !== 'plot') return;
-    this.plans[this.selected].azimuth += 90 * DEG;
-    this.run();
+    this.select(0);
+    this.refuse();
   }
 
   /** What the tests in tools/ read. */
-  state(): { leg: number; phase: Phase; plans: Plan[]; budget: number; outcome: sim.Outcome | null; buoy: sim.Vec; start: sim.Vec } {
-    return { leg: this.leg.id, phase: this.phase, plans: this.plans.map((p) => ({ ...p })), budget: this.leg.budget, outcome: this.outcome, buoy: sim.BUOY, start: this.leg.start };
+  state(): {
+    phase: Phase;
+    meet: number;
+    wrenDays: number;
+    matched: boolean;
+    solutionDay: number;
+    hinted: boolean;
+    autoOffered: boolean;
+    ticks: { day: number; x: number; y: number }[];
+  } {
+    const ticks: { day: number; x: number; y: number }[] = [];
+    for (const m of this.meetings) {
+      const s = this.toClient(m.at);
+      if (s) ticks.push({ day: m.day, x: s.x, y: s.y });
+    }
+    return {
+      phase: this.phase,
+      meet: this.meet,
+      wrenDays: this.chosen.wrenDays,
+      matched: this.phase === 'locked' || sim.matches(this.chosen),
+      solutionDay: this.solutionDay,
+      hinted: this.hinted,
+      autoOffered: this.autoOffered,
+      ticks,
+    };
   }
 
   dispose(): void {
     this.unregister();
     this.fx.dispose();
     window.removeEventListener('keydown', this.onKeyDown);
-    window.removeEventListener('keyup', this.onKeyUp);
+    this.w.surface.removeEventListener('pointermove', this.onPointerMove);
     this.w.surface.removeEventListener('pointerdown', this.onPointerDown);
-    window.removeEventListener('pointermove', this.onPointerMove);
-    window.removeEventListener('pointerup', this.onPointerUp);
-    this.w.surface.removeEventListener('wheel', this.onWheel);
     this.labels.dispose();
     this.panel.remove();
     this.instrument.removeFromParent();
@@ -818,8 +716,13 @@ export class InterceptGame {
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
+const _c3 = new THREE.Vector3();
+const _end = new THREE.Vector3();
+const _g = new THREE.Vector3();
 const _look = new THREE.Vector3();
+const _c = new THREE.Color();
 
-function scaleMid(a: sim.Vec, b: sim.Vec): sim.Vec {
-  return sim.scale(sim.add(a, b), 0.5);
+/** The point straight below `p` on the ecliptic grid. A scratch vector: Lines and Dots copy it. */
+function ground(p: THREE.Vector3): THREE.Vector3 {
+  return _g.set(p.x, 0, p.z);
 }

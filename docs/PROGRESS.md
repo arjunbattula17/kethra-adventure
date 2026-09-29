@@ -27,6 +27,7 @@ are OFF, so work continues milestone to milestone without stopping.
   - [x] The course on the desk chart (real state), the player leaning over it after the win (ca4357a)
   - [x] The keypad plot deleted (ca4357a)
   - [x] The Wren's lighting arc: emergency → navigation → full (power.ts); full stands on `left_wren` until First light exists (M2)
+  - [x] **2026-09-28: MG1 redesigned for first-time players** (docs/DESIGN.md §4, slot 1, "Redesigned"): ORION's automatic hop, then one choice (where to meet Kethra, ← → or the mouse), lock on the match, Space to launch; ORION's hint and "Let ORION plot it" so nobody stalls. Back aboard: "Explore Kethra" with logs and repairs as an optional second line, the console lit by the tutorial's markers (src/ship/ConsoleGuide.ts). tools/test-intercept-sim.mjs and tools/test-mg1-flow.mjs rewritten for it
 - [x] **M2 First light and the cruise**
   - [x] First light at the helm: the cabin falls to emergency, the desk chart redraws the course, the throttle offered after a beat of stillness, four held ignitions with a kick each, power travelling stern to helm as light, strip by strip (per-pixel on the merged strips); letting go spools back (src/ship/FirstLight.ts, throttle.ts, power.ts)
   - [x] The match cut out through the viewport into the cruise, prepared underneath, no spinner (Engine.setScene `quiet`, GameScene.onEnter)

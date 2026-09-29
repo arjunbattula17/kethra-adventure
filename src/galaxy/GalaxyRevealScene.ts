@@ -163,7 +163,7 @@ export class GalaxyRevealScene implements GameScene {
     const W = toV3(sim.WREN_START);
     const B = toV3(sim.BUOY);
     const mid = W.clone().lerp(B, LEG1_FOCUS);
-    // MG1's first view: the same orbit framing the game opens leg 1 with.
+    // MG1's first view: the framing ORION's hop starts from, so the handover has no jump.
     const end = orbitPosition(mid, LEG1_VIEW);
     // The wide the ping resolves: the whole approach, sun to Kethra's orbit.
     const wideTarget = new THREE.Vector3(24, 0, 24);
@@ -236,9 +236,8 @@ export class GalaxyRevealScene implements GameScene {
       camera: this.camera,
       wren: this.ship,
       kethra: this.kethra.group,
-      belt: this.belt,
       surface: engine?.renderer.domElement ?? document.body,
-      stats: { insight: a.insight, perception: a.perception, engineering: a.engineering },
+      stats: { insight: a.insight },
     });
     this.intercept.onComplete = (result) => this.onPlotted?.(result);
     this.intercept.start(this.camera.position.clone(), this.lookTarget.clone());

@@ -19,7 +19,7 @@ const LIBRARY_ENTRIES: JournalLogEntry[] = [
   {
     id: 'lib_navigation',
     title: 'Ship’s Library — Distance, Speed, Time',
-    body: 'All navigation stands on one relationship: distance equals speed multiplied by time. Rearrange it and any one figure falls out of the other two — sailors have used it with log lines and hourglasses, pilots use it every flight, and mission planners use it to schedule burns years ahead. Add a margin on top of the answer, because real journeys never go exactly to plan. The course plot to Kethra was this arithmetic and nothing more: a gap, a speed, a share of days, and two spare.',
+    body: 'All navigation stands on one relationship: distance equals speed multiplied by time. Rearrange it and any one figure falls out of the other two — sailors have used it with log lines and hourglasses, pilots use it every flight, and mission planners use it to schedule burns years ahead. Add a margin on top of the answer, because real journeys never go exactly to plan. The course to Kethra used it twice over: 48 million km at 8 a day is six days, and a world that moves has to be met where it will be on the day you arrive, not where it was when you set out.',
     corrupted: false,
     timestamp: 'REFERENCE ARCHIVE',
     unlocked: false,

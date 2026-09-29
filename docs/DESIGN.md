@@ -326,6 +326,25 @@ light shell that resolves the belt in 3D.
   - Belt clumps are sphere colliders the sim tests against. Hitting one gets a 60 ms hit-stop at
     the contact.
 
+**Redesigned (2026-09-28): one choice, about 15 seconds.** Playtesting showed the three-leg version
+could take a first-time player many minutes: seven controls (orbit camera, zoom, Shift-arrow aim on a
+sphere, a drag handle, cells, burn select, run, rewind), 1° aiming steps in azimuth and elevation, a
+two-burn hop over the belt, and a run-fail-rewind loop. Judges get about three minutes for the whole
+game, so MG1 now keeps the idea and drops the machinery:
+- ORION flies the drift hop to the buoy itself (two ticks, two days), which shows what a plotted day
+  looks like before the player does anything.
+- The one decision: Kethra's next ten days are numbered ticks on its orbit, and the player picks where
+  to meet it (`←` `→`, or the mouse: the selection follows the pointer, no clicking). The course
+  aims itself, elevation included. The plate reads the choice back as d = v·t: distance, 8 Mkm/day, "we
+  get there in 5.8 days", "Kethra gets there day 5", with "too late → meet it later" or "too early ←".
+- Only day 6 matches (the 48 Mkm, six-day transfer; the neighbours are 0.76 days off). Holding it for
+  0.3 s locks the course; Space launches the fast-forward; the win and the desk chart are as before.
+- Nobody gets stuck: Space before the match is refused with the reason, ORION hints at 7 s, "Let ORION
+  plot it" appears at 15 s. Insight 2 marks the meeting day from the start.
+- Cut: camera control, sphere aiming, the cell budget, two burns and the belt wall (the belt is
+  scenery again). Back aboard, the objective is Kethra with logs and repairs as an optional line, and
+  the tutorial's markers light the navigation console.
+
 ### Slot 2 · arriving at Kethra (after the cruise)
 | Concept | The idea | Clarity | Depth | 3D | Fit | Distinct | Memorable | Cost | Total |
 |---|---|---|---|---|---|---|---|---|---|

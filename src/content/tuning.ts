@@ -38,6 +38,25 @@ export const PLAYER = {
 } as const;
 
 /**
+ * MG1 Intercept's pacing (src/galaxy/intercept/InterceptGame.ts), in seconds of game time. The whole
+ * plot is meant to take a first-time player 10–20 s: one choice, one launch.
+ */
+export const MG1 = {
+  /** ORION's automatic hop out of the debris to the buoy, while the camera pulls out. */
+  HOP_SECONDS: 1.8,
+  /** How long the matching day has to stay selected before the course locks (a sweep past doesn't). */
+  LOCK_DWELL: 0.3,
+  /** Unlocked this long: ORION hints, and the meeting day pulses. */
+  HINT_AFTER: 7,
+  /** Unlocked this long: "Let ORION plot it" appears, so nobody can get stuck. */
+  AUTOPLOT_AFTER: 15,
+  /** The six-day voyage, fast-forwarded. */
+  RUN_SECONDS: 2.8,
+  /** The win's course and count-up hold before the Wren takes over. */
+  WIN_HOLD: 3.2,
+} as const;
+
+/**
  * Navigation figures for the galaxy map. Orbits are in millions of km (Mkm) and match planetData's
  * orbitRadius values. MG1's model (src/galaxy/intercept/sim.ts) uses the same cruise speed and belt
  * but keeps its own copies, so its tests can load it into Node alone: change them together.
