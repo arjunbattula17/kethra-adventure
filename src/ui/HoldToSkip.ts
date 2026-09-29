@@ -85,20 +85,24 @@ export class HoldToSkip {
   private swallowUntilReleased(): void {
     const keys = new Set([...this.holding].filter((k) => k !== 'pointer'));
     if (!keys.size) return;
+    const stop = () => {
+      window.removeEventListener('keydown', block, true);
+      window.removeEventListener('keyup', block, true);
+      window.removeEventListener('blur', stop);
+    };
     const block = (e: KeyboardEvent) => {
       if (!keys.has(e.code)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       if (e.type === 'keyup') {
         keys.delete(e.code);
-        if (!keys.size) {
-          window.removeEventListener('keydown', block, true);
-          window.removeEventListener('keyup', block, true);
-        }
+        if (!keys.size) stop();
       }
     };
     window.addEventListener('keydown', block, true);
     window.addEventListener('keyup', block, true);
+    // Released while the window was away, the key-up never arrives here: stop swallowing then too.
+    window.addEventListener('blur', stop);
   }
 
   dispose(): void {
