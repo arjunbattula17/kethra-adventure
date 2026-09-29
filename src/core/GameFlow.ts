@@ -647,6 +647,9 @@ export class GameFlow {
   }
 
   private async takeTheHelm(ship: ShipInteriorScene): Promise<void> {
+    // A panel opened while the trip loaded (E at the console re-opens the map) would hand control
+    // back when it closes, mid-cinematic: close it before taking control.
+    if (PanelManager.isOpen) PanelManager.close();
     InputManager.exitPointerLock();
     UIManager.setLookPromptEnabled(false);
     UIManager.setCrosshairVisible(false);
