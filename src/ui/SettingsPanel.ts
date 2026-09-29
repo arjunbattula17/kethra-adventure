@@ -110,6 +110,8 @@ class SettingsPanelImpl {
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code !== 'KeyO') return;
     e.preventDefault();
+    // A held O auto-repeats: toggle once per press.
+    if (e.repeat) return;
     // Checking activeId (not just isOpen) so O switches TO this panel from a different one
     // (e.g. Character) instead of just closing whatever else happens to be open.
     if (PanelManager.isOpen && PanelManager.activeId === 'settings') PanelManager.close();
