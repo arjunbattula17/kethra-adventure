@@ -24,6 +24,21 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 }
 
 // The rest on the Wren, past the tutorial.
+const lockSpy = { fn: () => { const orig = HTMLCanvasElement.prototype.requestPointerLock; window.__locks = 0; HTMLCanvasElement.prototype.requestPointerLock = function (...a) { window.__locks++; return orig?.apply(this, a); }; }, arg: null };
+
+// First person still captures the mouse on a click (BUG-014 limits that to cursor-driven scenes).
+{
+  const { page, context, errors } = await openPage(browser, '?newGame=1&skipIntro=1&seed=5', { init: lockSpy });
+  await settled(page, 'ShipInteriorScene');
+  await page.evaluate(() => window.__DEBUG__.flow.tutorial?.skip?.());
+  await page.waitForTimeout(1500);
+  await page.mouse.click(640, 360);
+  await page.waitForTimeout(400);
+  check('on the Wren a click on the view captures the mouse', (await page.evaluate(() => window.__locks)) > 0);
+  await clean(page, errors, 'mouse capture on the Wren');
+  await context.close();
+}
+
 const { page, context, errors } = await openPage(browser, '?newGame=1&skipIntro=1&seed=5');
 await settled(page, 'ShipInteriorScene');
 await page.evaluate(() => window.__DEBUG__.flow.tutorial?.skip?.());

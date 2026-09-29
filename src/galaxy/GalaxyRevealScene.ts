@@ -41,6 +41,8 @@ const PING_SECONDS = 5.2;
 export class GalaxyRevealScene implements GameScene {
   /** Stable identity for the harnesses in tools/ (constructor names are mangled in production). */
   readonly kind = 'GalaxyRevealScene';
+  /** MG1 picks days and buttons with the cursor. */
+  readonly mouseLook = false;
   readonly usesAO = false;
   readonly grade = GRADES.space;
   scene = new THREE.Scene();

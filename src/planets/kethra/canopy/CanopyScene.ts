@@ -42,6 +42,8 @@ const _c = new THREE.Color();
  */
 export class CanopyScene implements GameScene {
   readonly kind = 'CanopyScene';
+  /** The lamp aims at the cursor. */
+  readonly mouseLook = false;
   readonly usesAO = false;
   readonly grade = GRADES.kethra;
   scene = new THREE.Scene();

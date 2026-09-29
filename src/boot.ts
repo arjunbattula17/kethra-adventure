@@ -20,6 +20,7 @@ import { t } from './content/strings';
 import { mulberry32 } from './core/rng';
 import { motion } from './motion';
 import { activeMiniGame } from './debug/hooks';
+import { InputManager } from './core/InputManager';
 
 
 const params = new URLSearchParams(location.search);
@@ -96,6 +97,7 @@ if (params.get('unlockVessek')) {
 }
 
 const flow = new GameFlow(engine);
+InputManager.mouseLookWanted = () => engine.getCurrentScene()?.mouseLook !== false;
 PauseMenu.init({
   canPause: () => !document.body.classList.contains('title-open') && !document.body.classList.contains('ending-open') && !UIManager.isCinematic() && !!engine.getCurrentScene(),
   canRestart: () => flow.canRestartLevel(),

@@ -9,6 +9,8 @@ class InputManagerImpl {
   private delta = { x: 0, y: 0 };
   /** The player released the mouse themselves (Esc while it was captured). The pause menu listens. */
   onUserUnlock: (() => void) | null = null;
+  /** Whether the current scene aims with the captured mouse; boot wires it to the engine's scene. */
+  mouseLookWanted: () => boolean = () => true;
 
   init(canvas: HTMLElement): void {
     this.lockedElement = canvas;
@@ -23,7 +25,7 @@ class InputManagerImpl {
     window.addEventListener('blur', () => this.keys.clear());
 
     canvas.addEventListener('click', () => {
-      if (document.pointerLockElement !== canvas) canvas.requestPointerLock?.();
+      if (document.pointerLockElement !== canvas) this.requestPointerLock();
     });
     // Mouse buttons read like keys, as 'Mouse0' (left), 'Mouse2' (right), so a binding can list them.
     // On the window: with the mouse captured every press lands on the canvas anyway, and without it
@@ -83,6 +85,8 @@ class InputManagerImpl {
   }
 
   requestPointerLock(): void {
+    // A captured mouse freezes the cursor that MG1 and MG2 steer by.
+    if (!this.mouseLookWanted()) return;
     this.lockedElement?.requestPointerLock?.();
   }
 }

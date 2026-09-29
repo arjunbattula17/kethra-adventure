@@ -70,6 +70,9 @@ export interface GameScene {
    * shadow pass was ~1,100 of its ~2,470 draw calls, re-drawing an identical depth map. A scene
    * that opts in and later animates a caster must arm renderer.shadowMap.needsUpdate itself. */
   staticShadows?: boolean;
+  /** Whether the scene aims with the captured mouse (first person). Defaults to on; scenes steered
+   * by the cursor turn it off, so neither a click nor a closing panel captures the mouse there. */
+  mouseLook?: boolean;
   /** This scene's colour grade (GradeGlowPass.ts, GRADES). Defaults to the interior's. */
   grade?: GradeProfile;
 }
