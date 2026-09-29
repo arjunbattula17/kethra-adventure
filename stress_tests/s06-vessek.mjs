@@ -93,7 +93,20 @@ if (!ONLY || ONLY === 'pulse') {
   const dialogue = await page.evaluate(() => document.getElementById('dialogue-panel')?.isConnected && getComputedStyle(document.getElementById('dialogue-panel')).display !== 'none');
   check('BUG-024 (UI-7): during the pulse cutscene E opens nothing and no prompt shows', cut === false && !dialogue && !p0, `player enabled ${cut}, prompt "${p0}", dialogue ${dialogue}`);
   for (let i = 0; i < 3 && dialogue; i++) { await press(page, 'Escape'); await page.waitForTimeout(400); }
-  await page.waitForTimeout(8000);
+  // BUG-027: the mouse moves 1000 px (captured) while the cutscene has control.
+  await page.evaluate(() => {
+    const canvas = window.__DEBUG__.engine.renderer.domElement;
+    Object.defineProperty(Document.prototype, 'pointerLockElement', { configurable: true, get: () => canvas });
+    document.dispatchEvent(new Event('pointerlockchange'));
+    document.dispatchEvent(new MouseEvent('mousemove', { movementX: 1000, movementY: 0 }));
+  });
+  const yaw0 = await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().player.yaw);
+  await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene().player.enabled, null, { timeout: 15000, polling: 16 });
+  await page.waitForTimeout(300);
+  const yaw1 = await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().player.yaw);
+  check('BUG-027: mouse movement made during a cutscene does not snap the view when control returns', Math.abs(yaw1 - yaw0) < 0.05, `yaw ${yaw0.toFixed(2)} -> ${yaw1.toFixed(2)}`);
+  await page.evaluate(() => { delete Document.prototype.pointerLockElement; document.dispatchEvent(new Event('pointerlockchange')); });
+  await page.waitForTimeout(2000);
   check('the pulse fired', await flag(page, 'vessek_pulse'));
   await teleport(page, -2.75, 0.2, -15.9, 0);
   await aim(page, 0, 0);

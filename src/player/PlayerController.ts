@@ -190,7 +190,11 @@ export class PlayerController {
   }
 
   update(dt: number): void {
-    if (!this.enabled) return;
+    if (!this.enabled) {
+      // Mouse movement during a cutscene would otherwise all land at once when control returns.
+      InputManager.consumeMouseDelta();
+      return;
+    }
 
     const delta = InputManager.consumeMouseDelta();
     this.yaw -= delta.x * MOUSE_SENSITIVITY * PlayerController.sensitivity;

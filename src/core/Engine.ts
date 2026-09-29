@@ -286,6 +286,8 @@ export class Engine {
     // covers scene transitions, but the very first scene at boot has no fade at all. A spinner here
     // covers both cases, so a slow load reads as "loading" instead of "did this freeze?".
     if (!opts.quiet) UIManager.showLoading();
+    // Mouse movement made during the last scene (a cinematic) must not turn the next one's camera.
+    InputManager.consumeMouseDelta();
     try {
       if (this.current) {
         this.current.dispose();
