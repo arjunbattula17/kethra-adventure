@@ -1185,7 +1185,8 @@ export class KethraScene implements GameScene {
       // reused across scene visits — disposing them here would leave the cache holding freed GPU
       // buffers and break the scene on a return trip to Kethra. batchStaticGeometry.ts documents the
       // same InstancedMesh-vs-shared-geometry hazard for the ship interior's kit.
-      if ((obj as THREE.InstancedMesh).isInstancedMesh) return;
+      // Only those: the canopy ceiling and the chamber build InstancedMeshes of their own.
+      if ((obj as THREE.InstancedMesh).isInstancedMesh && obj.userData.sharedGeometry) return;
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
     });

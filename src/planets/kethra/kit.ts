@@ -102,6 +102,8 @@ export async function buildInstancedKit(
   for (const prim of prims) {
     const material = prim.material.clone();
     const inst = new THREE.InstancedMesh(prim.geometry, material, instances.length);
+    // The geometry is the cached template's, shared across visits: scene disposal must skip it.
+    inst.userData.sharedGeometry = true;
     inst.castShadow = true;
     inst.receiveShadow = true;
     // InstancedMesh's default bounding sphere comes from the base (untransformed) geometry alone
