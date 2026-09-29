@@ -156,6 +156,8 @@ export class RingBus {
       this.timers.delete(id);
       const e = this.close(id);
       events.push(e.kind === 'trip' ? e : { kind: 'autoReset', id });
+      // A trip re-armed every timer: the rest of this snapshot is stale and would overwrite them.
+      if (e.kind === 'trip') break;
     }
     if (this.phase === 'crisis') {
       if (this.goalMet()) {
