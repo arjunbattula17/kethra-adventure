@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { GameScene } from '../core/Engine';
 import { CameraPath, MotionScope, ease, motion } from '../motion';
+import type { Timeline } from '../motion';
 import { disposeSceneFully } from '../core/disposeSceneTextures';
 import { getActiveEngine } from '../core/EngineRegistry';
 import { getSharedEnvironment } from '../core/Environment';
@@ -118,6 +119,7 @@ export class CruiseScene implements GameScene {
   private engineLight!: THREE.PointLight;
   private time = 0;
   private skip: HoldToSkip | null = null;
+  private beats: Timeline | null = null;
   private dayEl!: HTMLDivElement;
   private titleEl!: HTMLDivElement;
   private titled = false;
@@ -230,7 +232,7 @@ export class CruiseScene implements GameScene {
     UIManager.showLetterbox(true);
     this.skip = new HoldToSkip({ onSkip: () => this.skipToArrival() });
     this.skip.show();
-    this.fx.timeline([
+    this.beats = this.fx.timeline([
       { at: 0.35, run: () => this.ignite(), beat: 'cruise:ignition' },
       { at: BEAT.departure + 0.6, run: () => this.say('cruise.orion.burn', { days: String(this.opts.days) }) },
       { at: BEAT.transit + 5, run: () => this.say('cruise.orion.day3') },
@@ -276,6 +278,8 @@ export class CruiseScene implements GameScene {
   private skipToArrival(): void {
     this.skip?.dispose();
     this.skip = null;
+    // The skipped beats' captions and chime would otherwise still play over the title.
+    this.beats?.cancel();
     this.time = Math.max(this.time, BEAT.handoff);
     UIManager.clearCaption();
     this.showTitle();
