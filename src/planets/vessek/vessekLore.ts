@@ -39,7 +39,7 @@ export const VESSEK_ENTRIES: JournalLogEntry[] = [
 export const LEVER_NOTES = {
   regulator: 'REGULATOR. First on, or nothing holds. —Lantern Bay',
   pumps: 'Circulation pumps. Needs the regulator. —Mireille crew',
-  heaters: 'Hydroponics heaters. NO FLOW = TRIP. Pumps first!! —Dace',
+  heaters: 'Hydroponics heaters. WON’T CLOSE WITHOUT FLOW. Pumps first!! —Dace',
   scrubbers: 'Air scrubbers. Needs the regulator. Don’t skip these. —Copper Hen',
   dock: 'Dock lights. Come back on by themselves after a pulse. —Six Sisters',
   lamps: 'Lantern Bay hall lamps. Also come back by themselves. —I. Varro',
