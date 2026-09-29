@@ -143,7 +143,6 @@ export class HushGame {
     const flatTo = (p: H.Vec) => Math.hypot(feet.x - p.x, feet.z - p.z);
     const dCentre = Math.hypot(feet.x - H.CENTER.x, feet.z - H.CENTER.z);
     const inChamber = dCentre < H.RADIUS + 0.3 && feet.y > H.FLOOR_Y - 0.6;
-    this.fx.update(dt);
     this.chamber.update(dt);
     this.breathCooldown = Math.max(0, this.breathCooldown - dt);
 
