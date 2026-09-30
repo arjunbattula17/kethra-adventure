@@ -1,0 +1,2699 @@
+{
+ "label": "atlas-cold",
+ "base": "http://localhost:4190/kethra-adventure/",
+ "coldGpu": true,
+ "mbps": 0,
+ "skipAt": null,
+ "path": "new",
+ "runs": [
+  {
+   "run": 0,
+   "visit": 0,
+   "nonce": 14979,
+   "phases": {
+    "titleShownMs": 386,
+    "clickToIntroSceneMs": 1998,
+    "clickToIntroClockMs": 4803,
+    "introDoneToShipPlayableMs": 23909,
+    "clickToShipPlayableMs": 52804
+   },
+   "events": {
+    "loading:hide": 60,
+    "title:shown": 386,
+    "tier:low": 1045,
+    "state:boot": 1045,
+    "scene:none": 1045,
+    "click:new game": 3596,
+    "loading:show": 4246,
+    "state:boot*": 4246,
+    "scene:intro": 5594,
+    "state:intro": 6442,
+    "intro:clock": 8399,
+    "state:intro*": 32491,
+    "scene:ship": 55775,
+    "state:wren": 56400,
+    "ship:playable": 56400,
+    "boot:start": 328,
+    "title:newGame": 4061,
+    "intro:uncovered": 5584,
+    "intro:done": 32478
+   },
+   "spans": {
+    "main:webglProbe": {
+     "at": 82,
+     "ms": 217
+    },
+    "boot:engine": {
+     "at": 1016,
+     "ms": 27
+    },
+    "engine:renderer": {
+     "at": 1017,
+     "ms": 11
+    },
+    "engine:postfx": {
+     "at": 1034,
+     "ms": 9
+    },
+    "engine:environment": {
+     "at": 1082,
+     "ms": 2215
+    },
+    "IntroScene:init": {
+     "at": 4071,
+     "ms": 159
+    },
+    "IntroScene:compile": {
+     "at": 4230,
+     "ms": 1063
+    },
+    "IntroScene:upload": {
+     "at": 5293,
+     "ms": 9
+    },
+    "IntroScene:firstDraw": {
+     "at": 5301,
+     "ms": 53
+    },
+    "IntroScene:warmup": {
+     "at": 5355,
+     "ms": 228
+    },
+    "ShipInteriorScene:init": {
+     "at": 5977,
+     "ms": 2100
+    },
+    "ship:floor": {
+     "at": 5978,
+     "ms": 144
+    },
+    "ship:ceiling": {
+     "at": 6243,
+     "ms": 85
+    },
+    "ship:starfieldWindow": {
+     "at": 6446,
+     "ms": 223
+    },
+    "ship:console": {
+     "at": 6808,
+     "ms": 261
+    },
+    "ship:suspendedDisplay": {
+     "at": 7125,
+     "ms": 76
+    },
+    "ship:lighting": {
+     "at": 7250,
+     "ms": 12
+    },
+    "ship:walls": {
+     "at": 7267,
+     "ms": 359
+    },
+    "ship:airlock": {
+     "at": 7268,
+     "ms": 359
+    },
+    "ship:props": {
+     "at": 7268,
+     "ms": 130
+    },
+    "ship:pbrTextures": {
+     "at": 7398,
+     "ms": 0
+    },
+    "ship:colliders": {
+     "at": 7764,
+     "ms": 11
+    },
+    "ship:batch": {
+     "at": 7793,
+     "ms": 260
+    },
+    "ship:downscaleCanvases": {
+     "at": 8074,
+     "ms": 2
+    },
+    "ShipInteriorScene:compile": {
+     "at": 8077,
+     "ms": 21676
+    },
+    "ShipInteriorScene:upload": {
+     "at": 29753,
+     "ms": 3562
+    },
+    "ShipInteriorScene:firstDraw": {
+     "at": 33316,
+     "ms": 20891
+    },
+    "ship:benchmark": {
+     "at": 54207,
+     "ms": 638
+    },
+    "ship:fitRenderScale": {
+     "at": 54845,
+     "ms": 883
+    },
+    "ShipInteriorScene:warmup": {
+     "at": 55728,
+     "ms": 31
+    },
+    "renderer.compile": {
+     "at": 1089,
+     "ms": 16
+    },
+    "renderer.compileAsync": {
+     "at": 1106,
+     "ms": 47
+    },
+    "engine.warmScene": {
+     "at": 4230,
+     "ms": 1125
+    },
+    "engine.prepareScene": {
+     "at": 4071,
+     "ms": 1284
+    },
+    "engine.setScene": {
+     "at": 4070,
+     "ms": 1513
+    },
+    "engine.benchmarkScene": {
+     "at": 54207,
+     "ms": 638
+    },
+    "engine.fitRenderScale": {
+     "at": 54845,
+     "ms": 883
+    }
+   },
+   "frames": {
+    "boot": {
+     "frames": 4,
+     "fps": 11.7,
+     "p50": 66.6,
+     "p95": 233,
+     "p99": 233,
+     "max": 233,
+     "over50": 2,
+     "over100": 1,
+     "over250": 0,
+     "over1000": 0
+    },
+    "titleIdle": {
+     "frames": 140,
+     "fps": 43.6,
+     "p50": 16.7,
+     "p95": 66.3,
+     "p99": 100.1,
+     "max": 432.9,
+     "over50": 7,
+     "over100": 2,
+     "over250": 1,
+     "over1000": 0
+    },
+    "loading": {
+     "frames": 145,
+     "fps": 30.2,
+     "p50": 16.7,
+     "p95": 166.4,
+     "p99": 349.7,
+     "max": 499.3,
+     "over50": 11,
+     "over100": 9,
+     "over250": 4,
+     "over1000": 0
+    },
+    "intro": {
+     "frames": 1441,
+     "fps": 59.8,
+     "p50": 16.6,
+     "p95": 16.8,
+     "p99": 16.9,
+     "max": 49.9,
+     "over50": 0,
+     "over100": 0,
+     "over250": 0,
+     "over1000": 0
+    },
+    "handover": {
+     "frames": 1162,
+     "fps": 48.6,
+     "p50": 16.7,
+     "p95": 33.3,
+     "p99": 99.8,
+     "max": 499.4,
+     "over50": 30,
+     "over100": 9,
+     "over250": 4,
+     "over1000": 0
+    },
+    "ship": {
+     "frames": 155,
+     "fps": 30.8,
+     "p50": 33.3,
+     "p95": 66.1,
+     "p99": 66.8,
+     "max": 83.6,
+     "over50": 11,
+     "over100": 0,
+     "over250": 0,
+     "over1000": 0
+    }
+   },
+   "longTasks": {
+    "boot": {
+     "count": 2,
+     "totalMs": 302,
+     "max": 229,
+     "top": [
+      229,
+      73
+     ]
+    },
+    "titleIdle": {
+     "count": 1,
+     "totalMs": 73,
+     "max": 73,
+     "top": [
+      73
+     ]
+    },
+    "loading": {
+     "count": 13,
+     "totalMs": 2273,
+     "max": 359,
+     "top": [
+      359,
+      288,
+      261,
+      243,
+      223,
+      162,
+      152,
+      134
+     ]
+    },
+    "intro": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "handover": {
+     "count": 20,
+     "totalMs": 2246,
+     "max": 454,
+     "top": [
+      454,
+      333,
+      185,
+      137,
+      113,
+      99,
+      90,
+      87
+     ]
+    },
+    "ship": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    }
+   },
+   "bytes": {
+    "title": 0.54,
+    "intro": 5.37,
+    "total": 5.37
+   },
+   "stuck": null,
+   "allSpans": [
+    [
+     82,
+     217,
+     "main:webglProbe"
+    ],
+    [
+     1016,
+     27,
+     "boot:engine"
+    ],
+    [
+     1017,
+     11,
+     "engine:renderer"
+    ],
+    [
+     1034,
+     9,
+     "engine:postfx"
+    ],
+    [
+     1082,
+     2215,
+     "engine:environment"
+    ],
+    [
+     1089,
+     16,
+     "renderer.compile"
+    ],
+    [
+     1089,
+     138,
+     "renderer.compileAsync"
+    ],
+    [
+     1105,
+     1,
+     "renderer.compile"
+    ],
+    [
+     1105,
+     1,
+     "renderer.compile"
+    ],
+    [
+     1105,
+     201,
+     "renderer.compileAsync"
+    ],
+    [
+     1105,
+     1144,
+     "renderer.compileAsync"
+    ],
+    [
+     1106,
+     1,
+     "renderer.compile"
+    ],
+    [
+     1106,
+     47,
+     "renderer.compileAsync"
+    ],
+    [
+     4070,
+     1513,
+     "engine.setScene"
+    ],
+    [
+     4071,
+     159,
+     "IntroScene:init"
+    ],
+    [
+     4071,
+     1284,
+     "engine.prepareScene"
+    ],
+    [
+     4230,
+     1063,
+     "IntroScene:compile"
+    ],
+    [
+     4230,
+     1125,
+     "engine.warmScene"
+    ],
+    [
+     4325,
+     2,
+     "renderer.compile"
+    ],
+    [
+     4328,
+     1,
+     "renderer.compile"
+    ],
+    [
+     4329,
+     1,
+     "renderer.compile"
+    ],
+    [
+     4446,
+     3,
+     "renderer.compile"
+    ],
+    [
+     4449,
+     0,
+     "renderer.compile"
+    ],
+    [
+     4449,
+     3,
+     "renderer.compile"
+    ],
+    [
+     4453,
+     3,
+     "renderer.compile"
+    ],
+    [
+     4861,
+     0,
+     "renderer.compile"
+    ],
+    [
+     4862,
+     3,
+     "renderer.compile"
+    ],
+    [
+     4865,
+     3,
+     "renderer.compile"
+    ],
+    [
+     4868,
+     2,
+     "renderer.compile"
+    ],
+    [
+     5275,
+     0,
+     "renderer.compile"
+    ],
+    [
+     5276,
+     1,
+     "renderer.compile"
+    ],
+    [
+     5293,
+     9,
+     "IntroScene:upload"
+    ],
+    [
+     5301,
+     53,
+     "IntroScene:firstDraw"
+    ],
+    [
+     5355,
+     228,
+     "IntroScene:warmup"
+    ],
+    [
+     5977,
+     2100,
+     "ShipInteriorScene:init"
+    ],
+    [
+     5977,
+     48229,
+     "engine.prepareScene"
+    ],
+    [
+     5978,
+     144,
+     "ship:floor"
+    ],
+    [
+     6243,
+     85,
+     "ship:ceiling"
+    ],
+    [
+     6446,
+     223,
+     "ship:starfieldWindow"
+    ],
+    [
+     6808,
+     261,
+     "ship:console"
+    ],
+    [
+     7125,
+     76,
+     "ship:suspendedDisplay"
+    ],
+    [
+     7250,
+     12,
+     "ship:lighting"
+    ],
+    [
+     7267,
+     359,
+     "ship:walls"
+    ],
+    [
+     7268,
+     359,
+     "ship:airlock"
+    ],
+    [
+     7268,
+     130,
+     "ship:props"
+    ],
+    [
+     7398,
+     0,
+     "ship:pbrTextures"
+    ],
+    [
+     7764,
+     11,
+     "ship:colliders"
+    ],
+    [
+     7793,
+     260,
+     "ship:batch"
+    ],
+    [
+     8074,
+     2,
+     "ship:downscaleCanvases"
+    ],
+    [
+     8077,
+     21676,
+     "ShipInteriorScene:compile"
+    ],
+    [
+     8077,
+     46129,
+     "engine.warmScene"
+    ],
+    [
+     8097,
+     3,
+     "renderer.compile"
+    ],
+    [
+     8100,
+     4,
+     "renderer.compile"
+    ],
+    [
+     8141,
+     5,
+     "renderer.compile"
+    ],
+    [
+     10791,
+     5,
+     "renderer.compile"
+    ],
+    [
+     10890,
+     3,
+     "renderer.compile"
+    ],
+    [
+     10892,
+     3,
+     "renderer.compile"
+    ],
+    [
+     13070,
+     6,
+     "renderer.compile"
+    ],
+    [
+     13270,
+     1,
+     "renderer.compile"
+    ],
+    [
+     13271,
+     1,
+     "renderer.compile"
+    ],
+    [
+     13272,
+     2,
+     "renderer.compile"
+    ],
+    [
+     13274,
+     1,
+     "renderer.compile"
+    ],
+    [
+     13274,
+     0,
+     "renderer.compile"
+    ],
+    [
+     13320,
+     1,
+     "renderer.compile"
+    ],
+    [
+     13321,
+     5,
+     "renderer.compile"
+    ],
+    [
+     13375,
+     1,
+     "renderer.compile"
+    ],
+    [
+     13376,
+     0,
+     "renderer.compile"
+    ],
+    [
+     13376,
+     0,
+     "renderer.compile"
+    ],
+    [
+     13377,
+     1,
+     "renderer.compile"
+    ],
+    [
+     13377,
+     0,
+     "renderer.compile"
+    ],
+    [
+     13377,
+     0,
+     "renderer.compile"
+    ],
+    [
+     13378,
+     2,
+     "renderer.compile"
+    ],
+    [
+     13421,
+     2,
+     "renderer.compile"
+    ],
+    [
+     13423,
+     1,
+     "renderer.compile"
+    ],
+    [
+     13424,
+     2,
+     "renderer.compile"
+    ],
+    [
+     13472,
+     3,
+     "renderer.compile"
+    ],
+    [
+     13525,
+     1,
+     "renderer.compile"
+    ],
+    [
+     13526,
+     0,
+     "renderer.compile"
+    ],
+    [
+     13527,
+     0,
+     "renderer.compile"
+    ],
+    [
+     13527,
+     2,
+     "renderer.compile"
+    ],
+    [
+     13576,
+     1,
+     "renderer.compile"
+    ],
+    [
+     13577,
+     13,
+     "renderer.compile"
+    ],
+    [
+     15538,
+     1,
+     "renderer.compile"
+    ],
+    [
+     15539,
+     1,
+     "renderer.compile"
+    ],
+    [
+     15540,
+     0,
+     "renderer.compile"
+    ],
+    [
+     15540,
+     4,
+     "renderer.compile"
+    ],
+    [
+     15820,
+     1,
+     "renderer.compile"
+    ],
+    [
+     15821,
+     0,
+     "renderer.compile"
+    ],
+    [
+     15821,
+     0,
+     "renderer.compile"
+    ],
+    [
+     15821,
+     0,
+     "renderer.compile"
+    ],
+    [
+     15822,
+     0,
+     "renderer.compile"
+    ],
+    [
+     15822,
+     0,
+     "renderer.compile"
+    ],
+    [
+     15823,
+     1,
+     "renderer.compile"
+    ],
+    [
+     15823,
+     2,
+     "renderer.compile"
+    ],
+    [
+     15902,
+     1,
+     "renderer.compile"
+    ],
+    [
+     15904,
+     1,
+     "renderer.compile"
+    ],
+    [
+     15905,
+     3,
+     "renderer.compile"
+    ],
+    [
+     15990,
+     0,
+     "renderer.compile"
+    ],
+    [
+     15990,
+     0,
+     "renderer.compile"
+    ],
+    [
+     15991,
+     0,
+     "renderer.compile"
+    ],
+    [
+     15991,
+     2,
+     "renderer.compile"
+    ],
+    [
+     16069,
+     1,
+     "renderer.compile"
+    ],
+    [
+     16070,
+     5,
+     "renderer.compile"
+    ],
+    [
+     17882,
+     1,
+     "renderer.compile"
+    ],
+    [
+     17883,
+     2,
+     "renderer.compile"
+    ],
+    [
+     17886,
+     5,
+     "renderer.compile"
+    ],
+    [
+     18281,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18281,
+     1,
+     "renderer.compile"
+    ],
+    [
+     18282,
+     2,
+     "renderer.compile"
+    ],
+    [
+     18284,
+     1,
+     "renderer.compile"
+    ],
+    [
+     18285,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18332,
+     2,
+     "renderer.compile"
+    ],
+    [
+     18334,
+     1,
+     "renderer.compile"
+    ],
+    [
+     18335,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18335,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18336,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18336,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18336,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18336,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18337,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18337,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18380,
+     1,
+     "renderer.compile"
+    ],
+    [
+     18381,
+     1,
+     "renderer.compile"
+    ],
+    [
+     18382,
+     1,
+     "renderer.compile"
+    ],
+    [
+     18383,
+     2,
+     "renderer.compile"
+    ],
+    [
+     18385,
+     1,
+     "renderer.compile"
+    ],
+    [
+     18430,
+     5,
+     "renderer.compile"
+    ],
+    [
+     18483,
+     1,
+     "renderer.compile"
+    ],
+    [
+     18484,
+     1,
+     "renderer.compile"
+    ],
+    [
+     18485,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18485,
+     0,
+     "renderer.compile"
+    ],
+    [
+     18486,
+     4,
+     "renderer.compile"
+    ],
+    [
+     20377,
+     2,
+     "renderer.compile"
+    ],
+    [
+     20429,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20430,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20430,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20432,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20479,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20480,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20481,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20482,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20483,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20483,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20528,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20529,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20531,
+     3,
+     "renderer.compile"
+    ],
+    [
+     20613,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20615,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20616,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20617,
+     0,
+     "renderer.compile"
+    ],
+    [
+     20618,
+     0,
+     "renderer.compile"
+    ],
+    [
+     20618,
+     0,
+     "renderer.compile"
+    ],
+    [
+     20665,
+     1,
+     "renderer.compile"
+    ],
+    [
+     20666,
+     5,
+     "renderer.compile"
+    ],
+    [
+     20983,
+     5,
+     "renderer.compile"
+    ],
+    [
+     21114,
+     1,
+     "renderer.compile"
+    ],
+    [
+     21115,
+     1,
+     "renderer.compile"
+    ],
+    [
+     21116,
+     1,
+     "renderer.compile"
+    ],
+    [
+     21117,
+     1,
+     "renderer.compile"
+    ],
+    [
+     21117,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21117,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21118,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21118,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21118,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21119,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21165,
+     1,
+     "renderer.compile"
+    ],
+    [
+     21165,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21166,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21167,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21167,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21167,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21168,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21168,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21168,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21169,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21169,
+     0,
+     "renderer.compile"
+    ],
+    [
+     21169,
+     5,
+     "renderer.compile"
+    ],
+    [
+     23227,
+     2,
+     "renderer.compile"
+    ],
+    [
+     23229,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23230,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23230,
+     3,
+     "renderer.compile"
+    ],
+    [
+     23275,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23276,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23277,
+     3,
+     "renderer.compile"
+    ],
+    [
+     23325,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23327,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23329,
+     2,
+     "renderer.compile"
+    ],
+    [
+     23330,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23376,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23377,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23378,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23379,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23380,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23380,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23425,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23426,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23426,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23427,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23427,
+     6,
+     "renderer.compile"
+    ],
+    [
+     23476,
+     3,
+     "renderer.compile"
+    ],
+    [
+     23479,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23480,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23525,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23526,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23527,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23528,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23529,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23529,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23529,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23529,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23530,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23530,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23530,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23575,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23575,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23576,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23578,
+     2,
+     "renderer.compile"
+    ],
+    [
+     23614,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23615,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23615,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23616,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23616,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23616,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23616,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23617,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23617,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23617,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23618,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23618,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23618,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23618,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23619,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23619,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23619,
+     5,
+     "renderer.compile"
+    ],
+    [
+     23659,
+     2,
+     "renderer.compile"
+    ],
+    [
+     23661,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23662,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23663,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23663,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23664,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23708,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23708,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23709,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23710,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23711,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23712,
+     4,
+     "renderer.compile"
+    ],
+    [
+     23758,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23759,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23760,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23761,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23762,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23762,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23763,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23763,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23808,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23809,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23811,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23812,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23812,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23813,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23859,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23860,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23861,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23862,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23863,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23908,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23908,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23910,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23911,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23912,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23912,
+     0,
+     "renderer.compile"
+    ],
+    [
+     23959,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23960,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23962,
+     1,
+     "renderer.compile"
+    ],
+    [
+     23963,
+     2,
+     "renderer.compile"
+    ],
+    [
+     24009,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24010,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24012,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24012,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24013,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24059,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24061,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24062,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24063,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24063,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24064,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24064,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24108,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24108,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24110,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24112,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24112,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24113,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24161,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24163,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24164,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24164,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24165,
+     2,
+     "renderer.compile"
+    ],
+    [
+     24207,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24208,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24209,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24210,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24211,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24212,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24212,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24212,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24256,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24257,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24257,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24257,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24257,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24258,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24258,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24258,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24258,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24258,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24259,
+     0,
+     "renderer.compile"
+    ],
+    [
+     24259,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24259,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24261,
+     1,
+     "renderer.compile"
+    ],
+    [
+     24308,
+     5,
+     "renderer.compile"
+    ],
+    [
+     25673,
+     1,
+     "renderer.compile"
+    ],
+    [
+     25674,
+     1,
+     "renderer.compile"
+    ],
+    [
+     25675,
+     4,
+     "renderer.compile"
+    ],
+    [
+     26722,
+     1,
+     "renderer.compile"
+    ],
+    [
+     26724,
+     2,
+     "renderer.compile"
+    ],
+    [
+     26725,
+     1,
+     "renderer.compile"
+    ],
+    [
+     26726,
+     1,
+     "renderer.compile"
+    ],
+    [
+     26727,
+     1,
+     "renderer.compile"
+    ],
+    [
+     26771,
+     1,
+     "renderer.compile"
+    ],
+    [
+     26771,
+     1,
+     "renderer.compile"
+    ],
+    [
+     26772,
+     1,
+     "renderer.compile"
+    ],
+    [
+     26773,
+     2,
+     "renderer.compile"
+    ],
+    [
+     26775,
+     1,
+     "renderer.compile"
+    ],
+    [
+     26821,
+     1,
+     "renderer.compile"
+    ],
+    [
+     26821,
+     0,
+     "renderer.compile"
+    ],
+    [
+     26822,
+     5,
+     "renderer.compile"
+    ],
+    [
+     27293,
+     1,
+     "renderer.compile"
+    ],
+    [
+     27295,
+     1,
+     "renderer.compile"
+    ],
+    [
+     27296,
+     0,
+     "renderer.compile"
+    ],
+    [
+     27296,
+     0,
+     "renderer.compile"
+    ],
+    [
+     27296,
+     0,
+     "renderer.compile"
+    ],
+    [
+     27296,
+     0,
+     "renderer.compile"
+    ],
+    [
+     27297,
+     0,
+     "renderer.compile"
+    ],
+    [
+     27297,
+     0,
+     "renderer.compile"
+    ],
+    [
+     27297,
+     5,
+     "renderer.compile"
+    ],
+    [
+     28220,
+     1,
+     "renderer.compile"
+    ],
+    [
+     28220,
+     1,
+     "renderer.compile"
+    ],
+    [
+     28221,
+     0,
+     "renderer.compile"
+    ],
+    [
+     28221,
+     1,
+     "renderer.compile"
+    ],
+    [
+     28222,
+     1,
+     "renderer.compile"
+    ],
+    [
+     28223,
+     1,
+     "renderer.compile"
+    ],
+    [
+     28269,
+     1,
+     "renderer.compile"
+    ],
+    [
+     29753,
+     3562,
+     "ShipInteriorScene:upload"
+    ],
+    [
+     33316,
+     20891,
+     "ShipInteriorScene:firstDraw"
+    ],
+    [
+     54207,
+     638,
+     "ship:benchmark"
+    ],
+    [
+     54207,
+     638,
+     "engine.benchmarkScene"
+    ],
+    [
+     54845,
+     883,
+     "ship:fitRenderScale"
+    ],
+    [
+     54845,
+     883,
+     "engine.fitRenderScale"
+    ],
+    [
+     55727,
+     31,
+     "engine.setScene"
+    ],
+    [
+     55728,
+     31,
+     "ShipInteriorScene:warmup"
+    ]
+   ],
+   "timeline": [
+    [
+     60,
+     "loading:hide"
+    ],
+    [
+     386,
+     "title:shown"
+    ],
+    [
+     1045,
+     "tier:low"
+    ],
+    [
+     1045,
+     "state:boot"
+    ],
+    [
+     1045,
+     "scene:none"
+    ],
+    [
+     3596,
+     "click:new game"
+    ],
+    [
+     4246,
+     "loading:show"
+    ],
+    [
+     4246,
+     "state:boot*"
+    ],
+    [
+     5593,
+     "loading:hide"
+    ],
+    [
+     5594,
+     "scene:intro"
+    ],
+    [
+     6442,
+     "state:intro"
+    ],
+    [
+     8399,
+     "intro:clock"
+    ],
+    [
+     32491,
+     "state:intro*"
+    ],
+    [
+     32799,
+     "loading:show"
+    ],
+    [
+     55775,
+     "loading:hide"
+    ],
+    [
+     55775,
+     "scene:ship"
+    ],
+    [
+     56400,
+     "state:wren"
+    ],
+    [
+     56400,
+     "ship:playable"
+    ]
+   ],
+   "paint": {
+    "first-paint": 316,
+    "first-contentful-paint": 848
+   },
+   "tier": "low",
+   "benchmarkMs": 21.2,
+   "programs": 54,
+   "textures": 221,
+   "geometries": 301,
+   "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "gl": {
+    "links": [
+     1095,
+     1103,
+     1104,
+     1105,
+     1106,
+     1107,
+     4327,
+     4329,
+     4330,
+     4449,
+     4452,
+     4455,
+     4865,
+     4868,
+     4870,
+     5277,
+     5362,
+     5454,
+     5502,
+     5550,
+     8100,
+     8104,
+     8146,
+     10796,
+     10892,
+     10896,
+     13076,
+     13326,
+     13379,
+     13426,
+     13475,
+     13529,
+     13590,
+     15544,
+     15825,
+     15908,
+     15993,
+     16075,
+     17890,
+     18435,
+     18490,
+     20379,
+     20433,
+     20533,
+     20671,
+     20988,
+     21174,
+     23280,
+     23433,
+     23580,
+     23716,
+     23965,
+     24167,
+     24313,
+     25679,
+     26827,
+     27301
+    ],
+    "waits": [
+     [
+      5362,
+      89
+     ],
+     [
+      5454,
+      46
+     ],
+     [
+      5502,
+      45
+     ],
+     [
+      5550,
+      33
+     ]
+    ]
+   },
+   "heapMaxMB": 62.3,
+   "heapEndMB": 26.9,
+   "gaps": [
+    [
+     296,
+     233
+    ],
+    [
+     379,
+     67
+    ],
+    [
+     846,
+     433
+    ],
+    [
+     1461,
+     100
+    ],
+    [
+     1528,
+     67
+    ],
+    [
+     1711,
+     100
+    ],
+    [
+     1778,
+     66
+    ],
+    [
+     2444,
+     83
+    ],
+    [
+     3592,
+     66
+    ],
+    [
+     3676,
+     67
+    ],
+    [
+     4242,
+     166
+    ],
+    [
+     5590,
+     233
+    ],
+    [
+     6139,
+     166
+    ],
+    [
+     6239,
+     100
+    ],
+    [
+     6439,
+     200
+    ],
+    [
+     6789,
+     350
+    ],
+    [
+     7105,
+     316
+    ],
+    [
+     7238,
+     133
+    ],
+    [
+     7754,
+     499
+    ],
+    [
+     8054,
+     300
+    ],
+    [
+     38036,
+     100
+    ],
+    [
+     40151,
+     67
+    ],
+    [
+     40251,
+     100
+    ],
+    [
+     40334,
+     83
+    ],
+    [
+     42132,
+     83
+    ],
+    [
+     42298,
+     83
+    ],
+    [
+     44212,
+     133
+    ],
+    [
+     44312,
+     67
+    ],
+    [
+     46210,
+     67
+    ],
+    [
+     46327,
+     67
+    ],
+    [
+     48258,
+     84
+    ],
+    [
+     48325,
+     67
+    ],
+    [
+     48424,
+     67
+    ],
+    [
+     50289,
+     117
+    ],
+    [
+     50356,
+     66
+    ],
+    [
+     50506,
+     50
+    ],
+    [
+     51238,
+     499
+    ],
+    [
+     51388,
+     67
+    ],
+    [
+     51438,
+     50
+    ],
+    [
+     54285,
+     100
+    ],
+    [
+     54617,
+     333
+    ],
+    [
+     54717,
+     100
+    ],
+    [
+     54767,
+     50
+    ],
+    [
+     54834,
+     67
+    ],
+    [
+     55067,
+     183
+    ],
+    [
+     55533,
+     466
+    ],
+    [
+     55634,
+     51
+    ],
+    [
+     55816,
+     50
+    ],
+    [
+     56016,
+     200
+    ],
+    [
+     56365,
+     350
+    ],
+    [
+     56532,
+     50
+    ],
+    [
+     57714,
+     67
+    ],
+    [
+     57831,
+     67
+    ],
+    [
+     58646,
+     50
+    ],
+    [
+     58879,
+     66
+    ],
+    [
+     59096,
+     67
+    ],
+    [
+     59479,
+     50
+    ],
+    [
+     59945,
+     66
+    ],
+    [
+     60361,
+     67
+    ],
+    [
+     60527,
+     66
+    ],
+    [
+     61227,
+     84
+    ]
+   ],
+   "long": [
+    [
+     72,
+     229
+    ],
+    [
+     312,
+     73
+    ],
+    [
+     3522,
+     73
+    ],
+    [
+     4068,
+     162
+    ],
+    [
+     5342,
+     243
+    ],
+    [
+     5975,
+     152
+    ],
+    [
+     6243,
+     85
+    ],
+    [
+     6329,
+     109
+    ],
+    [
+     6446,
+     223
+    ],
+    [
+     6669,
+     134
+    ],
+    [
+     6808,
+     261
+    ],
+    [
+     7069,
+     51
+    ],
+    [
+     7124,
+     76
+    ],
+    [
+     7267,
+     359
+    ],
+    [
+     7627,
+     130
+    ],
+    [
+     7764,
+     288
+    ],
+    [
+     37826,
+     54
+    ],
+    [
+     38256,
+     52
+    ],
+    [
+     42217,
+     84
+    ],
+    [
+     44081,
+     137
+    ],
+    [
+     44249,
+     68
+    ],
+    [
+     46269,
+     63
+    ],
+    [
+     48176,
+     87
+    ],
+    [
+     48263,
+     68
+    ],
+    [
+     48363,
+     66
+    ],
+    [
+     50181,
+     113
+    ],
+    [
+     50296,
+     63
+    ],
+    [
+     50407,
+     52
+    ],
+    [
+     50460,
+     51
+    ],
+    [
+     54188,
+     99
+    ],
+    [
+     54289,
+     333
+    ],
+    [
+     54626,
+     90
+    ],
+    [
+     54774,
+     66
+    ],
+    [
+     54890,
+     185
+    ],
+    [
+     55078,
+     454
+    ],
+    [
+     55536,
+     61
+    ]
+   ],
+   "errors": []
+  }
+ ]
+}

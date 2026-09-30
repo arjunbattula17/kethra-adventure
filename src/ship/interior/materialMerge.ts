@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
 
 /**
  * Lets meshes that each have their own material share one, so batchStaticGeometry can merge them.
@@ -135,14 +136,25 @@ export function atlasCanvasMaterials(meshes: THREE.Mesh[], animated: Set<THREE.M
     if (canvases.length < 2) continue;
     const places = pack(canvases.map((c) => ({ w: c.width, h: c.height })));
     const pageCount = Math.max(...places.map((p) => p.page)) + 1;
+    // Each page is only as big as what was packed onto it. A full PAGE-square page per group was
+    // mostly empty (two 256-pixel canvases made a 2048-pixel page): the Wren's ~25 groups made ~25
+    // pages, 540 MB of the 959 MB of textures it uploaded on Low (tools/texture-sources.mjs).
+    const pageW = new Array<number>(pageCount).fill(0);
+    const pageH = new Array<number>(pageCount).fill(0);
+    for (const place of places) {
+      pageW[place.page] = Math.max(pageW[place.page], place.x + place.w + PAD * 2);
+      pageH[place.page] = Math.max(pageH[place.page], place.y + place.h + PAD * 2);
+    }
     const first = group[0].material as Mat;
     const pages: THREE.CanvasTexture[] = [];
     const pageMats: Mat[] = [];
     for (let p = 0; p < pageCount; p++) {
       const canvas = document.createElement('canvas');
-      canvas.width = PAGE;
-      canvas.height = PAGE;
-      const g = canvas.getContext('2d')!;
+      canvas.width = pageW[p];
+      canvas.height = pageH[p];
+      // In ordinary memory, like the canvases it copies (paintCanvas.ts): a GPU canvas had every one
+      // of them uploaded to be drawn, then the page rasterised in the GPU process at its own upload.
+      const g = canvas.getContext('2d', PAINT_CONTEXT)!;
       canvases.forEach((c, i) => {
         if (places[i].page === p) blitPadded(g, c, places[i].x, places[i].y);
       });
@@ -160,12 +172,14 @@ export function atlasCanvasMaterials(meshes: THREE.Mesh[], animated: Set<THREE.M
     const index = new Map(canvases.map((c, i) => [c, i]));
     for (const mesh of group) {
       const place = places[index.get((mesh.material as Mat).map!.image as HTMLCanvasElement)!];
+      const w = pageW[place.page];
+      const h = pageH[place.page];
       // flipY: the texture's v runs bottom-up while the canvas is laid out top-down.
       const geo = mesh.geometry.clone();
       const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
       for (let i = 0; i < uv.count; i++) {
-        const u = (place.x + PAD + uv.getX(i) * place.w) / PAGE;
-        const v = 1 - (place.y + PAD + (1 - uv.getY(i)) * place.h) / PAGE;
+        const u = (place.x + PAD + uv.getX(i) * place.w) / w;
+        const v = 1 - (place.y + PAD + (1 - uv.getY(i)) * place.h) / h;
         uv.setXY(i, u, v);
       }
       uv.needsUpdate = true;
