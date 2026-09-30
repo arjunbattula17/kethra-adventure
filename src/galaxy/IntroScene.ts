@@ -7,8 +7,9 @@ import { AudioSystem } from '../audio/AudioSystem';
 import { getSharedEnvironment } from '../core/Environment';
 import { t, wordCount } from '../content/strings';
 import type { StringKey } from '../content/strings';
-import { buildShipHull } from './shipHull';
+import { buildShipHull, preloadShipHull } from './shipHull';
 import { buildStarfield, getPointSprite } from './spaceDressing';
+import { mark } from '../core/perfMarks';
 
 /**
  * The opening cinematic, "Cold Start": the moment the Wren died, and the moment it came back.
@@ -190,6 +191,29 @@ function addShipSpaceMask(mat: THREE.MeshStandardMaterial, worldToShip: THREE.IU
   return uniforms;
 }
 
+let skyImage: Promise<HTMLImageElement> | null = null;
+
+/**
+ * The intro's sky photo (4096x2048), fetched once and decoded off the page's thread. Decoding it on
+ * first use instead meant ~100 ms of decode inside the intro's own build.
+ */
+function loadSkyImage(): Promise<HTMLImageElement> {
+  if (!skyImage) {
+    skyImage = new THREE.ImageLoader().loadAsync(`${import.meta.env.BASE_URL}textures/space/starfield.jpg`).then(async (image) => {
+      await image.decode().catch(() => {});
+      return image;
+    });
+    // A failed fetch is retried by the next caller rather than remembered.
+    skyImage.catch(() => (skyImage = null));
+  }
+  return skyImage;
+}
+
+/** Starts what the intro's first frame needs (hull model, sky) while the title screen waits. */
+export function preloadIntro(): Promise<unknown> {
+  return Promise.all([preloadShipHull(), loadSkyImage()]);
+}
+
 function toCurve(points: ReadonlyArray<readonly [number, number, number]>): THREE.CatmullRomCurve3 {
   return new THREE.CatmullRomCurve3(points.map(([x, y, z]) => new THREE.Vector3(x, y, z)), false, 'centripetal');
 }
@@ -236,9 +260,8 @@ export class IntroScene implements GameScene {
   private finished = false;
   private stopAmbient: (() => void) | null = null;
 
-  // Skip counts from the moment the clock starts; before that the scene is still behind the
-  // loading overlay while GameFlow prepares the interior, and a skip there would start a second
-  // interior build.
+  // Skip counts from the moment the clock starts; before that the opening shot is holding while
+  // GameFlow builds the interior (holdOpening), and the handover would only wait for it anyway.
   private keyHandler = (e: KeyboardEvent) => {
     if (this.started && (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter')) this.finish();
   };
@@ -313,22 +336,24 @@ export class IntroScene implements GameScene {
   }
 
   private async loadSky(lowTier: boolean): Promise<THREE.Texture | null> {
-    let texture: THREE.Texture;
+    let image: HTMLImageElement;
     try {
-      texture = await new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}textures/space/starfield.jpg`);
+      image = await loadSkyImage();
     } catch {
       return null; // the flat void colour set above still frames the ship
     }
+    let texture: THREE.Texture;
     if (lowTier) {
       // Low tier: a 2048x1024 copy. Once converted to a cubemap the 4096 source costs ~4x the
       // VRAM for detail a shared-memory integrated GPU spends on nothing else in this shot.
-      const image = texture.image as HTMLImageElement;
       const canvas = document.createElement('canvas');
       canvas.width = 2048;
       canvas.height = 1024;
       canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
-      texture.dispose();
       texture = new THREE.CanvasTexture(canvas);
+    } else {
+      texture = new THREE.Texture(image);
+      texture.needsUpdate = true;
     }
     texture.mapping = THREE.EquirectangularReflectionMapping;
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -448,17 +473,36 @@ export class IntroScene implements GameScene {
     this.cues = cues.sort((a, b) => a.at - b.at);
   }
 
+  /**
+   * Holds the clock on the opening shot until `ready` settles, for at most `capMs`. GameFlow builds the
+   * Wren's geometry and paints its textures while this shot holds: that work comes in pieces of up
+   * to ~200 ms, which a still frame hides and a moving one would not.
+   */
+  holdOpening(ready: Promise<unknown>, capMs: number): void {
+    let held = true;
+    const release = () => {
+      held = false;
+    };
+    ready.then(release, release);
+    const until = performance.now() + capMs;
+    this.openingHeld = () => held && performance.now() < until;
+  }
+
+  private openingHeld: () => boolean = () => false;
+
   update(dt: number): void {
-    // Settle gate: the interior builds behind this scene, and its synchronous kit parsing blocks
-    // the main thread for ~2-2.5s right as the intro starts. The clock waits on the opening shot
-    // (a quiet wide frame, where a stalled frame is invisible) until 20 steady frames in a row
-    // arrive or the wall-clock cap passes, so the choreography starts on smooth frames.
+    // Settle gate: the interior builds behind this scene (see holdOpening), in pieces that stall a
+    // frame now and then. The clock waits on the opening shot (a quiet wide frame, where a stalled
+    // frame is invisible) until the build is done, then until 20 steady frames in a row arrive or
+    // the wall-clock cap passes, so the choreography starts on smooth frames.
     if (!this.started) {
+      if (this.openingHeld()) return;
       const now = performance.now();
       if (this.settleStartedAt === 0) this.settleStartedAt = now;
       this.steadyFrames = dt < 0.025 ? this.steadyFrames + 1 : 0;
       if (this.steadyFrames < 20 && now - this.settleStartedAt < TIMELINE.settleCapMs) return;
       this.started = true;
+      mark('intro:clock');
       this.skipEl.classList.add('visible');
     }
 
@@ -552,6 +596,7 @@ export class IntroScene implements GameScene {
   private finish(): void {
     if (this.finished) return;
     this.finished = true;
+    mark('intro:done');
     this.textLayer.classList.add('skipped');
     this.skipEl.classList.remove('visible');
     this.stopAmbient?.();

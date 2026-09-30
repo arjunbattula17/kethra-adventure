@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
 
 import { mulberry32 } from '../../core/rng';
 
@@ -12,7 +13,7 @@ function makeCanvas(w: number, h: number): { canvas: HTMLCanvasElement; c: Canva
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  return { canvas, c: canvas.getContext('2d')! };
+  return { canvas, c: canvas.getContext('2d', PAINT_CONTEXT)! };
 }
 
 let radialGlow: THREE.CanvasTexture | null = null;

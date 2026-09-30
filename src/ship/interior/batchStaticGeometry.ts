@@ -214,7 +214,10 @@ export function batchStaticGeometry(ctx: InteriorCtx): void {
         const mats = placements(m, inverse);
         if (!mats) continue;
         members.push(m);
-        for (const matrix of mats) baked.push(m.geometry.clone().applyMatrix4(matrix));
+        // A plain BufferGeometry copy, not geometry.clone(): cloning a CylinderGeometry, TorusGeometry
+        // or any other parametric geometry first generates a default one of that kind and then copies
+        // over it, which was 0.44 s of this pass on an Intel UHD laptop (docs/PERF_LOG.md, 2026-09-28).
+        for (const matrix of mats) baked.push(new THREE.BufferGeometry().copy(m.geometry).applyMatrix4(matrix));
       }
       if (members.length < 2) {
         for (const g of baked) g.dispose();

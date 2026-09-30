@@ -1,7 +1,9 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
 
 import { mulberry32, hashStr } from '../../core/rng';
 import { memoTexture, memoTextureSet } from '../../core/memoTexture';
+import { centralNormals } from '../../core/pixelOps';
 
 
 /**
@@ -49,7 +51,7 @@ function canvas2d(w: number, h: number): [HTMLCanvasElement, CanvasRenderingCont
   const el = document.createElement('canvas');
   el.width = w;
   el.height = h;
-  return [el, el.getContext('2d')!];
+  return [el, el.getContext('2d', PAINT_CONTEXT)!];
 }
 
 function finish(el: HTMLCanvasElement, repeat = true, srgb = true): THREE.CanvasTexture {
@@ -106,25 +108,13 @@ function drawBolt(ctx: CanvasRenderingContext2D, x: number, y: number, r: number
  */
 function heightToNormal(hgt: HTMLCanvasElement, strength: number): HTMLCanvasElement {
   const size = hgt.width;
-  const src = hgt.getContext('2d')!.getImageData(0, 0, size, size).data;
+  const src = hgt.getContext('2d', PAINT_CONTEXT)!.getImageData(0, 0, size, size).data;
   const [el, ctx] = canvas2d(size, size);
   const out = ctx.createImageData(size, size);
-  // Wrapped sampling: the plate map tiles, so its normal map has to tile with it.
-  const at = (x: number, y: number) => src[((((y % size) + size) % size) * size + (((x % size) + size) % size)) * 4] / 255;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
-      // Canvas rows run downward while V runs upward, so the V derivative flips sign twice and
-      // green ends up as +dy in canvas space.
-      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
-      const len = Math.hypot(dx, dy, 1);
-      const i = (y * size + x) * 4;
-      out.data[i] = ((-dx / len) * 0.5 + 0.5) * 255;
-      out.data[i + 1] = ((dy / len) * 0.5 + 0.5) * 255;
-      out.data[i + 2] = (1 / len) * 0.5 * 255 + 127.5;
-      out.data[i + 3] = 255;
-    }
-  }
+  // Wrapped sampling: the plate map tiles, so its normal map has to tile with it. Canvas rows run
+  // downward while V runs upward, so the V derivative flips sign twice and green ends up as +dy in
+  // canvas space.
+  centralNormals(src, size, size, strength, out.data);
   ctx.putImageData(out, 0, 0);
   return el;
 }
@@ -132,8 +122,8 @@ function heightToNormal(hgt: HTMLCanvasElement, strength: number): HTMLCanvasEle
 /** Packs two grayscale canvases into one ORM texture: G = roughness, B = metalness. */
 function packOrm(rough: HTMLCanvasElement, metal: HTMLCanvasElement): THREE.CanvasTexture {
   const size = rough.width;
-  const r = rough.getContext('2d')!.getImageData(0, 0, size, size).data;
-  const m = metal.getContext('2d')!.getImageData(0, 0, size, size).data;
+  const r = rough.getContext('2d', PAINT_CONTEXT)!.getImageData(0, 0, size, size).data;
+  const m = metal.getContext('2d', PAINT_CONTEXT)!.getImageData(0, 0, size, size).data;
   const [el, ctx] = canvas2d(size, size);
   const out = ctx.createImageData(size, size);
   for (let i = 0; i < out.data.length; i += 4) {

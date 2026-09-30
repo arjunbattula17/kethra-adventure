@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
+import { centralNormals } from '../../core/pixelOps';
 
 // Procedural surfacing for the nav-console piece. The shipped `ship_console` PBR albedo is a very
 // dark brown corrugate, which is what made the console read as a black slab against the brief's
@@ -23,7 +25,7 @@ function canvas2d(w: number, h: number): [HTMLCanvasElement, CanvasRenderingCont
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
-  return [c, c.getContext('2d')!];
+  return [c, c.getContext('2d', PAINT_CONTEXT)!];
 }
 
 function finish(c: HTMLCanvasElement, repeat = true): THREE.CanvasTexture {
@@ -56,22 +58,10 @@ function finishData(c: HTMLCanvasElement, repeat = true): THREE.CanvasTexture {
  */
 function heightToNormal(height: HTMLCanvasElement, strength: number): HTMLCanvasElement {
   const S = height.width;
-  const src = height.getContext('2d')!.getImageData(0, 0, S, S).data;
+  const src = height.getContext('2d', PAINT_CONTEXT)!.getImageData(0, 0, S, S).data;
   const [out, octx] = canvas2d(S, S);
   const img = octx.createImageData(S, S);
-  const at = (x: number, y: number) => src[((((y % S) + S) % S) * S + (((x % S) + S) % S)) * 4] / 255;
-  for (let y = 0; y < S; y++) {
-    for (let x = 0; x < S; x++) {
-      const nx = -(at(x + 1, y) - at(x - 1, y)) * strength;
-      const ny = (at(x, y + 1) - at(x, y - 1)) * strength;
-      const len = Math.hypot(nx, ny, 1);
-      const i = (y * S + x) * 4;
-      img.data[i] = ((nx / len) * 0.5 + 0.5) * 255;
-      img.data[i + 1] = ((ny / len) * 0.5 + 0.5) * 255;
-      img.data[i + 2] = (1 / len) * 0.5 * 255 + 127.5;
-      img.data[i + 3] = 255;
-    }
-  }
+  centralNormals(src, S, S, strength, img.data);
   octx.putImageData(img, 0, 0);
   return out;
 }

@@ -1,11 +1,25 @@
 import * as THREE from 'three';
 import { InputManager } from './InputManager';
-import { initSharedEnvironment, rebuildSharedEnvironment } from './Environment';
+import { getSharedEnvironment, initSharedEnvironment, initSharedEnvironmentAsync, rebuildSharedEnvironment } from './Environment';
 import { PostProcessing } from './PostProcessing';
 import type { QualityTier } from './PostProcessing';
 import { UIManager } from '../ui/UIManager';
 import { setKitTextureMaxSize } from './textureCache';
 import { applyShaderPatches } from './shaderPatches';
+import { span, timed } from './perfMarks';
+import { takeProbedContext } from './glContext';
+import { PACE, Pacer, compileProgressively, drawProgressively, texturesOf, uploadProgressively, yieldToBrowser } from './prepare';
+import type { Pace } from './prepare';
+
+export interface PrepareOptions {
+  /** How much work per frame; defaults to loading-screen pace. The caller may change pacer.pace mid-way. */
+  pacer?: Pacer;
+  /** Progress through the current stage, for a loading bar. */
+  onProgress?: (fraction: number, stage: 'build' | 'compile' | 'upload' | 'draw') => void;
+}
+
+/** A scene's name on the performance timeline ("ShipInteriorScene:init"). */
+const kindOf = (scene: GameScene) => (scene as { kind?: string }).kind ?? 'scene';
 
 // Per-tier renderer settings. shadowMap.enabled and pixelRatio are both free to toggle at
 // runtime (no GL context loss, no re-construction) — only the WebGLRenderer's own creation-time
@@ -59,7 +73,8 @@ function guessInitialTier(renderer: THREE.WebGLRenderer): QualityTier {
 export interface GameScene {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
-  init(): void | Promise<void>;
+  /** Builds the scene. A long build may `await pacer.tick()` between its pieces to let frames through. */
+  init(pacer?: Pacer): void | Promise<void>;
   update(dt: number, elapsed: number): void;
   dispose(): void;
   onResize?(width: number, height: number): void;
@@ -138,7 +153,14 @@ export class Engine {
     // own anti-aliasing on its own targets. A multisampled canvas smoothed nothing and still cost a
     // 4x colour and depth buffer (~33 MB at 1366x768 on a laptop that shares its RAM with the GPU)
     // and a resolve every frame.
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, depth: false, powerPreference: 'high-performance' });
+    // The context main.ts created to check WebGL 2 works, with these same attributes (glContext.ts):
+    // one context instead of two. three.js takes its alpha flag from a context it is handed, and
+    // would then clear to transparent; clearing opaque keeps what it does with a context of its own.
+    const probed = takeProbedContext();
+    this.renderer = timed('engine:renderer', () =>
+      // (three.js's typings still name the WebGL 1 context type; it only accepts WebGL 2 now.)
+      new THREE.WebGLRenderer({ canvas: probed?.canvas, context: probed?.context as unknown as WebGLRenderingContext | undefined, antialias: false, depth: false, powerPreference: 'high-performance' }));
+    if (probed) this.renderer.setClearAlpha(1);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -168,14 +190,13 @@ export class Engine {
       a.groupOrder - b.groupOrder || a.renderOrder - b.renderOrder || programOf(a.material) - programOf(b.material) || idOf(a.material) - idOf(b.material) || a.z - b.z || a.id - b.id);
     container.appendChild(this.renderer.domElement);
 
-    initSharedEnvironment(this.renderer);
     InputManager.init(this.renderer.domElement);
 
     this.tier = guessInitialTier(this.renderer);
     // MSAA resolves per-frame at full buffer resolution, so only Quality pays for it; Balanced uses
     // FXAA instead (PostProcessing's constructor note) and Performance draws without either.
     this.msaaSamples = Engine.samplesFor(this.tier);
-    this.postFx = new PostProcessing(this.renderer, new THREE.Scene(), new THREE.PerspectiveCamera(), this.msaaSamples);
+    this.postFx = timed('engine:postfx', () => new PostProcessing(this.renderer, new THREE.Scene(), new THREE.PerspectiveCamera(), this.msaaSamples));
     this.applyTier(this.tier);
 
     window.addEventListener('resize', () => this.handleResize());
@@ -191,8 +212,10 @@ export class Engine {
     });
     canvas.addEventListener('webglcontextrestored', () => {
       this.contextLost = false;
-      const env = rebuildSharedEnvironment(this.renderer);
-      if (this.current?.scene.environment) this.current.scene.environment = env;
+      if (getSharedEnvironment()) {
+        const env = rebuildSharedEnvironment(this.renderer);
+        if (this.current?.scene.environment) this.current.scene.environment = env;
+      }
       this.renderer.shadowMap.needsUpdate = true;
       this.handleResize();
       UIManager.toast('Graphics restored.', 'learn');
@@ -299,29 +322,87 @@ export class Engine {
   }
 
   /**
-   * Prepares a scene without making it current: init (asset fetch, geometry build), then the
-   * program compile the setScene path would otherwise do. Safe to run while another scene is
-   * rendering — compileAsync creates and links programs but draws nothing — which is what lets
-   * the ship interior build itself behind the intro cinematic instead of after it. Pass the
-   * prepared scene to setScene with `prepared: true` so it isn't initialized twice.
+   * Prepares a scene without making it current: init (asset fetch, geometry build), then warmScene.
+   * Everything after init is done in small pieces between frames (prepare.ts), so it is safe to run
+   * while another scene plays: the Wren prepares itself behind the intro. Pass the prepared scene to
+   * setScene with `prepared: true` so it isn't initialized twice.
    */
-  async prepareScene(scene: GameScene): Promise<void> {
+  async prepareScene(scene: GameScene, opts: PrepareOptions = {}): Promise<void> {
+    await this.ensureEnvironment();
+    const pacer = opts.pacer ?? this.newPacer(PACE.loading);
     this.preparing++;
     try {
-      performance.mark('scene-init-start');
-      await scene.init();
-      performance.mark('scene-init-end');
-      await this.renderer.compileAsync(scene.scene, scene.camera);
-      performance.mark('scene-compile-end');
+      const t = performance.now();
+      opts.onProgress?.(0, 'build');
+      await scene.init(pacer);
+      span(`${kindOf(scene)}:init`, t);
+    } finally {
+      this.preparing--;
+    }
+    await this.warmScene(scene, { ...opts, pacer });
+  }
+
+  /**
+   * The GPU half of preparing a built scene: its programs, its textures and each object's first draw,
+   * a few at a time. Run again after anything that changes the programs (a tier change's light budget).
+   */
+  async warmScene(scene: GameScene, opts: PrepareOptions = {}): Promise<void> {
+    this.preparing++;
+    const pacer = opts.pacer ?? this.newPacer(PACE.loading);
+    const report = opts.onProgress ?? (() => {});
+    const kind = kindOf(scene);
+    try {
+      let t = performance.now();
+      // Programs first, a few at a time (prepare.ts). They are compiled for the render target the
+      // composer draws the scene into: three.js keys a program on the target bound when it is built,
+      // and a compile with nothing bound built the canvas variant of every program (tone mapping, sRGB
+      // output), so the first real frame compiled them all again, synchronously. Measured on Intel UHD
+      // graphics, cold: 11.6 s of wasted compiling, then a 28 s freeze (docs/PERF_LOG.md, 2026-09-28).
+      await compileProgressively(this.renderer, scene.scene, scene.camera, this.compileTarget, pacer, (f) => report(f, 'compile'));
+      span(`${kind}:compile`, t);
+      t = performance.now();
+      await uploadProgressively(this.renderer, texturesOf(scene.scene), pacer, (f) => report(f, 'upload'));
+      span(`${kind}:upload`, t);
+      t = performance.now();
+      await drawProgressively(this.renderer, scene.scene, scene.camera, this.compileTarget, pacer, 24, (f) => report(f, 'draw'));
+      span(`${kind}:firstDraw`, t);
     } finally {
       this.preparing--;
       this.holdGovernor();
     }
-    performance.measure('scene:init', 'scene-init-start', 'scene-init-end');
-    performance.measure('scene:compile', 'scene-init-end', 'scene-compile-end');
   }
 
-  async setScene(factory: () => Promise<GameScene> | GameScene, opts: { prepared?: boolean } = {}): Promise<void> {
+  /**
+   * The environment map every scene lights its metals with, made on first need rather than with the
+   * engine: 0.9-1.3 s on a first visit to an Intel UHD laptop, nearly all of it compiling its shaders,
+   * which Environment.ts now does off the page's thread. boot.ts asks for it while the title screen
+   * waits; otherwise the first scene's preparation waits for it, behind the loading bar.
+   */
+  ensureEnvironment(): Promise<void> {
+    if (getSharedEnvironment()) return Promise.resolve();
+    this.environmentPending ??= (async () => {
+      const start = performance.now();
+      try {
+        await initSharedEnvironmentAsync(this.renderer, this.compileTarget);
+      } catch {
+        initSharedEnvironment(this.renderer); // the plain way, if the parallel route fails
+      }
+      span('engine:environment', start);
+    })();
+    return this.environmentPending;
+  }
+
+  private environmentPending: Promise<void> | null = null;
+
+  /** A pacer for scene preparation, fenced on this renderer's GPU queue (see Pacer). */
+  newPacer(pace: Pace): Pacer {
+    return new Pacer(pace, this.renderer.getContext() as WebGL2RenderingContext);
+  }
+
+  /** The off-screen target scene preparation compiles and draws against; see prepareScene. */
+  private compileTarget = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType });
+
+  async setScene(factory: () => Promise<GameScene> | GameScene, opts: { prepared?: boolean; onProgress?: PrepareOptions['onProgress'] } = {}): Promise<void> {
     // Asset fetch + shader compile below can run several seconds on a cold cache (first load, or
     // a judge's laptop on unfamiliar wifi) with nothing else on screen — the caller's fade-to-black
     // covers scene transitions, but the very first scene at boot has no fade at all. A spinner here
@@ -341,7 +422,7 @@ export class Engine {
       // real, synchronous compile stall. Landing it here keeps that cost behind the caller's
       // fade-to-black (where one is used) instead of surfacing as an unpredictable mid-gameplay
       // hitch. A scene the caller already ran through prepareScene() skips straight to handover.
-      if (!opts.prepared) await this.prepareScene(scene);
+      if (!opts.prepared) await this.prepareScene(scene, { onProgress: opts.onProgress });
       this.current = scene;
       // Frame pacing is this scene's to earn: the governor judges it afresh after the grace period.
       this.steadyCap = false;
@@ -358,31 +439,11 @@ export class Engine {
       // Measured on the software-rendered harness: ~40s of first-frame stall (93 programs, ~300
       // texture sources) moved from after the overlay to behind it; real GPUs pay the same
       // pattern at smaller scale, on boot and on every ship<->planet<->reveal transition.
-      performance.mark('scene-warmup-start');
-      this.drawEverythingOnce(scene);
-      performance.measure('scene:warmup', 'scene-warmup-start');
+      timed(`${kindOf(scene)}:warmup`, () => this.drawEverythingOnce(scene));
     } finally {
       UIManager.hideLoading();
       this.holdGovernor();
     }
-  }
-
-  /**
-   * Draws a prepared scene once, while another scene is current, so the driver work setScene's
-   * warm-up frame exists for (per-program specialization, every texture upload, shadow maps, the
-   * AO pass's programs) is paid now rather than at the handover. The caller keeps the canvas
-   * covered: the frame lands on screen.
-   */
-  prewarmScene(scene: GameScene): void {
-    this.postFx.setActive(scene.scene, scene.camera);
-    this.postFx.setAOSupported(scene.usesAO !== false);
-    this.renderer.shadowMap.needsUpdate = true;
-    this.drawEverythingOnce(scene);
-    if (this.current) {
-      this.postFx.setActive(this.current.scene, this.current.camera);
-      this.postFx.setAOSupported(this.current.usesAO !== false);
-    }
-    this.holdGovernor();
   }
 
   /**
@@ -499,9 +560,9 @@ export class Engine {
    * median frame misses the budget, the tier steps down before the player sees a single frame.
    * Skipped when the player chose a tier themselves.
    */
-  benchmarkScene(scene: GameScene): QualityTier {
+  async benchmarkScene(scene: GameScene): Promise<QualityTier> {
     if (this.manualOverride) return this.tier;
-    let median = this.medianFrameMs(scene);
+    let median = await this.medianFrameMs(scene);
     // Step down only for a machine that clearly can't hold the tier: under ~45 fps from Quality goes
     // to Balanced, under ~30 fps goes to Performance. Balanced is measured again before it is kept:
     // a laptop that misses Quality by far can miss Balanced too (Intel UHD graphics before the
@@ -510,7 +571,7 @@ export class Engine {
     if (this.tier === 'high' && median > 22) {
       this.applyFullPreset('medium');
       this.noteDowngrade();
-      median = this.medianFrameMs(scene);
+      median = await this.medianFrameMs(scene);
     }
     if (this.tier !== 'low' && median > 33) {
       this.applyFullPreset('low');
@@ -529,35 +590,50 @@ export class Engine {
    * Call after the scene has adapted to the tier (ShipInteriorScene.adaptToTier), so the room being
    * measured is the room that will be drawn.
    */
-  fitRenderScale(scene: GameScene): void {
+  async fitRenderScale(scene: GameScene): Promise<void> {
     if (this.manualOverride || this.tier !== 'low') return;
     const steps = Engine.RENDER_SCALE_STEPS;
-    let median = this.medianFrameMs(scene);
+    let median = await this.medianFrameMs(scene);
     while (median > 33 && this.renderScale > steps[steps.length - 1]) {
       this.renderScale = steps[steps.indexOf(this.renderScale) + 1];
       this.applyTier(this.tier, true);
-      median = this.medianFrameMs(scene);
+      median = await this.medianFrameMs(scene);
     }
     this.lastBenchmarkMs = +median.toFixed(1);
   }
 
-  /** Twelve hidden frames of `scene`, each waited out on the GPU (gl.finish), median of the last eight. */
-  private medianFrameMs(scene: GameScene): number {
+  /**
+   * Twelve hidden frames of `scene`, each waited out on the GPU (gl.finish), median of the last eight.
+   * The page gets a frame every ~40 ms of them (the engine's own loop held meanwhile, so nothing else
+   * draws in between): run back to back they froze the loading bar for up to half a second.
+   */
+  private async medianFrameMs(scene: GameScene): Promise<number> {
     const gl = this.renderer.getContext();
-    this.postFx.setActive(scene.scene, scene.camera);
-    this.postFx.setAOSupported(scene.usesAO !== false);
     const times: number[] = [];
-    for (let i = 0; i < 12; i++) {
-      const t = performance.now();
-      this.postFx.render();
-      gl.finish();
-      // The first frames still carry first-use driver work (measured: enough to push a desktop RTX
-      // 4060 over the line); judge only the last eight.
-      if (i >= 4) times.push(performance.now() - t);
-    }
-    if (this.current) {
-      this.postFx.setActive(this.current.scene, this.current.camera);
-      this.postFx.setAOSupported(this.current.usesAO !== false);
+    const wasPaused = this.paused;
+    this.paused = true;
+    let lastYield = performance.now();
+    try {
+      for (let i = 0; i < 12; i++) {
+        this.postFx.setActive(scene.scene, scene.camera);
+        this.postFx.setAOSupported(scene.usesAO !== false);
+        const t = performance.now();
+        this.postFx.render();
+        gl.finish();
+        // The first frames still carry first-use driver work (measured: enough to push a desktop RTX
+        // 4060 over the line); judge only the last eight.
+        if (i >= 4) times.push(performance.now() - t);
+        if (this.current) {
+          this.postFx.setActive(this.current.scene, this.current.camera);
+          this.postFx.setAOSupported(this.current.usesAO !== false);
+        }
+        if (performance.now() - lastYield > 40) {
+          await yieldToBrowser();
+          lastYield = performance.now();
+        }
+      }
+    } finally {
+      this.paused = wasPaused;
     }
     times.sort((a, b) => a - b);
     return times[Math.floor(times.length / 2)];

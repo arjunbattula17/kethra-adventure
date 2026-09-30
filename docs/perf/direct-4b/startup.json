@@ -1,0 +1,123 @@
+{
+ "label": "direct-4b",
+ "base": "http://localhost:4173/kethra-adventure/",
+ "coldGpu": false,
+ "mbps": 0,
+ "skipAt": null,
+ "path": "direct",
+ "runs": [
+  {
+   "run": 0,
+   "visit": 0,
+   "direct": {
+    "spans": [
+     [
+      "boot:engine",
+      1429
+     ],
+     [
+      "engine:environment",
+      980
+     ],
+     [
+      "engine:postfx",
+      15
+     ],
+     [
+      "ShipInteriorScene:init",
+      2704
+     ],
+     [
+      "ship:floor",
+      122
+     ],
+     [
+      "ship:ceiling",
+      90
+     ],
+     [
+      "ship:starfieldWindow",
+      175
+     ],
+     [
+      "ship:console",
+      196
+     ],
+     [
+      "ship:suspendedDisplay",
+      81
+     ],
+     [
+      "ship:lighting",
+      8
+     ],
+     [
+      "ship:walls",
+      861
+     ],
+     [
+      "ship:airlock",
+      614
+     ],
+     [
+      "ship:props",
+      115
+     ],
+     [
+      "ship:pbrTextures",
+      0
+     ],
+     [
+      "ship:colliders",
+      11
+     ],
+     [
+      "ship:batch",
+      110
+     ],
+     [
+      "ship:downscaleCanvases",
+      2
+     ],
+     [
+      "ShipInteriorScene:compile",
+      9170
+     ],
+     [
+      "ShipInteriorScene:upload",
+      638
+     ],
+     [
+      "ShipInteriorScene:firstDraw",
+      701
+     ],
+     [
+      "ShipInteriorScene:warmup",
+      103
+     ]
+    ],
+    "playable": 15135,
+    "programs": 37,
+    "long": [
+     1607,
+     242,
+     210,
+     196,
+     175,
+     129
+    ],
+    "gaps": {
+     "frames": 517,
+     "over50": 1,
+     "over100": 0,
+     "max": 70
+    }
+   },
+   "phases": {},
+   "frames": {},
+   "longTasks": {},
+   "spans": {},
+   "errors": []
+  }
+ ]
+}

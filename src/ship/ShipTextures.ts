@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../core/paintCanvas';
 
 import { mulberry32, hashStr } from '../core/rng';
 import { memoTexture } from '../core/memoTexture';
@@ -13,7 +14,7 @@ function paintHazardStripeTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
   ctx.fillStyle = '#14120a';
   ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = '#d9a441';
@@ -191,7 +192,7 @@ export function buildConsoleScreenTexture(variant: 'nav' | 'status' | 'comms'): 
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
   if (variant === 'nav') buildNavScreen(ctx, w, h);
   else if (variant === 'status') buildStatusScreen(ctx, w, h);
   else buildCommsScreen(ctx, w, h);
@@ -210,7 +211,7 @@ export function buildRadarPanelTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
   ctx.fillStyle = '#04141c';
   ctx.fillRect(0, 0, size, size);
 
@@ -284,7 +285,7 @@ export function buildStencilPlacardTexture(id: string, sublabel?: string): THREE
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
 
   const grad = ctx.createLinearGradient(0, 0, 0, h);
   grad.addColorStop(0, '#2a2823');
@@ -342,7 +343,7 @@ export function buildFirstAidTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
   ctx.fillStyle = '#7a1414';
   ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
@@ -371,7 +372,7 @@ function paintWarningStripeTexture(color: 'amber' | 'red'): THREE.CanvasTexture 
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
   ctx.fillStyle = '#14120a';
   ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = color === 'amber' ? '#d9a441' : '#c23a2f';
@@ -403,7 +404,7 @@ export function buildLargeDeckNumberTexture(text: string, sublabel?: string): TH
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
   ctx.clearRect(0, 0, w, h);
 
   // Double-frame stencil border, scaled up from buildStencilPlacardTexture's plate outline.
@@ -454,7 +455,7 @@ export function buildFloorStencilTexture(label: string): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
   ctx.clearRect(0, 0, size, size);
 
   ctx.strokeStyle = 'rgba(214,208,196,0.5)';
@@ -493,7 +494,7 @@ export function buildFloorStainTexture(variant: 'oil' | 'scorch'): THREE.CanvasT
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
   ctx.clearRect(0, 0, size, size);
 
   const base: [number, number, number] = variant === 'oil' ? [8, 8, 9] : [28, 15, 8];
@@ -545,7 +546,7 @@ function paintPanelGrimeTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', PAINT_CONTEXT)!;
   ctx.clearRect(0, 0, size, size);
 
   const blotchCount = 14;

@@ -83,6 +83,11 @@ function loadTemplate(): Promise<THREE.Object3D> {
   return template;
 }
 
+/** Starts fetching and parsing the hull model, for a scene that will build it soon. */
+export function preloadShipHull(): Promise<unknown> {
+  return loadTemplate();
+}
+
 export async function buildShipHull(): Promise<ShipHull> {
   const source = await loadTemplate();
   // Cloned so a second visit to this scene re-materials a fresh copy rather than compounding onto

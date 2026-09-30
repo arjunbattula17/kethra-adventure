@@ -121,6 +121,14 @@ class SettingsPanelImpl {
     this.applyAll(saved !== null && saved.tier !== null);
   }
 
+  /**
+   * The 3D engine is created after the title screen is up (boot.ts), so a graphics choice saved from
+   * an earlier visit is applied to it here, once it exists.
+   */
+  engineReady(): void {
+    if (this.settings.tier !== null) this.applyGraphics();
+  }
+
   /** Applies everything. The tier is only pushed to the engine when the player chose one: pushing
    * a default would switch off the automatic tier and its runtime governor for good. */
   private applyAll(applyTier: boolean): void {
