@@ -15,10 +15,10 @@ import type { StringKey } from '../content/strings';
 import { PLANETS } from './planetData';
 import { buildShipHull } from './shipHull';
 import type { ShipHull } from './shipHull';
-import { buildPlanetInstance, type PlanetInstance } from './planetShader';
+import { buildPlanetInstance, planetTexturesReady, type PlanetInstance } from './planetShader';
 import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
-import { buildSun } from './sun';
+import { buildSun, sunMapReady } from './sun';
 import type { Sun } from './sun';
 import { buildCanopyLights, buildCloudLayer, buildPassingRocks, buildPlume, buildShockRing, Streaks } from './cruise/pieces';
 import { buildSkiff } from './skiff';
@@ -175,6 +175,9 @@ export class CruiseScene implements GameScene {
     const def = PLANETS.find((p) => p.id === this.opts.destination)!;
     this.planet = buildPlanetInstance({ ...def, radius: 170 }, new THREE.Vector3(1e5, 0, 0), this.sun.group.position, this.camera);
     this.scene.add(this.planet.group);
+    // The sun's and the planet's maps in hand before the cruise is prepared, rather than decoded and
+    // uploaded in a frame of it.
+    await Promise.all([planetTexturesReady(), sunMapReady()]);
 
     if (this.opts.destination === 'kethra') {
       this.skiff = buildSkiff();

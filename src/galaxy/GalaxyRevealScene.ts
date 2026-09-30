@@ -11,10 +11,10 @@ import { gameState } from '../core/GameState';
 import { t } from '../content/strings';
 import { PLANETS } from './planetData';
 import { buildShipHull } from './shipHull';
-import { buildPlanetInstance, type PlanetInstance } from './planetShader';
+import { buildPlanetInstance, planetTexturesReady, type PlanetInstance } from './planetShader';
 import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
-import { buildSun } from './sun';
+import { buildSun, sunMapReady } from './sun';
 import type { Sun } from './sun';
 import { GRADES } from '../core/GradeGlowPass';
 import * as sim from './intercept/sim';
@@ -125,6 +125,9 @@ export class GalaxyRevealScene implements GameScene {
       planet.group.scale.setScalar(0.001);
     }
     for (const r of this.resolving) r.obj.scale.setScalar(0.001);
+    // The sun's and the planets' maps in hand before the warm-up frame: arriving later, each was
+    // decoded and uploaded in a frame of the cinematic.
+    await Promise.all([planetTexturesReady(), sunMapReady()]);
 
     // Ping shell: an additive sphere, brightest at its silhouette rim.
     this.shell = new THREE.Mesh(

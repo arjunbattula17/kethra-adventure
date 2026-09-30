@@ -45,15 +45,28 @@ const coronaFragment = /* glsl */ `
   }
 `;
 
+const mapLoads: Promise<void>[] = [];
+
+/**
+ * Resolves once every sun map requested so far has arrived (or failed), like planetTexturesReady: a
+ * scene awaits both at the end of init(), so the images are decoded and uploaded behind the cover
+ * rather than in a frame of the cinematic.
+ */
+export function sunMapReady(): Promise<void> {
+  return Promise.all(mapLoads).then(() => undefined);
+}
+
 export function buildSun(opts: { radius: number }): Sun {
   const group = new THREE.Group();
   group.name = 'sun';
 
+  let settle!: () => void;
+  mapLoads.push(new Promise<void>((resolve) => (settle = resolve)));
   // A real photospheric surface (granulation and active regions, from Solar System Scope via
   // tools/prep-planet-textures.mjs) with limb darkening toward the edge.
   const surface = new THREE.ShaderMaterial({
     uniforms: {
-      uMap: { value: new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/planets/sun.jpg`) },
+      uMap: { value: new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/planets/sun.jpg`, () => settle(), undefined, () => settle()) },
       uDrift: { value: 0 },
     },
     vertexShader: /* glsl */ `
