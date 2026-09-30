@@ -345,6 +345,36 @@ game, so MG1 now keeps the idea and drops the machinery:
   scenery again). Back aboard, the objective is Kethra with logs and repairs as an optional line, and
   the tutorial's markers light the navigation console.
 
+**Redesigned again (2026-09-29): the charter, about 20 seconds.** The one-choice version went too
+far: hovering picked the day and the course locked itself, so the player watched the plot complete
+rather than making it. The interaction comes back as a hands-on charter; the belt leg (the asteroid
+navigation) stays cut. The shape is understand → connect and fix → confirm → watch.
+- **Understand.** ORION's hop to the buoy, as before: two days, one dot each.
+- **Connect.** The course's end is a big gold handle ("Drag me"). Pressing anywhere on the chart
+  picks it up (no precise grab). It snaps to Kethra's day markers within ~45 px and otherwise floats
+  on Kethra's orbital plane, so height is never the player's problem. `←` `→` step it marker to
+  marker for keyboard play.
+- **Fix.** Two checks on the plate say what is already right: "On Kethra's path" and "Same day as
+  Kethra". Plugged into a marker, the chart shows both numbers side by side: Kethra's day on the
+  marker, ours on the handle (d = v·t, in whole days). Every marker is 5 to 7 days out for the Wren,
+  so our number barely moves; the insight is to find Kethra's marker with the same number. Only day 6
+  agrees. Wrong: the ring and the verdict chip go red, and the plate says too late or too early and
+  which way to try.
+- **Confirm and watch.** Launch lights green only when both checks are; `Space`, `Enter` or a click
+  flies the six-day fast-forward into Kethra, then the win and the desk chart as before.
+- **One meaning per colour, used nowhere else on the chart** (the fix for "things on the same line
+  in similar colours"): gold is the only thing you move (the course and its handle); blue is Kethra's
+  path ahead, its markers and its numbers (not the Grove sea-green, which read as "correct"); green is
+  correct; red is not yet. Only Kethra's markers carry numbers; our day is one chip beside the handle,
+  on the other side of the path. The chart is a flat SVG layer over the 3D system with 3–4 px strokes,
+  so it reads over the hairline instrument, and Kethra's full orbit loop hides while it's up.
+- **Nobody gets stuck, nobody is played for:** Launch before both checks flashes the missing one and
+  ORION says what to do; ORION hints at 9 s, the day-6 marker pulses at 16 s (or on a second refused
+  launch), and "Let ORION connect it" appears at 24 s. It plugs the course in, but the player still
+  launches. Insight 2 lights the meeting marker from the start.
+- A click on the chart never captures the mouse for looking around (`InputManager.captureAllowed`),
+  or the first click would freeze the cursor and every drag after it.
+
 ### Slot 2 · arriving at Kethra (after the cruise)
 | Concept | The idea | Clarity | Depth | 3D | Fit | Distinct | Memorable | Cost | Total |
 |---|---|---|---|---|---|---|---|---|---|

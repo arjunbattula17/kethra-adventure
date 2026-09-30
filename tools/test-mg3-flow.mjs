@@ -110,11 +110,20 @@ await place(0, -29.45, Math.PI);
 check('at the call-stone the Rite begins and its keys are shown', (await hush()).phase === 'rite' && !!(await page.$('.hush-rite')) && (await hush()).post === 'stone');
 const stateNow = () => window.__DEBUG__.engine.getCurrentScene().hush.state();
 async function whenLooking(away) {
-  return until((a) => {
-    const s = window.__DEBUG__.engine.getCurrentScene().hush.state();
-    // Looking away means the gaze cone's edge is clear of the stone by a margin.
-    return s.mode === 'perched' && (a ? s.stoneMargin > 0.06 : s.stoneMargin < -0.12);
-  }, 40000, away);
+  if (!away) return until(() => { const s = window.__DEBUG__.engine.getCurrentScene().hush.state(); return s.mode === 'perched' && s.stoneMargin < -0.12; }, 40000);
+  // Looking away: the cone's edge clear of the stone and still moving away, so it stays clear
+  // until the key is handled even at a low frame rate. Wait 1.5 s after landing first: the moth
+  // turns onto its sweep at up to 2.2 rad/s.
+  await until(() => window.__DEBUG__.engine.getCurrentScene().hush.state().mode === 'perched', 40000);
+  await page.waitForTimeout(1500);
+  const deadline = Date.now() + 40000;
+  while (Date.now() < deadline) {
+    const before = (await hush()).stoneMargin;
+    await page.waitForTimeout(120);
+    const s = await hush();
+    if (s.mode === 'perched' && s.stoneMargin > 0.06 && s.stoneMargin > before) return true;
+  }
+  return false;
 }
 await whenLooking(false);
 let gusts = (await hush()).gusts;
@@ -133,8 +142,10 @@ for (const [i, key] of ['Digit1', 'Digit2', 'Digit3'].entries()) {
   await whenLooking(true);
   await page.keyboard.press(key);
   const ok = await until((n) => { const s = window.__DEBUG__.engine.getCurrentScene().hush.state(); return s.step > n || s.phase === 'won' || s.phase === 'done'; }, 3000, i);
+  // The step lands one frame before the moth is sent on to its next perch: wait for that frame.
+  const closer = i >= 2 || (await until((want) => window.__DEBUG__.engine.getCurrentScene().hush.state().perch === want, 2000, ['vane', 'rim'][i]));
   const s = await hush();
-  check(`breath ${i + 1} held while it looked away${i < 2 ? ', and it comes a step closer' : ''}`, ok && (i < 2 ? s.perch === ['vane', 'rim'][i] : true), `step ${s.step}, perch ${s.perch}`);
+  check(`breath ${i + 1} held while it looked away${i < 2 ? ', and it comes a step closer' : ''}`, ok && closer, `step ${s.step}, perch ${s.perch}`);
 }
 await page.keyboard.up('KeyF');
 

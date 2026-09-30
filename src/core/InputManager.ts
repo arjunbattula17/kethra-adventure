@@ -9,6 +9,12 @@ class InputManagerImpl {
   private delta = { x: 0, y: 0 };
   /** The player released the mouse themselves (Esc while it was captured). The pause menu listens. */
   onUserUnlock: (() => void) | null = null;
+  /**
+   * Whether the game may capture the mouse (pointer lock) for looking around; a canvas click does
+   * so. Screens that use a visible cursor turn this off (the Intercept chart, where the player
+   * drags), since pointer lock freezes the cursor position.
+   */
+  captureAllowed = true;
 
   init(canvas: HTMLElement): void {
     this.lockedElement = canvas;
@@ -23,7 +29,7 @@ class InputManagerImpl {
     window.addEventListener('blur', () => this.keys.clear());
 
     canvas.addEventListener('click', () => {
-      if (document.pointerLockElement !== canvas) canvas.requestPointerLock?.();
+      if (this.captureAllowed && document.pointerLockElement !== canvas) canvas.requestPointerLock?.();
     });
     // Mouse buttons read like keys, as 'Mouse0' (left), 'Mouse2' (right), so a binding can list them.
     // On the window: with the mouse captured every press lands on the canvas anyway, and without it
@@ -83,6 +89,7 @@ class InputManagerImpl {
   }
 
   requestPointerLock(): void {
+    if (!this.captureAllowed) return;
     this.lockedElement?.requestPointerLock?.();
   }
 }

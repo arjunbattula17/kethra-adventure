@@ -2,25 +2,27 @@ import * as THREE from 'three';
 import { MotionScope, motion, damp, dampVec3, DUR, ease } from '../../motion';
 import { UIManager } from '../../ui/UIManager';
 import { PanelManager } from '../../ui/PanelManager';
+import { InputManager } from '../../core/InputManager';
 import { registerMiniGame } from '../../debug/hooks';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { t } from '../../content/strings';
 import type { StringKey } from '../../content/strings';
 import { MG1 } from '../../content/tuning';
 import * as sim from './sim';
-import { Dots, INK, Labels, Lines, toV3 } from './instrument';
+import { Dots, INK, Lines, toV3 } from './instrument';
+import { ChartOverlay } from './overlay';
+import type { Pt, SocketState } from './overlay';
 
 /**
- * The Intercept mini-game: plot the burn to Kethra in the real 3D system, drawn
- * through the Wren's navigation instrument.
+ * The Intercept mini-game: chart the course to Kethra in the real 3D system.
  *
- * One choice. ORION hops the Wren out of its own debris to the buoy on its own (which also shows
- * what a plotted day looks like), then asks where to meet Kethra. Kethra's next ten days are ticks
- * along its orbit; the player picks one (pointer or ← →), the course aims itself there, and the
- * plate says how long the Wren needs to get there against the day Kethra does. Only one tick has
- * the two agreeing. Holding it locks the course; Space launches the fast-forward; the win hands the
- * course to the Wren. The model and its numbers live in ./sim; this is the instrument, the input
- * and the choreography.
+ * ORION flies the Wren to the buoy first. The player then drags the course's end (the handle) onto
+ * one of Kethra's day markers, each the point Kethra reaches on that day. The plate checks two
+ * things: the handle is on a marker, and the Wren's arrival day there (distance / SPEED) equals the
+ * marker's day. Launch only works when both pass, and plays the transfer as a fast-forward.
+ *
+ * The model is in ./sim and the chart's drawing in ./overlay; this class handles input, the camera
+ * and the sequence.
  */
 
 export interface InterceptWorld {
@@ -30,6 +32,8 @@ export interface InterceptWorld {
   wren: THREE.Object3D;
   /** Kethra; the game moves it along its orbit as plotted days pass. */
   kethra: THREE.Object3D;
+  /** Kethra's whole orbit, drawn by the reveal: hidden while the chart shows the path ahead. */
+  kethraOrbit?: THREE.Object3D;
   /** Where pointer input lands (the renderer's canvas). */
   surface: HTMLElement;
   stats: { insight: number };
@@ -42,7 +46,7 @@ export interface InterceptResult {
   cells: number;
 }
 
-type Phase = 'hop' | 'plot' | 'locked' | 'run' | 'won';
+type Phase = 'hop' | 'plot' | 'run' | 'won';
 
 /** The reveal's last framing, about a point between the Wren and the buoy: the hop starts here, so
  * the handover has no jump. */
@@ -51,13 +55,12 @@ export const LEG1_VIEW = { yaw: -2.1, pitch: 0.7, dist: 24 } as const;
 export const LEG1_FOCUS = 0.42;
 
 /**
- * The plot's one framing: from the sun's side of the system, looking out past the buoy at Kethra's
- * next ten days. Kethra's ticks run left to right in the order the days count (→ is "later" on
- * screen as well as on the keys), and the Wren sits low in the frame with its course climbing
- * away. There's no camera control: nothing to learn, nothing to lose.
+ * The fixed camera while charting: from the sun's side, looking out past the buoy at Kethra's next
+ * ten days. The markers run left to right in day order (→ is later on screen and on the keys), with
+ * the Wren low in the frame. `shift` moves the framing left, clear of the plate.
  */
-const PLOT_VIEW = { yaw: Math.PI + 0.52, pitch: 0.86, dist: 66, shift: 16 } as const;
-/** While ORION flies the hop: close on the Wren, already turned toward the plot. */
+const PLOT_VIEW = { yaw: Math.PI + 0.52, pitch: 0.86, dist: 60, shift: 19 } as const;
+/** Camera while ORION flies the hop: close on the Wren, already turned toward the chart. */
 const HOP_VIEW = { pitch: 0.5, dist: 20 } as const;
 
 /** The orbit camera's position for a view about `target`. */
@@ -69,15 +72,13 @@ export function orbitPosition(target: THREE.Vector3, view: { yaw: number; pitch:
 const c = (hex: number, k = 1) => new THREE.Color(hex).multiplyScalar(k);
 const AMBER = c(INK.amber);
 const AMBER_DIM = c(INK.amber, 0.35);
-const GROVE = c(INK.grove, 0.9);
-const GROVE_DIM = c(INK.grove, 0.28);
 const STEEL = c(INK.steel, 0.5);
 const INK_BRIGHT = c(INK.ink);
-const WARN = c(INK.warn);
-const GROVE_FAINT = c(INK.grove, 0.14);
-const AMBER_FAINT = c(INK.amber, 0.1);
-/** The match: the success green of the rest of the UI. */
-const MATCH = c(0x7cbf7c, 1.25);
+
+/** Kethra's path is drawn a little past the last marker so its end arrow shows the direction of travel. */
+const PATH_DAYS = sim.MAX_MEET_DAY + 0.6;
+/** Initial course length (Mkm) from the buoy toward Kethra's current position; short of every marker. */
+const START_REACH = 20;
 
 export class InterceptGame {
   onComplete: ((result: InterceptResult) => void) | null = null;
@@ -87,34 +88,48 @@ export class InterceptGame {
   private phase: Phase = 'hop';
   /** Every day the chart offers, 0 (Kethra now) to sim.MAX_MEET_DAY. */
   private readonly meetings = sim.meetings();
-  /** The exact intercept the matching day locks onto. */
+  /** The exact intercept the matching marker stands for. */
   private readonly solution = sim.intercept();
   private readonly solutionDay = this.meetings.find((m) => sim.matches(m))!.day;
-  /** The same points as vectors, kept: labels are pinned to them every frame. */
   private readonly meetPoints = this.meetings.map((m) => toV3(m.at));
-  /** Kethra's path over the days on offer, four points a day. */
-  private readonly arcPoints = Array.from({ length: sim.MAX_MEET_DAY * 4 + 1 }, (_, i) => toV3(sim.kethraAt(i / 4)));
+  private readonly pathPoints = Array.from({ length: Math.round(PATH_DAYS * 4) + 1 }, (_, i) => toV3(sim.kethraAt(i / 4)));
   private readonly hopPoints = Array.from({ length: sim.HOP_DAYS }, (_, i) => toV3(sim.hopAt(i + 1)));
-  /** Course day ticks, reused: at most one per day of the longest flight on offer. */
-  private readonly coursePoints = Array.from({ length: 12 }, () => new THREE.Vector3());
-  /** The chosen meeting day. Starts on Kethra now: the natural first guess, and the one to learn from. */
-  private meet = 0;
-  private held = 0;
-  /** Seconds spent choosing, for ORION's help. */
-  private choosing = 0;
+  private readonly origin = toV3(sim.TRANSFER_START);
+  /** The plane the free handle slides on: Kethra's own orbital plane, so every marker lies in it. */
+  private readonly plane: THREE.Plane;
+
+  // The charter.
+  /** The course's end, where the handle is. */
+  private readonly end = new THREE.Vector3();
+  /** The day marker the handle is plugged into, or null while it floats free. */
+  private socket: number | null = null;
+  private dragging = false;
+  /** The pointer doing the dragging, so a second finger can't end it. */
+  private pointerId = -1;
+  /** The marker under the pointer while dragging, highlighted. */
+  private hover: number | null = null;
+  /** The player has moved the handle at least once (hides the "Drag me" chip). */
+  private touched = false;
+  /** Seconds spent charting without a correct course; drives the hint timers. */
+  private stuck = 0;
   private hinted = false;
+  private pulsing = false;
   private autoOffered = false;
+  private toldNow = false;
+  private assisting = false;
+  private flash: 'path' | 'day' | null = null;
+  private flashAt = -1;
   private hopDay = 0;
   private runDay = 0;
-  private flashAt = -1;
+  private hop: { cancel(): void } | null = null;
 
+  // 3D lines for the hop and the win animation; the chart itself is the overlay.
   private readonly instrument = new THREE.Group();
-  private readonly staticLines = new Lines(600, 3);
-  private readonly ticks = new Dots(64, 7);
+  private readonly lines = new Lines(64, 3);
+  private readonly ticks = new Dots(16, 7);
   private readonly bodies = new Dots(8, 11, 13);
-  private readonly halo = new Dots(2, 34, 12);
   private readonly course = new Lines(64, 14);
-  private readonly labels = new Labels();
+  private readonly overlay: ChartOverlay;
   private dirty = true;
 
   // Camera: an orbit about a target, every value eased toward its goal.
@@ -128,27 +143,40 @@ export class InterceptGame {
   private goalDist = 30;
 
   private readonly panel: HTMLDivElement;
+  private panelKey = '';
+  private readonly touchAction: string;
   private readonly unregister: () => void;
   private wave: { course: THREE.Vector3[]; k: number } | null = null;
 
   constructor(world: InterceptWorld) {
     this.w = world;
     this.instrument.name = 'intercept-instrument';
-    for (const obj of [this.staticLines.object, this.ticks.object, this.bodies.object, this.halo.object, this.course.object]) this.instrument.add(obj);
+    for (const obj of [this.lines.object, this.ticks.object, this.bodies.object, this.course.object]) this.instrument.add(obj);
     world.scene.add(this.instrument);
-    // Insight 2 reads Kethra's motion at a glance: the meeting day is marked from the start.
-    this.hinted = world.stats.insight >= 2;
+    this.plane = new THREE.Plane().setFromNormalAndCoplanarPoint(toV3(sim.orbitNormal(sim.KETHRA)), new THREE.Vector3());
+    // Insight 2: the matching marker is highlighted from the start.
+    this.pulsing = world.stats.insight >= 2;
+    this.resetEnd();
 
+    this.overlay = new ChartOverlay(this.meetings.length, 12);
     this.panel = document.createElement('div');
-    this.panel.className = 'intercept-panel';
+    this.panel.className = 'intercept-panel charter';
     this.panel.setAttribute('aria-live', 'polite');
     this.panel.addEventListener('click', this.onPanelClick);
     const root = document.getElementById('ui-root')!;
-    root.append(this.labels.root, this.panel);
+    root.append(this.overlay.root, this.panel);
 
+    // The chart uses a visible cursor, so a click must not capture the mouse (pointer lock).
+    InputManager.captureAllowed = false;
+    InputManager.exitPointerLock();
+    // Touch drags move the handle instead of scrolling or zooming the page.
+    this.touchAction = world.surface.style.touchAction;
+    world.surface.style.touchAction = 'none';
     window.addEventListener('keydown', this.onKeyDown);
-    world.surface.addEventListener('pointermove', this.onPointerMove);
     world.surface.addEventListener('pointerdown', this.onPointerDown);
+    window.addEventListener('pointermove', this.onPointerMove);
+    window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
     this.unregister = registerMiniGame({ name: 'intercept', win: () => this.debugWin(), fail: () => this.debugFail() });
   }
 
@@ -164,7 +192,7 @@ export class InterceptGame {
     this.dist = off.length();
     this.pitch = Math.asin(THREE.MathUtils.clamp(off.y / this.dist, -1, 1));
     this.yaw = Math.atan2(off.x, off.z);
-    // During the hop the camera stays on the Wren; the pull-out to the plot is what reveals the choice.
+    // During the hop the camera follows the Wren; beginCharting() pulls out to the chart.
     this.goalTarget.copy(this.w.wren.position);
     this.goalYaw = PLOT_VIEW.yaw;
     this.goalPitch = HOP_VIEW.pitch;
@@ -179,31 +207,28 @@ export class InterceptGame {
       duration: motion.reduced ? 0.01 : MG1.HOP_SECONDS,
       ease: ease.standard,
       update: (k) => this.placeHop(k * sim.HOP_DAYS),
-      done: () => this.beginChoosing(),
+      done: () => this.beginCharting(),
     });
   }
-  private hop: { cancel(): void } | null = null;
 
-  private beginChoosing(): void {
+  private beginCharting(): void {
     if (this.phase !== 'hop') return;
     this.phase = 'plot';
     this.framePlot();
     this.dirty = true;
-    this.placeChoice();
+    if (this.w.kethraOrbit) this.w.kethraOrbit.visible = false;
+    this.overlay.setVisible(true);
+    this.placeCharting();
     this.say('mg1.orion');
     this.renderPanel();
   }
 
-  /**
-   * The plot's framing: the buoy, where the course starts, and Kethra's next ten days, nudged left of
-   * centre so the plate at the top right never covers a tick.
-   */
+  /** The chart's framing: the buoy and Kethra's next ten days, left of the plate at the top right. */
   private framePlot(): void {
-    const box = new THREE.Box3().expandByPoint(toV3(sim.TRANSFER_START));
+    const box = new THREE.Box3().expandByPoint(this.origin);
     for (const p of this.meetPoints) box.expandByPoint(p);
     box.getCenter(this.goalTarget);
-    // A little toward the buoy, so the Wren sits clear of the captions at the bottom of the frame.
-    this.goalTarget.lerp(toV3(sim.TRANSFER_START, _a), 0.15);
+    this.goalTarget.lerp(this.origin, 0.12);
     this.goalTarget.x += Math.cos(PLOT_VIEW.yaw) * PLOT_VIEW.shift;
     this.goalTarget.z -= Math.sin(PLOT_VIEW.yaw) * PLOT_VIEW.shift;
     this.goalYaw = PLOT_VIEW.yaw;
@@ -211,61 +236,124 @@ export class InterceptGame {
     this.goalDist = PLOT_VIEW.dist;
   }
 
-  // ------------------------------------------------------------------ the choice
+  // ------------------------------------------------------------------ the charter
 
-  private get chosen(): sim.Meeting {
-    return this.meetings[this.meet];
+  private get ready(): boolean {
+    return this.socket !== null && sim.matches(this.meetings[this.socket]);
   }
 
-  private select(day: number): void {
+  /** Days from the buoy to the handle, as the chart shows them. */
+  private get arrival(): number {
+    return sim.arrivalDay(sim.arrivalDays(this.end));
+  }
+
+  private resetEnd(): void {
+    const toward = toV3(sim.kethraAt(0)).sub(this.origin).normalize();
+    this.end.copy(this.origin).addScaledVector(toward, START_REACH);
+    this.socket = null;
+  }
+
+  /** Plugs the handle into a day marker. */
+  private connect(day: number): void {
     const next = THREE.MathUtils.clamp(day, 0, sim.MAX_MEET_DAY);
-    if (this.phase !== 'plot' || next === this.meet) return;
-    this.meet = next;
-    this.held = 0;
-    AudioSystem.playHover();
-    this.placeChoice();
+    this.end.copy(this.meetPoints[next]);
+    if (this.socket === next) return;
+    this.socket = next;
+    this.dirty = true;
+    if (this.ready) {
+      AudioSystem.playSuccess();
+      this.swell(0.18);
+    } else AudioSystem.playHover();
+    if (next === 0 && !this.toldNow && !this.ready) {
+      this.toldNow = true;
+      this.say('mg1.now.orion');
+    }
+    this.renderPanel();
+  }
+
+  private unplug(): void {
+    if (this.socket === null) return;
+    this.socket = null;
     this.dirty = true;
     this.renderPanel();
   }
 
-  /** The chosen day matched for long enough: the course locks, and only launching is left. */
-  private lock(): void {
-    if (this.phase !== 'plot') return;
-    this.meet = this.solutionDay;
-    this.phase = 'locked';
+  /** Moves the handle to a screen point: onto the nearest marker if it's close, else free on the plane. */
+  private moveHandleTo(x: number, y: number): void {
+    const near = this.nearestSocket(x, y, this.snapRadius());
+    if (near !== null) {
+      this.connect(near);
+      return;
+    }
+    const p = this.pointOnPlane(x, y);
+    if (!p) return;
+    const off = p.sub(this.origin);
+    const len = THREE.MathUtils.clamp(off.length(), sim.MIN_REACH, sim.MAX_REACH);
+    this.end.copy(this.origin).addScaledVector(off.normalize(), len);
+    this.unplug();
     this.dirty = true;
-    this.placeChoice();
-    this.swell(0.2);
-    AudioSystem.playSuccess();
-    this.say('mg1.locked.orion');
-    this.renderPanel();
-    this.panel.querySelector<HTMLButtonElement>('[data-act="launch"]')?.focus({ preventScroll: true });
   }
 
-  /** Space before the days match: nothing runs. Say why, and bring ORION's hint forward. */
+  /** Steps the handle a marker along Kethra's path (keyboard). Unplugged, the first step plugs it into "now". */
+  private step(dir: -1 | 1): void {
+    if (this.phase !== 'plot' || this.assisting) return;
+    this.touched = true;
+    this.connect(this.socket === null ? 0 : this.socket + dir);
+    this.renderPanel();
+  }
+
+  /** Launch before both checks pass: flash the failing check and hint; a second refusal also highlights the matching marker. */
   private refuse(): void {
     AudioSystem.playError();
+    this.flash = this.socket === null ? 'path' : 'day';
     this.flashAt = motion.gameTime;
-    if (!this.hinted) {
-      this.hinted = true;
-      this.say('mg1.hint.lead');
-    }
-    this.dirty = true;
+    if (this.hinted) this.pulsing = true;
+    this.hinted = true;
+    this.say(this.socket === null ? 'mg1.hint.path' : 'mg1.hint.day');
+    this.panelKey = '';
     this.renderPanel();
   }
 
+  /** "Let ORION connect it": animates the handle onto the matching marker. The player still has to launch. */
   private autoPlot(): void {
-    if (this.phase !== 'plot') return;
-    this.lock();
+    if (this.phase !== 'plot' || this.assisting || this.ready) return;
+    this.assisting = true;
+    this.dragging = false;
+    this.touched = true;
+    const from = this.end.clone();
+    const to = this.meetPoints[this.solutionDay];
+    this.fx.tween({
+      duration: motion.reduced ? 0.01 : 0.8,
+      ease: ease.standard,
+      update: (k) => {
+        this.end.lerpVectors(from, to, k);
+        this.dirty = true;
+      },
+      done: () => {
+        this.assisting = false;
+        this.connect(this.solutionDay);
+        this.focusLaunch();
+      },
+    });
+  }
+
+  private focusLaunch(): void {
+    this.panel.querySelector<HTMLButtonElement>('[data-act="launch"]')?.focus({ preventScroll: true });
   }
 
   // ------------------------------------------------------------------ the run and the win
 
   private launch(): void {
-    if (this.phase !== 'locked') return;
+    if (this.phase !== 'plot' || this.assisting) return;
+    if (!this.ready) {
+      this.refuse();
+      return;
+    }
     this.phase = 'run';
+    this.dragging = false;
     this.runDay = 0;
     this.dirty = true;
+    this.setCursor('');
     UIManager.clearCaption();
     AudioSystem.playTone(110, 0.5, 'sine', 0.06);
     AudioSystem.playConfirm();
@@ -277,7 +365,7 @@ export class InterceptGame {
     this.win();
   }
 
-  /** Kethra answers the plot: a brief swell when the course locks on it, a bigger one on arrival. */
+  /** Briefly scales Kethra up and back: a little when the course connects, more on arrival. */
   private swell(amount: number): void {
     if (motion.reduced) return;
     const k = this.w.kethra;
@@ -288,7 +376,11 @@ export class InterceptGame {
 
   private win(): void {
     this.phase = 'won';
+    this.dragging = false;
+    this.setCursor('');
     motion.conductor.duck(3);
+    this.overlay.setVisible(false);
+    if (this.w.kethraOrbit) this.w.kethraOrbit.visible = true;
     const course = [toV3(sim.WREN_START), toV3(sim.BUOY), toV3(this.solution.at)];
     const days = Math.round(this.solution.days);
     const cells = sim.cellsFor(days);
@@ -319,49 +411,51 @@ export class InterceptGame {
 
   update(dt: number): void {
     if (this.phase === 'plot') {
-      this.choosing += dt;
-      if (sim.matches(this.chosen)) {
-        this.held += dt;
-        if (this.held >= MG1.LOCK_DWELL) this.lock();
+      if (!this.ready && !this.assisting) {
+        this.stuck += dt;
+        if (!this.hinted && this.stuck >= MG1.HINT_AFTER) {
+          this.hinted = true;
+          this.say(this.socket === null ? 'mg1.hint.path' : 'mg1.hint.day');
+        }
+        if (!this.pulsing && this.stuck >= MG1.PULSE_AFTER) this.pulsing = true;
+        if (!this.autoOffered && this.stuck >= MG1.AUTOPLOT_AFTER) {
+          this.autoOffered = true;
+          this.renderPanel();
+        }
       }
-      if (!this.hinted && this.choosing >= MG1.HINT_AFTER) {
-        this.hinted = true;
-        this.say('mg1.hint.lead');
-      }
-      if (!this.autoOffered && this.choosing >= MG1.AUTOPLOT_AFTER) {
-        this.autoOffered = true;
+      this.placeCharting();
+      if (this.flash && motion.gameTime - this.flashAt > 0.6) {
+        this.flash = null;
         this.renderPanel();
       }
-      // The hint's pulse and the selection's breathing redraw every frame (a few hundred vertices).
-      this.dirty = true;
-    } else if (this.phase === 'locked') {
-      this.dirty = true;
     } else if (this.phase === 'run') {
       const to = this.solution.days;
       const seconds = motion.reduced ? 0.6 : MG1.RUN_SECONDS;
       const before = Math.floor(this.runDay);
       this.runDay = Math.min(to, this.runDay + (to / seconds) * dt);
       this.placeRun(this.runDay);
-      // The camera leans in on the two converging: the Wren and the point they'll meet at.
+      // Keep the camera between the Wren and the meeting point.
       this.goalTarget.lerpVectors(this.w.wren.position, this.meetPoints[this.solutionDay], 0.5);
       this.goalDist = 44;
       if (Math.floor(this.runDay) !== before) this.renderPanel();
-      this.dirty = true;
       if (this.runDay >= to) this.arrive();
     }
 
-    // Camera: eased to its goal, with a slow drift so the instrument never looks frozen.
+    // Camera: eased toward its goal, with a slow yaw drift. The drift is smaller while charting so
+    // the markers stay under the pointer.
     dampVec3(this.target, this.goalTarget, 3.2, dt);
-    const drift = this.phase === 'won' ? 0 : Math.sin(motion.ambientTime * 0.18) * 0.035;
+    const sway = this.phase === 'won' ? 0 : this.phase === 'plot' ? 0.012 : 0.035;
+    const drift = Math.sin(motion.ambientTime * 0.18) * sway;
     this.yaw = this.dampAngle(this.yaw, this.goalYaw + drift, dt);
     this.pitch = damp(this.pitch, this.goalPitch, 3.2, dt);
     this.dist = damp(this.dist, this.goalDist, 3.2, dt);
     const cam = this.w.camera;
     orbitPosition(this.target, { yaw: this.yaw, pitch: this.pitch, dist: this.dist }, cam.position);
     cam.lookAt(this.target);
+    cam.updateMatrixWorld();
 
     if (this.dirty) this.redraw();
-    this.drawLabels();
+    this.drawChart();
   }
 
   /** Eases yaw the short way round. */
@@ -380,11 +474,10 @@ export class InterceptGame {
     this.dirty = true;
   }
 
-  /** Kethra where it is now; the Wren at the buoy, nose on the chosen point. */
-  private placeChoice(): void {
-    this.w.kethra.position.copy(toV3(sim.kethraAt(0)));
-    const to = this.phase === 'locked' ? this.solution.at : this.chosen.at;
-    this.placeWren(sim.TRANSFER_START, sim.sub(to, sim.TRANSFER_START));
+  /** Kethra at its current position; the Wren at the buoy with its nose toward the handle. */
+  private placeCharting(): void {
+    this.w.kethra.position.copy(this.meetPoints[0]);
+    this.placeWren(sim.TRANSFER_START, sim.sub(this.end, sim.TRANSFER_START));
   }
 
   private placeRun(day: number): void {
@@ -400,110 +493,37 @@ export class InterceptGame {
     this.w.wren.rotateY(-Math.PI / 2);
   }
 
-  // ------------------------------------------------------------------ drawing
+  // ------------------------------------------------------------------ drawing: the 3D instrument
 
   private redraw(): void {
     this.dirty = false;
-    const lines = this.staticLines.clear();
+    const lines = this.lines.clear();
     const bodies = this.bodies.clear();
     const ticks = this.ticks.clear();
-    const halo = this.halo.clear();
     const course = this.course.clear();
-    this.tickLabels.length = 0;
 
-    // Drop lines to the ecliptic for the bodies: the orrery's height cue.
-    const wren = this.w.wren.position;
-    bodies.add(wren, INK_BRIGHT);
-    lines.add(wren, ground(wren), STEEL);
-    const kNow = this.w.kethra.position;
-    lines.add(kNow, ground(kNow), GROVE_DIM);
-
-    // ORION's hop, drawn as it's flown and then kept: two days, 8 Mkm apart.
-    if (!this.wave) course.add(toV3(sim.WREN_START, _a), toV3(this.phase === 'hop' ? sim.hopAt(this.hopDay) : sim.BUOY, _b), AMBER_DIM);
-    this.hopPoints.forEach((p, i) => {
-      if (this.phase === 'hop' && i + 1 > this.hopDay + 1e-6) return;
-      ticks.add(p, AMBER_DIM);
-      if (this.phase === 'hop') this.tickLabels.push({ at: p, text: String(i + 1), cls: 'wren' });
-    });
-
-    if (this.phase === 'plot' || this.phase === 'locked') this.drawChoice(lines, ticks, halo, course);
-    else if (this.phase === 'run') this.drawRun(lines, ticks, halo, course);
-    else if (this.wave) this.drawWave(bodies, course);
+    if (this.phase === 'hop') {
+      // The hop, drawn up to the current day: two ticks, 8 Mkm apart.
+      const wren = this.w.wren.position;
+      bodies.add(wren, INK_BRIGHT);
+      lines.add(wren, ground(wren), STEEL);
+      course.add(toV3(sim.WREN_START, _a), toV3(sim.hopAt(this.hopDay), _b), AMBER_DIM);
+      this.hopPoints.forEach((p, i) => {
+        if (i + 1 <= this.hopDay + 1e-6) ticks.add(p, AMBER);
+      });
+    } else if (this.phase === 'plot' || this.phase === 'run') {
+      // Keep the hop's line, dimmed, while charting and flying.
+      course.add(toV3(sim.WREN_START, _a), this.origin, AMBER_DIM);
+    } else if (this.wave) this.drawWave(bodies, course);
 
     lines.commit();
     bodies.commit();
     ticks.commit();
-    halo.commit();
     course.commit();
   }
 
-  private drawChoice(lines: Lines, ticks: Dots, halo: Dots, course: Lines): void {
-    const locked = this.phase === 'locked';
-    const time = motion.gameTime;
-    const chosen = this.chosen;
-    const matched = locked || sim.matches(chosen);
-
-    // Kethra's next ten days: its path brightened, a tick per day, each dropped to the grid.
-    for (let i = 1; i < this.arcPoints.length; i++) lines.add(this.arcPoints[i - 1], this.arcPoints[i], GROVE_DIM);
-    const pulse = 0.55 + 0.45 * Math.sin(time * 5);
-    for (const m of this.meetings) {
-      const p = this.meetPoints[m.day];
-      const isChosen = m.day === this.meet;
-      const hint = this.hinted && m.day === this.solutionDay && !isChosen;
-      lines.add(p, ground(p), GROVE_FAINT);
-      if (m.day === 0) continue;
-      ticks.add(p, isChosen ? (matched ? MATCH : INK_BRIGHT) : hint ? _c.setHex(INK.grove).multiplyScalar(0.6 + 0.9 * pulse) : GROVE);
-      if (isChosen) continue;
-      this.tickLabels.push({ at: p, text: String(m.day), cls: `kethra${isChosen ? ' chosen' : ''}${isChosen && matched ? ' match' : ''}${hint ? ' hint' : ''}` });
-    }
-
-    // The course: from the buoy to the chosen point, one amber tick per day of flight.
-    const from = toV3(sim.TRANSFER_START, _a);
-    const to = locked ? toV3(this.solution.at, _end) : this.meetPoints[this.meet];
-    const breathe = locked ? 1 : 0.8 + 0.2 * Math.sin(time * 3);
-    course.add(from, to, _c.copy(matched ? MATCH : AMBER).multiplyScalar(breathe));
-    const dir = _b.copy(to).sub(from).normalize();
-    const flight = locked ? this.solution.days : chosen.wrenDays;
-    const days = Math.min(this.coursePoints.length, Math.floor(flight + 1e-6));
-    for (let d = 1; d <= days; d++) {
-      const p = this.coursePoints[d - 1].copy(from).addScaledVector(dir, sim.SPEED * d);
-      ticks.add(p, matched ? MATCH : AMBER);
-      lines.add(p, ground(p), AMBER_FAINT);
-      this.tickLabels.push({ at: p, text: String(d), cls: `wren${matched ? ' match' : ''}` });
-    }
-
-    // The chosen point, ringed: amber while the days disagree, green once they meet.
-    const flash = this.flashAt >= 0 && time - this.flashAt < 0.4;
-    halo.add(to, matched ? MATCH : flash ? WARN : _c.setHex(INK.amber).multiplyScalar(0.55 + 0.25 * Math.sin(time * 4)));
-    const w = chosen.wrenDays.toFixed(1);
-    const note = matched
-      ? t('mg1.note.match', { day: String(this.solutionDay) })
-      : this.meet === 0
-        ? t('mg1.note.now', { w })
-        : t('mg1.note.day', { day: String(this.meet), w });
-    this.tickLabels.push({ at: this.meetPoints[this.meet], text: note, cls: `note chosen-note ${matched ? 'match' : 'warn'}` });
-  }
-
-  private drawRun(lines: Lines, ticks: Dots, halo: Dots, course: Lines): void {
-    // Both count the same days: the Wren's ticks fill in behind it, Kethra's ahead of it go by.
-    const day = Math.floor(this.runDay + 1e-6);
-    for (const m of this.meetings) {
-      if (m.day === 0 || m.day > this.solutionDay) continue;
-      const p = this.meetPoints[m.day];
-      ticks.add(p, m.day <= day ? GROVE_DIM : GROVE);
-      lines.add(p, ground(p), GROVE_FAINT);
-      if (m.day > day) this.tickLabels.push({ at: p, text: String(m.day), cls: `kethra${m.day === this.solutionDay ? ' match' : ''}` });
-    }
-    const from = toV3(sim.TRANSFER_START, _a);
-    const to = toV3(this.solution.at, _end);
-    course.add(from, to, MATCH);
-    halo.add(to, _c.copy(MATCH).multiplyScalar(0.6 + 0.4 * Math.sin(motion.gameTime * 6)));
-    const dir = _b.copy(to).sub(from).normalize();
-    for (let d = 1; d <= day; d++) ticks.add(_c3.copy(from).addScaledVector(dir, sim.SPEED * d), MATCH);
-  }
-
   private drawWave(bodies: Dots, course: Lines): void {
-    // The win: the course draws itself outward from the Wren in amber, a bright head leading.
+    // The course drawn from the Wren out to fraction wave.k of its length, with a bright dot at the head.
     const wave = this.wave!;
     const pts = wave.course;
     const total = pts.slice(1).reduce((s, p, i) => s + p.distanceTo(pts[i]), 0);
@@ -517,18 +537,125 @@ export class InterceptGame {
     }
   }
 
-  private tickLabels: { at: THREE.Vector3; text: string; cls: string }[] = [];
+  // ------------------------------------------------------------------ drawing: the chart
 
-  private drawLabels(): void {
-    const cam = this.w.camera;
-    const L = this.labels;
-    L.begin();
-    for (const l of this.tickLabels) L.add(l.at, l.text, l.cls, cam);
-    // Kethra-now's chip already names it; at the win the two bodies share a point, and Kethra's name wins.
-    const choosingNow = (this.phase === 'plot' || this.phase === 'locked') && this.meet === 0;
-    if (!choosingNow) L.add(this.w.kethra.position, t('mg1.label.kethra'), 'body kethra', cam);
-    if (this.phase !== 'won') L.add(this.w.wren.position, this.phase === 'run' ? t('mg1.label.day', { day: String(Math.max(1, Math.ceil(this.runDay))) }) : t('mg1.label.wren'), 'body wren', cam);
-    L.end();
+  private drawChart(): void {
+    const o = this.overlay;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    // Read before this frame writes anything, so it costs no extra layout.
+    const plateLeft = this.phase === 'plot' ? this.panel.getBoundingClientRect().left : W;
+    o.begin(W, H);
+    if (this.phase !== 'plot' && this.phase !== 'run') {
+      o.end();
+      return;
+    }
+    const run = this.phase === 'run';
+    // The course's start (the buoy); marker numbers go on the side of the path away from it.
+    const from = this.screen(this.origin, _s2);
+
+    // Kethra's path ahead, with chevrons showing its direction of travel.
+    const path: Pt[] = this.pathPoints.map((p) => this.screen(p, { x: 0, y: 0 }));
+    o.kethraPath(path, [2.5 / PATH_DAYS, 7.5 / PATH_DAYS, 1]);
+
+    // Day markers, numbered on the far side of the path so the numbers never overlap the course.
+    const runDay = Math.floor(this.runDay + 1e-6);
+    const pulse = this.pulsing && !this.ready && !run;
+    for (const m of this.meetings) {
+      const p = path[m.day * 4];
+      const out = this.outward(m.day, path, from);
+      const plugged = !run && this.socket === m.day;
+      let state: SocketState = 'idle';
+      if (run) state = m.day === this.solutionDay ? 'target' : m.day <= runDay ? 'passed' : 'idle';
+      else if (plugged) state = this.ready ? 'good' : 'bad';
+      else if (this.dragging && this.hover === m.day) state = 'near';
+      const hint = pulse && m.day === this.solutionDay;
+      o.socket(m.day, p, state, { big: m.day === 0, hint });
+      if (run && m.day === 0) continue;
+      if (plugged) {
+        const text = m.day === 0 ? t('mg1.chip.kethraNow') : t('mg1.chip.kethra', { day: String(m.day) });
+        o.chip({ x: p.x + out.x * 50, y: p.y + out.y * 50 }, `${this.ready ? '✓' : '✕'} ${text}`, this.ready ? 'good' : 'bad', 'center', 'big');
+      } else if (m.day === 0) {
+        o.chip({ x: p.x + out.x * 36, y: p.y + out.y * 36 }, t('mg1.chip.now'), 'kethra', 'center');
+      } else {
+        o.chip({ x: p.x + out.x * 22, y: p.y + out.y * 22 }, String(m.day), run && m.day === this.solutionDay ? 'good' : 'kethra', 'center', `num${hint ? ' hint' : ''}${state === 'passed' ? ' passed' : ''}`);
+      }
+    }
+
+    if (run) {
+      // During the run: the course in green, a day counter on the Wren, and Kethra's label following it.
+      const to = this.screen(this.meetPoints[this.solutionDay], _s1);
+      o.courseLine(from, to, 'good', this.courseDots(from, to, sim.arrivalDays(this.meetPoints[this.solutionDay]), Math.floor(this.runDay)));
+      const wren = this.screen(this.w.wren.position, _s0);
+      o.chip({ x: wren.x - 16, y: wren.y }, t('mg1.label.day', { day: String(Math.max(1, Math.ceil(this.runDay))) }), 'you', 'left', 'big');
+      const k = this.screen(this.w.kethra.position, _s3);
+      o.chip({ x: k.x, y: k.y + 30 }, t('mg1.label.kethra'), 'kethra', 'center');
+      o.end();
+      return;
+    }
+
+    // The course from the Wren to the handle, with a dot per day of flight.
+    const h = this.screen(this.end, _s1);
+    const good = this.ready;
+    o.courseLine(from, h, good ? 'good' : 'you', this.courseDots(from, h, sim.arrivalDays(this.end)));
+    o.handleAt(h, good ? 'good' : this.dragging || this.assisting ? 'drag' : this.touched ? 'set' : 'idle');
+    o.chip({ x: from.x - 16, y: from.y }, t('mg1.label.wren'), 'plain', 'left');
+
+    // The handle's chip sits beside it, square to the course on the downward side, and is shifted
+    // left so it never runs under the plate.
+    const side = this.chipSide(h, from);
+    const at = { x: h.x + side.x * 30, y: h.y + side.y * 30 };
+    const text = this.touched ? `${good ? '✓ ' : ''}${t('mg1.chip.wren', { day: String(this.arrival) })}` : t('mg1.chip.drag');
+    const anchor = side.x >= 0 ? 'right' : 'left';
+    if (anchor === 'right') at.x = Math.min(at.x, plateLeft - 12 - text.length * 8.6 - 20);
+    o.chip(at, text, this.touched ? (good ? 'good' : 'you') : 'you', anchor, this.touched ? 'big' : 'cta');
+    o.end();
+  }
+
+  /** Dots along the course, one per whole day of flight (up to `upTo` days, if given). */
+  private courseDots(from: Pt, to: Pt, days: number, upTo = Infinity): Pt[] {
+    const out: Pt[] = [];
+    const n = Math.min(Math.floor(days + 1e-6), upTo, 11);
+    for (let d = 1; d <= n; d++) {
+      const k = d / days;
+      if (k >= 0.97) break;
+      out.push({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k });
+    }
+    return out;
+  }
+
+  /** The screen direction off Kethra's path at a marker, away from the Wren. */
+  private outward(day: number, path: Pt[], wren: Pt): Pt {
+    const i = day * 4;
+    const a = path[Math.max(0, i - 1)];
+    const b = path[Math.min(path.length - 1, i + 1)];
+    let nx = -(b.y - a.y);
+    let ny = b.x - a.x;
+    const l = Math.hypot(nx, ny) || 1;
+    nx /= l;
+    ny /= l;
+    const p = path[i];
+    if (nx * (p.x - wren.x) + ny * (p.y - wren.y) < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    return { x: nx, y: ny };
+  }
+
+  /** Unit offset from the handle, perpendicular to the course and pointing down the screen. */
+  private chipSide(h: Pt, from: Pt): Pt {
+    let cx = from.x - h.x;
+    let cy = from.y - h.y;
+    const l = Math.hypot(cx, cy) || 1;
+    cx /= l;
+    cy /= l;
+    let px = -cy;
+    let py = cx;
+    if (py < 0) {
+      px = -px;
+      py = -py;
+    }
+    return { x: px, y: py };
   }
 
   // ------------------------------------------------------------------ input
@@ -542,25 +669,20 @@ export class InterceptGame {
     if (this.phase === 'plot') {
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
         e.preventDefault();
-        this.select(this.meet - 1);
+        this.step(-1);
         return;
       }
       if (e.code === 'ArrowRight' || e.code === 'KeyD') {
         e.preventDefault();
-        this.select(this.meet + 1);
+        this.step(1);
         return;
       }
     }
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
       // A Space still held from skipping the reveal must not launch or refuse anything.
-      if (e.repeat) return;
-      if (this.phase === 'locked') {
-        e.preventDefault();
-        this.launch();
-      } else if (this.phase === 'plot') {
-        e.preventDefault();
-        this.refuse();
-      }
+      if (e.repeat || this.phase !== 'plot') return;
+      e.preventDefault();
+      this.launch();
     }
   };
 
@@ -571,36 +693,89 @@ export class InterceptGame {
     else if (act === 'autoplot') this.autoPlot();
   };
 
-  private onPointerMove = (e: PointerEvent): void => {
-    if (this.phase === 'plot' && !this.blocked()) this.pick(e.clientX, e.clientY);
-  };
-
+  /** A press anywhere on the chart picks up the handle and moves it to the pointer (no precise grab needed). */
   private onPointerDown = (e: PointerEvent): void => {
-    if (this.blocked() || e.button !== 0) return;
-    if (this.phase === 'plot') this.pick(e.clientX, e.clientY);
-    else if (this.phase === 'locked') this.launch();
+    if (this.blocked() || e.button !== 0 || this.phase !== 'plot' || this.assisting) return;
+    this.dragging = true;
+    this.touched = true;
+    this.pointerId = e.pointerId;
+    try {
+      this.w.surface.setPointerCapture(e.pointerId);
+    } catch {
+      // Synthetic or already-released pointers can't be captured; window listeners still follow.
+    }
+    this.setCursor('grabbing');
+    this.moveHandleTo(e.clientX, e.clientY);
+    this.hover = this.socket;
+    this.renderPanel();
   };
 
-  /** Selects the tick nearest the pointer on screen: the selection follows the mouse, no clicking. */
-  private pick(x: number, y: number): void {
-    let best = this.meet;
-    let bestD = Infinity;
+  private onPointerMove = (e: PointerEvent): void => {
+    if (this.phase !== 'plot' || this.blocked()) return;
+    if (this.dragging) {
+      this.moveHandleTo(e.clientX, e.clientY);
+      this.hover = this.nearestSocket(e.clientX, e.clientY, this.snapRadius());
+      return;
+    }
+    if (e.target !== this.w.surface) return;
+    // Grab cursor where a press would pick up the handle.
+    const h = this.screen(this.end, _s1);
+    const onHandle = Math.hypot(h.x - e.clientX, h.y - e.clientY) < 34;
+    const onPath = this.nearestSocket(e.clientX, e.clientY, this.snapRadius()) !== null;
+    this.setCursor(onHandle || onPath ? 'grab' : 'crosshair');
+  };
+
+  private onPointerUp = (e: PointerEvent): void => {
+    if (!this.dragging || (this.pointerId >= 0 && e.pointerId !== this.pointerId)) return;
+    this.dragging = false;
+    this.hover = null;
+    this.pointerId = -1;
+    this.setCursor('grab');
+    if (this.ready) {
+      this.say('mg1.ready.orion');
+      this.focusLaunch();
+    }
+    this.renderPanel();
+  };
+
+  private setCursor(cursor: string): void {
+    if (this.w.surface.style.cursor !== cursor) this.w.surface.style.cursor = cursor;
+  }
+
+  /** Snap radius in px. Markers are ~45 px apart at 1366 wide, so anywhere near the path snaps to one. */
+  private snapRadius(): number {
+    return Math.max(44, Math.min(window.innerWidth, window.innerHeight * 1.8) * 0.045);
+  }
+
+  private nearestSocket(x: number, y: number, radius: number): number | null {
+    let best: number | null = null;
+    let bestD = radius;
     for (const m of this.meetings) {
-      const s = this.toClient(m.at);
-      if (!s) continue;
-      const d = Math.hypot(s.x - x, s.y - y);
+      const s = this.screen(this.meetPoints[m.day], _s3);
+      // Day 0's ring (around Kethra) is bigger, so it snaps from further away.
+      const d = Math.hypot(s.x - x, s.y - y) - (m.day === 0 ? 10 : 0);
       if (d < bestD) {
         bestD = d;
         best = m.day;
       }
     }
-    this.select(best);
+    return best;
   }
 
-  private toClient(p: sim.Vec): { x: number; y: number } | null {
-    const v = _a.set(p.x, p.y, p.z).project(this.w.camera);
-    if (v.z > 1 || v.z < -1) return null;
-    return { x: ((v.x + 1) / 2) * window.innerWidth, y: ((1 - v.y) / 2) * window.innerHeight };
+  private readonly ray = new THREE.Raycaster();
+  private readonly ndc = new THREE.Vector2();
+
+  private pointOnPlane(x: number, y: number): THREE.Vector3 | null {
+    this.ndc.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
+    this.ray.setFromCamera(this.ndc, this.w.camera);
+    return this.ray.ray.intersectPlane(this.plane, new THREE.Vector3());
+  }
+
+  private screen(p: THREE.Vector3, out: Pt): Pt {
+    const v = _a.copy(p).project(this.w.camera);
+    out.x = ((v.x + 1) / 2) * window.innerWidth;
+    out.y = ((1 - v.y) / 2) * window.innerHeight;
+    return out;
   }
 
   // ------------------------------------------------------------------ the plate
@@ -609,42 +784,59 @@ export class InterceptGame {
     if (this.phase === 'won') return;
     const head = `<div class="eyebrow">${t('mg1.eyebrow')}</div><h3>${t('mg1.title')}</h3>`;
     if (this.phase === 'hop') {
-      this.panel.innerHTML = `${head}<p>${t('mg1.hop.how')}</p>`;
+      this.setPanel('hop', `${head}<p>${t('mg1.hop.how')}</p>`);
       return;
     }
     if (this.phase === 'run') {
       const day = Math.max(1, Math.ceil(this.runDay));
-      this.panel.innerHTML = `${head}<div class="intercept-status match">${t('mg1.status.run', { day: String(day), days: String(Math.round(this.solution.days)) })}</div>`;
+      this.setPanel(`run${day}`, `${head}<div class="intercept-status match">${t('mg1.status.run', { day: String(day), days: String(Math.round(this.solution.days)) })}</div>`);
       return;
     }
-    const locked = this.phase === 'locked';
-    const m = locked ? { ...this.meetings[this.solutionDay], wrenDays: this.solution.days } : this.chosen;
-    const matched = locked || sim.matches(m);
-    const w = m.wrenDays.toFixed(1);
-    const status: [StringKey, string] = matched
-      ? ['mg1.status.match', 'match']
-      : m.day === 0
-        ? ['mg1.status.now', 'late']
-        : m.wrenDays > m.day
-          ? ['mg1.status.late', 'late']
-          : ['mg1.status.early', 'early'];
-    const nudge = matched ? '' : status[1] === 'late' ? `<span class="keycap">→</span> ${t('mg1.nudge.later')}` : `<span class="keycap">←</span> ${t('mg1.nudge.sooner')}`;
-    const flash = this.flashAt >= 0 && motion.gameTime - this.flashAt < 0.5 ? ' flash' : '';
-    const action = locked
-      ? `<button type="button" class="intercept-launch" data-act="launch"><span class="keycap">Space</span>${t('mg1.key.launch')}</button>`
-      : `<div class="intercept-keys"><span><span class="keycap">${t('mg1.key.mouse')}</span> ${t('mg1.key.or')} <span class="keycap">←</span><span class="keycap">→</span> ${t('mg1.key.choose')}</span><span><span class="keycap">Space</span> ${t('mg1.key.launch')}</span></div>`;
-    const auto = !locked && this.autoOffered ? `<button type="button" class="intercept-auto" data-act="autoplot">${t('mg1.autoplot')}</button>` : '';
-    const stat = this.w.stats.insight >= 2 && !locked ? `<ul class="intercept-stats"><li>${t('mg1.stat.insight')}</li></ul>` : '';
-    this.panel.innerHTML = `${head}
-      <p>${t('mg1.how')}</p>
-      <div class="intercept-readouts${matched ? ' matched' : ''}">
-        <div><span class="label">${t('mg1.readout.distance')}</span><span class="num">${Math.round(m.distance)} Mkm</span></div>
-        <div><span class="label">${t('mg1.readout.speed')}</span><span class="num">${sim.SPEED} Mkm/day</span></div>
-        <div class="wren"><span class="label">${t('mg1.readout.wren')}</span><span class="num">${w} ${t('mg1.readout.days')}</span></div>
-        <div class="kethra"><span class="label">${t('mg1.readout.kethra')}</span><span class="num">${m.day === 0 ? t('mg1.readout.now') : `${t('mg1.readout.day')} ${m.day}`}</span></div>
-      </div>
-      <div class="intercept-status ${status[1]}${flash}">${t(status[0], { day: String(m.day), w })}${nudge ? `<span class="intercept-nudge">${nudge}</span>` : ''}</div>
-      ${stat}${action}${auto}`;
+
+    const plugged = this.socket !== null;
+    const ready = this.ready;
+    const m = plugged ? this.meetings[this.socket!] : null;
+    const we = this.arrival;
+    const pathRow = plugged ? 'ok' : 'bad';
+    const dayRow = ready ? 'ok' : plugged ? 'bad' : 'todo';
+    let detail = t('mg1.check.day.todo');
+    if (m && ready) detail = t('mg1.check.day.ok', { day: String(m.day) });
+    else if (m && m.day === 0) detail = t('mg1.check.day.now', { we: String(we) });
+    else if (m && we > m.day) detail = t('mg1.check.day.late', { we: String(we), day: String(m.day) });
+    else if (m) detail = t('mg1.check.day.early', { we: String(we), day: String(m.day) });
+    const nudge = m && !ready ? (m.day === 0 || we > m.day ? `<span class="charter-nudge">${t('mg1.nudge.later')} <span class="keycap">→</span></span>` : `<span class="charter-nudge"><span class="keycap">←</span> ${t('mg1.nudge.sooner')}</span>`) : '';
+    const flash = (row: 'path' | 'day') => (this.flash === row ? ' flash' : '');
+    const mark = (s: string) => `<i class="mark" aria-hidden="true">${s === 'ok' ? '✓' : s === 'bad' ? '✕' : '·'}</i>`;
+    const stat = this.w.stats.insight >= 2 && !ready ? `<ul class="intercept-stats"><li>${t('mg1.stat.insight')}</li></ul>` : '';
+    const auto = !ready && this.autoOffered ? `<button type="button" class="intercept-auto" data-act="autoplot">${t('mg1.autoplot')}</button>` : '';
+    const key = `plot|${this.socket}|${ready}|${this.touched}|${this.flash}|${this.autoOffered}|${we}`;
+    this.setPanel(
+      key,
+      `${head}
+      <p class="charter-how">${t('mg1.how')}</p>
+      <ul class="charter-legend" aria-label="${t('mg1.legend.label')}">
+        <li><i class="lg-knob" aria-hidden="true"></i>${t('mg1.legend.you')}</li>
+        <li><i class="lg-ring" aria-hidden="true"></i>${t('mg1.legend.kethra')}</li>
+        <li><i class="lg-ok" aria-hidden="true">✓</i>${t('mg1.legend.ok')}</li>
+      </ul>
+      <ol class="charter-checks">
+        <li class="${pathRow}${flash('path')}" data-check="path">${mark(pathRow)}<span>${t('mg1.check.path')}<small>${plugged ? t('mg1.check.path.ok') : t('mg1.check.path.todo')}</small></span></li>
+        <li class="${dayRow}${flash('day')}" data-check="day">${mark(dayRow)}<span>${t('mg1.check.day')}<small>${detail}</small>${nudge}</span></li>
+      </ol>
+      ${stat}
+      <button type="button" class="charter-launch${ready ? ' ready' : ''}" data-act="launch" aria-disabled="${ready ? 'false' : 'true'}"><span class="keycap">Space</span>${ready ? t('mg1.key.launch') : t('mg1.key.launchWait')}</button>
+      <div class="intercept-keys"><span><span class="keycap">${t('mg1.key.mouse')}</span> ${t('mg1.key.drag')}</span><span>${t('mg1.key.or')} <span class="keycap">←</span><span class="keycap">→</span> ${t('mg1.key.step')}</span></div>
+      ${auto}`,
+    );
+  }
+
+  /** Rewrites the plate only when what it says has changed, so a focused button keeps its focus. */
+  private setPanel(key: string, html: string): void {
+    if (key === this.panelKey) return;
+    const focused = document.activeElement instanceof HTMLElement && this.panel.contains(document.activeElement) ? document.activeElement.dataset.act : undefined;
+    this.panelKey = key;
+    this.panel.innerHTML = html;
+    if (focused) this.panel.querySelector<HTMLElement>(`[data-act="${focused}"]`)?.focus({ preventScroll: true });
   }
 
   private say(key: StringKey): void {
@@ -657,42 +849,45 @@ export class InterceptGame {
   private debugWin(): void {
     if (this.phase === 'won') return;
     this.hop?.cancel();
-    this.meet = this.solutionDay;
+    this.socket = this.solutionDay;
     this.win();
   }
 
-  /** F3: try to launch on Kethra-now. */
+  /** F3: plug into Kethra-now and try to launch. */
   private debugFail(): void {
     if (this.phase !== 'plot') return;
-    this.select(0);
-    this.refuse();
+    this.connect(0);
+    this.launch();
   }
 
-  /** What the tests in tools/ read. */
+  /** What the tests in tools/ read. Screen positions are CSS pixels, as the pointer sees them. */
   state(): {
     phase: Phase;
-    meet: number;
-    wrenDays: number;
-    matched: boolean;
+    socket: number | null;
+    ready: boolean;
+    touched: boolean;
+    arrival: number;
     solutionDay: number;
     hinted: boolean;
+    pulsing: boolean;
     autoOffered: boolean;
-    ticks: { day: number; x: number; y: number }[];
+    handle: Pt;
+    wren: Pt;
+    sockets: { day: number; x: number; y: number }[];
   } {
-    const ticks: { day: number; x: number; y: number }[] = [];
-    for (const m of this.meetings) {
-      const s = this.toClient(m.at);
-      if (s) ticks.push({ day: m.day, x: s.x, y: s.y });
-    }
     return {
       phase: this.phase,
-      meet: this.meet,
-      wrenDays: this.chosen.wrenDays,
-      matched: this.phase === 'locked' || sim.matches(this.chosen),
+      socket: this.socket,
+      ready: this.ready,
+      touched: this.touched,
+      arrival: this.arrival,
       solutionDay: this.solutionDay,
       hinted: this.hinted,
+      pulsing: this.pulsing,
       autoOffered: this.autoOffered,
-      ticks,
+      handle: this.screen(this.end, { x: 0, y: 0 }),
+      wren: this.screen(this.origin, { x: 0, y: 0 }),
+      sockets: this.meetings.map((m) => ({ day: m.day, ...this.screen(this.meetPoints[m.day], { x: 0, y: 0 }) })),
     };
   }
 
@@ -700,9 +895,15 @@ export class InterceptGame {
     this.unregister();
     this.fx.dispose();
     window.removeEventListener('keydown', this.onKeyDown);
-    this.w.surface.removeEventListener('pointermove', this.onPointerMove);
     this.w.surface.removeEventListener('pointerdown', this.onPointerDown);
-    this.labels.dispose();
+    window.removeEventListener('pointermove', this.onPointerMove);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onPointerUp);
+    this.setCursor('');
+    InputManager.captureAllowed = true;
+    this.w.surface.style.touchAction = this.touchAction;
+    if (this.w.kethraOrbit) this.w.kethraOrbit.visible = true;
+    this.overlay.dispose();
     this.panel.remove();
     this.instrument.removeFromParent();
     this.instrument.traverse((o) => {
@@ -716,11 +917,12 @@ export class InterceptGame {
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
-const _c3 = new THREE.Vector3();
-const _end = new THREE.Vector3();
 const _g = new THREE.Vector3();
 const _look = new THREE.Vector3();
-const _c = new THREE.Color();
+const _s0: Pt = { x: 0, y: 0 };
+const _s1: Pt = { x: 0, y: 0 };
+const _s2: Pt = { x: 0, y: 0 };
+const _s3: Pt = { x: 0, y: 0 };
 
 /** The point straight below `p` on the ecliptic grid. A scratch vector: Lines and Dots copy it. */
 function ground(p: THREE.Vector3): THREE.Vector3 {

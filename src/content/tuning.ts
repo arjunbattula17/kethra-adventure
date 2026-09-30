@@ -38,18 +38,18 @@ export const PLAYER = {
 } as const;
 
 /**
- * MG1 Intercept's pacing (src/galaxy/intercept/InterceptGame.ts), in seconds of game time. The whole
- * plot is meant to take a first-time player 10–20 s: one choice, one launch.
+ * Intercept minigame pacing (src/galaxy/intercept/InterceptGame.ts), in seconds of game time. Target:
+ * 15-30 s for a first-time player.
  */
 export const MG1 = {
   /** ORION's automatic hop out of the debris to the buoy, while the camera pulls out. */
   HOP_SECONDS: 1.8,
-  /** How long the matching day has to stay selected before the course locks (a sweep past doesn't). */
-  LOCK_DWELL: 0.3,
-  /** Unlocked this long: ORION hints, and the meeting day pulses. */
-  HINT_AFTER: 7,
-  /** Unlocked this long: "Let ORION plot it" appears, so nobody can get stuck. */
-  AUTOPLOT_AFTER: 15,
+  /** Seconds without a correct course before ORION's hint. */
+  HINT_AFTER: 9,
+  /** ...before the matching marker pulses. */
+  PULSE_AFTER: 16,
+  /** ...before "Let ORION connect it" appears. The player still has to launch. */
+  AUTOPLOT_AFTER: 24,
   /** The six-day voyage, fast-forwarded. */
   RUN_SECONDS: 2.8,
   /** The win's course and count-up hold before the Wren takes over. */

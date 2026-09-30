@@ -1,8 +1,8 @@
-// MG1 Intercept, played through with real input (docs/DESIGN.md §4, slot 1, as redesigned): ORION
-// hops the Wren to the buoy on its own, the player picks where to meet Kethra (← → or the mouse),
-// the matching day locks, Space launches, and the win hands the course to the Wren. Also: Space
-// before the days match is refused, ORION's help arrives if the player stalls, insight 2 marks the
-// meeting day, and the whole plot fits well inside the 30 s budget.
+// Browser test of the Intercept minigame (MG1) with real input: ORION flies the hop, then the player
+// drags the course's handle onto Kethra's path (or steps it with ← →), fixes the day using the two
+// checks, and launches; the win returns to the Wren with the course saved. Also covers: Launch
+// refused until both checks pass, no pointer lock on click (so repeated drags work), the timed hints
+// and "Let ORION connect it" (which never launches for the player), insight 2, and the 30 s budget.
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
 //   node tools/test-mg1-flow.mjs [baseUrl]
@@ -38,11 +38,24 @@ async function openPlot(before) {
 const stateOf = (page) => page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().intercept.state());
 const until = (page, fn, ms, arg) => page.waitForFunction(fn, arg, { timeout: ms, polling: 50 }).then(() => true, () => false);
 const phaseIs = (page, ph, ms = 20000) => until(page, (p) => window.__DEBUG__.engine.getCurrentScene().intercept?.state().phase === p, ms, ph);
-const status = (page) => page.evaluate(() => {
-  const el = document.querySelector('.intercept-status');
-  return { cls: el?.className ?? '', text: el?.textContent ?? '' };
+/** The plate's two checks, as { path, day } → { cls, text }, and the Launch button. */
+const plate = (page) => page.evaluate(() => {
+  const row = (k) => {
+    const el = document.querySelector(`.charter-checks [data-check="${k}"]`);
+    return { cls: el?.className ?? '', text: el?.textContent ?? '' };
+  };
+  const launch = document.querySelector('.charter-launch');
+  return { path: row('path'), day: row('day'), launch: { ready: launch?.classList.contains('ready') ?? false, text: launch?.textContent ?? '' } };
 });
-const readout = (page) => page.evaluate(() => [...document.querySelectorAll('.intercept-readouts .num')].map((n) => n.textContent.trim()));
+/** The chart's chips, as drawn on the next frame (the chart redraws every frame, not on input). */
+const chips = (page) => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))).then(() => page.evaluate(() => [...document.querySelectorAll('.chart-chip')].filter((c) => c.style.display !== 'none').map((c) => ({ text: c.textContent, cls: c.className }))));
+/** Drags with the left button from one screen point to another, in small steps like a hand would. */
+async function drag(page, from, to) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 10 });
+  await page.mouse.up();
+}
 
 // ---------------------------------------------------------------- the keyboard path, start to finish
 {
@@ -52,38 +65,51 @@ const readout = (page) => page.evaluate(() => [...document.querySelectorAll('.in
   });
   check('MG1 opens on ORION’s hop, with no input asked for', (await stateOf(page)).phase === 'hop');
   const hopStart = Date.now();
-  check('the hop hands over to the choice within a few seconds', await phaseIs(page, 'plot', 8000), `${Date.now() - hopStart} ms`);
+  check('the hop hands over to the charter within a few seconds', await phaseIs(page, 'plot', 8000), `${Date.now() - hopStart} ms`);
   const t0 = Date.now();
 
   let s = await stateOf(page);
-  check('the choice starts on Kethra where it is now, which does not match', s.meet === 0 && !s.matched && s.solutionDay === 6, JSON.stringify({ meet: s.meet, matched: s.matched }));
-  let st = await status(page);
-  check('the plate says why Kethra-now fails, and which way to go', /moved on/.test(st.text) && st.text.includes('→'), st.text);
+  check('the course starts short of Kethra’s path, unplugged', s.socket === null && !s.ready && !s.touched && s.solutionDay === 6, JSON.stringify({ socket: s.socket, ready: s.ready }));
+  let p = await plate(page);
+  check('neither check is green, and Launch says why', /bad/.test(p.path.cls) && /todo/.test(p.day.cls) && !p.launch.ready && /needs two/.test(p.launch.text), JSON.stringify(p));
+  let c = await chips(page);
+  check('the handle says “Drag me”', c.some((x) => /cta/.test(x.cls) && /Drag me/i.test(x.text)), JSON.stringify(c.map((x) => x.text)));
+  check('Kethra’s markers are numbered 1 to 10, plus “Kethra now”', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].every((d) => c.some((x) => /num/.test(x.cls) && x.text === String(d))) && c.some((x) => x.text === 'Kethra now'));
 
   await page.keyboard.press('Space');
   await page.waitForTimeout(100);
   s = await stateOf(page);
-  st = await status(page);
-  check('Space before the days match launches nothing', s.phase === 'plot' && st.cls.includes('flash'), st.cls);
-  check('…and brings ORION’s hint forward', s.hinted);
+  p = await plate(page);
+  check('Launch before connecting flies nothing, and flashes the missing check', s.phase === 'plot' && /flash/.test(p.path.cls), p.path.cls);
+  check('…and ORION says what to do', s.hinted && /blue markers/.test(await page.evaluate(() => document.getElementById('cinematic-caption')?.textContent ?? '')));
+
+  await page.keyboard.press('ArrowRight');
+  s = await stateOf(page);
+  p = await plate(page);
+  check('→ plugs the course into Kethra-now: on the path, wrong day', s.socket === 0 && /ok/.test(p.path.cls) && /bad/.test(p.day.cls), JSON.stringify({ socket: s.socket, path: p.path.cls, day: p.day.cls }));
+  check('the plate says Kethra will have moved on, and to try later', /moved on/.test(p.day.text) && /later/.test(p.day.text) && p.day.text.includes('→'), p.day.text);
+  c = await chips(page);
+  check('the marker and the handle both read out their day, in red and gold', c.some((x) => /bad/.test(x.cls) && /Kethra: now/.test(x.text)) && c.some((x) => /you/.test(x.cls) && /We arrive: day 5/.test(x.text)), JSON.stringify(c.filter((x) => /big/.test(x.cls)).map((x) => x.text)));
 
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
-  st = await status(page);
-  check('→ steps a day; day 3 is too late, and says to go later', (await stateOf(page)).meet === 3 && /Too late/.test(st.text) && st.text.includes('→'), st.text);
+  p = await plate(page);
+  check('day 3 is too late', (await stateOf(page)).socket === 3 && /Too late/.test(p.day.text) && /arrive day 5/.test(p.day.text), p.day.text);
   for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
-  st = await status(page);
-  check('day 9 is too early, and says to go sooner', (await stateOf(page)).meet === 9 && /Too early/.test(st.text) && st.text.includes('←'), st.text);
+  p = await plate(page);
+  check('day 9 is too early, and says to try earlier', (await stateOf(page)).socket === 9 && /Too early/.test(p.day.text) && p.day.text.includes('←'), p.day.text);
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
-  check('the choice stops at the last day offered', (await stateOf(page)).meet === 10);
+  check('the handle stops at the last day offered', (await stateOf(page)).socket === 10);
 
   for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowLeft');
-  check('day 6 matches, and holding it locks the course', await phaseIs(page, 'locked', 3000));
-  const figures = await readout(page);
-  check('the plate shows the six-day, 48 Mkm intercept', figures[0] === '48 Mkm' && figures[2] === '6.0 days' && figures[3] === 'day 6', JSON.stringify(figures));
-  check('Launch is up and focused', await page.evaluate(() => document.activeElement?.classList.contains('intercept-launch') === true));
+  s = await stateOf(page);
+  p = await plate(page);
+  check('day 6: both checks green, Launch ready', s.socket === 6 && s.ready && /ok/.test(p.path.cls) && /ok/.test(p.day.cls) && p.launch.ready && /Launch/.test(p.launch.text), JSON.stringify(p));
+  c = await chips(page);
+  check('the chart agrees in green: “Kethra: day 6”, “We arrive: day 6”', c.some((x) => /good/.test(x.cls) && /✓ Kethra: day 6/.test(x.text)) && c.some((x) => /good/.test(x.cls) && /✓ We arrive: day 6/.test(x.text)), JSON.stringify(c.filter((x) => /big/.test(x.cls)).map((x) => x.text)));
   await page.keyboard.press('ArrowLeft');
-  check('the lock latches: → ← no longer move it', (await stateOf(page)).meet === 6 && (await stateOf(page)).phase === 'locked');
+  check('nothing latches: the course can still be changed', (await stateOf(page)).socket === 5 && !(await stateOf(page)).ready);
+  await page.keyboard.press('ArrowRight');
 
   await page.keyboard.press('Space');
   check('Space launches the run', await phaseIs(page, 'run', 2000));
@@ -92,9 +118,11 @@ const readout = (page) => page.evaluate(() => [...document.querySelectorAll('.in
   await page.waitForTimeout(1200);
   const win = await page.evaluate(() => [...document.querySelectorAll('.intercept-win .num')].map((n) => n.textContent));
   check('the win counts up six days and four cells', JSON.stringify(win) === '["6","4"]', JSON.stringify(win));
-  check('choosing to winning takes well under 30 s', tWon < 20000, `${tWon} ms (scripted input)`);
+  check('charting to winning takes well under 30 s', tWon < 20000, `${tWon} ms (scripted input)`);
+  check('the chart layer is gone at the win', await page.evaluate(() => !document.querySelector('.chart-overlay')?.classList.contains('shown')));
 
   check('the Wren again, leaning over the chart', await until(page, () => window.__DEBUG__.engine.getCurrentScene()?.kind === 'ShipInteriorScene' && window.__DEBUG__.engine.getCurrentScene().player.pitch < -0.38, 60000));
+  check('the chart layer is removed with the scene', await page.evaluate(() => !document.querySelector('.chart-overlay') && !document.querySelector('.intercept-panel')));
   check('control returns once the player stands', await until(page, () => window.__DEBUG__.engine.getCurrentScene().player.enabled === true, 30000));
   // The console guide shows from its first frame with the player free to move.
   const lit = await until(page, () => {
@@ -136,30 +164,50 @@ const readout = (page) => page.evaluate(() => [...document.querySelectorAll('.in
   await page.close();
 }
 
-// ---------------------------------------------------------------- the mouse path: point, don't click
+// ---------------------------------------------------------------- the mouse path: drag, drop, fix, launch
 {
   const page = await openPlot();
   await phaseIs(page, 'plot', 10000);
-  // Let the camera settle on the plot's framing before reading the tick positions.
+  // Let the camera settle on the chart's framing before reading positions.
   await page.waitForTimeout(1500);
-  const six = (await stateOf(page)).ticks.find((t) => t.day === 6);
-  await page.mouse.move(six.x + 12, six.y + 8, { steps: 6 });
-  check('pointing near a tick selects it, no click needed', (await stateOf(page)).meet === 6);
-  check('…and pointing at the match locks the course', await phaseIs(page, 'locked', 3000));
-  await page.mouse.click(683, 500);
-  check('a click on the chart launches once locked', await phaseIs(page, 'run', 2000));
+  let s = await stateOf(page);
+  const at = (d) => s.sockets.find((t) => t.day === d);
+  await drag(page, s.handle, { x: at(0).x + 8, y: at(0).y + 6 });
+  s = await stateOf(page);
+  check('dragging the handle onto Kethra plugs it in, with a little slack', s.socket === 0 && s.touched, JSON.stringify({ socket: s.socket }));
+  check('a click never captures the mouse', await page.evaluate(() => !document.pointerLockElement));
+  await drag(page, s.handle, { x: at(3).x - 5, y: at(3).y - 7 });
+  s = await stateOf(page);
+  check('a second drag moves it along the path (day 3)', s.socket === 3, JSON.stringify({ socket: s.socket, handle: s.handle }));
+  const mid = { x: (at(3).x + s.wren.x) / 2 + 40, y: (at(3).y + s.wren.y) / 2 + 30 };
+  await drag(page, s.handle, mid);
+  s = await stateOf(page);
+  const p = await plate(page);
+  check('dropped in open space, it floats free: off the path again', s.socket === null && /bad/.test(p.path.cls) && Math.hypot(s.handle.x - mid.x, s.handle.y - mid.y) < 3, JSON.stringify({ socket: s.socket, handle: s.handle, mid }));
+  // No need to grab the handle exactly: pressing on a marker brings the course to it.
+  await page.mouse.click(at(6).x + 4, at(6).y - 4);
+  s = await stateOf(page);
+  check('pressing on a marker connects the course to it; day 6 is the one', s.socket === 6 && s.ready, JSON.stringify({ socket: s.socket, ready: s.ready }));
+  check('the cursor offers to grab over the chart', await page.evaluate(() => /grab/.test(window.__DEBUG__.engine.renderer.domElement.style.cursor)));
+  await page.click('.charter-launch');
+  check('clicking Launch flies it', await phaseIs(page, 'run', 2000));
   check('no page or console errors (mouse)', page.errors.length === 0, page.errors.slice(0, 3).join(' | '));
   await page.close();
 }
 
-// ---------------------------------------------------------------- nobody gets stuck
+// ---------------------------------------------------------------- nobody gets stuck, and nobody is played for
 {
   const page = await openPlot();
   await phaseIs(page, 'plot', 10000);
   check('a player who stalls gets ORION’s hint', await until(page, () => window.__DEBUG__.engine.getCurrentScene().intercept.state().hinted, 12000));
-  check('…then "Let ORION plot it"', await until(page, () => !!document.querySelector('.intercept-auto'), 15000));
+  check('…then the meeting day’s marker lights up', await until(page, () => window.__DEBUG__.engine.getCurrentScene().intercept.state().pulsing && !!document.querySelector('.chart-socket.hint'), 10000));
+  check('…then “Let ORION connect it”', await until(page, () => !!document.querySelector('.intercept-auto'), 12000));
   await page.click('.intercept-auto');
-  check('ORION plots it: the course locks for them', (await stateOf(page)).phase === 'locked');
+  check('ORION connects it: the course plugs into day 6', await until(page, () => window.__DEBUG__.engine.getCurrentScene().intercept.state().ready, 3000));
+  check('…but doesn’t launch: that’s still the player’s', (await stateOf(page)).phase === 'plot');
+  check('…and Launch has the focus', await page.evaluate(() => document.activeElement?.classList.contains('charter-launch') === true));
+  await page.keyboard.press('Enter');
+  check('Enter launches from there', await phaseIs(page, 'run', 2000));
   await page.close();
 }
 
@@ -167,8 +215,9 @@ const readout = (page) => page.evaluate(() => [...document.querySelectorAll('.in
 {
   const page = await openPlot(() => { window.__DEBUG__.gameState.data.attributes.insight = 2; });
   await phaseIs(page, 'plot', 10000);
+  await page.waitForTimeout(300);
   const s = await stateOf(page);
-  check('insight 2 marks the meeting day from the start', s.hinted, JSON.stringify({ hinted: s.hinted }));
+  check('insight 2 marks the meeting day from the start', s.pulsing && (await page.evaluate(() => !!document.querySelector('.chart-socket.hint'))), JSON.stringify({ pulsing: s.pulsing }));
   check('…and says so on the plate', await page.evaluate(() => /Insight 2/.test(document.querySelector('.intercept-stats')?.textContent ?? '')));
   await page.close();
 }

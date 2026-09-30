@@ -1,7 +1,7 @@
-// MG1 Intercept's model against its design (docs/DESIGN.md §4, slot 1, as redesigned): the chart
-// offers Kethra's next ten days, exactly one of them is a real intercept, and the choice the player
-// is most likely to try first (Kethra where it is now) visibly isn't. Loads the TypeScript module
-// straight into Node (type stripping, Node 23.6+); no browser.
+// Unit test of the Intercept model (src/galaxy/intercept/sim.ts): the chart offers Kethra's next ten
+// days as markers, exactly one is a real intercept, the whole-day numbers the chart compares agree
+// only there, and the likely first try (Kethra's current position) misses. Loads the TypeScript
+// module straight into Node (type stripping, Node 23.6+); no browser.
 //
 //   node tools/test-intercept-sim.mjs
 import * as s from '../src/galaxy/intercept/sim.ts';
@@ -45,6 +45,19 @@ check('the chart offers Kethra now plus ten days', all.length === s.MAX_MEET_DAY
   // Later ticks are always further along the orbit than the Wren can make up: early and late are
   // on either side of the match, so the plate's "sooner" and "later" nudges always point the right way.
   check('before the match the Wren is late, after it early', all.every((x) => x.day === m.day || (x.day < m.day ? x.wrenDays > x.day : x.wrenDays < x.day)));
+}
+
+// The chart's two numbers: our arrival day (whole days, d = v·t) and Kethra's day at the marker.
+{
+  const agree = all.filter((m) => s.arrivalDay(m.wrenDays) === m.day).map((m) => m.day);
+  check('the chart’s whole-day numbers agree only on the match', agree.length === 1 && agree[0] === 6, agree.join(','));
+  const ours = [...new Set(all.map((m) => s.arrivalDay(m.wrenDays)))];
+  check('our arrival day barely moves along the path (5 to 7)', Math.min(...ours) >= 5 && Math.max(...ours) <= 7, ours.join(','));
+  const n = s.orbitNormal(s.KETHRA);
+  const off = Math.max(...all.map((m) => Math.abs(m.at.x * n.x + m.at.y * n.y + m.at.z * n.z)));
+  check('every marker lies on Kethra’s orbital plane, where the free handle slides', off < 1e-9 && Math.abs(Math.hypot(n.x, n.y, n.z) - 1) < 1e-9, off.toExponential(1));
+  check('every marker is within the handle’s reach', all.every((m) => m.distance > s.MIN_REACH && m.distance < s.MAX_REACH));
+  check('arrivalDays is distance over cruise speed', Math.abs(s.arrivalDays(all[6].at) - all[6].distance / s.SPEED) < 1e-12);
 }
 
 // The committed course really arrives.

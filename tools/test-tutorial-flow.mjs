@@ -217,13 +217,16 @@ const leftovers = await page.evaluate(() => {
 check('tutorial cleans itself up at the handover', !Object.values(leftovers).some(Boolean), JSON.stringify(leftovers));
 
 // 8. The reveal is MG1's opening: its camera move ends on the navigation plot
-//    and MG1 Intercept begins in the same scene: ORION's hop, then one choice (where to meet
-//    Kethra). tools/test-intercept-sim.mjs proves the answer, tools/test-mg1-flow.mjs plays it through.
+//    and MG1 Intercept begins in the same scene: ORION's hop, then the charter (connect the course to
+//    Kethra's path on the right day). tools/test-intercept-sim.mjs proves the answer,
+//    tools/test-mg1-flow.mjs plays it through.
 check('the reveal hands over to MG1 in the same scene', await until(async () => await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.intercept?.state().phase === 'plot'), 180000));
 await shot('10_mg1_choice');
 const mg1 = () => page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().intercept.state());
 await page.keyboard.press('ArrowRight');
-check('→ moves the meeting point a day later', (await mg1()).meet === 1);
+check('→ plugs the course into Kethra’s path', (await mg1()).socket === 0);
+await page.keyboard.press('ArrowRight');
+check('→ again steps it a day later', (await mg1()).socket === 1);
 await page.keyboard.press('Space');
 check('Space before the days match launches nothing', (await mg1()).phase === 'plot');
 await shot('11a_mg1_refused');
