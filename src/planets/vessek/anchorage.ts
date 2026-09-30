@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mulberry32 } from '../../core/rng';
 import { buildShipHull } from '../../galaxy/shipHull';
+import type { ShipHull } from '../../galaxy/shipHull';
 import { getPointSprite } from '../../galaxy/spaceDressing';
+import type { Pacer } from '../../core/prepare';
 
 export const LAMP_COLORS = [0xffd8a8, 0xd6e6ff, 0xffbe7a, 0xeef2ff, 0xffe2b8];
 
@@ -64,7 +66,11 @@ function berthAt(phi: number): THREE.Matrix4 {
   return new THREE.Matrix4().makeTranslation(CENTER.x, CENTER.y, CENTER.z).multiply(turn).multiply(new THREE.Matrix4().makeTranslation(-CENTER.x, -CENTER.y, -CENTER.z));
 }
 
-export async function buildAnchorage(): Promise<Anchorage> {
+/**
+ * With a pacer, the build lets frames through between hulls and between merges: the cruise builds this
+ * while the Wren is still on screen, and in one piece it was a 0.4-0.7 s freeze on an Intel UHD laptop.
+ */
+export async function buildAnchorage(pacer?: Pacer): Promise<Anchorage> {
   const rand = mulberry32(0xa4c7);
   const group = new THREE.Group();
   group.name = 'vessek-anchorage';
@@ -78,10 +84,14 @@ export async function buildAnchorage(): Promise<Anchorage> {
 
   // The moored hulls: a few ship variants, each placed several times with a jittered scale and set,
   // then merged by material with the Lantern Bay's.
-  const hulls = await Promise.all(Array.from({ length: VARIANTS + 1 }, (_, i) => buildShipHull({ variant: i + 1 })));
+  const hulls: ShipHull[] = [];
+  for (let i = 0; i <= VARIANTS; i++) {
+    hulls.push(await buildShipHull({ variant: i + 1 }));
+    await pacer?.tick();
+  }
   const byMaterial = new Map<string, { mat: THREE.MeshStandardMaterial; geos: THREE.BufferGeometry[] }>();
   const lamps: { at: THREE.Vector3; color: number; steady?: boolean }[] = [];
-  const merge = (hull: (typeof hulls)[number], placed: THREE.Matrix4) => {
+  const merge = (hull: ShipHull, placed: THREE.Matrix4) => {
     hull.group.updateMatrixWorld(true);
     const hue = hull.parts.paint.color.clone();
     hull.group.traverse((o) => {
@@ -116,22 +126,24 @@ export async function buildAnchorage(): Promise<Anchorage> {
     }
     return placed;
   };
-  SLOTS.forEach((phi, i) => {
+  for (const [i, phi] of SLOTS.entries()) {
+    await pacer?.tick();
     const berth = drop.clone().multiply(berthAt(phi));
     const placed = moor(berth, i);
     // Lashed to the ring: two cables from the prow to the tube either side.
     const prow = new THREE.Vector3(4.6, 0, 0).applyMatrix4(placed);
     for (const side of [-0.035, 0.035]) lashings.push(prow.clone(), ringPoint(phi + side).addScaledVector(UP, TUBE * 0.6));
-    if (!RAFTED.includes(i)) return;
+    if (!RAFTED.includes(i)) continue;
     // Rafted outboard, lashed prow to the inner hull's stern.
     const outer = moor(berth.multiply(new THREE.Matrix4().makeTranslation(-RAFT_OFFSET, 0, 0)), i + 2);
     lashings.push(new THREE.Vector3(4.6, 0, 0).applyMatrix4(outer), new THREE.Vector3(-4.2, 0, 0).applyMatrix4(placed));
-  });
+  }
   // The Lantern Bay: nose along the ring (+Z), port flank to the berth, the collar amidships.
   const bayPlaced = new THREE.Matrix4().makeRotationY(-Math.PI / 2).scale(new THREE.Vector3(BAY_SCALE, BAY_SCALE, BAY_SCALE)).setPosition(BAY);
   merge(hulls[VARIANTS], bayPlaced);
   for (let k = 0; k < 5; k++) lamps.push({ at: new THREE.Vector3(2.0 + k * 0.6, 0.78, k % 2 ? 0.5 : -0.5).applyMatrix4(bayPlaced), color: 0xffd8a8, steady: true });
   for (const [name, { mat, geos }] of byMaterial) {
+    await pacer?.tick();
     // Floor roughness and drop the roughness map: back-lit at grazing angles, glossy texels spike
     // into a blaze under bloom.
     mat.roughnessMap = null;

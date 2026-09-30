@@ -119,6 +119,11 @@ export async function buildInstancedKit(
   return meshes;
 }
 
+/** Starts the downloads for these pieces, for a scene that builds with them later. */
+export function preloadNatureKit(names: string[]): Promise<void> {
+  return Promise.all(names.map(loadTemplate)).then(() => undefined);
+}
+
 /**
  * World-space Box3 for one instance of a kit piece's first (trunk/base) primitive — used to build
  * accurate player colliders from real geometry instead of guessed radii, since this kit's organic

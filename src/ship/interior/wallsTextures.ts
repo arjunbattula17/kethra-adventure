@@ -154,7 +154,10 @@ export interface PlateMaps {
  * That correlation is what separates a material from a tinted plastic.
  */
 export function buildWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): PlateMaps {
-  return memoTextureSet(`walls:plate:${variant}:${cols}x${rows}`, () => paintWallPlateSet(variant, cols, rows));
+  // Kept across scenes: the Anchorage's kit pieces use the same sets as the Wren's, and after the Wren
+  // cleared its memo the Anchorage repainted both (~100 ms each on an Intel UHD laptop) while the
+  // docking cruise played.
+  return memoTextureSet(`walls:plate:${variant}:${cols}x${rows}`, () => paintWallPlateSet(variant, cols, rows), true);
 }
 
 function paintWallPlateSet(variant: PlateVariant, cols = 2, rows = 2): PlateMaps {

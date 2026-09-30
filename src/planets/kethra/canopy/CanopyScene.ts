@@ -61,6 +61,8 @@ export class CanopyScene implements GameScene {
   private lampTarget = new THREE.Object3D();
   private lantern!: { group: THREE.Group; light: THREE.PointLight };
   private moth!: Wickmoth;
+  /** Whether the moth is out, crossing layer 4 (updateMoth). */
+  private mothNear = false;
   private lanterns: THREE.Group[] = [];
   private shadowBlob!: THREE.Mesh;
   private sparks!: THREE.Points;
@@ -489,7 +491,7 @@ export class CanopyScene implements GameScene {
     }
     this.podMesh.instanceColor!.needsUpdate = true;
     candidates.push({ at: this.lantern.light.getWorldPosition(new THREE.Vector3()), w: 1.6 });
-    if (this.moth.root.visible) candidates.push({ at: this.moth.root.position, w: 2.2 });
+    if (this.mothNear) candidates.push({ at: this.moth.root.position, w: 2.2 });
     const p = this.pos;
     candidates.sort((a, b) => b.w / (1 + Math.hypot(b.at.x - p.x, b.at.y - p.y, b.at.z - p.z) / 30) - a.w / (1 + Math.hypot(a.at.x - p.x, a.at.y - p.y, a.at.z - p.z) / 30));
     for (let i = 0; i < GLOW_SLOTS; i++) {
@@ -518,8 +520,15 @@ export class CanopyScene implements GameScene {
   /** The moth crosses layer 4 and counts as a glow light while visible. */
   private updateMoth(dt: number, time: number): void {
     const near = this.pos.y < L.LAYERS[2].y && this.pos.y > L.LAYERS[3].y - 12;
-    this.moth.root.visible = near;
-    if (!near) return;
+    this.mothNear = near;
+    // The body hides and the light dims to nothing, but the light stays in the scene: every lit program
+    // is compiled for a fixed number of point lights, and hiding the root on the first frame made three
+    // new programs there (a 0.5 s freeze at the cut from the cruise on an Intel UHD laptop).
+    this.moth.body.visible = near;
+    if (!near) {
+      this.moth.light.intensity = 0;
+      return;
+    }
     const k = ((time * 0.07) % 1) * 2 - 1;
     this.moth.root.position.set(k * 38, L.LAYERS[3].y - 5 + Math.sin(time * 0.9) * 1.5, 6 - k * 10);
     // Face along the path; local +z is forward.

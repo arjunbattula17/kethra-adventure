@@ -199,7 +199,9 @@ export class ShipInteriorScene implements GameScene {
     // material into one geometry, so afterwards a per-mesh bounding box would span the whole room.
     const propColliders = timed('ship:colliders', () => buildInteriorColliders(ctx));
     this.instanceStatusLights();
-    timed('ship:batch', () => batchStaticGeometry(ctx));
+    // In one piece (~230 ms on an Intel UHD laptop): the room builds while the intro's opening shot
+    // holds still, or behind the loading screen, and yielding here cost those waits ~300 ms more.
+    await timedAsync('ship:batch', () => batchStaticGeometry(ctx));
     await pacer?.tick();
     // Every mesh outside ctx.noMerge is static by that set's own contract (ctx.ts): nothing moves it
     // after the build. Compose each one's local matrix once instead of on every frame; three.js

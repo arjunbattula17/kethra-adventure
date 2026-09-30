@@ -29,12 +29,14 @@ import { VESSEK_ENTRIES } from './vessekLore';
 import { RingBus, CIRCUITS } from './bus';
 import type { BusEvent, CircuitId } from './bus';
 import { BusWorld } from './busWorld';
-import { buildRooms, isOpenBay, hallOpenings } from './rooms';
+import { buildRooms, isOpenBay, hallOpenings, ROOM_KIT_PIECES } from './rooms';
 import type { Rooms, Door } from './rooms';
 import { buildDressing } from './dressing';
 import type { Dressing } from './dressing';
 import * as L from './layout';
 import { LAMP_COLORS } from './anchorage';
+import { preloadNatureKit } from '../kethra/kit';
+import type { Pacer } from '../../core/prepare';
 
 /**
  * Level 3: Vessek Anchorage.
@@ -51,6 +53,9 @@ const HALF_D = 12;
 const WALL_FACE_X = 7.565;
 const WALL_FACE_Z = 11.565;
 const SPAWN = new THREE.Vector3(L.SPAWN.x, L.SPAWN.y, L.SPAWN.z);
+/** The hall's shell and its dressing, from the ship kit. */
+const SHELL_PIECES = ['Platform_Simple', 'Platform_DarkPlates', 'Platform_Metal', 'WallAstra_Straight', 'TopAstra_Straight', 'TopCables_Straight_Hanging', 'WallWindow_Straight', 'TopWindow_Straight', 'WallAstra_Corner_Square_Inner', 'TopCables_Corner_Square_Inner', 'Door_Frame_Square', 'Door_Metal', 'Column_Pipes'];
+const HALL_PROPS = ['Prop_Crate3', 'Prop_Crate4', 'Prop_Barrel_Large', 'Prop_Chest', 'Prop_AccessPoint', 'Prop_Cable_1', 'Prop_Light_Floor', 'Prop_Fan_Small', 'Prop_Fan_Small_Propeller', 'Prop_PipeHolder'];
 /** Length of the pulse cutscene in seconds, before the player regains control and the frost timer
  * starts. */
 const PULSE_BEAT = 6.2;
@@ -160,7 +165,11 @@ export class VessekScene implements GameScene {
     this.player = new PlayerController(this.camera, SPAWN.clone());
   }
 
-  async init(): Promise<void> {
+  async init(pacer?: Pacer): Promise<void> {
+    // Every download starts now, together; the builders below then run one at a time.
+    const downloads = Promise.all([preloadKit([...ROOM_KIT_PIECES, ...SHELL_PIECES, ...HALL_PROPS]), preloadNatureKit(['Plant_1', 'Fern_1']), planetTexturesReady()]);
+    // Reported where it is awaited, below.
+    downloads.catch(() => {});
     // Wait for the display fonts: canvas textures drawn before they load bake in the fallback font.
     await displayFontsReady();
     this.scene.background = new THREE.Color(0x020308);
@@ -177,22 +186,35 @@ export class VessekScene implements GameScene {
     applyPbr(wallMat, 'ship_wall', [1, 1]);
     const ceilMat = new THREE.MeshStandardMaterial({ color: 0x1a1e23, roughness: 0.85, metalness: 0.4 });
 
+    // The level prepares during the docking cruise, so it is built in pieces with frames between them
+    // (pacer.tick). Its builders used to start together; once the kit had arrived their synchronous
+    // parts ran back to back in one task, which froze the cruise for up to 0.9 s on an Intel UHD laptop.
+    const tick = () => pacer?.tick();
     this.buildFloorAndCeiling(ceilMat);
+    await tick();
     this.buildOutside();
+    await tick();
     this.buildLighting();
+    await tick();
     this.buildPeople();
+    await tick();
     // The planet's maps come with the kit: in hand before the engine's warm-up frame, so they are
-    // decoded and uploaded behind the loading cover rather than in the first frame the window
-    // comes into view.
-    const [rooms, dressing, hallColliders] = await Promise.all([
-      buildRooms(this.scene, { wall: wallMat, ceiling: ceilMat }),
-      buildDressing(this.scene),
-      hallOpenings(this.scene, wallMat),
-      this.buildShell(),
-      this.buildHallDressing(),
-      this.buildRing(),
-      planetTexturesReady(),
-    ]);
+    // uploaded while the level prepares rather than in the first frame the window comes into view.
+    await downloads;
+    // The ducts' walls and floors, rastered from the layout a pass at a time (buildRooms reads them).
+    await L.prepareDuctShell(tick);
+    const rooms = await buildRooms(this.scene, { wall: wallMat, ceiling: ceilMat });
+    await tick();
+    const dressing = await buildDressing(this.scene);
+    await tick();
+    const hallColliders = await hallOpenings(this.scene, wallMat);
+    await tick();
+    await this.buildShell();
+    await tick();
+    await this.buildHallDressing();
+    await tick();
+    await this.buildRing(pacer);
+    await tick();
     this.rooms = rooms;
     this.dressing = dressing;
     for (const o of rooms.noMerge) this.noMerge.add(o);
@@ -223,7 +245,8 @@ export class VessekScene implements GameScene {
 
     this.player.rig.traverse((o) => this.noMerge.add(o));
     for (const f of [this.varro, this.dace]) f.group.traverse((o) => this.noMerge.add(o));
-    batchStaticGeometry({ scene: this.scene, noMerge: this.noMerge, animatedMaterials: this.animated });
+    await tick();
+    await batchStaticGeometry({ scene: this.scene, noMerge: this.noMerge, animatedMaterials: this.animated }, pacer);
 
     if (gameState.hasFlag('vessek_pulse') && !gameState.hasFlag('vessek_power_restored')) this.setEmergency(1);
     this.settleLamps();
@@ -292,8 +315,7 @@ export class VessekScene implements GameScene {
   }
 
   private async buildShell(): Promise<void> {
-    const pieces = ['Platform_Simple', 'Platform_DarkPlates', 'Platform_Metal', 'WallAstra_Straight', 'TopAstra_Straight', 'TopCables_Straight_Hanging', 'WallWindow_Straight', 'TopWindow_Straight', 'WallAstra_Corner_Square_Inner', 'TopCables_Corner_Square_Inner', 'Door_Frame_Square', 'Door_Metal', 'Column_Pipes'];
-    await preloadKit(pieces);
+    await preloadKit(SHELL_PIECES);
     const jobs: Promise<THREE.Object3D>[] = [];
     const place = (name: string, pos: [number, number, number], yaw = 0) => jobs.push(placeKitPiece(this.scene, name, pos, yaw).then(groundKitPiece));
     const open = (wall: L.Bay['wall'], at: number) => isOpenBay({ room: 'hall', wall, at });
@@ -376,8 +398,7 @@ export class VessekScene implements GameScene {
   }
 
   private async buildHallDressing(): Promise<void> {
-    const props = ['Prop_Crate3', 'Prop_Crate4', 'Prop_Barrel_Large', 'Prop_Chest', 'Prop_AccessPoint', 'Prop_Cable_1', 'Prop_Light_Floor', 'Prop_Fan_Small', 'Prop_Fan_Small_Propeller', 'Prop_PipeHolder'];
-    await preloadKit(props);
+    await preloadKit(HALL_PROPS);
     const jobs: Promise<THREE.Object3D>[] = [];
     const place = (name: string, pos: [number, number, number], yaw = 0, scale = 1) =>
       jobs.push(placeKitPiece(this.scene, name, pos, yaw, scale).then(groundKitPiece));
@@ -538,7 +559,7 @@ export class VessekScene implements GameScene {
     this.sky.group.traverse((o) => this.noMerge.add(o));
   }
 
-  private async buildRing(): Promise<void> {
+  private async buildRing(pacer?: Pacer): Promise<void> {
     // A broken Kindling ring, 60 m in radius, just below the hall's floor. The Lantern Bay sits on
     // its near arc, so from the east windows the ring and its lashed hulls curve away across the
     // whole view, 80 to 140 m out.
@@ -554,8 +575,13 @@ export class VessekScene implements GameScene {
       this.scene.add(arc);
     }
     // Background ship hulls around the ring, each a seeded hull variant with its own lamp colour.
+    // One at a time, with frames between.
     const count = 8;
-    const hulls = await Promise.all(Array.from({ length: count }, (_, i) => buildShipHull({ variant: i + 1 })));
+    const hulls: Awaited<ReturnType<typeof buildShipHull>>[] = [];
+    for (let i = 0; i < count; i++) {
+      hulls.push(await buildShipHull({ variant: i + 1 }));
+      await pacer?.tick();
+    }
     for (let i = 0; i < count; i++) {
       const angle = Math.PI + 0.75 + i * ((2 * Math.PI - 1.5) / (count - 1)) + (i % 2) * 0.06;
       const g = hulls[i].group;

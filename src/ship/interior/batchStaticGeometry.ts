@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { InteriorCtx } from './ctx';
 import { atlasCanvasMaterials, mergeTints } from './materialMerge';
+import type { Pacer } from '../../core/prepare';
 
 /**
  * Collapses draw calls for the room's static geometry. Six rounds of "increase prop density" left
@@ -116,7 +117,12 @@ function expandInstances(mesh: THREE.InstancedMesh): THREE.BufferGeometry[] {
   return out;
 }
 
-export function batchStaticGeometry(ctx: BatchCtx): void {
+/**
+ * With a pacer, the merge yields between batches, for a scene built while another is moving on screen
+ * (the Anchorage, during the docking cruise): the Wren's merge is 230-300 ms in one piece on an Intel
+ * UHD laptop.
+ */
+export async function batchStaticGeometry(ctx: BatchCtx, pacer?: Pacer): Promise<void> {
   // `?nobatch=1` leaves every source mesh as its own scene node, which is what tools/interior-audit
   // .mjs needs: a merged batch's bounding box is the union of every mesh sharing that material, so
   // per-object overlap/containment checks are meaningless against the batched scene.
@@ -136,8 +142,11 @@ export function batchStaticGeometry(ctx: BatchCtx): void {
     if ((o as THREE.Mesh).isMesh) allMeshes.push(o as THREE.Mesh);
   });
   const shared = shareIdenticalMaterials(ctx, [...allMeshes, ...instanced]);
+  await pacer?.tick();
   const atlased = atlasCanvasMaterials(allMeshes, ctx.animatedMaterials, ctx.noMerge);
+  await pacer?.tick();
   const tinted = mergeTints(allMeshes, ctx.animatedMaterials, ctx.noMerge);
+  await pacer?.tick();
 
   // Multiple original meshes can already share one geometry object (a hoisted `const someGeo = new
   // THREE.PlaneGeometry(...)` reused across many `new THREE.Mesh(someGeo, ...)` calls). Track total
@@ -179,6 +188,7 @@ export function batchStaticGeometry(ctx: BatchCtx): void {
   let removed = 0;
   for (const group of groups.values()) {
     if (group.length < 2) continue;
+    await pacer?.tick();
 
     const baked: THREE.BufferGeometry[] = [];
     for (const m of group) {
