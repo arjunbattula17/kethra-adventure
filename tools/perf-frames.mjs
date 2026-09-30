@@ -26,7 +26,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 const args = process.argv.slice(2);
 const opt = (name, d) => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ?? d;
 const flag = (name) => args.includes(`--${name}`);
-const [LABEL = 'frames', BASE = 'http://localhost:4173/kethra-adventure/'] = args.filter((a) => !a.startsWith('--'));
+const [LABEL = 'frames', BASE = 'http://localhost:4190/kethra-adventure/'] = args.filter((a) => !a.startsWith('--'));
 const TIERS = opt('tiers', 'low,medium,high').split(',');
 const SCENES = opt('scenes', 'ship,kethra,vessek,reveal').split(',');
 const CPU = Number(opt('cpu', 1));
@@ -207,7 +207,7 @@ for (const tier of TIERS) {
     if (SCENES.includes('ship')) await run('ship');
     for (const level of ['kethra', 'vessek']) {
       if (!SCENES.includes(level)) continue;
-      await page.evaluate((l) => window.__DEBUG__.flow.travelToPlanet(l), level);
+      await page.evaluate((l) => window.__DEBUG__.flow.debugGo(l), level);
       await waitScene(KIND[level]);
       await settle();
       await run(level);
@@ -216,7 +216,7 @@ for (const tier of TIERS) {
       await page.waitForTimeout(1000);
     }
     if (SCENES.includes('reveal')) {
-      await page.evaluate(() => window.__DEBUG__.flow.transitionToGalaxyReveal());
+      await page.evaluate(() => window.__DEBUG__.flow.debugGo('reveal'));
       await waitScene('GalaxyRevealScene');
       await settle();
       await run('reveal');

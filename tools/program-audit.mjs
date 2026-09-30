@@ -87,9 +87,30 @@ const report = await page.evaluate(() => {
     totalPrograms: r.info.programs.length,
     meshes,
     lights,
-    programs: [...byProgram.values()].map((x) => ({ id: x.id, name: x.name, meshes: x.meshes, materials: [...x.materials].slice(0, 6), features: [...x.features.entries()], keyLen: x.key.length })),
+    programs: [...byProgram.values()].map((x) => ({ id: x.id, name: x.name, meshes: x.meshes, materials: [...x.materials].slice(0, 6), features: [...x.features.entries()], keyLen: x.key.length, key: x.key })),
   };
 });
+// What separates programs of one material type: the cache-key fields where they differ. three.js
+// joins a program's parameters with commas (WebGLPrograms.getProgramCacheKey); built-in materials
+// start with the shader id, custom ones with the shader source.
+if (process.argv.includes('--keys')) {
+  const split = (k) => k.split(',');
+  const byType = new Map();
+  for (const p of report.programs) {
+    const type = p.features[0][0].split(' ')[0];
+    if (!byType.has(type)) byType.set(type, []);
+    byType.get(type).push(p);
+  }
+  for (const [type, list] of byType) {
+    if (list.length < 2 || !/Standard|Physical|Lambert|Phong/.test(type)) continue;
+    const keys = list.map((p) => split(p.key));
+    const len = Math.max(...keys.map((k) => k.length));
+    const varying = [];
+    for (let i = 0; i < len; i++) if (new Set(keys.map((k) => k[i])).size > 1) varying.push(i);
+    console.log(`\n${type}: ${list.length} programs; key fields that vary: ${varying.join(' ')}`);
+    for (const p of list) console.log(`  #${p.id} ${String(p.meshes).padStart(3)} meshes  ${varying.map((i) => split(p.key)[i]).join(' | ')}`);
+  }
+}
 report.programs.sort((a, b) => a.features[0][0].localeCompare(b.features[0][0]));
 console.log(`${SCENE} @ ${report.tier} (shadows ${report.shadows}): ${report.programs.length} programs used by the scene, ${report.totalPrograms} alive in the renderer; ${report.meshes} drawables`);
 console.log('lights:', JSON.stringify(report.lights));
