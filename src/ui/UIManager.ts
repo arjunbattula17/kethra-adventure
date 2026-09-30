@@ -386,6 +386,7 @@ class UIManagerImpl {
     this.loadingLoreTimer = motion.ui.every(7, next);
     this.setLoadingProgress(0, '');
     this.loadingEl.classList.add('visible');
+    this.loadingSince = performance.now();
   }
 
   /** Real progress for the loading bar: a fraction and what is happening. */
@@ -398,6 +399,7 @@ class UIManagerImpl {
     this.loadingLoreTimer?.cancel();
     this.loadingLoreTimer = null;
     this.loadingEl.classList.remove('visible');
+    this.loadingSince = 0;
   }
 
   /**
@@ -417,10 +419,23 @@ class UIManagerImpl {
    * The scan-line wipe: 'out' covers the screen in DUR.medium * EXIT_FACTOR, 'in' clears it in
    * DUR.medium. A new scan cancels one still running. Reduced motion uses a short cross-fade.
    */
+  /**
+   * Whether nothing of the 3D view can be seen: the scan-line wipe has finished covering it, or the
+   * (opaque) loading screen has been up past its fade-in. The engine skips drawing then (Engine.start).
+   */
+  isCovered(): boolean {
+    return this.scanCovered || (this.loadingSince > 0 && performance.now() - this.loadingSince > 300);
+  }
+
+  private scanCovered = false;
+  private loadingSince = 0;
+
   private async scan(dir: 'in' | 'out'): Promise<void> {
     const cover = this.fadeEl.querySelector('.scan-cover') as HTMLElement;
     const line = this.fadeEl.querySelector('.scan-line') as HTMLElement;
     for (const a of this.scanAnims) a.cancel();
+    // Covered only once an 'out' wipe has finished; drawing resumes the moment any wipe starts.
+    this.scanCovered = false;
     this.fadeEl.classList.toggle('covered', dir === 'out');
     const covered = 'inset(0 0 0 0)';
     const clear = 'inset(100% 0 0 0)';
@@ -428,8 +443,9 @@ class UIManagerImpl {
       cover.style.clipPath = covered;
       const a = motion.ui.animate(cover, dir === 'out' ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }], { dur: 'small', exit: dir === 'out', fill: 'forwards' });
       this.scanAnims = [a];
-      await a.finished.catch(() => {});
+      const finished = await a.finished.then(() => true, () => false);
       cover.style.clipPath = dir === 'out' ? covered : clear;
+      if (finished) this.scanCovered = dir === 'out';
       return;
     }
     cover.style.opacity = '1';
@@ -445,6 +461,7 @@ class UIManagerImpl {
     if (!done) return;
     cover.style.clipPath = dir === 'out' ? covered : clear;
     a.cancel();
+    this.scanCovered = dir === 'out';
   }
 
   skillCheckPopup(text: string, success: boolean): void {

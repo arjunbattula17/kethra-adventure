@@ -698,8 +698,13 @@ export class Engine {
       const dt = motion.tick(realDt, this.paused || this.contextLost);
       if (!this.paused && this.current && !this.contextLost) {
         this.current.update(dt, motion.gameTime);
-        this.postFx.render();
-        this.recordFrameForQuality(realDt * 1000);
+        // Nothing of the scene shows under a full cover (the scan-line wipe or the loading screen), so
+        // it isn't drawn. At the intro's handover the finished intro kept the GPU of an Intel UHD
+        // laptop busy behind the cover, and the Wren's first draws waited 21 s on it.
+        if (!UIManager.isCovered()) {
+          this.postFx.render();
+          this.recordFrameForQuality(realDt * 1000);
+        }
       }
       InputManager.endFrame();
     };
