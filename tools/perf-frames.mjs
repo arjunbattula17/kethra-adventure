@@ -28,6 +28,8 @@ const opt = (name, d) => args.find((a) => a.startsWith(`--${name}=`))?.split('='
 const flag = (name) => args.includes(`--${name}`);
 const [LABEL = 'frames', BASE = 'http://localhost:4190/kethra-adventure/'] = args.filter((a) => !a.startsWith('--'));
 const TIERS = opt('tiers', 'low,medium,high').split(',');
+// Extra query parameters for every page, e.g. --query=seed=7 (A/B flags while testing).
+const EXTRA_QUERY = opt('query', '') ? `&${opt('query', '')}` : '';
 const SCENES = opt('scenes', 'ship,kethra,vessek,reveal').split(',');
 const CPU = Number(opt('cpu', 1));
 const SECONDS = Number(opt('seconds', 6));
@@ -162,7 +164,7 @@ async function sample(page, seconds) {
 }
 
 for (const tier of TIERS) {
-  const tierQuery = tier === 'auto' ? '' : `&tier=${tier}`;
+  const tierQuery = (tier === 'auto' ? '' : `&tier=${tier}`) + EXTRA_QUERY;
   const context = await browser.newContext({ viewport: { width: VW, height: VH }, deviceScaleFactor: DPR });
   const page = await context.newPage();
   const errors = [];

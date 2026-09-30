@@ -6,11 +6,11 @@ import type { QualityTier } from './PostProcessing';
 import type { GradeProfile } from './GradeGlowPass';
 import { UIManager } from '../ui/UIManager';
 import { setKitTextureMaxSize } from './textureCache';
-import { applyShaderPatches } from './shaderPatches';
+import { applyShaderPatches, hasQuickLights, setQuickLights } from './shaderPatches';
 import { motion } from '../motion';
 import { span, timed } from './perfMarks';
 import { takeProbedContext } from './glContext';
-import { PACE, Pacer, compileProgressively, drawProgressively, texturesOf, uploadProgressively, yieldToBrowser } from './prepare';
+import { PACE, Pacer, compileProgressively, drawProgressively, litMaterials, texturesOf, upgradeQuickLights, uploadProgressively, yieldToBrowser } from './prepare';
 import type { Pace } from './prepare';
 
 export interface PrepareOptions {
@@ -18,6 +18,8 @@ export interface PrepareOptions {
   pacer?: Pacer;
   /** Progress through the current stage, for a loading bar. */
   onProgress?: (fraction: number, stage: 'build' | 'compile' | 'upload' | 'draw') => void;
+  /** Called between the build and the GPU work. */
+  onBuilt?: () => void;
 }
 
 /** A scene's name on the performance timeline ("ShipInteriorScene:init"). */
@@ -96,6 +98,10 @@ export interface GameScene {
   staticShadows?: boolean;
   /** This scene's colour grade (GradeGlowPass.ts, GRADES). Defaults to the interior's. */
   grade?: GradeProfile;
+  /** Prepare on quick lighting programs until this kind of scene has had its unrolled ones compiled
+   * once (shaderPatches.ts, QUICK_LIGHTS; Engine.upgradeQuickLights). For a scene whose first
+   * preparation someone waits on: the Wren, behind the intro or a loading bar. */
+  quickLights?: boolean;
 }
 
 export class Engine {
@@ -144,6 +150,10 @@ export class Engine {
    * instead (see recordFrameForQuality). Unlike the tier it is judged per scene and cleared at each
    * scene change: on Intel UHD graphics the Wren needs it and Kethra holds 60 without it. */
   private steadyCap = false;
+  /** Set while this scene runs at SMOOTH_SCALE because of the governor's trial (recordFrameForQuality);
+   * cleared, with the resolution put back, at the next scene change. */
+  private scaleTrial: 'off' | 'running' | 'failed' = 'off';
+  private static readonly SMOOTH_SCALE = 0.85;
   private lastDrawAt = 0;
   private contextLost = false;
   /** Set when the runtime governor stepped the tier down mid-play. Mid-play it leaves shadows and
@@ -298,8 +308,27 @@ export class Engine {
     // when the camera turns; drawing every other refresh shows every frame for exactly two. It also
     // halves the GPU's work, which keeps a fanless laptop from heating up and throttling further.
     // The brief's rule: a stable 30 beats a 20-60 swing.
-    if (this.tier === 'low' && !this.steadyCap && average > 22) {
-      this.steadyCap = true;
+    //
+    // Before the cap, one try at a slightly lower render resolution: on an Intel UHD laptop the Wren's
+    // frame is set by per-pixel lighting (half the pixels saved 13 ms of its ~27), and at 85% scale it
+    // can hold ~45 fps or better, which reads smoother than a steady 30. If it still misses, the
+    // resolution goes back and the cap comes on as before. Frequent misses with an average near 50 fps
+    // (p95 over 33 ms) count too: uncapped at the bottom tier, they went straight to the relief valve
+    // below, which lowered the resolution and then capped anyway.
+    const struggling = average > 22 || (p95 > 33.3 && average > 20);
+    if (this.tier === 'low' && !this.steadyCap && struggling) {
+      const scale = this.renderScale;
+      if (this.scaleTrial === 'off' && this.renderScale === 1) {
+        this.scaleTrial = 'running';
+        this.renderScale = Engine.SMOOTH_SCALE;
+      } else {
+        if (this.scaleTrial === 'running') {
+          this.scaleTrial = 'failed';
+          this.renderScale = 1;
+        }
+        this.steadyCap = true;
+      }
+      if (this.renderScale !== scale) this.applyTier(this.tier, true);
       this.lastDowngradeAt = now;
       this.recentFrameMs.length = 0;
       return;
@@ -338,15 +367,80 @@ export class Engine {
     await this.ensureEnvironment();
     const pacer = opts.pacer ?? this.newPacer(PACE.loading);
     this.preparing++;
+    this.inPreparation.add(scene);
     try {
-      const t = performance.now();
-      opts.onProgress?.(0, 'build');
-      await scene.init(pacer);
-      span(`${kindOf(scene)}:init`, t);
+      try {
+        const t = performance.now();
+        opts.onProgress?.(0, 'build');
+        await scene.init(pacer);
+        span(`${kindOf(scene)}:init`, t);
+      } finally {
+        this.preparing--;
+      }
+      opts.onBuilt?.();
+      if (scene.quickLights && !this.upgradedKinds.has(kindOf(scene))) for (const m of litMaterials(scene.scene)) setQuickLights(m, true);
+      await this.warmScene(scene, { ...opts, pacer });
+    } finally {
+      this.inPreparation.delete(scene);
+    }
+  }
+
+  /** Kinds of scene whose unrolled lighting programs have been compiled (upgradeQuickLights). */
+  private upgradedKinds = new Set<string>();
+
+  /**
+   * Moves a scene on screen from its quick lighting programs to the unrolled ones, in the background
+   * at the playing pace (prepare.ts, upgradeQuickLights), once the handover has settled. On an Intel
+   * UHD laptop the Wren's unrolled programs are ~27 s of compiling cold: done this way the room is ready
+   * when the intro ends, and draws 6-16% faster once they are in. Stops if the scene is replaced first;
+   * the next scene of its kind starts on quick programs again and picks up where this left off (every
+   * program compiled so far stays in three.js's cache).
+   */
+  private async upgradeQuickLights(scene: GameScene): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, Engine.POST_SCENE_GRACE_MS));
+    if (this.current !== scene) return;
+    const start = performance.now();
+    // Its compiling slows the frames it shares the processor with, so the governor waits for the
+    // quick programs to go before judging the scene (judged meanwhile, it settled the Wren at 70%
+    // resolution and 30 fps). The bottom tier holds a steady 30 in the meantime, rather than the
+    // unsteady 24-36 fps it drew held off for the upgrade's 15-35 s on an Intel UHD laptop.
+    this.preparing++;
+    const held = this.tier === 'low' && !this.steadyCap;
+    if (held) this.steadyCap = true;
+    try {
+      const done = await upgradeQuickLights(this.renderer, scene.scene, scene.camera, this.compileTarget, this.newPacer(PACE.playing), () => this.current === scene);
+      if (done) {
+        this.upgradedKinds.add(kindOf(scene));
+        span(`${kindOf(scene)}:upgradeLights`, start);
+      }
+    } catch (err) {
+      console.warn('[engine] the lighting upgrade stopped', err);
     } finally {
       this.preparing--;
+      // A scene change meanwhile has already reset the cap for the next scene.
+      if (held && this.current === scene) this.steadyCap = false;
+      this.holdGovernor();
     }
-    await this.warmScene(scene, { ...opts, pacer });
+  }
+
+  /** Scenes being prepared while another is on screen; releaseTextures keeps what they use. */
+  private inPreparation = new Set<GameScene>();
+
+  /**
+   * Frees the GPU copies of the textures the replaced scene drew with that neither `next` nor a scene
+   * still being prepared uses. The images stay in the loaders' caches, so a later visit uploads them
+   * again while it prepares. Before this, every level's file textures stayed on the GPU for the rest of
+   * the session: 76 MB more aboard after Kethra and 102 MB more after Vessek, on Performance, on
+   * graphics that share the laptop's memory (tools/texture-leaks.mjs). Render-target textures are left
+   * alone: they have no image to upload again.
+   */
+  private releaseTextures(outgoing: THREE.Texture[], next: GameScene): void {
+    if (!outgoing.length) return;
+    const keep = new Set(texturesOf(next.scene));
+    for (const s of this.inPreparation) for (const t of texturesOf(s.scene)) keep.add(t);
+    // Copies of one image share its upload (three.js counts their users), so freeing one copy leaves
+    // the image on the GPU for as long as a kept copy uses it.
+    for (const t of outgoing) if (!keep.has(t) && !(t as { isRenderTargetTexture?: boolean }).isRenderTargetTexture) t.dispose();
   }
 
   /**
@@ -417,7 +511,11 @@ export class Engine {
     // covers both cases, so a slow load reads as "loading" instead of "did this freeze?".
     if (!opts.quiet) UIManager.showLoading();
     try {
+      // Freed once the next scene is built (releaseTextures): after this one's build for a scene
+      // built here, so the two sets are never on the GPU together.
+      let outgoing: THREE.Texture[] = [];
       if (this.current) {
+        outgoing = texturesOf(this.current.scene);
         this.current.dispose();
         this.current = null;
       }
@@ -430,10 +528,16 @@ export class Engine {
       // real, synchronous compile stall. Landing it here keeps that cost behind the caller's
       // fade-to-black (where one is used) instead of surfacing as an unpredictable mid-gameplay
       // hitch. A scene the caller already ran through prepareScene() skips straight to handover.
-      if (!opts.prepared) await this.prepareScene(scene, { onProgress: opts.onProgress });
+      if (!opts.prepared) await this.prepareScene(scene, { onProgress: opts.onProgress, onBuilt: () => this.releaseTextures(outgoing, scene) });
+      else this.releaseTextures(outgoing, scene);
       this.current = scene;
       // Frame pacing is this scene's to earn: the governor judges it afresh after the grace period.
       this.steadyCap = false;
+      if (this.scaleTrial === 'running') {
+        this.renderScale = 1;
+        this.applyTier(this.tier, true);
+      }
+      this.scaleTrial = 'off';
       this.postFx.setActive(scene.scene, scene.camera);
       this.postFx.setAOSupported(scene.usesAO !== false);
       this.postFx.setGrade(scene.grade);
@@ -450,6 +554,7 @@ export class Engine {
       // pattern at smaller scale, on boot and on every ship<->planet<->reveal transition.
       timed(`${kindOf(scene)}:warmup`, () => this.drawEverythingOnce(scene));
       scene.onEnter?.();
+      if (litMaterials(scene.scene).some(hasQuickLights)) void this.upgradeQuickLights(scene);
     } finally {
       if (!opts.quiet) UIManager.hideLoading();
       this.holdGovernor();

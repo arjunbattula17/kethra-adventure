@@ -95,13 +95,13 @@ async function imageSize(blob: Blob): Promise<{ width: number; height: number } 
  * route) ran on the main thread: 0.5 s of the Wren's first build on an Intel UHD laptop
  * (docs/PERF_LOG.md, 2026-09-28). Same options as three.js's ImageBitmapLoader.
  */
-async function decodeBitmap(manager: THREE.LoadingManager, url: string): Promise<ImageBitmap> {
+async function decodeBitmap(manager: THREE.LoadingManager, url: string, orientation: ImageOrientation = 'from-image'): Promise<ImageBitmap> {
   manager.itemStart(url);
   try {
     const response = await fetch(url, { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
     const blob = await response.blob();
-    const options: ImageBitmapOptions = { premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
+    const options: ImageBitmapOptions = { premultiplyAlpha: 'none', colorSpaceConversion: 'none', imageOrientation: orientation };
     let bitmap: ImageBitmap;
     const size = Number.isFinite(maxTextureSize) ? await imageSize(blob) : null;
     if (size && (size.width > maxTextureSize || size.height > maxTextureSize)) {
@@ -133,6 +133,26 @@ async function decodeBitmap(manager: THREE.LoadingManager, url: string): Promise
     manager.itemEnd(url);
     throw err;
   }
+}
+
+/**
+ * One image file for a texture made in code (TextureLibrary's maps), loaded the way the kits' maps are:
+ * decoded off the page's thread and shrunk to the tier's ceiling. On that route the image arrives
+ * already flipped, because WebGL doesn't flip an ImageBitmap on upload: its texture takes
+ * flipY = !imagesArriveFlipped().
+ */
+export function decodeImageFile(url: string): Promise<ImageBitmap | HTMLImageElement> {
+  if (!decodesOffThread()) return new THREE.ImageLoader().loadAsync(url);
+  return decodeBitmap(THREE.DefaultLoadingManager, url, 'flipY');
+}
+
+export function imagesArriveFlipped(): boolean {
+  return decodesOffThread();
+}
+
+/** The tier's ceiling on decoded image sizes, for a cache that keys on it. */
+export function textureMaxSize(): number {
+  return maxTextureSize;
 }
 
 function loadTextureOnce(manager: THREE.LoadingManager, resolved: string): Promise<THREE.Texture> {

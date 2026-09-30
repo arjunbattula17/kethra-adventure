@@ -33,6 +33,7 @@ import { buildThrottle } from './interior/throttle';
 import type { Throttle } from './interior/throttle';
 import { timed, timedAsync } from '../core/perfMarks';
 import type { Pacer } from '../core/prepare';
+import { TutorialBeacon } from '../tutorial/TutorialBeacon';
 
 const _ledColour = new THREE.Color();
 
@@ -63,6 +64,8 @@ export class ShipInteriorScene implements GameScene {
   // intensity, which the depth map doesn't see. If a shadow-casting mesh or light ever starts
   // moving, either drop this flag or arm renderer.shadowMap.needsUpdate from its animation tick.
   readonly staticShadows = true;
+  /** The first room of a session prepares behind the intro (or a loading bar): see GameScene.quickLights. */
+  readonly quickLights = true;
   /**
    * Per-frame hook for a director that lives outside the scene — currently the opening tutorial,
    * which has to poll movement and the player's position but is owned by GameFlow, not by the room.
@@ -214,6 +217,12 @@ export class ShipInteriorScene implements GameScene {
     });
 
     this.scene.add(this.player.rig);
+    // A hidden set of the markers the tutorial and the console guide put up once the room is on
+    // screen. The preparation compiles hidden meshes' programs too, so the real markers reuse these
+    // instead of compiling two programs in the frame they first appear (~130 ms on an Intel UHD
+    // laptop). Added after the batching, like the real ones, and kept hidden for the room's life so
+    // its programs stay compiled.
+    new TutorialBeacon(this.scene, 'prewarm-beacon');
 
     this.player.setFloorTargets(this.floorMeshes);
     // roomColliders() stays as the hand-authored backstop for the hull and the two pieces of

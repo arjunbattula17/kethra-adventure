@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { span } from './perfMarks';
+import { hasQuickLights, isLit, setQuickLights } from './shaderPatches';
 
 /**
  * Cooperative scene preparation: the expensive first-time work of a scene (shader programs, texture
@@ -183,6 +184,101 @@ export async function compileProgressively(
   }
 }
 
+/** The lit materials of `scene`, each once. */
+export function litMaterials(scene: THREE.Scene): THREE.Material[] {
+  const found = new Set<THREE.Material>();
+  scene.traverse((o) => {
+    const m = (o as THREE.Mesh).material;
+    if (m) for (const mat of Array.isArray(m) ? m : [m]) if (isLit(mat)) found.add(mat);
+  });
+  return [...found];
+}
+
+/**
+ * Moves a scene that is on screen from its quick lighting programs to the unrolled ones
+ * (shaderPatches.ts, QUICK_LIGHTS), without a frame ever waiting on a compile or a first use:
+ *
+ * 1. Compiles each object's unrolled programs a few at a time, as compileProgressively does. For each
+ *    object its materials are switched to unrolled, compiled, and switched back, all inside one task,
+ *    so no frame draws with a program that isn't ready. three.js keeps every program a material has
+ *    used, so switching back costs nothing.
+ * 2. Draws the scene off screen a few objects at a time with the unrolled programs (the same switch
+ *    around each partial draw), which pays each program's first use away from the screen.
+ * 3. Switches the materials for good, a few a frame.
+ *
+ * Stops, leaving the scene on its quick programs, as soon as `stillCurrent` says it has gone. Returns
+ * whether it finished.
+ */
+export async function upgradeQuickLights(
+  renderer: THREE.WebGLRenderer,
+  scene: THREE.Scene,
+  camera: THREE.Camera,
+  target: THREE.WebGLRenderTarget,
+  pacer: Pacer,
+  stillCurrent: () => boolean,
+): Promise<boolean> {
+  const quick = (o: Drawable) => (Array.isArray(o.material) ? o.material : [o.material]).filter(hasQuickLights);
+  const objects = drawablesOf(scene).filter((o) => quick(o).length > 0);
+  const unrolled = (mats: THREE.Material[], run: () => void) => {
+    for (const m of mats) setQuickLights(m, false);
+    try {
+      run();
+    } finally {
+      for (const m of mats) setQuickLights(m, true);
+    }
+  };
+  const registry = renderer.info.programs as unknown as ProgramHandle[] | null;
+  const known = new Set<ProgramHandle>(registry ?? []);
+  const inFlight: ProgramHandle[] = [];
+  const settle = () => {
+    for (let i = inFlight.length - 1; i >= 0; i--) if (inFlight[i].isReady()) inFlight.splice(i, 1);
+  };
+  const t = performance.now();
+  for (const object of objects) {
+    await pacer.tick();
+    settle();
+    while (inFlight.length >= pacer.pace.programsInFlight) {
+      await pacer.breathe();
+      settle();
+    }
+    if (!stillCurrent()) return false;
+    const root = { traverse: (visit: (o: THREE.Object3D) => void) => visit(object), traverseVisible: () => {} } as unknown as THREE.Object3D;
+    const previous = renderer.getRenderTarget();
+    renderer.setRenderTarget(target);
+    try {
+      unrolled(quick(object), () => renderer.compile(root, camera, scene));
+    } finally {
+      renderer.setRenderTarget(previous);
+    }
+    if (registry && registry.length !== known.size) {
+      for (const p of registry) {
+        if (!known.has(p)) {
+          known.add(p);
+          inFlight.push(p);
+        }
+      }
+    }
+  }
+  while (inFlight.length) {
+    await pacer.breathe();
+    if (!stillCurrent()) return false;
+    settle();
+  }
+  span('upgradeQuickLights:compile', t);
+  const materials = litMaterials(scene).filter(hasQuickLights);
+  const t2 = performance.now();
+  // First uses, off screen: drawProgressively's partial draws, each with the unrolled programs.
+  await drawProgressively(renderer, scene, camera, target, pacer, 24, undefined, (draw) => unrolled(materials, draw));
+  span('upgradeQuickLights:firstDraw', t2);
+  // For good, eight materials a frame (the Wren has ~200).
+  for (let i = 0; i < materials.length; i++) {
+    if (!stillCurrent()) return false;
+    setQuickLights(materials[i], false);
+    if (i % 8 === 7) await pacer.breathe();
+  }
+  return true;
+}
+
 const MAP_SLOTS = [
   'map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap', 'bumpMap', 'lightMap',
   'specularMap', 'envMap', 'clearcoatMap', 'clearcoatNormalMap', 'clearcoatRoughnessMap', 'sheenColorMap', 'sheenRoughnessMap',
@@ -249,7 +345,7 @@ const WARM_LAYER = 31;
  * a mesh hides its children too, and three.js gathers lights by the same layer test, so the lights
  * join that layer for the duration and every partial draw uses the programs the real frame will.
  * Hidden meshes are shown for it (the scene may show them later), and nothing is culled. Objects the
- * real camera can't see (raycast-only proxies) are left out.
+ * real camera can't see (raycast-only proxies) are left out. `around`, if given, wraps each partial draw.
  */
 export async function drawProgressively(
   renderer: THREE.WebGLRenderer,
@@ -259,6 +355,7 @@ export async function drawProgressively(
   pacer: Pacer,
   batch = 24,
   onProgress?: (fraction: number) => void,
+  around: (draw: () => void) => void = (draw) => draw(),
 ): Promise<void> {
   const objects = drawablesOf(scene).filter((o) => o.layers.test(camera.layers));
   const lights: THREE.Object3D[] = [];
@@ -289,7 +386,7 @@ export async function drawProgressively(
       renderer.shadowMap.needsUpdate = false;
       renderer.setRenderTarget(target);
       try {
-        renderer.render(scene, camera);
+        around(() => renderer.render(scene, camera));
       } finally {
         renderer.setRenderTarget(previous);
         renderer.shadowMap.autoUpdate = autoShadow;

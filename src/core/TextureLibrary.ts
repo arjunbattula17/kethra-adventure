@@ -1,7 +1,13 @@
 import * as THREE from 'three';
+import { decodeImageFile, imagesArriveFlipped, textureMaxSize } from './textureCache';
 
-const loader = new THREE.TextureLoader();
-const cache = new Map<string, THREE.Texture>();
+interface CachedMap {
+  texture: THREE.Texture;
+  arrived: boolean;
+  ready: Promise<void>;
+}
+
+const cache = new Map<string, CachedMap>();
 const loads: Promise<void>[] = [];
 
 /**
@@ -13,18 +19,36 @@ export function pbrTexturesReady(): Promise<void> {
   return Promise.all(loads).then(() => undefined);
 }
 
-function load(url: string, srgb: boolean): THREE.Texture {
-  const cached = cache.get(url);
+/**
+ * One map, fetched once per URL and size ceiling. Its image is decoded off the page's thread and shrunk
+ * to the quality tier's ceiling, as the kits' maps are (textureCache.ts). Loaded as an <img>, the
+ * ship_wall set stayed 2048x2048 on Performance (64 MB on the GPU, kept for the session once Vessek
+ * had used it) and was decoded on the page's thread during its first upload.
+ */
+function load(url: string, srgb: boolean): CachedMap {
+  const key = `${textureMaxSize()}|${url}`;
+  const cached = cache.get(key);
   if (cached) return cached;
-  let settle!: () => void;
-  loads.push(new Promise<void>((resolve) => (settle = resolve)));
-  const tex = loader.load(url, () => settle(), undefined, () => settle());
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 8;
-  if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
-  cache.set(url, tex);
-  return tex;
+  const texture = new THREE.Texture();
+  texture.name = url.split('/').slice(-2).join('/');
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  texture.flipY = !imagesArriveFlipped();
+  if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
+  const entry: CachedMap = { texture, arrived: false, ready: Promise.resolve() };
+  entry.ready = decodeImageFile(url).then(
+    (image) => {
+      texture.image = image;
+      texture.needsUpdate = true;
+      entry.arrived = true;
+    },
+    // A map that fails to load leaves its material untextured rather than stopping the build.
+    () => {},
+  );
+  loads.push(entry.ready);
+  cache.set(key, entry);
+  return entry;
 }
 
 export interface PbrMaps {
@@ -45,34 +69,27 @@ export type PbrTextureName =
   | 'ship_console'
   | 'ship_trim';
 
-// .clone() copies a reference to the same underlying <img>, not the pixel data itself. If that
-// image hasn't finished loading yet, flagging the clone needsUpdate immediately uploads nothing
-// (silently — the clone never gets its own load-completion callback the way the original
-// THREE.TextureLoader-returned texture does), leaving the material permanently untextured/black
-// even once the image finishes loading moments later. Only flag immediately once real pixel
-// data exists; otherwise wait for the shared image's own load event.
-function markUpdateWhenReady(tex: THREE.Texture): void {
-  const img = tex.image as HTMLImageElement | undefined;
-  if (img && img.complete && img.naturalWidth > 0) {
-    tex.needsUpdate = true;
-  } else if (img) {
-    img.addEventListener('load', () => { tex.needsUpdate = true; }, { once: true });
-  }
+/**
+ * A copy of a cached map with its own repeat. Copies share the image (and one upload), and each is
+ * flagged for upload once the image is there: flagged before, a copy uploads nothing and stays black.
+ */
+function copyOf(entry: CachedMap, repeat: [number, number]): THREE.Texture {
+  const tex = entry.texture.clone();
+  tex.repeat.set(repeat[0], repeat[1]);
+  if (entry.arrived) tex.needsUpdate = true;
+  else void entry.ready.then(() => (tex.needsUpdate = true));
+  return tex;
 }
 
 export function loadPbr(name: PbrTextureName, repeat: [number, number] = [1, 1]): PbrMaps {
   const dir = `${BASE}/${name}`;
-  // Clone per call: textures are cached by URL, but .repeat is per-instance state that
-  // callers set independently — sharing the cached instance would make the last caller's
-  // tiling silently win for every other mesh using this same source texture.
-  const map = load(`${dir}/diff.jpg`, true).clone();
-  const normalMap = load(`${dir}/nor_gl.jpg`, false).clone();
-  const roughnessMap = load(`${dir}/rough.jpg`, false).clone();
-  for (const tex of [map, normalMap, roughnessMap]) {
-    tex.repeat.set(repeat[0], repeat[1]);
-    markUpdateWhenReady(tex);
-  }
-  return { map, normalMap, roughnessMap };
+  // A copy per call: .repeat is per-texture, and sharing the cached one would make the last caller's
+  // tiling win for every mesh using the same image.
+  return {
+    map: copyOf(load(`${dir}/diff.jpg`, true), repeat),
+    normalMap: copyOf(load(`${dir}/nor_gl.jpg`, false), repeat),
+    roughnessMap: copyOf(load(`${dir}/rough.jpg`, false), repeat),
+  };
 }
 
 export function applyPbr(material: THREE.MeshStandardMaterial, name: PbrTextureName, repeat: [number, number] = [1, 1]): void {

@@ -41,13 +41,12 @@ export function disposeSceneTextures(scene: THREE.Scene): void {
 }
 
 /**
- * Frees everything a scene holds on the GPU: geometry, materials, every texture (file-backed ones
- * too, including shader uniforms and the background) and shadow maps. For scenes that own what they
- * load, such as the space cinematics. Safe even for something shared: three re-uploads a disposed
- * texture or recompiles a disposed material on its next use, so the only cost is that upload.
+ * Frees a scene's geometry, materials and shadow maps, for scenes that own what they build, such as the
+ * space cinematics. Its textures are left to Engine.releaseTextures, which frees the ones the next
+ * scene doesn't use: freed here, the maps the docking cruise shares with Vessek (the planet's, cached
+ * in planetShader.ts) were uploaded again in Vessek's first frame after it had prepared them.
  */
 export function disposeSceneFully(scene: THREE.Scene): void {
-  const textures = new Set<THREE.Texture>();
   const materials = new Set<THREE.Material>();
   scene.traverse((obj) => {
     const light = obj as THREE.Light & { shadow?: THREE.LightShadow };
@@ -57,17 +56,7 @@ export function disposeSceneFully(scene: THREE.Scene): void {
     const material = mesh.material;
     for (const mat of Array.isArray(material) ? material : material ? [material] : []) materials.add(mat);
   });
-  for (const mat of materials) {
-    for (const slot of MAP_SLOTS) {
-      const tex = (mat as unknown as Record<string, THREE.Texture | undefined>)[slot];
-      if (tex?.isTexture) textures.add(tex);
-    }
-    const uniforms = (mat as THREE.ShaderMaterial).uniforms;
-    if (uniforms) for (const u of Object.values(uniforms)) if ((u.value as THREE.Texture)?.isTexture) textures.add(u.value);
-    mat.dispose();
-  }
-  if ((scene.background as THREE.Texture)?.isTexture) textures.add(scene.background as THREE.Texture);
-  for (const tex of textures) tex.dispose();
+  for (const mat of materials) mat.dispose();
 }
 
 /**
