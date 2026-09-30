@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { cacheTexturesFor } from '../../core/textureCache';
+import { cachedLoad } from '../../core/retry';
 
 // Quaternius "Stylized Nature MegaKit" (CC0) — see public/models/CREDITS.md. Unlike the ship's
 // sci-fi kit, these pieces are organic and don't sit on any grid; every placement below is sized
@@ -51,10 +52,9 @@ const templateCache = new Map<string, Promise<KitPrimitive[]>>();
 // one primitive for rocks/grass/etc.) and no node-level transform, so raw accessor-space geometry
 // is already in real-world local units — no baking needed before reuse across instances.
 function loadTemplate(name: string): Promise<KitPrimitive[]> {
-  let pending = templateCache.get(name);
-  if (!pending) {
-    const url = `${KIT_BASE}/${name}.gltf`;
-    pending = loader.loadAsync(url).then((gltf) => {
+  // Retried on a network failure and never cached as failed (core/retry.ts).
+  return cachedLoad(templateCache, name, () =>
+    loader.loadAsync(`${KIT_BASE}/${name}.gltf`).then((gltf) => {
       const prims: KitPrimitive[] = [];
       gltf.scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
@@ -64,10 +64,8 @@ function loadTemplate(name: string): Promise<KitPrimitive[]> {
         }
       });
       return prims;
-    });
-    templateCache.set(name, pending);
-  }
-  return pending;
+    }),
+  );
 }
 
 export interface KitInstanceSpec {

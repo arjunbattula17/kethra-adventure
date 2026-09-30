@@ -135,6 +135,10 @@ export const STRINGS = {
   'loading.lore.4': 'No Kindling carving mentions a war. Only light, water, and home.',
   'loading.lore.5': 'The Anchorage has tried to leave four times.',
   'loading.lore.6': 'Something under Isilthe’s sea repeats the same signal on a fixed cycle.',
+  // Shown on the loading screen when a scene change can't finish (GameFlow.go).
+  'loading.failed.title': 'Something didn’t load',
+  'loading.failed.body': 'Part of the game couldn’t be loaded. Check the connection, then reload. Your journey is saved at the last place you arrived.',
+  'loading.failed.reload': 'Reload',
 
   // Galaxy map: clicking a world whose charts aren't compiled yet shows the scanner's note.
   'map.uncharted.vessek': 'Scanner: about twenty hulls moored in a ring. Some still have power.',

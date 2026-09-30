@@ -403,6 +403,28 @@ class UIManagerImpl {
   }
 
   /**
+   * A scene change that couldn't finish (GameFlow.go): the opaque loading screen says so and offers a
+   * reload, instead of leaving the player on a black cover or a frozen loading bar. The save is
+   * written at every arrival, so a reload lands on the title with Continue.
+   */
+  showLoadFailure(): void {
+    this.showLoading();
+    this.loadingLoreTimer?.cancel();
+    this.loadingLoreTimer = null;
+    (this.loadingEl.querySelector('.loading-title') as HTMLElement).textContent = t('loading.failed.title');
+    (this.loadingEl.querySelector('.loading-bar') as HTMLElement).style.display = 'none';
+    (this.loadingEl.querySelector('.loading-text') as HTMLElement).textContent = t('loading.failed.body');
+    const lore = this.loadingEl.querySelector('.loading-lore') as HTMLElement;
+    lore.textContent = '';
+    const reload = document.createElement('button');
+    reload.className = 'btn primary';
+    reload.textContent = t('loading.failed.reload');
+    reload.onclick = () => location.reload();
+    lore.appendChild(reload);
+    reload.focus();
+  }
+
+  /**
    * The signature transition (STYLE_BIBLE.md, Motion): the Wren's scan line sweeps down and the
    * world behind it goes dark. Names kept from the fade it replaced, since every scene change in
    * GameFlow already calls these two in pairs.

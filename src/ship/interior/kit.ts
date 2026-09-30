@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { cacheTexturesFor } from '../../core/textureCache';
+import { cachedLoad } from '../../core/retry';
 
 // Quaternius "Modular Sci-Fi MegaKit" (CC0) — see public/models/CREDITS.md. Every piece sits on a
 // 4-unit horizontal grid; a full wall bay is WallBottom(0..3) + WallTop(3..5) stacked, giving a
@@ -90,11 +91,10 @@ const cache = new Map<string, Promise<THREE.Object3D>>();
  * hundreds of meshes).
  */
 export async function kitPiece(name: string): Promise<THREE.Object3D> {
-  let pending = cache.get(name);
-  if (!pending) {
-    const dir = categoryFor(name);
-    const url = `${KIT_BASE}/${dir}/${name}.gltf`;
-    pending = loader.loadAsync(url).then((gltf) => {
+  // Retried on a network failure and never cached as failed (core/retry.ts): a room build that
+  // fails still gets a fresh fetch the next time it is attempted.
+  const template = await cachedLoad(cache, name, () =>
+    loader.loadAsync(`${KIT_BASE}/${categoryFor(name)}/${name}.gltf`).then((gltf) => {
       const root = gltf.scene;
       root.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
@@ -104,10 +104,8 @@ export async function kitPiece(name: string): Promise<THREE.Object3D> {
         }
       });
       return root;
-    });
-    cache.set(name, pending);
-  }
-  const template = await pending;
+    }),
+  );
   return template.clone(true);
 }
 

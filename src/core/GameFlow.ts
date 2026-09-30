@@ -56,6 +56,13 @@ function stagedProgress(building: string, from = 0.05, to = 0.97): (fraction: nu
 const shipLoadingProgress = stagedProgress('Waking the Wren');
 
 /**
+ * A transition that failed after putting the player back where they were, with a message (a level's
+ * code that wouldn't download). Any other failure leaves the player mid-transition, often on a black
+ * cover, and go() shows the load-failure screen instead.
+ */
+class HandledFailure extends Error {}
+
+/**
  * Scene-level states of a playthrough. One transition runs at a time, and only along EDGES, so a
  * double click or a stale callback can't start a second or out-of-place transition.
  */
@@ -153,8 +160,16 @@ export class GameFlow {
       this.state = to;
       return true;
     } catch (err) {
-      // A failed body has already restored the player and shown an error; the state is unchanged.
-      console.warn(`[flow] ${this.state} → ${to} did not complete`, err);
+      if (err instanceof HandledFailure) {
+        // The body has already restored the player and shown an error; the state is unchanged.
+        console.warn(`[flow] ${this.state} → ${to} did not complete`, err);
+        return false;
+      }
+      // Anything else stopped a scene change partway, usually behind the black cover: a scene that
+      // couldn't build (a file that failed every retry), or a GPU that went away. Say so plainly and
+      // offer a reload rather than leaving a black screen.
+      console.error(`[flow] ${this.state} → ${to} failed`, err);
+      UIManager.showLoadFailure();
       return false;
     } finally {
       this.busy = false;
@@ -632,20 +647,29 @@ export class GameFlow {
       if (canopyModule) canopy = new canopyModule.CanopyScene();
     } catch {
       UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
-      throw new Error(`level ${planetId} failed to load`);
+      throw new HandledFailure(`level ${planetId} failed to load`);
     }
     const course = gameState.data.course;
     const cruise = new CruiseScene({ destination: planetId === 'vessek' ? 'vessek' : 'kethra', days: course?.days ?? 6, cells: course?.cells ?? 4 });
     // Prepared while the ship is still on screen (First light, the departure): paced to stay inside
     // its frames, as the Wren is behind the intro.
     const cruiseReady = this.engine.prepareScene(cruise, { pacer: this.engine.newPacer(PACE.playing) });
+    // A failure is reported by the await below, once First light has played.
+    cruiseReady.catch(() => {});
     if (ship) await (gameState.hasFlag('first_light') ? this.departure(ship) : this.firstLight(ship));
     await cruiseReady;
     gameState.setFlag('left_wren');
     await this.engine.setScene(() => cruise, { prepared: true, quiet: true });
     this.shipScene = null;
-    cruise.prepareArrival = () => this.engine.prepareScene(canopy ?? level, { pacer: this.engine.newPacer(PACE.playing) });
+    // The cruise holds its last shot until this settles, so a failed build must still settle it:
+    // rejected, the hold never ended. The failure is thrown once the cruise hands back (see go()).
+    let arrivalFailure: unknown = null;
+    cruise.prepareArrival = () =>
+      this.engine.prepareScene(canopy ?? level, { pacer: this.engine.newPacer(PACE.playing) }).catch((err: unknown) => {
+        arrivalFailure = err ?? new Error('the arrival failed to prepare');
+      });
     await new Promise<void>((resolve) => (cruise.onArrive = resolve));
+    if (arrivalFailure) throw arrivalFailure;
     if (canopy) {
       await this.engine.setScene(() => canopy, { prepared: true, quiet: true });
       await new Promise<void>((resolve) => (canopy.onComplete = resolve));
@@ -734,7 +758,7 @@ export class GameFlow {
       UIManager.hideLoading();
       await UIManager.fadeFromBlack();
       UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
-      throw new Error(`level ${planetId} failed to load`);
+      throw new HandledFailure(`level ${planetId} failed to load`);
     }
     scene.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
     // left_wren also hides the HUD key strip (UIManager.refreshStatusBar).
@@ -828,7 +852,7 @@ export class GameFlow {
       gameState.setFlag('ending_seen');
       await UIManager.fadeFromBlack();
       UIManager.toast('Transmission sent.', 'learn');
-      throw new Error('the ending failed to load');
+      throw new HandledFailure('the ending failed to load');
     }
     const ending = new EndingScene();
     ending.onDone = () => void this.go('wren', () => this.finishEnding());
