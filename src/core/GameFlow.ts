@@ -661,11 +661,25 @@ export class GameFlow {
     gameState.setFlag('left_wren');
     await this.engine.setScene(() => cruise, { prepared: true, quiet: true });
     this.shipScene = null;
+    // What comes after the cruise prepares while it flies, paced to stay inside its frames: the
+    // canopy first (the cruise hands over to it), then the level. Started at the cruise's last shot
+    // instead, Kethra's build held MG2's final shot ~18 s and Vessek's held the docking title ~29 s on
+    // an Intel UHD laptop (docs/perf/journey-cold). The cruise holds its last shot for whatever of the
+    // first is left; what's left of the level carries on under MG2.
+    // Vessek still starts at the last shot: its build isn't time-sliced yet, and during the cruise
+    // it froze the flight for up to 0.9 s (docs/perf/journey-early-prep).
+    const paced = () => ({ pacer: this.engine.newPacer(PACE.playing) });
+    let arrivalStarted: Promise<void> | null = null;
+    const startArrival = () => (arrivalStarted ??= this.engine.prepareScene(canopy ?? level, paced()));
+    if (planetId === 'kethra') startArrival();
+    const levelReady = canopy ? startArrival().then(() => this.engine.prepareScene(level, paced())) : null;
+    // Reported where it is awaited, below.
+    levelReady?.catch(() => {});
     // The cruise holds its last shot until this settles, so a failed build must still settle it:
     // rejected, the hold never ended. The failure is thrown once the cruise hands back (see go()).
     let arrivalFailure: unknown = null;
     cruise.prepareArrival = () =>
-      this.engine.prepareScene(canopy ?? level, { pacer: this.engine.newPacer(PACE.playing) }).catch((err: unknown) => {
+      startArrival().catch((err: unknown) => {
         arrivalFailure = err ?? new Error('the arrival failed to prepare');
       });
     await new Promise<void>((resolve) => (cruise.onArrive = resolve));
@@ -673,9 +687,8 @@ export class GameFlow {
     if (canopy) {
       await this.engine.setScene(() => canopy, { prepared: true, quiet: true });
       await new Promise<void>((resolve) => (canopy.onComplete = resolve));
-      // Prepare the level after the canopy ends, so its slow first build stalls on the held final
-      // shot rather than mid-descent.
-      await this.engine.prepareScene(level, { pacer: this.engine.newPacer(PACE.playing) });
+      // Usually done by now; otherwise the rest of the build finishes on MG2's held final shot.
+      await levelReady;
       gameState.setFlag('canopy_flown');
       gameState.addAttributeXp('traversal', 1);
     }

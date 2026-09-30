@@ -163,7 +163,6 @@ export class VessekScene implements GameScene {
   async init(): Promise<void> {
     // Wait for the display fonts: canvas textures drawn before they load bake in the fallback font.
     await displayFontsReady();
-    UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x020308);
     this.scene.environment = getSharedEnvironment();
     this.scene.environmentIntensity = 0.45;
@@ -219,8 +218,6 @@ export class VessekScene implements GameScene {
     this.player.fallResetY = -5;
     this.player.onFootstep = () => AudioSystem.playFootstep('metal');
     this.player.onLand = (s) => AudioSystem.playLand(s);
-    this.stopAmbient = AudioSystem.startAmbient(58, 0.02);
-    this.stopMusic = AudioSystem.startMusic('vessek');
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
     this.unsub.push(bus.on('player:shake', (amount: number) => this.player.addShake(amount)));
 
@@ -230,6 +227,16 @@ export class VessekScene implements GameScene {
 
     if (gameState.hasFlag('vessek_pulse') && !gameState.hasFlag('vessek_power_restored')) this.setEmergency(1);
     this.settleLamps();
+  }
+
+  /**
+   * Arrival: the hold's sound, the look prompt and the objective. Here rather than in init, which
+   * runs while the docking cruise is still on screen (GameFlow.cruiseTo prepares the level during it).
+   */
+  onEnter(): void {
+    UIManager.setLookPromptEnabled(true);
+    this.stopAmbient = AudioSystem.startAmbient(58, 0.02);
+    this.stopMusic = AudioSystem.startMusic('vessek');
     gameState.setObjective(this.currentObjective());
     bus.emit('scene:vessek:ready');
   }

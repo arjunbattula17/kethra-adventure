@@ -389,7 +389,6 @@ export class KethraScene implements GameScene {
     await displayFontsReady();
     // Same grove every visit: see resetGroveRandom in kit.ts for why the scatter is seeded.
     resetGroveRandom();
-    UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x0b1220);
     this.scene.fog = new THREE.FogExp2(0x0b1220, 0.015);
     this.scene.environment = getSharedEnvironment();
@@ -434,8 +433,6 @@ export class KethraScene implements GameScene {
     this.player.fallResetY = WATER_Y + 0.3;
     this.player.onFellOut = () => UIManager.toast('You slip into the dark water and wade back to the landing terrace.');
     this.player.onFootstep = () => AudioSystem.playFootstep('organic');
-    this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
-    this.stopMusic = AudioSystem.startMusic('kethra');
     this.player.onLand = (s) => AudioSystem.playLand(s);
 
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
@@ -464,7 +461,16 @@ export class KethraScene implements GameScene {
       wake.done();
       this.heart.setAwake(true);
     } else wake.reset();
+  }
 
+  /**
+   * Arrival: the grove's sound, the look prompt and the objective. Here rather than in init, which
+   * runs while the cruise is still on screen (GameFlow.cruiseTo prepares the level during it).
+   */
+  onEnter(): void {
+    UIManager.setLookPromptEnabled(true);
+    this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
+    this.stopMusic = AudioSystem.startMusic('kethra');
     gameState.setObjective('Explore Kethra. Speak with the Aiveth and find the true light-sequence.');
   }
 

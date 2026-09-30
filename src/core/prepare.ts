@@ -268,11 +268,6 @@ export async function drawProgressively(
   const saved = objects.map((o) => ({ visible: o.visible, culled: o.frustumCulled, mask: o.layers.mask }));
   const lightMasks = lights.map((l) => l.layers.mask);
   const cameraMask = camera.layers.mask;
-  const autoShadow = renderer.shadowMap.autoUpdate;
-  const needsShadow = renderer.shadowMap.needsUpdate;
-  // Partial frames must not paint (and, for a static-shadow scene, keep) a shadow map of a partial scene.
-  renderer.shadowMap.autoUpdate = false;
-  renderer.shadowMap.needsUpdate = false;
   try {
     for (const o of objects) {
       o.visible = true;
@@ -285,11 +280,20 @@ export async function drawProgressively(
       const end = Math.min(objects.length, start + batch);
       for (let i = start; i < end; i++) objects[i].layers.enable(WARM_LAYER);
       const previous = renderer.getRenderTarget();
+      // Partial frames must not paint (and, for a static-shadow scene, keep) a shadow map of a partial
+      // scene. The renderer's shadow settings are shared with the scene on screen, which draws between
+      // these batches, so they are switched off for this render call only.
+      const autoShadow = renderer.shadowMap.autoUpdate;
+      const needsShadow = renderer.shadowMap.needsUpdate;
+      renderer.shadowMap.autoUpdate = false;
+      renderer.shadowMap.needsUpdate = false;
       renderer.setRenderTarget(target);
       try {
         renderer.render(scene, camera);
       } finally {
         renderer.setRenderTarget(previous);
+        renderer.shadowMap.autoUpdate = autoShadow;
+        renderer.shadowMap.needsUpdate = needsShadow;
         for (let i = start; i < end; i++) objects[i].layers.disable(WARM_LAYER);
       }
       onProgress?.(end / objects.length);
@@ -302,7 +306,5 @@ export async function drawProgressively(
     });
     lights.forEach((l, i) => (l.layers.mask = lightMasks[i]));
     camera.layers.mask = cameraMask;
-    renderer.shadowMap.autoUpdate = autoShadow;
-    renderer.shadowMap.needsUpdate = needsShadow;
   }
 }

@@ -33,7 +33,16 @@ page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => {
   if (m.type() === 'error') errors.push(m.text());
 });
-page.on('crash', () => errors.push('PAGE CRASHED'));
+page.on('crash', () => {
+  errors.push('PAGE CRASHED');
+  console.log('!! page crashed');
+});
+context.on('close', () => console.log('!! browser context closed'));
+const lastSeen = { events: [] };
+// Kept outside the page every few seconds, so a crash still says where it happened.
+const keeper = setInterval(() => {
+  page.evaluate(() => window.__prof?.events.slice(-6).map(([n, t]) => `${Math.round(t)} ${n}`)).then((e) => (lastSeen.events = e ?? lastSeen.events), () => {});
+}, 2000);
 await page.addInitScript(pageProbe, [flag('cold-gpu') ? Math.floor(Math.random() * 1e6) : 0]);
 
 const log = (msg) => console.log(`${new Date().toISOString().slice(11, 19)}  ${msg}`);
@@ -62,6 +71,7 @@ const lookAround = () =>
   );
 const mark = (name) => page.evaluate((n) => window.__prof.events.push([n, performance.now()]), name);
 
+try {
 // The Wren, then straight to the reveal (the tutorial's own flow is tools/test-tutorial-flow.mjs).
 log('boot: ?skipTutorial');
 await page.goto(`${BASE}?newGame=1&skipTutorial=1`, { waitUntil: 'commit' });
@@ -151,6 +161,15 @@ await page.click('.credits-roll.visible .btn.primary');
 await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'ShipInteriorScene' && !window.__DEBUG__.flow.isTransitioning(), null, { timeout: 300000, polling: 250 });
 await page.waitForTimeout(2000);
 log('done');
+} catch (err) {
+  clearInterval(keeper);
+  console.log(`!! journey stopped: ${String(err.message).split(/\r?\n/)[0]}`);
+  console.log(`   last milestones: ${lastSeen.events.join(' | ')}`);
+  console.log(`   errors: ${[...new Set(errors)].join(' || ').slice(0, 600)}`);
+  await context.close().catch(() => {});
+  process.exit(2);
+}
+clearInterval(keeper);
 
 const dump = await page.evaluate(() => ({
   events: window.__prof.events,
