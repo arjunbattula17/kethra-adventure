@@ -1,4 +1,4 @@
-import{n as e,u as t}from"./index-Diu6LsAR.js";import{t as n}from"./Environment-k0smhw4j.js";import{$ as r,A as i,C as a,H as o,J as s,L as c,N as l,O as u,P as d,V as f,W as p,X as m,Y as h,Z as g,_,at as v,bt as y,ct as b,dt as x,ft as S,kt as C,m as ee,mt as te,nt as ne,ot as w,pt as re,st as T,v as E,w as ie,x as ae,y as D,yt as O,z as k}from"./three-DxPhTeda.js";import{d as A,i as j,n as M,p as N,r as P,s as F,t as I}from"./spaceDressing-DbN57J3-.js";import{n as L,t as R}from"./motion-BcRobOab.js";import{d as z,f as B,i as V,u as H}from"./boot-hWEcvNQF.js";import{t as U}from"./HoldToSkip-CgZ1E1Ib.js";import{n as W,r as G}from"./spaceSky-CuDgFNSO.js";import{t as K}from"./planetShader-D8HersCf.js";import{t as q}from"./sun-BrgxPxOG.js";import{t as J}from"./skiff-CJlStLT6.js";import{n as oe}from"./anchorage-Bqe5F1_u.js";function se(){let e=new ie(.42,5.5,20,1,!0).rotateZ(Math.PI/2).translate(-2.75,0,0),t=new te({uniforms:{uK:{value:0}},vertexShader:`
+import{n as e,u as t}from"./index-BdxnB2m0.js";import{t as n}from"./Environment-k0smhw4j.js";import{$ as r,A as i,C as a,H as o,J as s,L as c,N as l,O as u,P as d,V as f,W as p,X as m,Y as h,Z as g,_,at as v,bt as y,ct as b,dt as x,ft as S,kt as C,m as ee,mt as te,nt as ne,ot as w,pt as re,st as T,v as E,w as ie,x as ae,y as D,yt as O,z as k}from"./three-DxPhTeda.js";import{d as A,i as j,n as M,p as N,r as P,s as F,t as I}from"./spaceDressing-1OOa3GHl.js";import{n as L,t as R}from"./motion-CART8-5q.js";import{d as z,f as B,i as V,u as H}from"./boot-BKD30aoV.js";import{t as U}from"./HoldToSkip-BeWJlbd0.js";import{n as W,r as G}from"./spaceSky-CGP4WCWR.js";import{t as K}from"./planetShader-D8HersCf.js";import{t as q}from"./sun-Bjad4uK9.js";import{t as J}from"./skiff-CJlStLT6.js";import{n as oe}from"./anchorage-DAqpOp7U.js";function se(){let e=new ie(.42,5.5,20,1,!0).rotateZ(Math.PI/2).translate(-2.75,0,0),t=new te({uniforms:{uK:{value:0}},vertexShader:`
       varying float vAlong;
       varying float vRim;
       void main() {
@@ -12,7 +12,6 @@ import{n as e,u as t}from"./index-Diu6LsAR.js";import{t as n}from"./Environment-
       varying float vAlong;
       varying float vRim;
       void main() {
-        // White-hot at the bell, drive-orange down the length, gone by the tip.
         vec3 hot = vec3(1.0, 0.93, 0.8);
         vec3 warm = vec3(1.0, 0.55, 0.22);
         // Clamped here, not only in the vertex shader: MSAA can sample a varying just outside the
