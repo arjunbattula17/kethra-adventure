@@ -143,6 +143,11 @@ await mark('act:ending');
 log('ending');
 await page.evaluate(() => window.__DEBUG__.flow.debugGo('ending'));
 await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'EndingScene', null, { timeout: 120000, polling: 100 });
+// The credits wait for a choice; "Keep exploring" goes back aboard.
+await page.waitForSelector('.credits-roll.visible .btn.primary', { timeout: 180000 });
+await page.waitForTimeout(1000);
+await mark('act:keep-exploring');
+await page.click('.credits-roll.visible .btn.primary');
 await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'ShipInteriorScene' && !window.__DEBUG__.flow.isTransitioning(), null, { timeout: 300000, polling: 250 });
 await page.waitForTimeout(2000);
 log('done');
