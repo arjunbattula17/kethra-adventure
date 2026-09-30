@@ -19,7 +19,7 @@ import { buildShipHull } from '../../galaxy/shipHull';
 import { buildSpaceSky } from '../../galaxy/spaceSky';
 import type { SpaceSky } from '../../galaxy/spaceSky';
 import { GRADES } from '../../core/GradeGlowPass';
-import { buildPlanetInstance } from '../../galaxy/planetShader';
+import { buildPlanetInstance, planetTexturesReady } from '../../galaxy/planetShader';
 import type { PlanetInstance } from '../../galaxy/planetShader';
 import { PLANETS } from '../../galaxy/planetData';
 import { applyPbr } from '../../core/TextureLibrary';
@@ -182,6 +182,9 @@ export class VessekScene implements GameScene {
     this.buildOutside();
     this.buildLighting();
     this.buildPeople();
+    // The planet's maps come with the kit: in hand before the engine's warm-up frame, so they are
+    // decoded and uploaded behind the loading cover rather than in the first frame the window
+    // comes into view.
     const [rooms, dressing, hallColliders] = await Promise.all([
       buildRooms(this.scene, { wall: wallMat, ceiling: ceilMat }),
       buildDressing(this.scene),
@@ -189,6 +192,7 @@ export class VessekScene implements GameScene {
       this.buildShell(),
       this.buildHallDressing(),
       this.buildRing(),
+      planetTexturesReady(),
     ]);
     this.rooms = rooms;
     this.dressing = dressing;

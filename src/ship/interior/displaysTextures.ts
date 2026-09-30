@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
+import { centralNormalsInv } from '../../core/pixelOps';
 
 // Procedural canvas art for the suspended command display. The reference's screen bank is a
 // single continuous holo composition broken across a 3x2 grid of physical panes -- the concentric
@@ -605,7 +607,7 @@ export function buildCommandArrayTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = ARRAY_W;
   canvas.height = ARRAY_H;
-  const c = canvas.getContext('2d')!;
+  const c = canvas.getContext('2d', PAINT_CONTEXT)!;
 
   // Substrate is a lit LCD, not a hole. The old #031017 floor read as dead pure black once the
   // grade crushed it; the reference's darkest screen pixel still carries a visible teal cast.
@@ -718,7 +720,7 @@ export function buildSweepTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const c = canvas.getContext('2d')!;
+  const c = canvas.getContext('2d', PAINT_CONTEXT)!;
   c.clearRect(0, 0, size, size);
   const cx = size / 2;
   const r = size / 2 - 2;
@@ -756,7 +758,7 @@ export function buildAuxScreenTexture(variant: 0 | 1): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const c = canvas.getContext('2d')!;
+  const c = canvas.getContext('2d', PAINT_CONTEXT)!;
   const rand = rng(variant === 0 ? 8811 : 4477);
   c.fillStyle = '#0d2c39';
   c.fillRect(0, 0, w, h);
@@ -830,7 +832,7 @@ export function buildFrameLabelTexture(text: string): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const c = canvas.getContext('2d')!;
+  const c = canvas.getContext('2d', PAINT_CONTEXT)!;
   c.fillStyle = '#3a424b';
   c.fillRect(0, 0, w, h);
   c.save();
@@ -885,7 +887,7 @@ function newCanvas(size: number): { canvas: HTMLCanvasElement; c: CanvasRenderin
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  return { canvas, c: canvas.getContext('2d')! };
+  return { canvas, c: canvas.getContext('2d', PAINT_CONTEXT)! };
 }
 
 function dataTexture(canvas: HTMLCanvasElement, srgb: boolean): THREE.CanvasTexture {
@@ -906,22 +908,10 @@ function dataTexture(canvas: HTMLCanvasElement, srgb: boolean): THREE.CanvasText
  */
 function heightToNormal(src: HTMLCanvasElement, strength: number): THREE.CanvasTexture {
   const size = src.width;
-  const h = src.getContext('2d')!.getImageData(0, 0, size, size).data;
+  const h = src.getContext('2d', PAINT_CONTEXT)!.getImageData(0, 0, size, size).data;
   const { canvas, c } = newCanvas(size);
   const img = c.createImageData(size, size);
-  const at = (x: number, y: number) => h[((((y % size) + size) % size) * size + (((x % size) + size) % size)) * 4] / 255;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const nx = -(at(x + 1, y) - at(x - 1, y)) * strength;
-      const ny = (at(x, y + 1) - at(x, y - 1)) * strength;
-      const inv = 1 / Math.hypot(nx, ny, 1);
-      const i = (y * size + x) * 4;
-      img.data[i] = (nx * inv * 0.5 + 0.5) * 255;
-      img.data[i + 1] = (ny * inv * 0.5 + 0.5) * 255;
-      img.data[i + 2] = (inv * 0.5 + 0.5) * 255;
-      img.data[i + 3] = 255;
-    }
-  }
+  centralNormalsInv(h, size, size, strength, img.data);
   c.putImageData(img, 0, 0);
   return dataTexture(canvas, false);
 }
@@ -1288,11 +1278,11 @@ export function buildGlassSmudgeMaps(): { roughnessMap: THREE.CanvasTexture; nor
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const c = canvas.getContext('2d')!;
+  const c = canvas.getContext('2d', PAINT_CONTEXT)!;
   const hcanvas = document.createElement('canvas');
   hcanvas.width = h;
   hcanvas.height = h;
-  const hc = hcanvas.getContext('2d')!;
+  const hc = hcanvas.getContext('2d', PAINT_CONTEXT)!;
 
   c.fillStyle = rough(0.1);
   c.fillRect(0, 0, w, h);
@@ -1366,11 +1356,11 @@ export function buildAuxGlassMaps(): { roughnessMap: THREE.CanvasTexture; normal
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const c = canvas.getContext('2d')!;
+  const c = canvas.getContext('2d', PAINT_CONTEXT)!;
   const hcanvas = document.createElement('canvas');
   hcanvas.width = h;
   hcanvas.height = h;
-  const hc = hcanvas.getContext('2d')!;
+  const hc = hcanvas.getContext('2d', PAINT_CONTEXT)!;
 
   c.fillStyle = rough(0.14);
   c.fillRect(0, 0, w, h);
@@ -1435,7 +1425,7 @@ export function buildGlassGlareTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const c = canvas.getContext('2d')!;
+  const c = canvas.getContext('2d', PAINT_CONTEXT)!;
   c.clearRect(0, 0, w, h);
 
   // Wide soft bar -- the ceiling practical's reflection sweeping across the sheet.
@@ -1497,7 +1487,7 @@ export function buildVentSootTexture(seed: number, plumes: number): THREE.Canvas
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const c = canvas.getContext('2d')!;
+  const c = canvas.getContext('2d', PAINT_CONTEXT)!;
   c.fillStyle = '#ffffff';
   c.fillRect(0, 0, w, h);
 
@@ -1557,7 +1547,7 @@ export function buildScuffTexture(seed: number): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const c = canvas.getContext('2d')!;
+  const c = canvas.getContext('2d', PAINT_CONTEXT)!;
   c.clearRect(0, 0, w, h);
 
   const blotches = 5 + Math.floor(rand() * 4);

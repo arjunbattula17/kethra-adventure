@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
+import { sobelNormals } from '../../core/pixelOps';
 
 /**
  * Procedural canvas textures for the ceiling. All cool-grey steel per the art brief
@@ -28,7 +30,7 @@ function canvas2d(w: number, h: number): { canvas: HTMLCanvasElement; g: CanvasR
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  return { canvas, g: canvas.getContext('2d')! };
+  return { canvas, g: canvas.getContext('2d', PAINT_CONTEXT)! };
 }
 
 function toTexture(canvas: HTMLCanvasElement, srgb: boolean): THREE.CanvasTexture {
@@ -60,28 +62,10 @@ function tileable(g: CanvasRenderingContext2D, size: number, draw: () => void): 
 function heightToNormal(src: HTMLCanvasElement, strength: number): THREE.CanvasTexture {
   const W = src.width;
   const H = src.height;
-  const data = src.getContext('2d')!.getImageData(0, 0, W, H).data;
+  const data = src.getContext('2d', PAINT_CONTEXT)!.getImageData(0, 0, W, H).data;
   const { canvas, g } = canvas2d(W, H);
   const out = g.createImageData(W, H);
-  const at = (x: number, y: number) => data[((((y % H) + H) % H) * W + (((x % W) + W) % W)) * 4] / 255;
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const dx =
-        (at(x + 1, y - 1) + 2 * at(x + 1, y) + at(x + 1, y + 1) -
-          at(x - 1, y - 1) - 2 * at(x - 1, y) - at(x - 1, y + 1)) * strength;
-      const dy =
-        (at(x - 1, y + 1) + 2 * at(x, y + 1) + at(x + 1, y + 1) -
-          at(x - 1, y - 1) - 2 * at(x, y - 1) - at(x + 1, y - 1)) * strength;
-      const nx = -dx;
-      const ny = dy;
-      const len = Math.sqrt(nx * nx + ny * ny + 1);
-      const i = (y * W + x) * 4;
-      out.data[i] = Math.round(((nx / len) * 0.5 + 0.5) * 255);
-      out.data[i + 1] = Math.round(((ny / len) * 0.5 + 0.5) * 255);
-      out.data[i + 2] = Math.round(((1 / len) * 0.5 + 0.5) * 255);
-      out.data[i + 3] = 255;
-    }
-  }
+  sobelNormals(data, W, H, strength, out.data);
   g.putImageData(out, 0, 0);
   return toTexture(canvas, false);
 }

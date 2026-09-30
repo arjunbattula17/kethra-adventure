@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { FXAAPass } from 'three/examples/jsm/postprocessing/FXAAPass.js';
 import { GradeGlowPass, GRADES } from './GradeGlowPass';
 import type { GradeProfile } from './GradeGlowPass';
 
@@ -14,6 +15,7 @@ export class PostProcessing {
   private renderPass: RenderPass;
   private aoPass: GTAOPass;
   private bloomPass: UnrealBloomPass;
+  private fxaaPass: FXAAPass;
   private gradePass = new GradeGlowPass();
   private tier: QualityTier = 'high';
   private bloomRequested = true;
@@ -97,6 +99,15 @@ export class PostProcessing {
 
     this.composer.addPass(this.gradePass);
     this.composer.addPass(new OutputPass());
+
+    // Anti-aliasing for the Balanced tier, in place of 4x MSAA (Engine.samplesFor). Multisampling
+    // this chain's half-float target was 36% of a Balanced frame in the Wren on Intel UHD graphics
+    // (72 -> 46 ms, docs/PERF_LOG.md, 2026-09-27) and ~50 MB of shared memory at 1366x768; FXAA is one
+    // full-screen pass. It runs after OutputPass because it expects tone-mapped sRGB input; when it is
+    // off, OutputPass is the last enabled pass and draws to the screen itself.
+    this.fxaaPass = new FXAAPass();
+    this.fxaaPass.enabled = false;
+    this.composer.addPass(this.fxaaPass);
   }
 
   setActive(scene: THREE.Scene, camera: THREE.PerspectiveCamera): void {
@@ -136,6 +147,7 @@ export class PostProcessing {
     this.tier = tier;
     this.aoRequested = tier === 'high';
     this.aoPass.enabled = this.aoRequested && this.aoSupported;
+    this.fxaaPass.enabled = tier === 'medium';
     this.bloomRequested = true;
     this.applyGlow();
   }

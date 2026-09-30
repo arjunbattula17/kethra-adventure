@@ -26,7 +26,9 @@ npm run smoke       # every scene boots with no console errors
 Player-path tests (run against the preview): `node tools/test-tutorial-flow.mjs <url>` (the
 opening), `test-kethra-flow.mjs` (level 2), `test-vessek-flow.mjs` (level 3 and the ending),
 `test-resilience.mjs` (no WebGL, context loss, blocked storage). Measurement: `perf-run.mjs`
-(throttled profile), `browser-matrix.mjs` (Chromium, Edge, Firefox, WebKit),
+(throttled profile), `perf-frames.mjs` (frame, CPU and GPU time per scene and tier on this machine's
+real GPU, in installed Chrome), `perf-ab.mjs` (one change A/B against another, alternated so a
+laptop's heat drift cancels), `browser-matrix.mjs` (Chromium, Edge, Firefox, WebKit),
 `capture-screens.mjs` (every screen), `capture-tiers.mjs` (quality tiers side by side).
 
 ## Project map

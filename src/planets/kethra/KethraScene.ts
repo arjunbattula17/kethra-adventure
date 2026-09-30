@@ -16,7 +16,7 @@ import { WARDEN_DIALOGUE, ARCHIVIST_DIALOGUE } from './kethraDialogue';
 import { KETHRA_LORE_ENTRIES } from './kethraLore';
 import { ShipLibrary } from '../../journal/shipLibrary';
 import { AudioSystem } from '../../audio/AudioSystem';
-import { applyPbr } from '../../core/TextureLibrary';
+import { applyPbr, pbrTexturesReady } from '../../core/TextureLibrary';
 import { KitBatcher, kitInstanceBox, jitter, groveRandom, resetGroveRandom } from './kit';
 import { buildKethraColliders } from './collision';
 import { Figure } from '../../characters/Figure';
@@ -376,6 +376,9 @@ export class KethraScene implements GameScene {
   private unsub: Array<() => void> = [];
   private stopAmbient: (() => void) | null = null;
   private stopMusic: (() => void) | null = null;
+  /** Held rather than looked up by name each frame: getObjectByName walks the whole scene graph. */
+  private motes: THREE.Points | null = null;
+  private eye = new THREE.Vector3();
 
   constructor() {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 2, 18));
@@ -416,7 +419,9 @@ export class KethraScene implements GameScene {
       await nextTask();
     }
 
-    await Promise.all([this.buildFoliage(), this.buildGroundCover(), this.buildClutter()]);
+    // The terraces' rock and metal maps (applyPbr, above) with the kit, so they are in hand for the
+    // engine's warm-up frame behind the loading cover.
+    await Promise.all([this.buildFoliage(), this.buildGroundCover(), this.buildClutter(), pbrTexturesReady()]);
     await nextTask();
 
     this.scene.add(this.player.rig);
@@ -1038,6 +1043,7 @@ export class KethraScene implements GameScene {
     const motes = new THREE.Points(geo, mat);
     motes.name = 'motes';
     this.scene.add(motes);
+    this.motes = motes;
 
     // Layered haze walls beyond the far terraces, for depth cueing on top of the exponential
     // fog: near layer tinted toward the canopy's bioluminescent teal, far layer toward the
@@ -1147,7 +1153,7 @@ export class KethraScene implements GameScene {
     this.shadowsOn = shadows;
     this.player.update(dt);
     this.interaction.update(this.camera);
-    const eye = this.player.getWorldPosition();
+    const eye = this.player.camera.getWorldPosition(this.eye);
     this.warden?.update(dt, elapsed, eye);
     this.archivist?.update(dt, elapsed, eye);
 
@@ -1163,8 +1169,7 @@ export class KethraScene implements GameScene {
     this.scene.environmentIntensity = THREE.MathUtils.lerp(0.5, 0.08, dark);
 
     this.canopy.update(motion.ambientTime);
-    const motes = this.scene.getObjectByName('motes') as THREE.Points | undefined;
-    if (motes) motes.rotation.y += ambientDt * 0.01;
+    if (this.motes) this.motes.rotation.y += ambientDt * 0.01;
   }
 
   onResize(width: number, height: number): void {

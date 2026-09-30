@@ -21,6 +21,8 @@ const outDir = process.argv[3] || 'renders/tutorial-flow';
 fs.mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch({
+  // PW_CHANNEL=chrome runs the installed Chrome instead of Playwright's bundled browser.
+  channel: process.env.PW_CHANNEL || undefined,
   args: [
     '--use-gl=angle',
     '--enable-unsafe-swiftshader',

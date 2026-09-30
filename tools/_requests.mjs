@@ -1,0 +1,18 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ channel: 'chrome', headless: false, args: ['--use-angle=d3d11', '--enable-gpu'] });
+const p = await b.newPage({ viewport: { width: 1366, height: 768 } });
+const reqs = [];
+let phase = 'boot';
+p.on('request', (r) => reqs.push([phase, r.url().replace(/^.*kethra-adventure\//, '')]));
+await p.goto('http://localhost:4173/kethra-adventure/');
+await p.waitForSelector('.title-btn');
+await p.waitForTimeout(2000);
+phase = 'newgame';
+await p.getByRole('button', { name: /New game/ }).click();
+await p.waitForFunction(() => performance.getEntriesByName('ShipInteriorScene:init').length > 0, undefined, { timeout: 120000 });
+phase = 'after-ship-init';
+await p.waitForTimeout(500);
+const by = {};
+for (const [ph, u] of reqs) (by[ph] ||= []).push(u);
+for (const [ph, list] of Object.entries(by)) console.log(`== ${ph} (${list.length})\n  ` + list.join('\n  '));
+await b.close();

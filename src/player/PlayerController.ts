@@ -60,6 +60,9 @@ export class PlayerController {
   /** A cap on movement speed (m/s) that a scene can set. */
   speedLimit = Infinity;
   private raycaster = new THREE.Raycaster();
+  /** The last floor sample, reused for an identical query within the same update(). */
+  private floorSample = { valid: false, x: 0, z: 0, originY: 0, y: null as number | null };
+  private floorHits: THREE.Intersection[] = [];
   private moveState = { speed: 0 };
   headBobTime = 0;
   cameraShakeTrauma = 0;
@@ -91,6 +94,7 @@ export class PlayerController {
 
   setFloorTargets(meshes: THREE.Object3D[]): void {
     this.floorTargets = meshes;
+    this.floorSample.valid = false;
   }
 
   /** Where fallResetY returns the player to. Set once per scene, after the opening teleport. */
@@ -157,15 +161,31 @@ export class PlayerController {
    * own position must park the rig at a height that covers the range it cares about.
    */
   sampleFloorHeight(x: number, z: number): number | null {
-    this.raycaster.set(_rayOrigin.set(x, this.rig.position.y + 2, z), _down);
+    const originY = this.rig.position.y + 2;
+    // update() asks for the same spot up to three times a frame (each collision axis, then the final
+    // position), and standing still they are all the same spot. The floor doesn't move within a
+    // frame, so an identical query gets the identical answer without walking the floor meshes again.
+    const c = this.floorSample;
+    if (c.valid && c.x === x && c.z === z && c.originY === originY) return c.y;
+    this.raycaster.set(_rayOrigin.set(x, originY, z), _down);
     this.raycaster.far = 10;
-    const hits = this.raycaster.intersectObjects(this.floorTargets, true);
-    if (hits.length === 0) return null;
-    return hits[0].point.y;
+    const hits = this.floorHits;
+    hits.length = 0;
+    this.raycaster.intersectObjects(this.floorTargets, true, hits);
+    const y = hits.length === 0 ? null : hits[0].point.y;
+    c.valid = true;
+    c.x = x;
+    c.z = z;
+    c.originY = originY;
+    c.y = y;
+    return y;
   }
 
   update(dt: number): void {
     if (!this.enabled) return;
+    // Scenes can move or swap floor meshes between frames (and tools call sampleFloorHeight directly),
+    // so a cached sample only lives for one update.
+    this.floorSample.valid = false;
 
     const delta = InputManager.consumeMouseDelta();
     this.yaw -= delta.x * MOUSE_SENSITIVITY * PlayerController.sensitivity;
@@ -272,6 +292,7 @@ export class PlayerController {
     }
 
     this.rig.position.copy(resolved);
+    this.floorSample.valid = false;
 
     if (this.rig.position.y < this.fallResetY && this.respawn) {
       this.rig.position.copy(this.respawn.pos);

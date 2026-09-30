@@ -1,0 +1,1392 @@
+{
+ "label": "final-cold",
+ "base": "http://localhost:4173/kethra-adventure/",
+ "coldGpu": true,
+ "mbps": 0,
+ "skipAt": null,
+ "path": "new",
+ "runs": [
+  {
+   "run": 0,
+   "visit": 0,
+   "nonce": 686797,
+   "phases": {
+    "titleShownMs": 312,
+    "titleSeenByHarnessMs": 371,
+    "clickToIntroUncoveredMs": 659,
+    "clickToIntroClockMs": 3507,
+    "introDoneToShipPlayableMs": 921,
+    "clickToShipPlayableMs": 28515
+   },
+   "marks": {
+    "boot:start": 273,
+    "title:shown": 312,
+    "title:newGame": 4087,
+    "intro:uncovered": 4746,
+    "intro:clock": 7593,
+    "intro:done": 31681,
+    "ship:playable": 32602
+   },
+   "spans": {
+    "main:webglProbe": {
+     "at": 59,
+     "ms": 179
+    },
+    "boot:engine": {
+     "at": 918,
+     "ms": 24
+    },
+    "engine:renderer": {
+     "at": 920,
+     "ms": 9
+    },
+    "engine:postfx": {
+     "at": 932,
+     "ms": 10
+    },
+    "engine:environment": {
+     "at": 954,
+     "ms": 983
+    },
+    "IntroScene:init": {
+     "at": 4094,
+     "ms": 15
+    },
+    "IntroScene:compile": {
+     "at": 4108,
+     "ms": 403
+    },
+    "IntroScene:upload": {
+     "at": 4512,
+     "ms": 2
+    },
+    "IntroScene:firstDraw": {
+     "at": 4514,
+     "ms": 174
+    },
+    "IntroScene:warmup": {
+     "at": 4689,
+     "ms": 57
+    },
+    "ShipInteriorScene:init": {
+     "at": 5129,
+     "ms": 2103
+    },
+    "ship:floor": {
+     "at": 5129,
+     "ms": 129
+    },
+    "ship:ceiling": {
+     "at": 5353,
+     "ms": 73
+    },
+    "ship:starfieldWindow": {
+     "at": 5527,
+     "ms": 197
+    },
+    "ship:console": {
+     "at": 6012,
+     "ms": 267
+    },
+    "ship:suspendedDisplay": {
+     "at": 6337,
+     "ms": 93
+    },
+    "ship:lighting": {
+     "at": 6476,
+     "ms": 9
+    },
+    "ship:walls": {
+     "at": 6490,
+     "ms": 411
+    },
+    "ship:airlock": {
+     "at": 6490,
+     "ms": 411
+    },
+    "ship:props": {
+     "at": 6491,
+     "ms": 180
+    },
+    "ship:pbrTextures": {
+     "at": 6670,
+     "ms": 1
+    },
+    "ship:colliders": {
+     "at": 7039,
+     "ms": 13
+    },
+    "ship:batch": {
+     "at": 7051,
+     "ms": 161
+    },
+    "ship:downscaleCanvases": {
+     "at": 7226,
+     "ms": 3
+    },
+    "ShipInteriorScene:compile": {
+     "at": 7231,
+     "ms": 10558
+    },
+    "ShipInteriorScene:upload": {
+     "at": 17789,
+     "ms": 1921
+    },
+    "ShipInteriorScene:firstDraw": {
+     "at": 19710,
+     "ms": 858
+    },
+    "ship:benchmark": {
+     "at": 31963,
+     "ms": 99
+    },
+    "ship:fitRenderScale": {
+     "at": 32062,
+     "ms": 101
+    },
+    "ShipInteriorScene:warmup": {
+     "at": 32163,
+     "ms": 7
+    }
+   },
+   "frames": {
+    "boot": {
+     "frames": 6,
+     "fps": 19.8,
+     "p50": 18.4,
+     "p95": 187.4,
+     "p99": 187.4,
+     "max": 187.4,
+     "over50": 2,
+     "over100": 1,
+     "over250": 0
+    },
+    "titleIdle": {
+     "frames": 129,
+     "fps": 42.5,
+     "p50": 17.8,
+     "p95": 51.9,
+     "p99": 125.5,
+     "max": 332.8,
+     "over50": 7,
+     "over100": 2,
+     "over250": 1
+    },
+    "loading": {
+     "frames": 20,
+     "fps": 30.5,
+     "p50": 17.8,
+     "p95": 123.6,
+     "p99": 123.6,
+     "max": 123.6,
+     "over50": 3,
+     "over100": 2,
+     "over250": 0
+    },
+    "introSettle": {
+     "frames": 53,
+     "fps": 18.6,
+     "p50": 17.7,
+     "p95": 300.7,
+     "p99": 549.1,
+     "max": 549.1,
+     "over50": 7,
+     "over100": 7,
+     "over250": 3
+    },
+    "intro": {
+     "frames": 1359,
+     "fps": 56.4,
+     "p50": 17.7,
+     "p95": 18.4,
+     "p99": 18.7,
+     "max": 19.1,
+     "over50": 0,
+     "over100": 0,
+     "over250": 0
+    },
+    "handover": {
+     "frames": 23,
+     "fps": 25,
+     "p50": 17.5,
+     "p95": 231.3,
+     "p99": 265.1,
+     "max": 265.1,
+     "over50": 3,
+     "over100": 2,
+     "over250": 1
+    },
+    "ship": {
+     "frames": 193,
+     "fps": 38.6,
+     "p50": 18.2,
+     "p95": 36.3,
+     "p99": 36.6,
+     "max": 180.1,
+     "over50": 1,
+     "over100": 1,
+     "over250": 0
+    }
+   },
+   "longTasks": {
+    "boot": {
+     "count": 1,
+     "totalMs": 186,
+     "max": 186,
+     "top": [
+      186
+     ]
+    },
+    "titleIdle": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "loading": {
+     "count": 2,
+     "totalMs": 221,
+     "max": 129,
+     "top": [
+      129,
+      92
+     ]
+    },
+    "introSettle": {
+     "count": 9,
+     "totalMs": 1621,
+     "max": 411,
+     "top": [
+      411,
+      267,
+      197,
+      173,
+      137,
+      135,
+      135,
+      93
+     ]
+    },
+    "intro": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "handover": {
+     "count": 2,
+     "totalMs": 294,
+     "max": 218,
+     "top": [
+      218,
+      76
+     ]
+    },
+    "ship": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    }
+   },
+   "bytes": {
+    "title": 0.52,
+    "intro": 9.58,
+    "total": 9.58
+   },
+   "paint": {
+    "first-paint": 248,
+    "first-contentful-paint": 688
+   },
+   "nav": {
+    "responseEnd": 10.399999998509884,
+    "dcl": 238.29999999701977,
+    "load": 241.89999999850988
+   },
+   "tier": "low",
+   "benchmarkMs": 8.7,
+   "programs": 42,
+   "textures": 257,
+   "geometries": 400,
+   "heapMB": 34.8,
+   "gaps": [
+    [
+     228,
+     187
+    ],
+    [
+     316,
+     53
+    ],
+    [
+     667,
+     333
+    ],
+    [
+     1026,
+     57
+    ],
+    [
+     1223,
+     72
+    ],
+    [
+     1311,
+     88
+    ],
+    [
+     1469,
+     52
+    ],
+    [
+     1557,
+     88
+    ],
+    [
+     2071,
+     126
+    ],
+    [
+     3622,
+     178
+    ],
+    [
+     4225,
+     124
+    ],
+    [
+     4332,
+     90
+    ],
+    [
+     4740,
+     107
+    ],
+    [
+     5269,
+     142
+    ],
+    [
+     5514,
+     245
+    ],
+    [
+     5992,
+     479
+    ],
+    [
+     6329,
+     301
+    ],
+    [
+     6471,
+     142
+    ],
+    [
+     7038,
+     549
+    ],
+    [
+     7200,
+     162
+    ],
+    [
+     32194,
+     231
+    ],
+    [
+     32299,
+     71
+    ],
+    [
+     32581,
+     265
+    ],
+    [
+     32797,
+     180
+    ]
+   ],
+   "long": [
+    [
+     53,
+     186
+    ],
+    [
+     3438,
+     193
+    ],
+    [
+     4119,
+     92
+    ],
+    [
+     4617,
+     129
+    ],
+    [
+     5127,
+     135
+    ],
+    [
+     5353,
+     73
+    ],
+    [
+     5527,
+     197
+    ],
+    [
+     5724,
+     135
+    ],
+    [
+     6012,
+     267
+    ],
+    [
+     6337,
+     93
+    ],
+    [
+     6490,
+     411
+    ],
+    [
+     6901,
+     137
+    ],
+    [
+     7039,
+     173
+    ],
+    [
+     31963,
+     218
+    ],
+    [
+     32229,
+     76
+    ]
+   ],
+   "errors": []
+  },
+  {
+   "run": 1,
+   "visit": 0,
+   "nonce": 462766,
+   "phases": {
+    "titleShownMs": 332,
+    "titleSeenByHarnessMs": 403,
+    "clickToIntroUncoveredMs": 540,
+    "clickToIntroClockMs": 3308,
+    "introDoneToShipPlayableMs": 864,
+    "clickToShipPlayableMs": 28255
+   },
+   "marks": {
+    "boot:start": 293,
+    "title:shown": 332,
+    "title:newGame": 4026,
+    "intro:uncovered": 4566,
+    "intro:clock": 7334,
+    "intro:done": 31418,
+    "ship:playable": 32282
+   },
+   "spans": {
+    "main:webglProbe": {
+     "at": 53,
+     "ms": 207
+    },
+    "boot:engine": {
+     "at": 945,
+     "ms": 27
+    },
+    "engine:renderer": {
+     "at": 947,
+     "ms": 14
+    },
+    "engine:postfx": {
+     "at": 966,
+     "ms": 6
+    },
+    "engine:environment": {
+     "at": 985,
+     "ms": 989
+    },
+    "IntroScene:init": {
+     "at": 4031,
+     "ms": 15
+    },
+    "IntroScene:compile": {
+     "at": 4046,
+     "ms": 335
+    },
+    "IntroScene:upload": {
+     "at": 4381,
+     "ms": 2
+    },
+    "IntroScene:firstDraw": {
+     "at": 4383,
+     "ms": 140
+    },
+    "IntroScene:warmup": {
+     "at": 4523,
+     "ms": 43
+    },
+    "ShipInteriorScene:init": {
+     "at": 4931,
+     "ms": 2063
+    },
+    "ship:floor": {
+     "at": 4932,
+     "ms": 129
+    },
+    "ship:ceiling": {
+     "at": 5155,
+     "ms": 68
+    },
+    "ship:starfieldWindow": {
+     "at": 5318,
+     "ms": 183
+    },
+    "ship:console": {
+     "at": 5929,
+     "ms": 238
+    },
+    "ship:suspendedDisplay": {
+     "at": 6220,
+     "ms": 90
+    },
+    "ship:lighting": {
+     "at": 6355,
+     "ms": 8
+    },
+    "ship:walls": {
+     "at": 6368,
+     "ms": 350
+    },
+    "ship:airlock": {
+     "at": 6368,
+     "ms": 350
+    },
+    "ship:props": {
+     "at": 6368,
+     "ms": 126
+    },
+    "ship:pbrTextures": {
+     "at": 6494,
+     "ms": 0
+    },
+    "ship:colliders": {
+     "at": 6850,
+     "ms": 10
+    },
+    "ship:batch": {
+     "at": 6860,
+     "ms": 120
+    },
+    "ship:downscaleCanvases": {
+     "at": 6991,
+     "ms": 3
+    },
+    "ShipInteriorScene:compile": {
+     "at": 6995,
+     "ms": 10199
+    },
+    "ShipInteriorScene:upload": {
+     "at": 17194,
+     "ms": 1957
+    },
+    "ShipInteriorScene:firstDraw": {
+     "at": 19150,
+     "ms": 857
+    },
+    "ship:benchmark": {
+     "at": 31701,
+     "ms": 91
+    },
+    "ship:fitRenderScale": {
+     "at": 31792,
+     "ms": 93
+    },
+    "ShipInteriorScene:warmup": {
+     "at": 31885,
+     "ms": 9
+    }
+   },
+   "frames": {
+    "boot": {
+     "frames": 6,
+     "fps": 18.2,
+     "p50": 23.6,
+     "p95": 199,
+     "p99": 199,
+     "max": 199,
+     "over50": 2,
+     "over100": 1,
+     "over250": 0
+    },
+    "titleIdle": {
+     "frames": 134,
+     "fps": 44,
+     "p50": 17.6,
+     "p95": 35.5,
+     "p99": 107.3,
+     "max": 354.8,
+     "over50": 6,
+     "over100": 3,
+     "over250": 1
+    },
+    "loading": {
+     "frames": 18,
+     "fps": 33.7,
+     "p50": 18.1,
+     "p95": 89.5,
+     "p99": 89.5,
+     "max": 89.5,
+     "over50": 3,
+     "over100": 0,
+     "over250": 0
+    },
+    "introSettle": {
+     "frames": 51,
+     "fps": 18.4,
+     "p50": 18,
+     "p95": 300.8,
+     "p99": 480.9,
+     "max": 480.9,
+     "over50": 8,
+     "over100": 8,
+     "over250": 4
+    },
+    "intro": {
+     "frames": 1357,
+     "fps": 56.3,
+     "p50": 17.7,
+     "p95": 18.4,
+     "p99": 18.8,
+     "max": 19.2,
+     "over50": 0,
+     "over100": 0,
+     "over250": 0
+    },
+    "handover": {
+     "frames": 23,
+     "fps": 26.6,
+     "p50": 17.7,
+     "p95": 194.7,
+     "p99": 210.1,
+     "max": 210.1,
+     "over50": 4,
+     "over100": 2,
+     "over250": 0
+    },
+    "ship": {
+     "frames": 205,
+     "fps": 41.2,
+     "p50": 18,
+     "p95": 36.2,
+     "p99": 36.9,
+     "max": 195.8,
+     "over50": 1,
+     "over100": 1,
+     "over250": 0
+    }
+   },
+   "longTasks": {
+    "boot": {
+     "count": 1,
+     "totalMs": 213,
+     "max": 213,
+     "top": [
+      213
+     ]
+    },
+    "titleIdle": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "loading": {
+     "count": 2,
+     "totalMs": 171,
+     "max": 98,
+     "top": [
+      98,
+      73
+     ]
+    },
+    "introSettle": {
+     "count": 7,
+     "totalMs": 1193,
+     "max": 350,
+     "top": [
+      350,
+      238,
+      184,
+      133,
+      130,
+      90,
+      68
+     ]
+    },
+    "intro": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "handover": {
+     "count": 2,
+     "totalMs": 261,
+     "max": 203,
+     "top": [
+      203,
+      58
+     ]
+    },
+    "ship": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    }
+   },
+   "bytes": {
+    "title": 0.52,
+    "intro": 9.58,
+    "total": 9.58
+   },
+   "paint": {
+    "first-paint": 272,
+    "first-contentful-paint": 732
+   },
+   "nav": {
+    "responseEnd": 9.299999997019768,
+    "dcl": 260.6000000014901,
+    "load": 263.3999999985099
+   },
+   "tier": "low",
+   "benchmarkMs": 7.3,
+   "programs": 42,
+   "textures": 257,
+   "geometries": 400,
+   "heapMB": 35.6,
+   "gaps": [
+    [
+     251,
+     199
+    ],
+    [
+     341,
+     53
+    ],
+    [
+     713,
+     355
+    ],
+    [
+     1281,
+     107
+    ],
+    [
+     1334,
+     53
+    ],
+    [
+     1512,
+     107
+    ],
+    [
+     1566,
+     54
+    ],
+    [
+     2080,
+     88
+    ],
+    [
+     3566,
+     89
+    ],
+    [
+     4130,
+     90
+    ],
+    [
+     4219,
+     71
+    ],
+    [
+     4557,
+     72
+    ],
+    [
+     5071,
+     142
+    ],
+    [
+     5304,
+     233
+    ],
+    [
+     5605,
+     301
+    ],
+    [
+     5924,
+     301
+    ],
+    [
+     6207,
+     265
+    ],
+    [
+     6350,
+     143
+    ],
+    [
+     6848,
+     481
+    ],
+    [
+     6974,
+     126
+    ],
+    [
+     31910,
+     210
+    ],
+    [
+     31980,
+     53
+    ],
+    [
+     32193,
+     195
+    ],
+    [
+     32263,
+     70
+    ],
+    [
+     32477,
+     196
+    ]
+   ],
+   "long": [
+    [
+     48,
+     213
+    ],
+    [
+     3471,
+     99
+    ],
+    [
+     4058,
+     73
+    ],
+    [
+     4468,
+     98
+    ],
+    [
+     4930,
+     133
+    ],
+    [
+     5154,
+     68
+    ],
+    [
+     5318,
+     184
+    ],
+    [
+     5929,
+     238
+    ],
+    [
+     6220,
+     90
+    ],
+    [
+     6367,
+     350
+    ],
+    [
+     6850,
+     130
+    ],
+    [
+     31700,
+     203
+    ],
+    [
+     31927,
+     58
+    ]
+   ],
+   "errors": []
+  },
+  {
+   "run": 2,
+   "visit": 0,
+   "nonce": 704761,
+   "phases": {
+    "titleShownMs": 345,
+    "titleSeenByHarnessMs": 409,
+    "clickToIntroUncoveredMs": 778,
+    "clickToIntroClockMs": 3663,
+    "introDoneToShipPlayableMs": 903,
+    "clickToShipPlayableMs": 28664
+   },
+   "marks": {
+    "boot:start": 306,
+    "title:shown": 345,
+    "title:newGame": 4029,
+    "intro:uncovered": 4807,
+    "intro:clock": 7692,
+    "intro:done": 31790,
+    "ship:playable": 32693
+   },
+   "spans": {
+    "main:webglProbe": {
+     "at": 57,
+     "ms": 214
+    },
+    "boot:engine": {
+     "at": 966,
+     "ms": 40
+    },
+    "engine:renderer": {
+     "at": 969,
+     "ms": 17
+    },
+    "engine:postfx": {
+     "at": 991,
+     "ms": 14
+    },
+    "engine:environment": {
+     "at": 1026,
+     "ms": 952
+    },
+    "IntroScene:init": {
+     "at": 4034,
+     "ms": 22
+    },
+    "IntroScene:compile": {
+     "at": 4056,
+     "ms": 447
+    },
+    "IntroScene:upload": {
+     "at": 4503,
+     "ms": 3
+    },
+    "IntroScene:firstDraw": {
+     "at": 4506,
+     "ms": 196
+    },
+    "IntroScene:warmup": {
+     "at": 4702,
+     "ms": 104
+    },
+    "ShipInteriorScene:init": {
+     "at": 5177,
+     "ms": 2169
+    },
+    "ship:floor": {
+     "at": 5177,
+     "ms": 135
+    },
+    "ship:ceiling": {
+     "at": 5409,
+     "ms": 68
+    },
+    "ship:starfieldWindow": {
+     "at": 5578,
+     "ms": 180
+    },
+    "ship:console": {
+     "at": 5867,
+     "ms": 221
+    },
+    "ship:suspendedDisplay": {
+     "at": 6509,
+     "ms": 92
+    },
+    "ship:lighting": {
+     "at": 6648,
+     "ms": 9
+    },
+    "ship:walls": {
+     "at": 6662,
+     "ms": 384
+    },
+    "ship:airlock": {
+     "at": 6663,
+     "ms": 384
+    },
+    "ship:props": {
+     "at": 6663,
+     "ms": 145
+    },
+    "ship:pbrTextures": {
+     "at": 6807,
+     "ms": 1
+    },
+    "ship:colliders": {
+     "at": 7181,
+     "ms": 13
+    },
+    "ship:batch": {
+     "at": 7194,
+     "ms": 139
+    },
+    "ship:downscaleCanvases": {
+     "at": 7342,
+     "ms": 3
+    },
+    "ShipInteriorScene:compile": {
+     "at": 7345,
+     "ms": 11384
+    },
+    "ShipInteriorScene:upload": {
+     "at": 18730,
+     "ms": 1946
+    },
+    "ShipInteriorScene:firstDraw": {
+     "at": 20675,
+     "ms": 844
+    },
+    "ship:benchmark": {
+     "at": 32073,
+     "ms": 102
+    },
+    "ship:fitRenderScale": {
+     "at": 32175,
+     "ms": 104
+    },
+    "ShipInteriorScene:warmup": {
+     "at": 32280,
+     "ms": 10
+    }
+   },
+   "frames": {
+    "boot": {
+     "frames": 8,
+     "fps": 22.7,
+     "p50": 18.2,
+     "p95": 169.6,
+     "p99": 169.6,
+     "max": 169.6,
+     "over50": 2,
+     "over100": 1,
+     "over250": 0
+    },
+    "titleIdle": {
+     "frames": 135,
+     "fps": 44.8,
+     "p50": 17.7,
+     "p95": 35.2,
+     "p99": 125.6,
+     "max": 318.4,
+     "over50": 5,
+     "over100": 2,
+     "over250": 1
+    },
+    "loading": {
+     "frames": 21,
+     "fps": 26.8,
+     "p50": 18,
+     "p95": 161,
+     "p99": 176.8,
+     "max": 176.8,
+     "over50": 4,
+     "over100": 2,
+     "over250": 0
+    },
+    "introSettle": {
+     "frames": 52,
+     "fps": 18,
+     "p50": 18,
+     "p95": 283.3,
+     "p99": 513.4,
+     "max": 513.4,
+     "over50": 8,
+     "over100": 8,
+     "over250": 4
+    },
+    "intro": {
+     "frames": 1359,
+     "fps": 56.4,
+     "p50": 17.7,
+     "p95": 18.4,
+     "p99": 18.8,
+     "max": 19.2,
+     "over50": 0,
+     "over100": 0,
+     "over250": 0
+    },
+    "handover": {
+     "frames": 22,
+     "fps": 24.4,
+     "p50": 17.8,
+     "p95": 176.9,
+     "p99": 249.7,
+     "max": 249.7,
+     "over50": 3,
+     "over100": 3,
+     "over250": 0
+    },
+    "ship": {
+     "frames": 205,
+     "fps": 41.1,
+     "p50": 18.1,
+     "p95": 36.4,
+     "p99": 36.7,
+     "max": 159.5,
+     "over50": 1,
+     "over100": 1,
+     "over250": 0
+    }
+   },
+   "longTasks": {
+    "boot": {
+     "count": 1,
+     "totalMs": 220,
+     "max": 220,
+     "top": [
+      220
+     ]
+    },
+    "titleIdle": {
+     "count": 1,
+     "totalMs": 53,
+     "max": 53,
+     "top": [
+      53
+     ]
+    },
+    "loading": {
+     "count": 2,
+     "totalMs": 299,
+     "max": 198,
+     "top": [
+      198,
+      101
+     ]
+    },
+    "introSettle": {
+     "count": 7,
+     "totalMs": 1236,
+     "max": 384,
+     "top": [
+      384,
+      221,
+      179,
+      152,
+      140,
+      92,
+      68
+     ]
+    },
+    "intro": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "handover": {
+     "count": 1,
+     "totalMs": 233,
+     "max": 233,
+     "top": [
+      233
+     ]
+    },
+    "ship": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    }
+   },
+   "bytes": {
+    "title": 0.52,
+    "intro": 9.58,
+    "total": 9.58
+   },
+   "paint": {
+    "first-paint": 260,
+    "first-contentful-paint": 720
+   },
+   "nav": {
+    "responseEnd": 10.399999998509884,
+    "dcl": 272,
+    "load": 272.20000000298023
+   },
+   "tier": "low",
+   "benchmarkMs": 9,
+   "programs": 42,
+   "textures": 257,
+   "geometries": 400,
+   "heapMB": 35.3,
+   "gaps": [
+    [
+     205,
+     170
+    ],
+    [
+     275,
+     70
+    ],
+    [
+     700,
+     318
+    ],
+    [
+     1265,
+     52
+    ],
+    [
+     1354,
+     89
+    ],
+    [
+     1480,
+     126
+    ],
+    [
+     2084,
+     90
+    ],
+    [
+     3574,
+     89
+    ],
+    [
+     4199,
+     161
+    ],
+    [
+     4305,
+     72
+    ],
+    [
+     4572,
+     54
+    ],
+    [
+     4803,
+     177
+    ],
+    [
+     5317,
+     142
+    ],
+    [
+     5566,
+     249
+    ],
+    [
+     5850,
+     283
+    ],
+    [
+     6114,
+     265
+    ],
+    [
+     6505,
+     372
+    ],
+    [
+     6645,
+     123
+    ],
+    [
+     7176,
+     513
+    ],
+    [
+     7333,
+     157
+    ],
+    [
+     32322,
+     250
+    ],
+    [
+     32570,
+     177
+    ],
+    [
+     32692,
+     122
+    ],
+    [
+     32869,
+     160
+    ]
+   ],
+   "long": [
+    [
+     53,
+     220
+    ],
+    [
+     1210,
+     53
+    ],
+    [
+     3483,
+     89
+    ],
+    [
+     4078,
+     101
+    ],
+    [
+     4609,
+     198
+    ],
+    [
+     5176,
+     140
+    ],
+    [
+     5408,
+     68
+    ],
+    [
+     5577,
+     179
+    ],
+    [
+     5866,
+     221
+    ],
+    [
+     6509,
+     92
+    ],
+    [
+     6662,
+     384
+    ],
+    [
+     7181,
+     152
+    ],
+    [
+     32073,
+     233
+    ]
+   ],
+   "errors": []
+  }
+ ]
+}

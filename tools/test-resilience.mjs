@@ -35,7 +35,8 @@ const GL = ['--use-gl=angle', '--enable-unsafe-swiftshader', '--disable-backgrou
 
 // 1. WebGL disabled: a clear message, never a black screen, no uncaught errors.
 {
-  const browser = await chromium.launch({ args: ['--disable-webgl', '--disable-3d-apis'] });
+  // PW_CHANNEL=chrome runs the installed Chrome instead of Playwright's bundled browser.
+  const browser = await chromium.launch({ channel: process.env.PW_CHANNEL || undefined, args: ['--disable-webgl', '--disable-3d-apis'] });
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -47,7 +48,7 @@ const GL = ['--use-gl=angle', '--enable-unsafe-swiftshader', '--disable-backgrou
   await browser.close();
 }
 
-const browser = await chromium.launch({ args: GL });
+const browser = await chromium.launch({ channel: process.env.PW_CHANNEL || undefined, args: GL });
 
 // 2. Context loss mid-play: the game keeps running and draws again after the restore.
 {

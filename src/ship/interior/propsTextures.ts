@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
 import { memoTexture } from '../../core/memoTexture';
+import { centralNormals } from '../../core/pixelOps';
 
 import { mulberry32, hashStr } from '../../core/rng';
 
@@ -14,7 +16,7 @@ function makeCanvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingCo
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  return [canvas, canvas.getContext('2d')!];
+  return [canvas, canvas.getContext('2d', PAINT_CONTEXT)!];
 }
 
 function finish(canvas: HTMLCanvasElement): THREE.CanvasTexture {
@@ -511,23 +513,10 @@ function blob(c: CanvasRenderingContext2D, w: number, h: number, x: number, y: n
 function normalFromHeight(height: HTMLCanvasElement, strength: number): HTMLCanvasElement {
   const w = height.width;
   const h = height.height;
-  const src = height.getContext('2d')!.getImageData(0, 0, w, h).data;
+  const src = height.getContext('2d', PAINT_CONTEXT)!.getImageData(0, 0, w, h).data;
   const [out, octx] = makeCanvas(w, h);
   const img = octx.createImageData(w, h);
-  const at = (x: number, y: number) => src[((((y % h) + h) % h) * w + (((x % w) + w) % w)) * 4] / 255;
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const nx = (at(x - 1, y) - at(x + 1, y)) * strength;
-      const ny = (at(x, y + 1) - at(x, y - 1)) * strength;
-      const len = Math.hypot(nx, ny, 1);
-      const i = (y * w + x) * 4;
-      img.data[i] = ((nx / len) * 0.5 + 0.5) * 255;
-      img.data[i + 1] = ((ny / len) * 0.5 + 0.5) * 255;
-      img.data[i + 2] = (1 / len) * 127.5 + 127.5;
-      img.data[i + 3] = 255;
-    }
-  }
+  centralNormals(src, w, h, strength, img.data);
   octx.putImageData(img, 0, 0);
   return out;
 }

@@ -30,7 +30,7 @@ export const TitleScreen = {
     root.innerHTML = `
       <div class="title-stars"></div>
       <div class="title-stars far"></div>
-      <div class="title-planet"></div>
+      <div class="title-planet"><div class="title-planet-surface"></div></div>
       <div class="title-inner">
         <div class="title-kicker"></div>
         <h1 class="title-name"><span class="title-name-text"></span><span class="title-name-lit" aria-hidden="true"></span><span class="title-scan" aria-hidden="true"></span></h1>
@@ -38,7 +38,7 @@ export const TitleScreen = {
         <nav class="title-menu"></nav>
       </div>`;
     // Key art: Kethra itself, from the same surface map the 3D planet and the chart use.
-    (root.querySelector('.title-planet') as HTMLDivElement).style.backgroundImage = `url(${import.meta.env.BASE_URL}textures/planets/kethra_day.jpg)`;
+    (root.querySelector('.title-planet-surface') as HTMLDivElement).style.backgroundImage = `url(${import.meta.env.BASE_URL}textures/planets/kethra_day.jpg)`;
     root.querySelector('.title-kicker')!.textContent = t('title.kicker');
     root.querySelector('.title-name-text')!.textContent = t('title.name');
     root.querySelector('.title-name-lit')!.textContent = t('title.name');

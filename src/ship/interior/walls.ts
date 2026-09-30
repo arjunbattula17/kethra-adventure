@@ -209,8 +209,11 @@ function addWallDecal(
  * seams. The airlock wall's single straight bay (0, 0, HALF_D) is deliberately left unfilled here
  * — buildAirlock() owns that opening and fills it with a door frame instead of a wall bay.
  */
+/** The kit pieces the walls are assembled from (also fetched early, from the title screen). */
+export const WALL_KIT_PIECES = [WALL_BODY, WALL_TOP, CORNER_BODY, CORNER_TOP, 'Column_Astra'];
+
 export async function buildWalls(ctx: InteriorCtx): Promise<void> {
-  await preloadKit([WALL_BODY, WALL_TOP, CORNER_BODY, CORNER_TOP, 'Column_Astra']);
+  await preloadKit(WALL_KIT_PIECES);
 
   const jobs: Placement[] = [];
 

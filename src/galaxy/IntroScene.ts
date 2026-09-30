@@ -8,12 +8,13 @@ import { AudioSystem } from '../audio/AudioSystem';
 import { getSharedEnvironment } from '../core/Environment';
 import { t, wordCount } from '../content/strings';
 import type { StringKey } from '../content/strings';
-import { buildShipHull } from './shipHull';
+import { buildShipHull, preloadShipHull } from './shipHull';
 import type { ShipHull } from './shipHull';
 import { getPointSprite } from './spaceDressing';
 import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
 import { GRADES } from '../core/GradeGlowPass';
+import { mark } from '../core/perfMarks';
 
 /**
  * The opening cinematic, "Cold Start": the moment the Wren died, and the moment it came back.
@@ -193,6 +194,11 @@ function addShipSpaceMask(mat: THREE.MeshStandardMaterial, worldToShip: THREE.IU
   return uniforms;
 }
 
+/** Starts what the intro's first frame needs (the hull model, the display faces) while the title screen waits. */
+export function preloadIntro(): Promise<unknown> {
+  return Promise.all([preloadShipHull(), displayFontsReady()]);
+}
+
 function toCurve(points: ReadonlyArray<readonly [number, number, number]>): THREE.CatmullRomCurve3 {
   return new THREE.CatmullRomCurve3(points.map(([x, y, z]) => new THREE.Vector3(x, y, z)), false, 'centripetal');
 }
@@ -240,9 +246,8 @@ export class IntroScene implements GameScene {
   private finished = false;
   private stopAmbient: (() => void) | null = null;
 
-  // Hold to skip, offered from the moment the clock starts; before that the scene is still behind
-  // the loading overlay while GameFlow prepares the interior, and a skip there would start a second
-  // interior build.
+  // Hold to skip, offered from the moment the clock starts; before that the opening shot is holding
+  // while GameFlow builds the interior (holdOpening), and the handover would only wait for it anyway.
   private skip = new HoldToSkip({ onSkip: () => this.finish() });
 
   async init(): Promise<void> {
@@ -403,19 +408,38 @@ export class IntroScene implements GameScene {
     this.cues = cues.sort((a, b) => a.at - b.at);
   }
 
+  /**
+   * Holds the clock on the opening shot until `ready` settles, for at most `capMs`. GameFlow builds the
+   * Wren's geometry and paints its textures while this shot holds: that work comes in pieces of up
+   * to ~200 ms, which a still frame hides and a moving one would not.
+   */
+  holdOpening(ready: Promise<unknown>, capMs: number): void {
+    let held = true;
+    const release = () => {
+      held = false;
+    };
+    ready.then(release, release);
+    const until = performance.now() + capMs;
+    this.openingHeld = () => held && performance.now() < until;
+  }
+
+  private openingHeld: () => boolean = () => false;
+
   update(dt: number): void {
-    // Settle gate: the interior builds behind this scene, and its synchronous kit parsing blocks
-    // the main thread for ~2-2.5s right as the intro starts. The clock waits on the opening shot
-    // (a quiet wide frame, where a stalled frame is invisible) until a third of a second of steady
-    // frames arrives or the wall-clock cap passes, so the choreography starts on smooth frames.
-    // Steady means no frame over 50 ms, measured in seconds rather than frame counts so the gate
-    // behaves the same at any refresh rate.
+    // Settle gate: the interior builds behind this scene (see holdOpening), in pieces that stall a
+    // frame now and then. The clock waits on the opening shot (a quiet wide frame, where a stalled
+    // frame is invisible) until the build is done, then until a third of a second of steady frames
+    // arrives or the wall-clock cap passes, so the choreography starts on smooth frames. Steady
+    // means no frame over 50 ms, measured in seconds rather than frame counts so the gate behaves
+    // the same at any refresh rate.
     if (!this.started) {
+      if (this.openingHeld()) return;
       const now = performance.now();
       if (this.settleStartedAt === 0) this.settleStartedAt = now;
       this.steadyTime = dt < 0.05 ? this.steadyTime + dt : 0;
       if (this.steadyTime < 0.33 && now - this.settleStartedAt < TIMELINE.settleCapMs) return;
       this.started = true;
+      mark('intro:clock');
       this.skip.show();
     }
 
@@ -510,6 +534,7 @@ export class IntroScene implements GameScene {
   private finish(): void {
     if (this.finished) return;
     this.finished = true;
+    mark('intro:done');
     this.textLayer.classList.add('skipped');
     this.skip.dispose();
     this.stopAmbient?.();

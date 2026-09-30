@@ -1,0 +1,228 @@
+{
+ "label": "direct-A",
+ "base": "http://localhost:4178/kethra-adventure/",
+ "coldGpu": false,
+ "mbps": 0,
+ "skipAt": null,
+ "path": "direct",
+ "runs": [
+  {
+   "run": 0,
+   "visit": 0,
+   "direct": {
+    "spans": [
+     [
+      "boot:engine",
+      1085
+     ],
+     [
+      "engine:environment",
+      942
+     ],
+     [
+      "engine:postfx",
+      8
+     ],
+     [
+      "ShipInteriorScene:init",
+      2421
+     ],
+     [
+      "ship:floor",
+      121
+     ],
+     [
+      "ship:ceiling",
+      92
+     ],
+     [
+      "ship:starfieldWindow",
+      180
+     ],
+     [
+      "ship:console",
+      198
+     ],
+     [
+      "ship:suspendedDisplay",
+      84
+     ],
+     [
+      "ship:lighting",
+      7
+     ],
+     [
+      "ship:walls",
+      990
+     ],
+     [
+      "ship:airlock",
+      681
+     ],
+     [
+      "ship:props",
+      134
+     ],
+     [
+      "ship:pbrTextures",
+      0
+     ],
+     [
+      "ship:colliders",
+      11
+     ],
+     [
+      "ship:batch",
+      132
+     ],
+     [
+      "ship:downscaleCanvases",
+      3
+     ],
+     [
+      "ShipInteriorScene:compile",
+      9821
+     ],
+     [
+      "ShipInteriorScene:upload",
+      621
+     ],
+     [
+      "upload:slow T_Trim_01_Normal 1024x1024",
+      36
+     ],
+     [
+      "ShipInteriorScene:firstDraw",
+      702
+     ],
+     [
+      "ShipInteriorScene:warmup",
+      107
+     ]
+    ],
+    "playable": 15137,
+    "programs": 37,
+    "long": [
+     1257,
+     304,
+     211,
+     198,
+     181,
+     148
+    ]
+   },
+   "phases": {},
+   "frames": {},
+   "longTasks": {},
+   "spans": {},
+   "errors": []
+  },
+  {
+   "run": 1,
+   "visit": 0,
+   "direct": {
+    "spans": [
+     [
+      "boot:engine",
+      1078
+     ],
+     [
+      "engine:environment",
+      926
+     ],
+     [
+      "engine:postfx",
+      8
+     ],
+     [
+      "ShipInteriorScene:init",
+      2106
+     ],
+     [
+      "ship:floor",
+      118
+     ],
+     [
+      "ship:ceiling",
+      90
+     ],
+     [
+      "ship:starfieldWindow",
+      178
+     ],
+     [
+      "ship:console",
+      190
+     ],
+     [
+      "ship:suspendedDisplay",
+      85
+     ],
+     [
+      "ship:lighting",
+      7
+     ],
+     [
+      "ship:walls",
+      784
+     ],
+     [
+      "ship:airlock",
+      553
+     ],
+     [
+      "ship:props",
+      114
+     ],
+     [
+      "ship:pbrTextures",
+      0
+     ],
+     [
+      "ship:colliders",
+      11
+     ],
+     [
+      "ship:batch",
+      107
+     ],
+     [
+      "ship:downscaleCanvases",
+      2
+     ],
+     [
+      "ShipInteriorScene:compile",
+      8988
+     ],
+     [
+      "ShipInteriorScene:upload",
+      1138
+     ],
+     [
+      "ShipInteriorScene:firstDraw",
+      683
+     ],
+     [
+      "ShipInteriorScene:warmup",
+      90
+     ]
+    ],
+    "playable": 14436,
+    "programs": 37,
+    "long": [
+     1242,
+     228,
+     194,
+     189,
+     178,
+     126
+    ]
+   },
+   "phases": {},
+   "frames": {},
+   "longTasks": {},
+   "spans": {},
+   "errors": []
+  }
+ ]
+}
