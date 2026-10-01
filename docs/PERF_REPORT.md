@@ -1,5 +1,44 @@
 # Performance Report
 
+## 2026-09-30: the overhaul build, measured end to end on the Intel UHD laptop
+
+Same laptop as the section below (i5-1035G1, Intel UHD, 16 GB, installed Chrome, 1366×768), now on
+the live overhaul build, with every cache empty including the graphics driver's shader cache.
+`tools/startup-profile.mjs` measures New game → the Wren; `tools/journey-profile.mjs` plays the
+whole game in order. Every change and rejected experiment is in docs/PERF_LOG.md; the plain-language
+version is in docs/PERF_CHANGELOG_FOR_TEAM.md (19–23).
+
+### What changed for a player
+
+| Moment | Before (2026-09-29 build) | Now |
+|---|---|---|
+| End of the intro → walking in the Wren | 6.0 s loading bar (the Wren's shaders took 27 s, the intro 24) | **1.1–1.3 s** (quick shaders, 7–10 s; full ones swapped in during the tutorial) |
+| New game → walking in the Wren | 38.0 s | **31.1 s**, the intro at 59.9 fps |
+| The Wren on Auto, playing | a steady 30 fps | **~45–56 fps** at 85% resolution once the full shaders are in; a steady 30 until then |
+| Cruise → MG2 cut | 0.47 s freeze | **33–59 ms** worst frame |
+| Kethra cruise, skiff entering the atmosphere | 0.47 s freeze | **133–150 ms** worst frame |
+| Leaving the Wren → walking in Vessek | 74 s (the docking title held ~24 s) | **50–54 s**, no hold; worst cruise frame 333 → 166 ms |
+| Graphics memory aboard after both planets | 409 MB | **231 MB** (same as at boot) |
+
+### What we found
+
+- The Wren's frame on this laptop is per-pixel lighting: half the pixels saves 13 ms of ~27; the
+  environment map is 16–28% of it, the point lights 9–17%, and all post-processing ~0.5 ms. Getting
+  it faster without drawing fewer pixels would mean changing how the room is lit.
+- Every freeze inside a cinematic that we traced was a shader made while you watched: something
+  changed the light count or the fog after the scene had been prepared. `tools/cpu-profile-cut.mjs`
+  names them.
+- Level textures were never given back, so graphics memory grew through a session. That is the most
+  likely cause of the one 7-second freeze seen when returning aboard after Kethra (not seen again in
+  three full playthroughs today) and possibly of the one browser crash on the way to Vessek
+  (2026-09-29; not reproduced since).
+
+### Still open
+
+- Kethra's heaviest views still end at a steady 30 on this laptop.
+- The unrolled shaders take 15–35 s to compile in the background during the tutorial; a player who
+  skips the tutorial reaches MG1 before they are in, and the second Wren picks the upgrade up again.
+
 ## 2026-09-27: measured on an Intel UHD laptop
 
 The section after this one was measured on a desktop with an RTX 4060 and a throttled processor,

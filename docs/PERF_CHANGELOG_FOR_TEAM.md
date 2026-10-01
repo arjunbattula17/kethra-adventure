@@ -184,6 +184,78 @@ Intel UHD graphics (an i5-1035G1), the kind of machine the game has to run on. T
 
 ---
 
+## 2026-09-29 and 30: the overhaul build on the Intel UHD laptop
+
+Measured on the same laptop as above, in installed Chrome, with nothing cached (not even the
+graphics driver's own shader cache): the way a judge first meets the game.
+
+### 19. The Wren is ready when the intro ends
+- **Why:** the Wren's shaders took 27 seconds to prepare on a first visit, and the intro is 24, so a
+  loading bar followed the intro. Three.js writes the lighting code out once per light, and the
+  laptop's shader compiler is very slow on that.
+- **What:** the first Wren of a session starts on "quick" shaders that loop over the lights instead
+  (7 seconds to prepare). They draw a little slower, so while you play the tutorial the full-speed
+  shaders are prepared in the background and swapped in, a few materials a frame. Nothing on screen
+  changes when they swap.
+- **Number:** end of the intro to walking in the Wren: 6.0 s → 1.1–1.3 s; New game to walking in the
+  Wren: 38 s → 31 s.
+- **Say it:** "The ship's shaders used to take longer to prepare than our intro, so players waited
+  after it. Now the ship starts on simpler shaders that are ready in time, and quietly upgrades to
+  the full ones while you play."
+
+### 20. Vessek is ready when you dock
+- **Why:** level 3 was only built once the docking cruise had finished, so its title card held for
+  about 24 seconds. It couldn't be built during the cruise because it was one big job that froze the
+  flight.
+- **What:** Vessek is now built in small pieces with frames drawn in between, starting when the cruise
+  starts, like Kethra.
+- **Number:** leaving the Wren to walking in Vessek: 74 s → 50–54 s; the cruise's worst frame 333 → 166 ms.
+- **Say it:** "We cut level 3's build into small pieces so it can happen during the flight, and the
+  docking title no longer waits."
+
+### 21. No more hiccups in the cruise and the canopy dive
+- **Why:** a shader is prepared for an exact set of lights and fog. Hiding the moth (with its light)
+  at the start of MG2, and switching fog on as the skiff drops into Kethra's sky, each needed shaders
+  that hadn't been prepared, so the game stopped to make them.
+- **Number:** the cut into MG2 went from a 468 ms freeze to 59 ms at worst; the skiff's descent from a
+  466 ms freeze to 150 ms at worst.
+- **Say it:** "We built a tool that names any shader made while you're watching, and fixed the two
+  places it found."
+
+### 22. Levels don't keep their textures after you leave
+- **Why:** every level's image files stayed in graphics memory for the rest of the session. On a
+  laptop that shares its memory with the graphics chip, that pushed the Wren from 231 MB to 409 MB
+  after visiting both planets, and is the likely cause of a one-time 7-second freeze we saw when
+  returning aboard.
+- **Number:** 231 MB aboard at any point in the game; Kethra 144 → 103 MB, Vessek 339 → 224 MB.
+- **Say it:** "When you leave a level, we give its graphics memory back, so the game uses the same
+  memory aboard the ship at the end as at the start."
+
+### 23. The Wren runs faster than a steady 30 on a slow laptop
+- **Why:** on the test laptop the Wren's frame is almost all lighting maths per pixel. The
+  post-processing is only half a millisecond of it.
+- **What:** when a level can't hold about 45 fps on Performance, the game first tries drawing at 85%
+  resolution. If that holds, it keeps it; if not, it goes back to full resolution at a steady 30, as
+  before.
+- **Number:** the Wren now settles at about 45–56 fps on that laptop, Vessek at 55–60. Kethra's
+  heaviest views still end at a steady 30.
+- **Say it:** "On a weak laptop the game trades a little sharpness for smoothness when that's enough
+  to run well, and only falls back to a steady 30 when it isn't."
+
+### Tried and dropped (this pass)
+- Quick shaders for every level: they draw 6–16% slower, so only the first Wren uses them, and only
+  until the full ones are ready.
+- Simplified reflections: faster to prepare, but the room looked flatter.
+- Six lights instead of eight on Performance: 12% faster to prepare, but the console loses its glow.
+
+### Still open
+- Kethra's heaviest views still run at a steady 30 on the test laptop.
+- A crash (the browser closed) happened once on the way to Vessek on 2026-09-29 and hasn't happened
+  since: not in three retries that day, nor in any of today's runs through the whole game. The most
+  likely cause, graphics memory growing through the session, is fixed (22).
+
+---
+
 ## How to talk about performance
 
 1. "We tested on a simulated school Chromebook, with the processor slowed six times and a slow

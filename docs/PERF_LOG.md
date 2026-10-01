@@ -55,3 +55,41 @@ laptop's thermal drift. "Frame ms" is the mean over the four views unless noted.
 | GPU guess: Intel UHD/HD and ARM → Performance | Auto, first visit, New game → the Wren playable | ~85 s (Balanced built, then rebuilt for Performance at the handover: 31–33 s of it) | ~36 s | **Kept** |
 | Benchmark re-measures after a step down; fits render scale on Performance | Auto | one step per boot | as many as needed | **Kept** |
 | Steady 30 fps on Performance when a scene averages under ~45 fps, judged per scene | Auto, the Wren | 44–52 fps with dips to ~32 facing the console | 30 fps, worst frame 35 ms | **Kept** |
+
+## 2026-09-29 and 30: the overhaul build, on the same Intel UHD laptop
+
+The overhaul branched before the 2026-09-27 pass and the start-up work (`bacf042`); both were merged
+into it by hand (`1dc63ee`), then the live build was profiled end to end. Tools, all new or rebuilt
+for the overhaul: `tools/startup-profile.mjs` (title → New game → intro → the Wren, a fresh browser
+profile per run), `tools/journey-profile.mjs` (the whole game in the player's order: the reveal and
+MG1, First light, the cruise, MG2, Kethra, the docking cruise, Vessek, the ending), `--cold-gpu` on
+both (a per-run term appended to every shader, so Intel's own shader cache misses too),
+`tools/program-audit.mjs --keys`, `tools/cpu-profile-cut.mjs` (one cut: long tasks by function, and
+any program first used on screen with the key fields that separate it from the prepared ones),
+`tools/texture-leaks.mjs` (which GPU textures outlive their scene). "Cold" below means both caches
+empty. The laptop throttles as it heats (the same intro ran at 57, 41 and 21 fps in three runs one
+afternoon), so decisions on frame cost used interleaved A/B in one page.
+
+| Change | Scene | Before | After | Result |
+|---|---|---|---|---|
+| Canvas atlas pages cropped to what they hold, painted in ordinary memory (`45c948b`) | The Wren, cold, Performance | upload stage 40.5 s; 540 MB of mostly empty 2048² pages | 3.6 s | **Kept.** Same pixels, same draw calls |
+| Don't draw a scene a full cover hides (`8af1cf1`) | Intro → the Wren, cold | first draws waited 20.9 s on the GPU behind the finished intro | 0.8 s; intro end → the Wren playable 23.9 s → 3.7 s | **Kept** |
+| Failed downloads retried, never cached as failed; a failed transition shows a reload screen (`d4add25`) | Any load | a dropped kit file left a black screen for the session | retried twice; reload offered | **Kept.** `tools/test-load-failure.mjs` 5/5 |
+| Reveal and cruise wait for their sun and planet maps (`9ea70b0`) | Reveal, cruise | ~10 maps decoded in cinematic frames | in hand before the warm-up frame | **Kept** |
+| Kethra prepares during the cruise (`3bb019e`) | MG2's last shot, cold | held ~18 s for Kethra's compile | done ~22 s into the 47 s cruise at 58.6 fps | **Kept** |
+| Vessek built in paced pieces, prepared during the docking cruise | Departure → Vessek playable, cold | 74.2 s (docking title held ~24 s) | 50.1–53.7 s; worst cruise frame 333 → 166 ms | **Kept** (`docs/perf/base-0930`, `fix1-0930`, `final-0930`) |
+| Moth hides its body, not its root (its light stays in the count) | Cruise → MG2 cut | 3 programs compiled in the first frame: 468 ms | 33–59 ms | **Kept** |
+| Cruise keeps fog (no density in space) and the hull's engine light when the skiff drops in | Kethra cruise, entering the atmosphere | 3 unprepared programs: ~370 ms | worst cruise frame 466 → 133–150 ms | **Kept** |
+| Free the replaced scene's textures the next scene doesn't use (`Engine.releaseTextures`) | GPU textures aboard after Kethra and Vessek, Performance | 409 MB (level file textures kept for the session) | 231 MB, the same as at boot; Kethra 144 → 103 MB, Vessek 339 → 224 MB | **Kept.** Returning aboard re-uploads the kit textures the Wren shares (~0.2 s behind the loading bar) |
+| `TextureLibrary` maps decoded off the page's thread, capped by the tier | Vessek, Performance | ship_wall at 2048² (64 MB), decoded on the main thread | 1024² | **Kept** |
+| Wren built with its batch merge paced (test) | Return aboard, cold | merge 224 ms | 503 ms, return +1 s | **Reverted** for the Wren (Vessek keeps it) |
+| Real light loops instead of unrolled copies, everywhere (test) | The Wren's compile behind the intro, cold | 27.4 s | 7.7 s | Compile **kept for the first Wren only**: per frame, 6% slower in the Wren and 11–16% in Kethra (A/B, `gpu` timer queries) |
+| Quick lighting programs for the first Wren, upgraded in the background (`QUICK_LIGHTS`, `upgradeQuickLights`) | Intro end → the Wren playable, cold | 6.0 s (compile 27.4 s); click → the Wren 38.0 s | 1.1–1.3 s (compile 7.0–10.1 s); click → the Wren 31.1 s; intro 59.9 fps. Unrolled programs compiled 15–35 s into the tutorial, then swapped with no frame over 67 ms | **Kept** (`start-fix1`, `start-quick`, `final-0930`) |
+| The light-reach test without the unrolled copies (test) | The Wren / Kethra, per frame | — | stock three.js is 24% / 62% slower | Confirms the 2026-09-27 patch; kept |
+| Spherical-harmonic fit for the environment's diffuse term (test) | The Wren / Kethra | — | 0% / −6% GPU, image unchanged | **Not applied:** no gain where it mattered |
+| Same fit for the reflections too (test) | The Wren | — | compile −25% | **Rejected:** flatter metal, brighter ceiling (3.2/255 mean, 8% of pixels over 8 levels) |
+| 6 point lights on Performance instead of 8 (test) | The Wren | compile ~805 ms a program | ~709 ms (−12%) | **Rejected:** the console's glow lights go, visibly |
+| Post-processing cost (measurement) | The Wren, Performance | the grade, glow and output passes | ~0.5 ms of a 27–41 ms frame | Folding the grade into the output pass again would not help |
+| Where the Wren's frame goes (A/B) | The Wren, Performance | — | environment map 16–28%, 85% resolution −24%, point lights 9–17%, spots −7%, directional fills −7%, fog 1%, glow 0% | The frame is per-pixel lighting |
+| Governor: 85% resolution before the steady-30 cap, on the bottom tier | The Wren on Auto, vsync on | steady 30 | ~45–56 fps after the lighting upgrade; Vessek 55–60; Kethra's heaviest views still end at a steady 30 | **Kept** |
+| Hidden prewarm copy of the tutorial markers in the Wren | First appearance of the markers | 2 programs compiled on screen (~130 ms) | compiled with the room | **Kept** |
