@@ -1,4 +1,4 @@
-import{C as e,Ct as t,D as n,P as r,X as i,_t as a,it as o,mt as s}from"./three-DxPhTeda.js";import{t as c}from"./spaceSky-CGP4WCWR.js";var l=7,u=`
+import{$ as e,A as t,Dt as n,L as r,T as i,ct as a,vt as o,xt as s}from"./three-UYgi6TLI.js";import{t as c}from"./spaceSky-C-Fexghc.js";var l=7,u=`
   varying vec2 vUv;
   void main() {
     vUv = uv;
@@ -24,7 +24,7 @@ import{C as e,Ct as t,D as n,P as r,X as i,_t as a,it as o,mt as s}from"./three-
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
-`;function f(f){let p=new r;p.name=`sun`;let m=new s({uniforms:{uMap:{value:new t().load(`/kethra-adventure/textures/planets/sun.jpg`)},uDrift:{value:0}},vertexShader:`
+`,f=[];function p(){return Promise.all(f).then(()=>void 0)}function m(p){let m=new r;m.name=`sun`;let h;f.push(new Promise(e=>h=e));let g=new o({uniforms:{uMap:{value:new n().load(`/kethra-adventure/textures/planets/sun.jpg`,()=>h(),void 0,()=>h())},uDrift:{value:0}},vertexShader:`
       varying vec2 vUv;
       varying vec3 vNormal;
       varying vec3 vViewDir;
@@ -54,4 +54,4 @@ import{C as e,Ct as t,D as n,P as r,X as i,_t as a,it as o,mt as s}from"./three-
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }
-    `}),h=new i(new a(f.radius,48,32),m);p.add(h);let g=c(5800,new e),_=new i(new o(f.radius*l*2,f.radius*l*2),new s({uniforms:{uInner:{value:g.clone().multiplyScalar(1.1)},uOuter:{value:new e(16758896)},uDisc:{value:1/l}},vertexShader:u,fragmentShader:d,transparent:!0,depthWrite:!1,blending:2}));return p.add(_),{group:p,light:new n(g,3.2),update(e,t){_.quaternion.copy(e.quaternion),m.uniforms.uDrift.value+=t*.004}}}export{f as t};
+    `}),_=new e(new s(p.radius,48,32),g);m.add(_);let v=c(5800,new i),y=new e(new a(p.radius*l*2,p.radius*l*2),new o({uniforms:{uInner:{value:v.clone().multiplyScalar(1.1)},uOuter:{value:new i(16758896)},uDisc:{value:1/l}},vertexShader:u,fragmentShader:d,transparent:!0,depthWrite:!1,blending:2}));return m.add(y),{group:m,light:new t(v,3.2),update(e,t){y.quaternion.copy(e.quaternion),g.uniforms.uDrift.value+=t*.004}}}export{p as n,m as t};
