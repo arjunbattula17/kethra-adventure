@@ -74,6 +74,10 @@ export class PlayerController {
   private lastBobHalfCycle = 0;
   private sinceGrounded = 0;
   private jumpBufferedFor = 0;
+  /** From take-off to landing. The floor-follow is off meanwhile, or it pulls the player back down. */
+  private jumping = false;
+  /** Feet height at take-off; colliders keep blocking from this height until the player lands. */
+  private jumpFromY = 0;
   private landDip = 0;
   private lean = 0;
   /** 0 standing, 1 crouched: eased, so the view lowers instead of snapping. */
@@ -107,6 +111,7 @@ export class PlayerController {
     this.yaw = yaw;
     this.pitch = 0;
     this.velocityY = 0;
+    this.jumping = false;
   }
 
   /**
@@ -130,9 +135,9 @@ export class PlayerController {
     return floorY !== null && floorY - feetY > MAX_STEP_UP;
   }
 
-  private blockedAt(x: number, z: number, feetY: number, height = this.crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT): boolean {
+  private blockedAt(x: number, z: number, feetY: number, height = this.crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT, stepFromY = feetY): boolean {
     const headY = feetY + height;
-    const stepY = feetY + STEP_OVER;
+    const stepY = stepFromY + STEP_OVER;
     for (const { box } of this.colliders) {
       if (box.max.y <= stepY || box.min.y >= headY) continue;
       const dx = x - THREE.MathUtils.clamp(x, box.min.x, box.max.x);
@@ -142,13 +147,26 @@ export class PlayerController {
     return false;
   }
 
+  /** The lowest collider underside at or above `headY` over the player's footprint at (x, z), or null. */
+  private roofAbove(x: number, z: number, headY: number): number | null {
+    let roof: number | null = null;
+    for (const { box } of this.colliders) {
+      if (box.min.y < headY - 0.05 || (roof !== null && box.min.y >= roof)) continue;
+      const dx = x - THREE.MathUtils.clamp(x, box.min.x, box.max.x);
+      const dz = z - THREE.MathUtils.clamp(z, box.min.z, box.max.z);
+      if (dx * dx + dz * dz < PLAYER_RADIUS * PLAYER_RADIUS) roof = box.min.y;
+    }
+    return roof;
+  }
+
   private resolveCollisionXZ(desired: THREE.Vector3): THREE.Vector3 {
     const result = desired;
     const from = this.rig.position;
+    const stepFrom = this.jumping ? Math.min(from.y, this.jumpFromY) : from.y;
     // Resolved one axis at a time so a blocked direction slides along the obstacle instead of
     // stopping dead.
-    if (this.blockedAt(result.x, from.z, from.y) || this.stepTooHigh(result.x, from.z, from.y)) result.x = from.x;
-    if (this.blockedAt(result.x, result.z, from.y) || this.stepTooHigh(result.x, result.z, from.y)) result.z = from.z;
+    if (this.blockedAt(result.x, from.z, from.y, undefined, stepFrom) || this.stepTooHigh(result.x, from.z, from.y)) result.x = from.x;
+    if (this.blockedAt(result.x, result.z, from.y, undefined, stepFrom) || this.stepTooHigh(result.x, result.z, from.y)) result.z = from.z;
     return result;
   }
 
@@ -157,11 +175,12 @@ export class PlayerController {
    * rather than private because tools/collision-check.mjs drives it directly to sample the floor
    * across a whole scene: it has to use the player's own raycast, against the same floor targets,
    * or its reachability model would diverge from what the player actually walks on. The ray starts
-   * 2 units above the rig and reaches 10, so a caller sampling somewhere other than the player's
-   * own position must park the rig at a height that covers the range it cares about.
+   * 2 units above the rig (above the take-off point during a jump, so it can't start over a floor
+   * overhead) and reaches 10, so a caller sampling somewhere other than the player's own position
+   * must park the rig at a height that covers the range it cares about.
    */
   sampleFloorHeight(x: number, z: number): number | null {
-    const originY = this.rig.position.y + 2;
+    const originY = (this.jumping ? Math.min(this.rig.position.y, this.jumpFromY) : this.rig.position.y) + 2;
     // update() asks for the same spot up to three times a frame (each collision axis, then the final
     // position), and standing still they are all the same spot. The floor doesn't move within a
     // frame, so an identical query gets the identical answer without walking the floor meshes again.
@@ -190,11 +209,14 @@ export class PlayerController {
     const delta = InputManager.consumeMouseDelta();
     this.yaw -= delta.x * MOUSE_SENSITIVITY * PlayerController.sensitivity;
     this.pitch -= delta.y * MOUSE_SENSITIVITY * PlayerController.sensitivity;
+    // Keyboard-only play: the arrow keys look around, as the mouse does, and never move the player.
+    // Interaction targets are found by the way the player faces (InteractionSystem's proximity
+    // fallback), so looking is all a keyboard player needs.
+    if (held('lookLeft')) this.yaw += TURN_SPEED * dt;
+    if (held('lookRight')) this.yaw -= TURN_SPEED * dt;
+    if (held('lookUp')) this.pitch += TURN_SPEED * dt;
+    if (held('lookDown')) this.pitch -= TURN_SPEED * dt;
     this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
-    // Keyboard-only play: the arrow keys turn. Interaction targets are found by the way the player
-    // faces (InteractionSystem's proximity fallback), so turning is all a keyboard player needs.
-    if (held('turnLeft')) this.yaw += TURN_SPEED * dt;
-    if (held('turnRight')) this.yaw -= TURN_SPEED * dt;
 
     this.rig.rotation.set(0, this.yaw, 0);
     this.camera.rotation.set(this.pitch, 0, 0);
@@ -235,6 +257,7 @@ export class PlayerController {
       pos.z = THREE.MathUtils.clamp(pos.z, ladder.min.z + PLAYER_RADIUS, ladder.max.z - PLAYER_RADIUS);
       this.velocityY = 0;
       this.onGround = true;
+      this.jumping = false;
       this.moveState.speed = 0;
       this.crouchAmount = damp(this.crouchAmount, this.crouching ? 1 : 0, 14, dt);
       this.camera.position.set(0, EYE_HEIGHT - EYE_HEIGHT * 0.35 * this.crouchAmount, 0);
@@ -249,7 +272,9 @@ export class PlayerController {
     // real one; otherwise the hole under the upper floor drops you back down the shaft.
     const overTop = atTop && resolved.x > ladder.min.x && resolved.x < ladder.max.x && resolved.z > ladder.min.z && resolved.z < ladder.max.z;
     const floorY = overTop ? ladder.max.y : this.sampleFloorHeight(resolved.x, resolved.z);
-    if (floorY !== null) {
+    // No floor-follow mid-jump: a jump's first frames are inside the snap range, and the snap would
+    // set the player straight back down. The airborne branch below lands it instead.
+    if (floorY !== null && !this.jumping) {
       const stepDiff = floorY - this.rig.position.y;
       if (stepDiff > MAX_STEP_UP && !this.onGround) {
         // wall too tall to step onto: keep falling, don't snap
@@ -265,9 +290,12 @@ export class PlayerController {
     // leaving a ledge still counts (coyote time). Jump height and distance are unchanged.
     this.sinceGrounded = this.onGround ? 0 : this.sinceGrounded + dt;
     this.jumpBufferedFor = pressed('jump') ? JUMP_BUFFER : Math.max(0, this.jumpBufferedFor - dt);
-    if (this.jumpBufferedFor > 0 && (this.onGround || this.sinceGrounded < COYOTE_TIME) && this.velocityY <= 0) {
+    // Not on a ladder: over the shaft, a jump from the top rung would come down past it.
+    if (this.jumpBufferedFor > 0 && !ladder && (this.onGround || this.sinceGrounded < COYOTE_TIME) && this.velocityY <= 0) {
       this.velocityY = JUMP_SPEED;
       this.onGround = false;
+      this.jumping = true;
+      this.jumpFromY = resolved.y;
       this.jumpBufferedFor = 0;
       this.sinceGrounded = COYOTE_TIME;
     }
@@ -276,10 +304,20 @@ export class PlayerController {
       const fallSpeed = -this.velocityY;
       this.velocityY += GRAVITY * dt;
       resolved.y = this.rig.position.y + this.velocityY * dt;
+      if (this.velocityY > 0) {
+        // Rising: the head stops at the underside of anything overhead (a duct roof, a root tunnel).
+        const height = this.crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT;
+        const roof = this.roofAbove(resolved.x, resolved.z, this.rig.position.y + height);
+        if (roof !== null && resolved.y + height > roof) {
+          resolved.y = Math.max(this.rig.position.y, roof - height);
+          this.velocityY = 0;
+        }
+      }
       if (floorY !== null && resolved.y <= floorY) {
         resolved.y = floorY;
         this.velocityY = 0;
         this.onGround = true;
+        this.jumping = false;
         // Follow-through on landing: the view dips with the weight and springs back.
         const strength = THREE.MathUtils.clamp(fallSpeed / 9, 0, 1);
         if (strength > 0.25) {
@@ -299,6 +337,7 @@ export class PlayerController {
       this.yaw = this.respawn.yaw;
       this.velocityY = 0;
       this.onGround = true;
+      this.jumping = false;
       this.onFellOut?.();
     }
 

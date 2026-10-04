@@ -124,7 +124,8 @@ Measured numbers cite their files; the rest is description.
 
 ### Keyboard-only play
 - **What:**
-  - Arrow keys turn; A and D step sideways.
+  - The arrow keys look around (← → turn, ↑ ↓ look up and down) and never move you; W, A, S and
+    D move, with A and D stepping sideways.
   - Number keys choose dialogue options and Rite colours.
   - Tab and Enter work every menu.
   - The map preselects the next destination, and the arrow keys change it.
@@ -177,6 +178,10 @@ Measured numbers cite their files; the rest is description.
 
 ### Movement and feedback
 - **What:**
+  - Space jumps 1 m and lands with the dip and thud below. It had never left the ground: the
+    floor snap caught the player on the jump's second frame and set them back down. Overhead
+    colliders (duct roofs, root tunnels) stop the head, and anything that blocks walking still
+    blocks mid-jump, so a jump can't carry you into an object.
   - Coyote time (a jump still works 0.1 s after you step off a ledge) and a jump buffer (a press
     0.12 s early still counts).
   - A landing dip with a thud, and a slight lean when strafing (`src/player/PlayerController.ts`,

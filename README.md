@@ -14,8 +14,8 @@ Development with live reload: `npm run dev`.
 ## Controls
 Every key is defined once in `src/content/controls.ts`; the in-game Controls screen and
 docs/CONTROLS_AND_HOW_TO_PLAY.md (regenerate with `node tools/gen-controls-doc.mjs`) print from it.
-Mouse to look (arrow keys turn without a mouse), W/S or ↑/↓ to move, A/D to step, E to interact,
-Tab for the character sheet, O for settings, Esc to pause.
+Mouse to look (the arrow keys look around without a mouse), W/A/S/D to move, Space to jump, E to
+interact, Tab for the character sheet, O for settings, Esc to pause.
 
 ## Checks
 ```

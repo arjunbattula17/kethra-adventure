@@ -89,8 +89,8 @@ reduced motion, text size and mouse sensitivity.
 **Saving.** The game saves by itself at every milestone; Continue on the title screen picks up
 where you left off.
 
-**Playing without a mouse.** The arrow keys turn and move, \`E\` interacts, number keys answer
-dialogue, and \`Tab\`/\`Enter\` work every menu.
+**Playing without a mouse.** The arrow keys look around while \`W\` \`A\` \`S\` \`D\` move, \`E\`
+interacts, number keys answer dialogue, and \`Tab\`/\`Enter\` work every menu.
 `;
 
 writeFileSync(new URL('../docs/CONTROLS_AND_HOW_TO_PLAY.md', import.meta.url), doc);

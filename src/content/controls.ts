@@ -18,12 +18,14 @@ export interface Binding {
 
 export const BINDINGS = {
   look: { action: 'Look around', keys: ['Mouse'], codes: [], note: 'Click the game first to capture the mouse.' },
-  turnLeft: { action: 'Turn left (no mouse needed)', keys: ['←'], codes: ['ArrowLeft'] },
-  turnRight: { action: 'Turn right (no mouse needed)', keys: ['→'], codes: ['ArrowRight'] },
-  forward: { action: 'Move forward', keys: ['W', '↑'], codes: ['KeyW', 'ArrowUp'] },
-  back: { action: 'Move back', keys: ['S', '↓'], codes: ['KeyS', 'ArrowDown'] },
-  left: { action: 'Step left', keys: ['A'], codes: ['KeyA'] },
-  right: { action: 'Step right', keys: ['D'], codes: ['KeyD'] },
+  lookLeft: { action: 'Look left (no mouse needed)', keys: ['←'], codes: ['ArrowLeft'] },
+  lookRight: { action: 'Look right (no mouse needed)', keys: ['→'], codes: ['ArrowRight'] },
+  lookUp: { action: 'Look up (no mouse needed)', keys: ['↑'], codes: ['ArrowUp'] },
+  lookDown: { action: 'Look down (no mouse needed)', keys: ['↓'], codes: ['ArrowDown'] },
+  forward: { action: 'Move forward', keys: ['W'], codes: ['KeyW'] },
+  back: { action: 'Move back', keys: ['S'], codes: ['KeyS'] },
+  left: { action: 'Move left', keys: ['A'], codes: ['KeyA'] },
+  right: { action: 'Move right', keys: ['D'], codes: ['KeyD'] },
   sprint: { action: 'Sprint (hold)', keys: ['Shift'], codes: ['ShiftLeft', 'ShiftRight'] },
   jump: { action: 'Jump', keys: ['Space'], codes: ['Space'] },
   crouch: { action: 'Crouch (hold)', keys: ['C', 'Ctrl'], codes: ['KeyC', 'ControlLeft', 'ControlRight'] },
@@ -39,4 +41,4 @@ export const BINDINGS = {
 export type BindingId = keyof typeof BINDINGS;
 
 /** The order the Controls screen and the doc list them in. */
-export const BINDING_ORDER = ['look', 'turnLeft', 'turnRight', 'forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'interact', 'hood', 'rite', 'character', 'settings', 'pause', 'skip'];
+export const BINDING_ORDER = ['look', 'lookLeft', 'lookRight', 'lookUp', 'lookDown', 'forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'interact', 'hood', 'rite', 'character', 'settings', 'pause', 'skip'];

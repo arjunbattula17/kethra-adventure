@@ -13,6 +13,37 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-04 (Claude Code, model Claude Opus 5.5)
+
+**Asked for by the team:** A and D should move you left and right, not look; the mouse should be
+the way to look, with the arrow keys as an option for up, down, left and right; and Space should
+visibly jump. Earlier in the same session: an analysis-only inventory of every visual element on
+Kethra, for replacing art one asset at a time (no files changed).
+
+**What the AI generated or changed**
+- `src/content/controls.ts`: the arrow keys are four look bindings; ↑ and ↓ no longer move.
+- `src/player/PlayerController.ts`: arrow-key look up and down, and a working jump (D-26).
+- The tutorial's first card, README, EXPLAIN_TO_TEAM, CHANGELOG_FOR_TEAM's controls and movement
+  entries, DECISIONS D-26, the regenerated CONTROLS_AND_HOW_TO_PLAY.md, and
+  `tools/test-controls.mjs`.
+
+**What the AI found**
+- A and D already stepped sideways in the live build (measured: D moved the player 2.56 m right
+  and turned them 0°). The turning came from ← and →, while ↑ and ↓ moved, so arrow-key players
+  read the left and right keys as "look".
+- The jump had never worked: it rose 9.5 cm for one frame. No test checked jump height, so the
+  new test does.
+
+**Mistakes the AI made and caught this session**
+- Its Kethra inventory quoted a code comment's 2.6 m Wickmoth wingspan; measured on the live
+  model it is 3.8 m spread (2.1–2.7 m perched), and it corrected the figure.
+
+**What the team must be able to explain**
+- Why Space did nothing before (the stair-following floor snap pulled the player back down) and
+  why a jump now can't carry you inside an object (colliders block from the take-off height).
+
+---
+
 ## Session 2026-09-25 (Claude Code, model Claude Opus 5.5)
 
 **Asked for by the team:** three briefs pasted in one message (the TSA submission brief, an

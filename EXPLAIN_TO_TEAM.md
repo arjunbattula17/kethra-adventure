@@ -156,8 +156,9 @@ is generated live: a slow chord plus notes picked at random, different for each 
 ## Pause, settings, keyboard-only (`src/ui/PauseMenu.ts`, `SettingsPanel.ts`, `src/content/controls.ts`)
 - *"How does Esc pause when the browser uses Esc to release the mouse?"* The browser swallows that
   Esc, so the game listens for the mouse being released instead (`InputManager.onUserUnlock`).
-- *"Can you play without a mouse?"* Yes: the arrow keys turn, number keys pick dialogue options,
-  Enter presses the focused button, Tab moves between buttons in menus.
+- *"Can you play without a mouse?"* Yes: the arrow keys look around while W, A, S and D move,
+  number keys pick dialogue options, Enter presses the focused button, Tab moves between buttons
+  in menus.
 - *"Where do the controls come from?"* One table, `controls.ts`, read by the player code, the
   Controls screen and the how-to-play document, so they can never disagree.
 

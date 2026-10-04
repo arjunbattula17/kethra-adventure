@@ -176,7 +176,18 @@ can lower the render resolution before the first frame; and on Performance a sce
 under ~45 fps is held at a steady 30 fps (judged per scene). Choosing a tier by hand turns all of it
 off, as before.
 
-### D-26 · UPGRADE · A cinematic title screen with a live 3D backdrop — *Done 2026-10-16, reversible*
+### D-26 · UPGRADE · The arrow keys look, W/A/S/D move, and Space jumps — *Done 2026-10-04*
+Asked for by the team. The mouse looks; the arrow keys are its keyboard stand-in (← → turn, ↑ ↓
+look up and down) and no longer move the player, so ↑ and ↓ stop duplicating W and S. A and D
+already stepped sideways. Space never left the ground: the floor snap that keeps the player on
+stairs caught a jump on its second frame and set it back down, so the jump was one 10 cm frame. A
+jump now rises the 1 m the tuning file always assumed and lands with the existing dip and thud.
+Overhead colliders (Vessek's ducts, Kethra's root tunnels) stop the head, and anything that blocks
+walking still blocks mid-jump, so a jump can't carry the player over a waist-high object and set
+them down inside it. Floors up to 1.45 m above the take-off become reachable by jumping, which
+nothing on the critical path depends on. Covered by `tools/test-controls.mjs`.
+
+### D-27 · UPGRADE · A cinematic title screen with a live 3D backdrop — *Done 2026-10-16, reversible*
 The title is now sunrise over Kethra's limb, rendered live behind the menu, with a new wordmark,
 glowing console-strip buttons and a ~2.5 s opening (src/galaxy/title/TITLE_DESIGN.md). Choices the
 team can reverse:
