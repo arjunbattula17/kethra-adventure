@@ -159,3 +159,27 @@ sideways) so the whole game plays without a mouse; every key comes from `src/con
 Repairing comms with the Anchorage's alloy offers the transmission of the ledger; the ending shows
 the Wren's light leaving for home, names Isilthe as next, and rolls credits (team ID and every
 licensed asset only).
+
+### D-25 · ADD · Sourced models and textures for Kethra, rebuilt to its style — *Built 2026-10-12, team to approve*
+The team supplied a list of assets for Kethra: two Poly Haven trees and two ground textures (CC0),
+and three Sketchfab models, a ruined column, a crystal cluster and a moth (CC BY 4.0). All are in,
+none as downloaded (public/models/CREDITS.md, "kethra/"):
+- **Colonnade.** The column scan became a 2,200-triangle flat-shaded piece in the chamber's cut-stone
+  colour, eight of them standing in the pool to frame the gate. They are out of reach on purpose:
+  inside the Heart's chamber anything that looks like cover has to be a sight block (hush/sim.ts).
+- **Resonant crystal** grows in the Cistern Heart's basin, tight to the plinth and no taller than
+  it, dark until the wake. The Heart and the Wickmoth themselves are unchanged (D-21).
+- **Moths.** Four small moths rest by the glyph lights. They are set dressing with no name or text;
+  LORE.md still has one Wickmoth. This is the piece to cut first if it reads as clutter.
+- **Trees.** One jacaranda on an islet east of the plaza and eight understory trees in the open water.
+  The kit's trees, including the named ones, are all still in place (DESIGN_NOTES.md).
+- **Ground.** Loam banks under the belt trees and moss on the terraces, both tinted by brightness.
+  This does not settle D-9: the terraces still wear the photo-scanned lichen rock.
+- **Water and mist** are written for this scene (src/planets/kethra/water.ts, dressing.ts).
+
+**Two things for the team to decide.** (1) docs/BRIEF.md says third-party assets are CC0 only. The
+three Sketchfab models are CC BY 4.0, handled the way the planet maps already are: a row in
+docs/ASSET_LICENSE_LOG.md and a line in the end credits (`credits.models`). If the team wants to
+hold to CC0 only, remove `column.glb`, `crystal.glb` and `moth.glb` and their callers in
+`dressing.ts`. (2) Kethra was already over its Low-tier budget and this adds to it; the numbers are
+in docs/PROGRESS.md.

@@ -13,6 +13,36 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-12 (Claude Code, model Claude Opus 5.5)
+
+**Asked for by the team:** a list of assets for Kethra (two Poly Haven trees, two Poly Haven ground
+textures, three Sketchfab models: a column, a crystal cluster and a moth; a Godot water shader and
+Godot's volumetric fog page as references), then a written brief to work them into the level's
+existing look, with the instruction "use all the models you downloaded". The team downloaded the
+three Sketchfab files themselves (they need a login) and chose every asset on the list.
+
+**What the AI generated or changed**
+- **Asset rebuilding** (scripts kept outside the repo): the column and moth scans reduced to
+  low-poly, vertex-coloured models; the crystal reduced; both trees rebuilt from millions of
+  triangles to 24,386 and 4,974. What was done to each is in public/models/CREDITS.md.
+- **Kethra dressing** (`src/planets/kethra/dressing.ts`, `props.ts`): the colonnade in the pool,
+  loam banks under the tree belts, moss on the terraces, resonant crystal in the Cistern Heart's
+  basin, a landmark jacaranda and eight understory trees, four resting moths, mist on the water.
+- **Pool water** (`src/planets/kethra/water.ts`): written for this scene. The Godot shader on the
+  list was read as a reference for technique only; none of its code or textures is used.
+- **Decisions the AI made and the team should review:** where every piece stands; that the Heart
+  and the Wickmoth were left as designed; using the three CC BY models although docs/BRIEF.md says
+  CC0 only (DECISIONS D-25); what each quality tier drops.
+
+**What the team must be able to explain**
+- Why none of the models looks like its download page: one style per scene (ART_BIBLE.md).
+- Why a million-triangle scan became 2,200 triangles and still reads as the same column.
+- Why the columns stand outside the chamber, not in it (cover has to be real cover).
+- What CC BY asks for and where the game gives it (the end credits).
+- That this cost performance, and how much (docs/PROGRESS.md, Performance).
+
+---
+
 ## Session 2026-09-25 (Claude Code, model Claude Opus 5.5)
 
 **Asked for by the team:** three briefs pasted in one message (the TSA submission brief, an

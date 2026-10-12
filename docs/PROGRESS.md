@@ -100,6 +100,9 @@ are OFF, so work continues milestone to milestone without stopping.
 | 30 | P3 | tools/record-gameplay.mjs still travels by the pre-M2 fade (it emits `galaxy:travel_to` and waits 2.2 s); its Hush clip is updated, but the trip needs tools/lib/travel.mjs | tools/record-gameplay.mjs | M8, before the video is recorded |
 | 31 | P3 | MG2's Wickmoth now flies its layer-4 path: the old patrol overwrote its position every frame, so it had never been on screen | canopy/CanopyScene.ts | M7 art pass: look at layer 4 with it there |
 | 32 | P3 | The team docs still describe the breaker panel and the one-room Vessek (EXPLAIN_TO_TEAM.md, docs/INTERVIEW_PREP.md, docs/DEMO_VIDEO_SHOTLIST.md, docs/STORYBOARD_CHECK.md) | team docs | M8, with the report |
+| 33 | P2 | The Kethra dressing (D-25) takes the scene further over budget: High 467 draw calls against 450, Low 361k triangles against 320k, the Hush view 872k against 500k on High, and 102.5 MB of textures against 90 MB (the scene was about 96 MB before it) | planets/kethra/dressing.ts | Team decision on D-25; if it stays, the understory trees and the landmark's leaf cards are the first things to thin |
+| 34 | P3 | `tools/collision-check.mjs kethra` cannot reach Kethra: it still travels by the pre-M2 `galaxy:travel_to` event and times out on the Wren. Run from a copy that calls `flow.debugGo('kethra')` it passes (9/9 targets reachable) | tools/collision-check.mjs | Move it to tools/lib/travel.mjs with issue 30 |
+| 35 | P3 | `tools/test-mg3-flow.mjs` is flaky, and was before the Kethra dressing: run five times each on builds served side by side, alternating, e4f525e passed 3 and the working tree 4 (five earlier runs of the working tree: 4). A failing run always loses a breath at the call-stone (seen, or not counted) and then every check after it | tools/test-mg3-flow.mjs | Find why a breath timed off the moth's sweep is sometimes seen; until then one failure is not a regression |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -175,6 +178,19 @@ are OFF, so work continues milestone to milestone without stopping.
 | 2026-09-27 | `tools/test-vessek-flow.mjs` with the docking arrival (thirteen-hull build) | 49/49: the cruise lands on the title "Vessek Anchorage" and the Wren comes to rest at her berth before the cut; Ki, Shō through the hall duct and ladder, the pulse, the self-resetting lamps tripping the bus, the lockouts, the bay saved, the ledger, the ending; zero console errors |
 | 2026-09-27 | The docking shot's flare | A white blob on the Lantern Bay was a GGX glint: the sun behind at a grazing angle on glossy canopy glass, then on the panel roughness map's glossy texels, spread by the bloom. The Anchorage's hulls are now matte (roughness ≥ 0.8, no roughness map; windows fully matte). A floodlight near the hull was a false lead |
 | 2026-09-27 | Journey run (fourteen tests), stopped | The five model tests and smoke passed. The tutorial flow failed because I passed the site root as the base URL: it builds `baseUrl + '/?newGame=1'`, which needs the default `/kethra-adventure/`. The run was then stopped for low system memory before the other browser tests. To rerun |
+| 2026-10-12 | Build after the Kethra dressing (D-25) | clean (`tsc && vite build`) |
+| 2026-10-12 | `tools/test-hush-sim.mjs`, `tools/test-canopy-layout.mjs` | all passed |
+| 2026-10-12 | `tools/test-kethra-flow.mjs` on the preview build | all checks passed, no page or console errors |
+| 2026-10-12 | `tools/test-mg3-flow.mjs` on the preview build, five runs | four runs 28/28; the first run failed 7 checks from breath 2 on (issue 35) |
+| 2026-10-12 | Reachability on Kethra (the collision check's flood fill, travelling by `debugGo`; issue 34) | 242 colliders, spawn clear, 9/9 interaction targets reachable |
+| 2026-10-12 | Trees hidden inside the Heart's chamber (a probe that teleports plaza, door, call-stone, plaza) | shown, shown, hidden, shown; no page errors |
+| 2026-10-12 | Looked at, High, 1366×768: arrival, plaza, both terraces, the gate ramp, the chamber asleep and awake, each moth perch | Kept after four passes; what was thrown out is in docs/DESIGN_NOTES.md |
+| 2026-10-12 | Looked at, Low, 1366×768: arrival, plaza, east and west terraces, the gate ramp, the chamber | As designed: six columns, two crystal clusters, no understory, mist or moths; the landmark's crown at half its cards is thinner but even |
+| 2026-10-12 | `tools/run-journey.mjs` on the preview build | 14/14 |
+| 2026-10-12 | `stress_tests/run.mjs` on the preview build | 13/13 scenarios (s08-kethra with its one KNOWN, BUG-013) |
+| 2026-10-12 | `tools/test-mg3-flow.mjs`, five runs each on e4f525e and the working tree, alternating | e4f525e 3/5, working tree 4/5 (issue 35) |
+| 2026-10-12 | Tree maps right-sized after the audit (leaves 1024 → 512 and 512 → 256, bark 512 → 256) | Same triangle counts, Khronos validator clean, no difference in the closest views; Kethra's textures 109.5 → 102.5 MB. The suites above ran before this last change, which is texture data only; build, `test-kethra-flow` and the screenshots were repeated after it |
+| 2026-10-12 | Not done | No real Chromebook |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;
@@ -251,3 +267,41 @@ triangles, still to measure. Vessek's own row is still to take.
 |---|---|---|---|---|---|---|
 | Docking shot | Low (6× CPU) | 16.7 / 21.0 | 31 | 76k | 117 | 80 / 150k |
 | Docking shot | High | 16.6 / 26.4 | 41 | 76k | 134 | 160 / 300k |
+
+### Kethra dressing (2026-10-12)
+`tools/measure-scene.mjs` at 1366×768, production builds of the commit before (e4f525e) and the
+working tree after, served side by side, one run each for the counts (the after rows are from
+the final build). See DECISIONS D-25.
+
+| Scene | Preset | Draw calls | Triangles | Textures | Programs | Budget (calls / tris) |
+|---|---|---|---|---|---|---|
+| Kethra | High, before | 449 | 649k | 77 | 183 | 450 / 900k |
+| Kethra | High, after | **467** | 842k | 86 | 199 | 450 / 900k |
+| Kethra | Low, before | 223 | 324k | 57 | 160 | 160 / 320k |
+| Kethra | Low, after | 229 | **361k** | 63 | 172 | 160 / 320k |
+| Hush | High, before | 282 | 669k | 77 | 184 | 300 / 500k |
+| Hush | High, after | **302** | **872k** | 86 | 200 | 300 / 500k |
+| Hush | Low, before | 135 | 322k | 57 | 160 | 120 / 200k |
+| Hush | Low, after | 141 | 359k | 63 | 172 | 120 / 200k |
+
+- **What it cost.** About 97k triangles of new geometry on High (drawn twice there, for the
+  ambient-occlusion pass) and 37k on Low; 18 draw calls on High and 6 on Low; 9 textures on High
+  and 6 on Low; 16 shader programs on High and 12 on Low. Kethra on High is now 17 calls over its
+  budget; Low,
+  already over on calls, is now 13% over on triangles (was 1%). The Hush rows were over before and
+  are further over.
+- **The Hush rows overstate it.** That pose is 10.4 m from the Heart, just inside the door, where
+  the new trees can still be seen through the gate. From 10 m in, the scene stops drawing them:
+  64k triangles of trees, counted twice on High. A probe that teleports in and out confirmed the
+  switch (off by the call-stone, back on at the plaza).
+- **Frame time: no difference measured.** Kethra on Low at 6× CPU, four runs each: before, p50
+  16.8 to 41 ms and p95 36 to 86 ms; after, p50 17.5 to 27 ms and p95 40 to 59 ms. The spread
+  between runs of one build is wider than the gap between the builds, so this neither shows a cost
+  nor rules one out. It does show that single 6× runs cannot rank two builds.
+- **Download.** 2.0 MB of new files, fetched on arrival at Kethra, on top of a build already over
+  its 20 MB target (docs/PERF_AUDIT.md).
+- **Texture memory** (`tools/texture-audit.mjs`, TEXTURE_AUDIT.md): Kethra is at 102.5 MB against
+  90 MB. 6.7 MB of that is this change's eight maps; the pool's 512 px shallows mask (1.3 MB
+  more) is not seen by the audit. The scene was therefore about 96 MB before it.
+- **Not measured:** a real Chromebook, and the cold-cache shader link on arrival (issue 22), which
+  the extra programs will lengthen.

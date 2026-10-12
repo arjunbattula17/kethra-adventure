@@ -1,0 +1,5066 @@
+{
+ "intro": {
+  "textures": [
+   {
+    "source": "canvas: galaxy/spaceDressing.ts:12 getPointSprite <- galaxy/IntroScene.ts:348 IntroScene.buildDust",
+    "hash": "c4b9a566-64x64",
+    "w": 64,
+    "h": 64,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 21845,
+    "users": [
+     "Points"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": null,
+    "densityMedian": null
+   },
+   {
+    "source": "canvas: galaxy/shipHull.ts:40 panelTextures <- galaxy/shipHull.ts:515 buildShipHull",
+    "hash": "3d32d458-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/hull-paint",
+     "Mesh/hull-structure"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 306,
+    "densityMedian": 309
+   },
+   {
+    "source": "canvas: galaxy/shipHull.ts:15 normalFromHeight <- galaxy/shipHull.ts:105 panelTextures",
+    "hash": "c120e7bb-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/hull-paint",
+     "Mesh/hull-structure"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 306,
+    "densityMedian": 309
+   },
+   {
+    "source": "canvas: galaxy/shipHull.ts:41 panelTextures <- galaxy/shipHull.ts:515 buildShipHull",
+    "hash": "c95b2a52-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/hull-paint",
+     "Mesh/hull-structure"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 306,
+    "densityMedian": 309
+   },
+   {
+    "source": "canvas: galaxy/shipHull.ts:123 stencilAtlas <- galaxy/shipHull.ts:574 buildShipHull",
+    "hash": "9c9b8a93-1024x256",
+    "w": 1024,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/hull-stencil"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 515,
+    "densityMedian": 515
+   }
+  ],
+  "rendererTextures": 224,
+  "totalBytes": 5614249
+ },
+ "ship": {
+  "textures": [
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:101 buildPaintedDeckTexture",
+    "hash": "b3ab334f-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 364,
+    "densityMedian": 364
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:152 buildDeckNormalTexture",
+    "hash": "ba9b6615-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 728,
+    "densityMedian": 728
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:202 buildDeckRoughnessTexture",
+    "hash": "104ff66b-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 182,
+    "densityMedian": 182
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:101 buildPaintedDeckTexture",
+    "hash": "b3ab334f-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 195,
+    "densityMedian": 195
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:152 buildDeckNormalTexture",
+    "hash": "ba9b6615-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 391,
+    "densityMedian": 391
+   },
+   {
+    "source": "canvas: ship/ShipTextures.ts:9 paintHazardStripeTexture <- ship/ShipTextures.ts:5",
+    "hash": "b9d67ab1-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 451,
+    "densityMedian": 1247
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:239 buildTreadPlateTexture",
+    "hash": "6b724467-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 856,
+    "densityMedian": 856
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:279 buildTreadNormalTexture",
+    "hash": "2624ebe9-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 856,
+    "densityMedian": 856
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:319 buildTreadRoughnessTexture",
+    "hash": "5d41a1c0-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 856,
+    "densityMedian": 856
+   },
+   {
+    "source": "canvas: ship/ShipTextures.ts:401 buildFloorStencilTexture <- ship/interior/floor.ts:747 buildFloor",
+    "hash": "97f21a4c-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 427,
+    "densityMedian": 427
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:117 buildCeilingPlateTexture",
+    "hash": "fbfd85d3-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 659,
+    "densityMedian": 692
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:69 heightToNormal",
+    "hash": "2a62938-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 659,
+    "densityMedian": 692
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:222 buildCeilingPlateRoughness",
+    "hash": "d4d09ddf-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 659,
+    "densityMedian": 692
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:318 buildCorrugatedDeckTexture",
+    "hash": "eee71b01-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 240,
+    "densityMedian": 240
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:69 heightToNormal",
+    "hash": "f7bcafeb-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 240,
+    "densityMedian": 240
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:413 buildCorrugatedDeckRoughness",
+    "hash": "e28e24f6-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 240,
+    "densityMedian": 240
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:608 buildPipeSteelTexture",
+    "hash": "b23c4d44-256x128",
+    "w": 256,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 351,
+    "densityMedian": 358
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:648 buildPipeRoughness",
+    "hash": "1cbf9818-256x128",
+    "w": 256,
+    "h": 128,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 351,
+    "densityMedian": 358
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:453 buildPaintedTrimTexture",
+    "hash": "bbab4e4f-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 573,
+    "densityMedian": 912
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:507 buildPaintedTrimRoughness",
+    "hash": "5daff566-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 573,
+    "densityMedian": 912
+   },
+   {
+    "source": "canvas: ship/ShipTextures.ts:250 buildStencilPlacardTexture <- ship/interior/ceiling.ts:567 buildCeiling",
+    "hash": "26cdcaa1-256x128",
+    "w": 256,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 512,
+    "densityMedian": 512
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:716 buildCeilingDripTexture",
+    "hash": "4c9927ba-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 233,
+    "densityMedian": 233
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:854 buildCeilingStreakTexture",
+    "hash": "912f5e01-128x256",
+    "w": 128,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 151,
+    "densityMedian": 151
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:776 buildCeilingSootTexture",
+    "hash": "bdd752e3-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 256,
+    "densityMedian": 256
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:532 buildSpaceBackdropTexture",
+    "hash": "2ed49f9d-2048x560",
+    "w": 2048,
+    "h": 560,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 6116693,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 208,
+    "densityMedian": 208
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:750 buildNebulaWispTexture",
+    "hash": "96eab8e8-1024x280",
+    "w": 1024,
+    "h": 280,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1529173,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 104,
+    "densityMedian": 104
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:774 buildDistantStarTexture",
+    "hash": "89690098-1024x280",
+    "w": 1024,
+    "h": 280,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1529173,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 104,
+    "densityMedian": 104
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:774 buildDistantStarTexture",
+    "hash": "600146dd-1024x280",
+    "w": 1024,
+    "h": 280,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1529173,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 104,
+    "densityMedian": 104
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:794 buildGlassSheenTexture",
+    "hash": "4c16d1f9-1024x280",
+    "w": 1024,
+    "h": 280,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1529173,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 117,
+    "densityMedian": 117
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:427 paintOpenBayTexture",
+    "hash": "b286c06e-256x384",
+    "w": 256,
+    "h": 384,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 524288,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 515,
+    "densityMedian": 747
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:107 buildPlateMaps",
+    "hash": "b9e8fa73-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 245,
+    "densityMedian": 253
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:950 buildLedBankTexture",
+    "hash": "419abd7e-256x384",
+    "w": 256,
+    "h": 384,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 524288,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 961,
+    "densityMedian": 961
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:1071 buildBreakerPanelTexture",
+    "hash": "aa4e7402-256x384",
+    "w": 256,
+    "h": 384,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 524288,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 961,
+    "densityMedian": 961
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:1176 buildHandTagTexture",
+    "hash": "8f704e24-192x128",
+    "w": 192,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 131072,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1449,
+    "densityMedian": 1449
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:1000 buildSillReadoutTexture",
+    "hash": "d0c73e8b-512x160",
+    "w": 512,
+    "h": 160,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 436907,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1449,
+    "densityMedian": 1449
+   },
+   {
+    "source": "canvas: ship/ShipTextures.ts:490 paintPanelGrimeTexture <- ship/ShipTextures.ts:485",
+    "hash": "8b1354c1-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 193,
+    "densityMedian": 540
+   },
+   {
+    "source": "canvas: ship/ShipTextures.ts:325 paintWarningStripeTexture <- ship/ShipTextures.ts:321",
+    "hash": "b9d67ab1-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1144,
+    "densityMedian": 1215
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:1103 buildVentTexture",
+    "hash": "9fd4661f-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 286,
+    "densityMedian": 334
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:54 heightToNormal",
+    "hash": "6c4e95ba-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 286,
+    "densityMedian": 334
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:522 buildDeskMapTexture",
+    "hash": "52e8c7b8-1024x320",
+    "w": 1024,
+    "h": 320,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1747627,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 610,
+    "densityMedian": 610
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:367 buildMicroMaps",
+    "hash": "2f350cf0-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 2195,
+    "densityMedian": 3017
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:54 heightToNormal",
+    "hash": "650d7362-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 2195,
+    "densityMedian": 3017
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:369 buildMicroMaps",
+    "hash": "b7825b8e-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 2195,
+    "densityMedian": 3017
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "3b9a49ef-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 294,
+    "densityMedian": 596
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:1153 buildStainDecalTexture",
+    "hash": "b901c369-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 366,
+    "densityMedian": 488
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:1084 buildChairMeshTexture",
+    "hash": "d4a454bc-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "alphaMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 2419,
+    "densityMedian": 2419
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:988 buildSecondaryScreenTexture",
+    "hash": "a256051a-672x392",
+    "w": 672,
+    "h": 392,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1404928,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1022,
+    "densityMedian": 1022
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:766 buildControlFaceTexture",
+    "hash": "dc05b44e-512x256",
+    "w": 512,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 699051,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1012,
+    "densityMedian": 1012
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:766 buildControlFaceTexture",
+    "hash": "6ffecdf1-512x256",
+    "w": 512,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 699051,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1045,
+    "densityMedian": 1045
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:616 buildCommandArrayTexture <- ship/interior/suspendedDisplay.ts:222 buildSuspendedDisplay",
+    "hash": "4f6a1c30-1536x768",
+    "w": 1536,
+    "h": 768,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 6291456,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 612,
+    "densityMedian": 612
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:740 buildSweepTexture <- ship/interior/suspendedDisplay.ts:281 buildSuspendedDisplay",
+    "hash": "e2c6bed4-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 465,
+    "densityMedian": 465
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:910 heightToNormal",
+    "hash": "f7f86428-384x384",
+    "w": 384,
+    "h": 384,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 786432,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 209,
+    "densityMedian": 209
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:1304 buildGlassSmudgeMaps <- ship/interior/suspendedDisplay.ts:113 buildSuspendedDisplay",
+    "hash": "e483f5c-768x384",
+    "w": 768,
+    "h": 384,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 1572864,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 295,
+    "densityMedian": 295
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:1449 buildGlassGlareTexture <- ship/interior/suspendedDisplay.ts:319 buildSuspendedDisplay",
+    "hash": "344817e0-1536x768",
+    "w": 1536,
+    "h": 768,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 6291456,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 591,
+    "densityMedian": 591
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:845 buildFrameLabelTexture <- ship/interior/suspendedDisplay.ts:464 buildSuspendedDisplay",
+    "hash": "a8ad4b8-512x64",
+    "w": 512,
+    "h": 64,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 594,
+    "densityMedian": 594
+   },
+   {
+    "source": "canvas: ship/interior/lightingTextures.ts:8 makeCanvas <- ship/interior/lightingTextures.ts:151 buildDiffuserTexture",
+    "hash": "25fa3271-128x64",
+    "w": 128,
+    "h": 64,
+    "slot": "emissiveMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 43691,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 197,
+    "densityMedian": 248
+   },
+   {
+    "source": "canvas: ship/interior/lightingTextures.ts:8 makeCanvas <- ship/interior/lightingTextures.ts:40 buildBarGlowTexture",
+    "hash": "8218f2f0-256x64",
+    "w": 256,
+    "h": 64,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 75,
+    "densityMedian": 117
+   },
+   {
+    "source": "canvas: ship/interior/lightingTextures.ts:8 makeCanvas <- ship/interior/lightingTextures.ts:21 buildRadialGlowTexture",
+    "hash": "5646b9c3-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "uniform:map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "sprite-batch"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": null,
+    "densityMedian": null
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:354 buildToolBoardTexture",
+    "hash": "4d59d705-512x256",
+    "w": 512,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 699051,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 294,
+    "densityMedian": 294
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:275 paintCanisterLabelTexture",
+    "hash": "a30eae83-256x64",
+    "w": 256,
+    "h": 64,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 484,
+    "densityMedian": 484
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:275 paintCanisterLabelTexture",
+    "hash": "e398af43-256x64",
+    "w": 256,
+    "h": 64,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 484,
+    "densityMedian": 484
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:275 paintCanisterLabelTexture",
+    "hash": "39c63cab-256x64",
+    "w": 256,
+    "h": 64,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 253,
+    "densityMedian": 484
+   },
+   {
+    "source": "canvas: ship/ShipTextures.ts:325 paintWarningStripeTexture <- ship/ShipTextures.ts:321",
+    "hash": "8668645c-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1168,
+    "densityMedian": 1168
+   },
+   {
+    "source": "canvas: ship/ShipTextures.ts:300 buildFirstAidTexture <- ship/interior/props.ts:858 buildFirstAidCabinet",
+    "hash": "96b96bdd-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 401,
+    "densityMedian": 401
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:749 buildContactShadowTexture",
+    "hash": "7ab5a9a5-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 136,
+    "densityMedian": 136
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:794 buildStreakTexture",
+    "hash": "902cc30a-128x256",
+    "w": 128,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 267,
+    "densityMedian": 267
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:794 buildStreakTexture",
+    "hash": "e82c4948-128x256",
+    "w": 128,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 186,
+    "densityMedian": 186
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:794 buildStreakTexture",
+    "hash": "16dbb38-128x256",
+    "w": 128,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 234,
+    "densityMedian": 234
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:867 buildFloorGrimeTexture",
+    "hash": "7224a370-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 199,
+    "densityMedian": 199
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:867 buildFloorGrimeTexture",
+    "hash": "5281719c-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 211,
+    "densityMedian": 211
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:867 buildFloorGrimeTexture",
+    "hash": "5a87ba05-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 203,
+    "densityMedian": 203
+   },
+   {
+    "source": "T_Trim_01_BaseColor_Red",
+    "hash": null,
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Door_Frame_Square/MI_Trim_01",
+     "Mesh/MI_Trim_01"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 276,
+    "densityMedian": 1442
+   },
+   {
+    "source": "T_Trim_01_Normal",
+    "hash": null,
+    "w": 2048,
+    "h": 2048,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 22369621,
+    "users": [
+     "Door_Frame_Square/MI_Trim_01",
+     "Mesh/MI_Trim_01"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 276,
+    "densityMedian": 1442
+   },
+   {
+    "source": "T_Trim_01_ORM",
+    "hash": null,
+    "w": 2048,
+    "h": 2048,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 22369621,
+    "users": [
+     "Door_Frame_Square/MI_Trim_01",
+     "Mesh/MI_Trim_01"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 276,
+    "densityMedian": 1442
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:698 buildDoorGlowTexture",
+    "hash": "65471c10-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 105,
+    "densityMedian": 105
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:452 buildAirlockPlacardTexture",
+    "hash": "b416baa4-512x128",
+    "w": 512,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 571,
+    "densityMedian": 571
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:75 buildAirlockSteelTexture",
+    "hash": "d1098863-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1029,
+    "densityMedian": 1700
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:600 buildAirlockSteelNormalTexture",
+    "hash": "ef25a435-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1029,
+    "densityMedian": 1700
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:509 buildSteelRoughnessTexture",
+    "hash": "fa2c9f26-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1029,
+    "densityMedian": 1700
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:268 buildLouvreVentTexture",
+    "hash": "22e76475-256x128",
+    "w": 256,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1121,
+    "densityMedian": 1121
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:749 buildHandWearTexture",
+    "hash": "cb571ea6-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 339,
+    "densityMedian": 339
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:310 buildSillTreadTexture",
+    "hash": "3bb5f4e3-512x128",
+    "w": 512,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 356,
+    "densityMedian": 356
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:233 buildAirlockHazardTexture",
+    "hash": "c337e1c4-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 725,
+    "densityMedian": 725
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:736 paintDripTexture",
+    "hash": "e0bb4899-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 399,
+    "densityMedian": 399
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:501 paintLowerDirtTexture",
+    "hash": "d72e93ac-512x256",
+    "w": 512,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 699051,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 178,
+    "densityMedian": 178
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:467 paintUpperAOTexture",
+    "hash": "e69137c4-512x200",
+    "w": 512,
+    "h": 200,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 546133,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 183,
+    "densityMedian": 183
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:711 buildStencilTextTexture",
+    "hash": "b30b0dec-1024x192",
+    "w": 1024,
+    "h": 192,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1048576,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 600,
+    "densityMedian": 600
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "1d6230cf-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 95,
+    "densityMedian": 145
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:239 buildTreadPlateTexture",
+    "hash": "6b724467-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 882,
+    "densityMedian": 882
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:279 buildTreadNormalTexture",
+    "hash": "2624ebe9-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 882,
+    "densityMedian": 882
+   },
+   {
+    "source": "canvas: ship/interior/floorTextures.ts:15 makeCanvas <- ship/interior/floorTextures.ts:319 buildTreadRoughnessTexture",
+    "hash": "5d41a1c0-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 882,
+    "densityMedian": 882
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "9868ed6a-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 276,
+    "densityMedian": 276
+   },
+   {
+    "source": "canvas: ship/interior/ceilingTextures.ts:25 canvas2d <- ship/interior/ceilingTextures.ts:675 buildGrilleTexture",
+    "hash": "830c3e86-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 178,
+    "densityMedian": 178
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "865b1acc-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 201,
+    "densityMedian": 201
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "7ff636a9-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 74,
+    "densityMedian": 74
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:106 buildPlateMaps",
+    "hash": "e596a16f-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 403,
+    "densityMedian": 403
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:60 normalFromHeight",
+    "hash": "6447a433-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 403,
+    "densityMedian": 403
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:107 buildPlateMaps",
+    "hash": "f558b509-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 403,
+    "densityMedian": 403
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:106 buildPlateMaps",
+    "hash": "9099906d-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 365,
+    "densityMedian": 365
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:60 normalFromHeight",
+    "hash": "16bac691-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 365,
+    "densityMedian": 365
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:107 buildPlateMaps",
+    "hash": "6aee306f-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 365,
+    "densityMedian": 365
+   },
+   {
+    "source": "textures/metal_plate_02/diff.jpg",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 608,
+    "densityMedian": 608
+   },
+   {
+    "source": "textures/metal_plate_02/nor_gl.jpg",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 608,
+    "densityMedian": 608
+   },
+   {
+    "source": "textures/metal_plate_02/rough.jpg",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 608,
+    "densityMedian": 608
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:354 buildAoTexture",
+    "hash": "db8e8eb6-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh/tinted-tints"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 269,
+    "densityMedian": 269
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:106 buildPlateMaps",
+    "hash": "892043ef-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 253,
+    "densityMedian": 253
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:60 normalFromHeight",
+    "hash": "a3a1ea56-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 253,
+    "densityMedian": 253
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:354 buildAoTexture",
+    "hash": "eab5b382-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh/tinted-tints"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 126,
+    "densityMedian": 126
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:354 buildAoTexture",
+    "hash": "b8e52a64-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh/tinted-tints"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 233,
+    "densityMedian": 233
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "2f28988b-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 173,
+    "densityMedian": 173
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "cdd9248d-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 201,
+    "densityMedian": 201
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "c393a5b5-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 640,
+    "densityMedian": 640
+   },
+   {
+    "source": "canvas: ship/ShipTextures.ts:250 buildStencilPlacardTexture <- ship/interior/starfieldWindow.ts:661 buildStarfieldWindow",
+    "hash": "52d0ee13-256x128",
+    "w": 256,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 610,
+    "densityMedian": 610
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "bc25d489-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1055,
+    "densityMedian": 1055
+   },
+   {
+    "source": "canvas: ship/interior/starfieldWindowTextures.ts:18 surface <- ship/interior/starfieldWindowTextures.ts:907 buildDripStreakTexture",
+    "hash": "65a8d666-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 316,
+    "densityMedian": 316
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "baa4fb43-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 798,
+    "densityMedian": 798
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:138 buildPlateMaps",
+    "hash": "1b134f22-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 504,
+    "densityMedian": 5182
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:54 heightToNormal",
+    "hash": "ebfa1cba-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 504,
+    "densityMedian": 5182
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:140 buildPlateMaps",
+    "hash": "86e0f0cb-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 504,
+    "densityMedian": 5182
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:138 buildPlateMaps",
+    "hash": "21e88f84-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 488,
+    "densityMedian": 504
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:54 heightToNormal",
+    "hash": "7e73290f-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 488,
+    "densityMedian": 504
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:140 buildPlateMaps",
+    "hash": "e9fe000d-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 488,
+    "densityMedian": 504
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:367 buildMicroMaps",
+    "hash": "855307bb-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 16306,
+    "densityMedian": 47210
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:54 heightToNormal",
+    "hash": "26a44f77-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 16306,
+    "densityMedian": 47210
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:369 buildMicroMaps",
+    "hash": "e564a610-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 16306,
+    "densityMedian": 47210
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:138 buildPlateMaps",
+    "hash": "ec379841-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 506,
+    "densityMedian": 1092
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:54 heightToNormal",
+    "hash": "b26badb1-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 506,
+    "densityMedian": 1092
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:140 buildPlateMaps",
+    "hash": "367abc8c-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 506,
+    "densityMedian": 1092
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:367 buildMicroMaps",
+    "hash": "855307bb-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 11857,
+    "densityMedian": 13346
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:54 heightToNormal",
+    "hash": "f15a705c-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 11857,
+    "densityMedian": 13346
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:369 buildMicroMaps",
+    "hash": "91ca8ddf-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 11857,
+    "densityMedian": 13346
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:367 buildMicroMaps",
+    "hash": "d5403b8e-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 7965,
+    "densityMedian": 29057
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:54 heightToNormal",
+    "hash": "2165e2a0-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 7965,
+    "densityMedian": 29057
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:369 buildMicroMaps",
+    "hash": "41570d49-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 7965,
+    "densityMedian": 29057
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "e66bf899-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 640,
+    "densityMedian": 640
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:1219 buildScreenGlassTexture",
+    "hash": "fd3bd95d-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 425,
+    "densityMedian": 425
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "70754160-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 982,
+    "densityMedian": 982
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "2f6dcc08-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 669,
+    "densityMedian": 669
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "a27d8cdd-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 812,
+    "densityMedian": 812
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "28c6c72a-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 614,
+    "densityMedian": 614
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:367 buildMicroMaps",
+    "hash": "9effe182-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 3039,
+    "densityMedian": 3153
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:54 heightToNormal",
+    "hash": "f93907bb-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 3039,
+    "densityMedian": 3153
+   },
+   {
+    "source": "canvas: ship/interior/consoleTextures.ts:20 canvas2d <- ship/interior/consoleTextures.ts:369 buildMicroMaps",
+    "hash": "c1b2cd21-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 3039,
+    "densityMedian": 3153
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "7d6fd09f-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 383,
+    "densityMedian": 383
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:942 buildPaintedPlateMaps",
+    "hash": "1d838293-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1079,
+    "densityMedian": 1494
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:910 heightToNormal",
+    "hash": "bb5028e6-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1079,
+    "densityMedian": 1494
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:944 buildPaintedPlateMaps",
+    "hash": "5a81b612-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1079,
+    "densityMedian": 1494
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:1159 buildBareSteelMaps",
+    "hash": "cd46f6d9-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 854,
+    "densityMedian": 1785
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:910 heightToNormal",
+    "hash": "3840f7e2-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 854,
+    "densityMedian": 854
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:1161 buildBareSteelMaps",
+    "hash": "4f1a68de-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 854,
+    "densityMedian": 1785
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:1252 buildCableMaps",
+    "hash": "228582b8-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 349,
+    "densityMedian": 689
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:910 heightToNormal",
+    "hash": "9ba4a858-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 349,
+    "densityMedian": 689
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:1506 buildVentSootTexture <- ship/interior/suspendedDisplay.ts:431 buildSuspendedDisplay",
+    "hash": "e4fe30cf-256x128",
+    "w": 256,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh/tinted-tints"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 566,
+    "densityMedian": 566
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:1506 buildVentSootTexture <- ship/interior/suspendedDisplay.ts:432 buildSuspendedDisplay",
+    "hash": "b1226cb8-256x128",
+    "w": 256,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 765,
+    "densityMedian": 765
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:1506 buildVentSootTexture <- ship/interior/suspendedDisplay.ts:441 buildSuspendedDisplay",
+    "hash": "3214e668-256x128",
+    "w": 256,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 924,
+    "densityMedian": 924
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "ec16b51c-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 201,
+    "densityMedian": 201
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:1254 buildCableMaps",
+    "hash": "8f593ad4-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 349,
+    "densityMedian": 349
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "d8e300e7-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 766,
+    "densityMedian": 766
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:884 newCanvas <- ship/interior/displaysTextures.ts:910 heightToNormal",
+    "hash": "187ba0c2-192x192",
+    "w": 192,
+    "h": 192,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 196608,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 663,
+    "densityMedian": 663
+   },
+   {
+    "source": "canvas: ship/interior/displaysTextures.ts:1381 buildAuxGlassMaps <- ship/interior/suspendedDisplay.ts:548 buildSuspendedDisplay",
+    "hash": "9d8db4c9-256x192",
+    "w": 256,
+    "h": 192,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 262144,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 766,
+    "densityMedian": 766
+   },
+   {
+    "source": "canvas: ship/interior/lightingTextures.ts:8 makeCanvas <- ship/interior/lightingTextures.ts:113 buildFloorPoolTexture",
+    "hash": "30b9cae9-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 65,
+    "densityMedian": 107
+   },
+   {
+    "source": "canvas: ship/interior/lightingTextures.ts:8 makeCanvas <- ship/interior/lightingTextures.ts:74 buildWallConeTexture",
+    "hash": "96820b87-128x256",
+    "w": 128,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 174763,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 199,
+    "densityMedian": 199
+   },
+   {
+    "source": "canvas: ship/interior/lightingTextures.ts:8 makeCanvas <- ship/interior/lightingTextures.ts:185 buildLouverTexture",
+    "hash": "3a9bd36-64x64",
+    "w": 64,
+    "h": 64,
+    "slot": "alphaMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 21845,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 67,
+    "densityMedian": 67
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:532 buildSurfaceSet",
+    "hash": "524673c-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1837,
+    "densityMedian": 1837
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:498 normalFromHeight",
+    "hash": "c3c79c60-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1837,
+    "densityMedian": 1837
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:533 buildSurfaceSet",
+    "hash": "83ff349-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1837,
+    "densityMedian": 1837
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:532 buildSurfaceSet",
+    "hash": "c7e03414-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1881,
+    "densityMedian": 1881
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:498 normalFromHeight",
+    "hash": "5e85dca6-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1881,
+    "densityMedian": 1881
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:533 buildSurfaceSet",
+    "hash": "b01f93af-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1881,
+    "densityMedian": 1881
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:532 buildSurfaceSet",
+    "hash": "44f82b7d-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1084,
+    "densityMedian": 1084
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:498 normalFromHeight",
+    "hash": "7692da1d-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1084,
+    "densityMedian": 1084
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:533 buildSurfaceSet",
+    "hash": "1630ced-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1084,
+    "densityMedian": 1084
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:532 buildSurfaceSet",
+    "hash": "4d30be45-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 2404,
+    "densityMedian": 2404
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:498 normalFromHeight",
+    "hash": "2c1c14c5-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 2404,
+    "densityMedian": 4030
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:533 buildSurfaceSet",
+    "hash": "a720a9ef-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 2404,
+    "densityMedian": 4030
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "acf57fb5-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 467,
+    "densityMedian": 467
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:532 buildSurfaceSet",
+    "hash": "1414d448-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 12963,
+    "densityMedian": 12963
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:498 normalFromHeight",
+    "hash": "771e43db-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 12963,
+    "densityMedian": 12963
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:533 buildSurfaceSet",
+    "hash": "ae156bc-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 12963,
+    "densityMedian": 12963
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:532 buildSurfaceSet",
+    "hash": "4d30be45-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 759,
+    "densityMedian": 842
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:498 normalFromHeight",
+    "hash": "2c1c14c5-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 759,
+    "densityMedian": 842
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:533 buildSurfaceSet",
+    "hash": "a720a9ef-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 759,
+    "densityMedian": 842
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:532 buildSurfaceSet",
+    "hash": "20c0642a-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 762,
+    "densityMedian": 762
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:498 normalFromHeight",
+    "hash": "d68668fd-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 762,
+    "densityMedian": 762
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:533 buildSurfaceSet",
+    "hash": "6b2fdcb1-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 762,
+    "densityMedian": 762
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "dd1df110-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 590,
+    "densityMedian": 590
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "1206c767-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 305,
+    "densityMedian": 305
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "4817fb62-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 395,
+    "densityMedian": 395
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "af92123a-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 557,
+    "densityMedian": 557
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:193 buildPaintedTrimTexture",
+    "hash": "ac47b73e-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1153,
+    "densityMedian": 1153
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:550 buildPaintRoughnessTexture",
+    "hash": "6b75e57c-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 2305,
+    "densityMedian": 2305
+   },
+   {
+    "source": "canvas: ship/interior/airlockTextures.ts:32 canvas2d <- ship/interior/airlockTextures.ts:677 buildEdgeShadowTexture",
+    "hash": "adeeb215-8x128",
+    "w": 8,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 5461,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 115,
+    "densityMedian": 115
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "9ab99d05-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 293,
+    "densityMedian": 293
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:173 paintWallPlateSet",
+    "hash": "933893dd-1024x1024",
+    "w": 1024,
+    "h": 1024,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/MI_Trim_03"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 222,
+    "densityMedian": 269
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:115 heightToNormal",
+    "hash": "a3d5e7e5-1024x1024",
+    "w": 1024,
+    "h": 1024,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/MI_Trim_03"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 222,
+    "densityMedian": 269
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:141 packOrm",
+    "hash": "cbb85b76-1024x1024",
+    "w": 1024,
+    "h": 1024,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/MI_Trim_03"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 222,
+    "densityMedian": 269
+   },
+   {
+    "source": "T_Trim_02_BaseColor_Red",
+    "hash": null,
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/MI_Trim_02"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 457,
+    "densityMedian": 511
+   },
+   {
+    "source": "T_Trim_02_Normal",
+    "hash": null,
+    "w": 2048,
+    "h": 2048,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/MI_Trim_02"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 457,
+    "densityMedian": 511
+   },
+   {
+    "source": "T_Trim_02_ORM",
+    "hash": null,
+    "w": 2048,
+    "h": 2048,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/MI_Trim_02"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 457,
+    "densityMedian": 511
+   },
+   {
+    "source": "T_Decals",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/MI_Decal_Red",
+     "Mesh/M_Decal_White"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 413,
+    "densityMedian": 779
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:173 paintWallPlateSet",
+    "hash": "9cd5b85-1024x1024",
+    "w": 1024,
+    "h": 1024,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/MI_Trim_03_Dark"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 0,
+    "densityMedian": 255
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:115 heightToNormal",
+    "hash": "4ce5aa6-1024x1024",
+    "w": 1024,
+    "h": 1024,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/MI_Trim_03_Dark"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 0,
+    "densityMedian": 255
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:141 packOrm",
+    "hash": "90b78c53-1024x1024",
+    "w": 1024,
+    "h": 1024,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/MI_Trim_03_Dark"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 0,
+    "densityMedian": 255
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:391 paintGrungeRoughTexture",
+    "hash": "87cbfe34-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh/MI_Trim_03_Cables_Blue",
+     "Mesh"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 98,
+    "densityMedian": 1228
+   },
+   {
+    "source": "canvas: ship/interior/materialMerge.ts:153 atlasCanvasMaterials <- ship/interior/batchStaticGeometry.ts:157 batchStaticGeometry",
+    "hash": "2d317a05-2048x2048",
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/canvas-atlas-0"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 464,
+    "densityMedian": 464
+   },
+   {
+    "source": "canvas: ship/interior/wallsTextures.ts:58 canvas2d <- ship/interior/wallsTextures.ts:542 buildRubberTexture",
+    "hash": "3fde0782-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 665,
+    "densityMedian": 665
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:532 buildSurfaceSet",
+    "hash": "1414d448-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1727,
+    "densityMedian": 1727
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:498 normalFromHeight",
+    "hash": "771e43db-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1727,
+    "densityMedian": 1727
+   },
+   {
+    "source": "canvas: ship/interior/propsTextures.ts:11 makeCanvas <- ship/interior/propsTextures.ts:533 buildSurfaceSet",
+    "hash": "ae156bc-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 4,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1727,
+    "densityMedian": 1727
+   }
+  ],
+  "rendererTextures": 219,
+  "totalBytes": 852482679
+ },
+ "reveal": {
+  "textures": [
+   {
+    "source": "textures/planets/sun.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 512,
+    "slot": "uniform:uMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 2796203,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 118,
+    "densityMedian": 118
+   },
+   {
+    "source": "canvas: galaxy/shipHull.ts:40 panelTextures <- galaxy/shipHull.ts:515 buildShipHull",
+    "hash": "3d32d458-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/hull-paint",
+     "Mesh/hull-structure"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 5652,
+    "densityMedian": 5708
+   },
+   {
+    "source": "canvas: galaxy/shipHull.ts:15 normalFromHeight <- galaxy/shipHull.ts:105 panelTextures",
+    "hash": "c120e7bb-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/hull-paint",
+     "Mesh/hull-structure"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 5652,
+    "densityMedian": 5708
+   },
+   {
+    "source": "canvas: galaxy/shipHull.ts:41 panelTextures <- galaxy/shipHull.ts:515 buildShipHull",
+    "hash": "c95b2a52-512x512",
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/hull-paint",
+     "Mesh/hull-structure"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 5652,
+    "densityMedian": 5708
+   },
+   {
+    "source": "canvas: galaxy/shipHull.ts:123 stencilAtlas <- galaxy/shipHull.ts:574 buildShipHull",
+    "hash": "9c9b8a93-1024x256",
+    "w": 1024,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/hull-stencil"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 9512,
+    "densityMedian": 9512
+   },
+   {
+    "source": "canvas: galaxy/spaceDressing.ts:12 getPointSprite <- galaxy/intercept/props.ts:190 buildBuoy",
+    "hash": "c4b9a566-64x64",
+    "w": 64,
+    "h": 64,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 21845,
+    "users": [
+     "Sprite",
+     "Points"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": null,
+    "densityMedian": null
+   },
+   {
+    "source": "textures/planets/kethra_day.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 512,
+    "slot": "uniform:uDayMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 2796203,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 117311,
+    "densityMedian": 117311
+   },
+   {
+    "source": "textures/planets/kethra_night.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 512,
+    "slot": "uniform:uNightMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 2796203,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 117311,
+    "densityMedian": 117311
+   },
+   {
+    "source": "textures/planets/clouds.jpg",
+    "hash": null,
+    "w": 512,
+    "h": 256,
+    "slot": "uniform:uCloudMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 699051,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 50835,
+    "densityMedian": 63544
+   },
+   {
+    "source": "textures/planets/vessek_day.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 512,
+    "slot": "uniform:uDayMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 2796203,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 145243,
+    "densityMedian": 145243
+   },
+   {
+    "source": "textures/planets/vessek_night.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 512,
+    "slot": "uniform:uNightMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 2796203,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 145243,
+    "densityMedian": 145243
+   },
+   {
+    "source": "textures/planets/vessek_ring.png",
+    "hash": null,
+    "w": 1024,
+    "h": 63,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 344064,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": null,
+    "densityMedian": null
+   },
+   {
+    "source": "textures/planets/orrun_day.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 512,
+    "slot": "uniform:uDayMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 2796203,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 101670,
+    "densityMedian": 101670
+   },
+   {
+    "source": "textures/planets/orrun_night.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 512,
+    "slot": "uniform:uNightMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 2796203,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 101670,
+    "densityMedian": 101670
+   },
+   {
+    "source": "textures/planets/isilthe_day.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 512,
+    "slot": "uniform:uDayMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 2796203,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 127087,
+    "densityMedian": 127087
+   },
+   {
+    "source": "textures/planets/isilthe_night.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 512,
+    "slot": "uniform:uNightMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 2796203,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 127087,
+    "densityMedian": 127087
+   },
+   {
+    "source": "textures/planets/isilthe_ring.png",
+    "hash": null,
+    "w": 1024,
+    "h": 63,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 344064,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": null,
+    "densityMedian": null
+   }
+  ],
+  "rendererTextures": 39,
+  "totalBytes": 32167255
+ },
+ "kethra": {
+  "textures": [
+   {
+    "source": "canvas: galaxy/spaceDressing.ts:12 getPointSprite <- planets/kethra/canopyCeiling.ts:88 buildCanopyCeiling",
+    "hash": "c4b9a566-64x64",
+    "w": 64,
+    "h": 64,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 21845,
+    "users": [
+     "Points",
+     "Mesh",
+     "Sprite",
+     "motes"
+    ],
+    "userCount": 4,
+    "visibleUse": true,
+    "densityMin": 18,
+    "densityMedian": 18
+   },
+   {
+    "source": "textures/lichen_rock/diff.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 5592405,
+    "users": [
+     "Mesh",
+     "hush-floor"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 301,
+    "densityMedian": 642
+   },
+   {
+    "source": "textures/lichen_rock/nor_gl.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 5592405,
+    "users": [
+     "Mesh",
+     "hush-floor"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 301,
+    "densityMedian": 642
+   },
+   {
+    "source": "textures/lichen_rock/rough.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 5592405,
+    "users": [
+     "Mesh",
+     "hush-floor"
+    ],
+    "userCount": 2,
+    "visibleUse": true,
+    "densityMin": 301,
+    "densityMedian": 642
+   },
+   {
+    "source": "canvas: characters/Figure.ts:28 veinTexture <- characters/Figure.ts:89",
+    "hash": "2b7d31d3-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "emissiveMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 167,
+    "densityMedian": 798
+   },
+   {
+    "source": "canvas: characters/Figure.ts:28 veinTexture <- characters/Figure.ts:89",
+    "hash": "28fff756-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "emissiveMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 225,
+    "densityMedian": 925
+   },
+   {
+    "source": "canvas: planets/kethra/KethraScene.ts:481 buildRuneTexture <- planets/kethra/KethraScene.ts:916",
+    "hash": "adeb4188-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 427,
+    "densityMedian": 427
+   },
+   {
+    "source": "canvas: planets/kethra/KethraScene.ts:481 buildRuneTexture <- planets/kethra/KethraScene.ts:916",
+    "hash": "64a21791-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 427,
+    "densityMedian": 427
+   },
+   {
+    "source": "canvas: planets/kethra/KethraScene.ts:481 buildRuneTexture <- planets/kethra/KethraScene.ts:916",
+    "hash": "6e1137f2-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 427,
+    "densityMedian": 427
+   },
+   {
+    "source": "textures/metal_plate/diff.jpg",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 445,
+    "densityMedian": 1010
+   },
+   {
+    "source": "textures/metal_plate/nor_gl.jpg",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 445,
+    "densityMedian": 1010
+   },
+   {
+    "source": "textures/metal_plate/rough.jpg",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 445,
+    "densityMedian": 1010
+   },
+   {
+    "source": "canvas: planets/kethra/KethraScene.ts:481 buildRuneTexture <- planets/kethra/KethraScene.ts:1010 KethraScene.buildShrineAndValve",
+    "hash": "30976909-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 514,
+    "densityMedian": 514
+   },
+   {
+    "source": "canvas: planets/kethra/grove.ts:41 canvasTexture <- planets/kethra/grove.ts:350",
+    "hash": "a0b12d27-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "emissiveMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 305,
+    "densityMedian": 305
+   },
+   {
+    "source": "canvas: planets/kethra/grove.ts:41 canvasTexture <- planets/kethra/grove.ts:350",
+    "hash": "ecdfe5c8-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "emissiveMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 305,
+    "densityMedian": 305
+   },
+   {
+    "source": "canvas: planets/kethra/grove.ts:41 canvasTexture <- planets/kethra/grove.ts:350",
+    "hash": "55ce9811-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "emissiveMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 305,
+    "densityMedian": 305
+   },
+   {
+    "source": "imagebitmap (glTF)",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "heart-crystals/Crystal"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 242,
+    "densityMedian": 242
+   },
+   {
+    "source": "canvas: planets/kethra/grove.ts:41 canvasTexture <- planets/kethra/grove.ts:436 buildCisternHeart",
+    "hash": "e54cd2ee-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 323,
+    "densityMedian": 323
+   },
+   {
+    "source": "canvas: planets/kethra/grove.ts:41 canvasTexture <- planets/kethra/grove.ts:466",
+    "hash": "a0b12d27-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "alphaMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 427,
+    "densityMedian": 427
+   },
+   {
+    "source": "canvas: planets/kethra/grove.ts:41 canvasTexture <- planets/kethra/grove.ts:466",
+    "hash": "ecdfe5c8-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "alphaMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 427,
+    "densityMedian": 427
+   },
+   {
+    "source": "canvas: planets/kethra/grove.ts:41 canvasTexture <- planets/kethra/grove.ts:466",
+    "hash": "55ce9811-128x128",
+    "w": 128,
+    "h": 128,
+    "slot": "alphaMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 87381,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 427,
+    "densityMedian": 427
+   },
+   {
+    "source": "textures/bark_willow/diff.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 5592405,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 576,
+    "densityMedian": 576
+   },
+   {
+    "source": "textures/bark_willow/nor_gl.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 5592405,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 576,
+    "densityMedian": 576
+   },
+   {
+    "source": "textures/bark_willow/rough.jpg",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "roughnessMap",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "",
+    "bytes": 5592405,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 576,
+    "densityMedian": 576
+   },
+   {
+    "source": "canvas: planets/kethra/grove.ts:41 canvasTexture <- planets/kethra/grove.ts:55 stainedGlassTexture",
+    "hash": "689bec81-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 144,
+    "densityMedian": 181
+   },
+   {
+    "source": "canvas: planets/kethra/KethraScene.ts:462 buildHazeTexture <- planets/kethra/KethraScene.ts:1478 KethraScene.buildAtmosphere",
+    "hash": "27e3de32-512x256",
+    "w": 512,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 699051,
+    "users": [
+     "Mesh"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 6,
+    "densityMedian": 8
+   },
+   {
+    "source": "textures/forest_ground/diff.jpg",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "banks"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 143,
+    "densityMedian": 143
+   },
+   {
+    "source": "textures/grass_ground/diff.jpg",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 8,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "moss"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 197,
+    "densityMedian": 197
+   },
+   {
+    "source": "canvas: planets/kethra/dressing.ts:605 noiseTexture <- planets/kethra/dressing.ts:629 buildMist",
+    "hash": "b13ef62c-256x256",
+    "w": 256,
+    "h": 256,
+    "slot": "uniform:uNoise",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 349525,
+    "users": [
+     "mist"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 1,
+    "densityMedian": 1
+   },
+   {
+    "source": "Bark_NormalTree",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Bark_NormalTree"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 707,
+    "densityMedian": 979
+   },
+   {
+    "source": "Bark_NormalTree_Normal",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Bark_NormalTree"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 707,
+    "densityMedian": 979
+   },
+   {
+    "source": "Leaves_NormalTree_C",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Leaves_NormalTree"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 425,
+    "densityMedian": 455
+   },
+   {
+    "source": "Leaves_TwistedTree_C",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Leaves_TwistedTree"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 549,
+    "densityMedian": 808
+   },
+   {
+    "source": "Grass",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Grass"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 27,
+    "densityMedian": 47
+   },
+   {
+    "source": "Bark_TwistedTree",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Bark_TwistedTree"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 851,
+    "densityMedian": 1380
+   },
+   {
+    "source": "Bark_TwistedTree_Normal",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Bark_TwistedTree"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 851,
+    "densityMedian": 1380
+   },
+   {
+    "source": "Bark_DeadTree",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Bark_DeadTree"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 962,
+    "densityMedian": 1036
+   },
+   {
+    "source": "Bark_DeadTree_Normal",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "normalMap",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Bark_DeadTree"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 962,
+    "densityMedian": 1036
+   },
+   {
+    "source": "Leaf_Pine_C",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/Leaves_Pine"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 385,
+    "densityMedian": 462
+   },
+   {
+    "source": "Flowers",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Flowers"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 201,
+    "densityMedian": 389
+   },
+   {
+    "source": "Bark",
+    "hash": null,
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh/Bark"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 234,
+    "densityMedian": 234
+   },
+   {
+    "source": "Leaves",
+    "hash": null,
+    "w": 512,
+    "h": 512,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 1398101,
+    "users": [
+     "Mesh/Leaves"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 537,
+    "densityMedian": 537
+   },
+   {
+    "source": "Bark",
+    "hash": null,
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh/Bark"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 348,
+    "densityMedian": 348
+   },
+   {
+    "source": "Leaves",
+    "hash": null,
+    "w": 256,
+    "h": 256,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 349525,
+    "users": [
+     "Mesh/Leaves"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 381,
+    "densityMedian": 381
+   },
+   {
+    "source": "PathRocks_Diffuse",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/PathRocks"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 232,
+    "densityMedian": 330
+   },
+   {
+    "source": "Mushrooms",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/Mushrooms"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 292,
+    "densityMedian": 796
+   },
+   {
+    "source": "Leaves",
+    "hash": null,
+    "w": 1024,
+    "h": 1024,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 5592405,
+    "users": [
+     "Mesh/Leaves"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 262,
+    "densityMedian": 333
+   },
+   {
+    "source": "Rocks_Diffuse",
+    "hash": null,
+    "w": 2048,
+    "h": 2048,
+    "slot": "map",
+    "mips": true,
+    "anisotropy": 1,
+    "colorSpace": "srgb",
+    "bytes": 22369621,
+    "users": [
+     "Mesh/Rocks"
+    ],
+    "userCount": 1,
+    "visibleUse": true,
+    "densityMin": 85,
+    "densityMedian": 100
+   }
+  ],
+  "rendererTextures": 86,
+  "totalBytes": 107500870
+ }
+}

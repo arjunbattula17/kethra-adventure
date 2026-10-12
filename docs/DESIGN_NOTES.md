@@ -43,6 +43,31 @@ These are the "any game would look like this" choices that the first audit (STYL
   small. Scaled up 1.45× and tipped nose-up in flight so the stained-glass wings face the player.
   When dormant it settles at the side of the approach, not at head height in the path.
 
+- **Sourced models, rebuilt (2026-10-12).** The team's asset list for Kethra (D-25) was photo
+  scans and film-quality trees, in a scene whose rule is "one style" and whose kit is low-poly. Each
+  was rebuilt until it sat beside the kit rather than placed as downloaded:
+  - *Column, simplified with its texture kept (rejected).* The scan's photo texture is cut into
+    thousands of small islands, and a simplifier cannot remove a vertex on an island edge, so it
+    stopped at about 67,000 triangles however hard it was pushed. Merging vertices by position and
+    carrying the photo's light and moss as vertex colour reached 2,200, flat-shaded like the
+    chamber's cut stone.
+  - *Columns inside the Heart's chamber (rejected).* Anything in there that looks like cover has to
+    block the moth's sight (hush/sim.ts). The colonnade stands in the pool outside instead.
+  - *Scanned moth as the Wickmoth (rejected).* It is a scan of a moth at rest on a rock, one pose,
+    no skeleton. The Wickmoth stays as designed; the scan became four small moths at rest.
+  - *Hard-edged moss (rejected).* Flat polygons with a cut edge read as paper shapes on the stone.
+    Now each patch fades out at a ragged rim.
+  - *Mist in sea-green at 75% (rejected).* It read as glowing water. Now one grey-teal sheet at 50%.
+  - *Trees with the kit's full awake glow (rejected).* The new crowns are cut-out cards with no
+    painted shading, and the landmark's fills the view from the east terrace; at full strength it
+    went flat mint. They keep half the kit canopy's glow.
+  - *Ten understory trees and two mist sheets (trimmed).* Measured, the dressing added 107,000
+    triangles, half of it understory. Cut to eight trees and one sheet; the Low tier plants none,
+    and no tier draws the new trees from deep inside the chamber, whose wall hides them.
+  - *Tree maps at 1024 and 512 px (trimmed).* The audit measured the landmark's leaf map at 1,075
+    texels per metre against a standard of 256, on a tree nobody gets within 6 m of. Leaf maps
+    halved and bark maps quartered, with no difference in the closest views.
+
 ## Vessek Anchorage: the window view (four passes)
 
 1. **Opaque glass.** The kit's window glass (`M_Glass`) is authored opaque grey. Made transparent and

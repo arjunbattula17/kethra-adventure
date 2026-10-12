@@ -378,3 +378,27 @@ Before/after renders of fixed camera views (engine paused, one frame rendered by
 | kethra | canvas: planets/kethra/KethraScene.ts:357 buildRuneTexture ← planets/kethra/KethraScene.ts:675 | map | 256×256 | 256×256 | canvas RGBA8 | yes | 0.33 → 0.33 | 427 / 427 | exterior | Within the tier band. |
 
 **Totals (estimated GPU memory, RGBA8 + mips):** intro 42.7 → 42.7 MB · ship 344.1 → 303.5 MB · reveal 145.0 → 69.0 MB · kethra 269.4 → 81.7 MB · **all 801.1 → 496.9 MB**
+
+## Kethra dressing (2026-10-12)
+The tables above are the record of the September texture pass and are left as they were. This
+section covers the maps added with Kethra's set dressing (DECISIONS D-25), from
+`reports/texture-audit-kethra-dressing.json`.
+
+**Kethra now: 102.5 MB** in 48 textures, against the 90 MB budget. Eight maps and 6.7 MB of that
+are new. Without them the scene stands at about 96 MB: it has grown since the 81.7 MB above, and
+the chamber's `bark_willow` set alone is 16 MB.
+
+| Texture | Used by | Size | GPU MB | Texels/m | Tier | Finding |
+|---|---|---|---|---|---|---|
+| `models/kethra/jacaranda.glb` Leaves | the landmark tree's leaf cards | 512×512 | 1.33 | 537 | exterior | Was 1024 (1,075 texels/m). Halved: the tree is never within 6 m, where a 1080p screen shows about 150 px/m. |
+| `models/kethra/jacaranda.glb` Bark | the landmark tree | 256×256 | 0.33 | 234 | exterior | Was 512. Just under the standard, at 6 m and beyond. |
+| `models/kethra/tree_small.glb` Leaves | understory trees | 256×256 | 0.33 | 381 | exterior | Was 512 (765 texels/m). |
+| `models/kethra/tree_small.glb` Bark | understory trees | 256×256 | 0.33 | 348 | exterior | Was 512. |
+| `models/kethra/crystal.glb` | the Heart's crystal | 512×512 | 1.33 | 242 | exterior | Source was two 2048 maps; one kept. Soft painted gradients: no blur from the basin's rim, the closest a player gets. |
+| `textures/grass_ground/diff.jpg` | terrace moss | 512×512 | 1.33 | 197 | soft | Under the ground standard on purpose: a tinted, half-transparent patch over `lichen_rock`, which carries the detail. Was 1024; no visible difference. |
+| `textures/forest_ground/diff.jpg` | loam banks | 512×512 | 1.33 | 143 | exterior | Out in the pool, 8 m and more from any path. |
+| mist noise (`dressing.ts`, procedural) | mist sheet | 256×256 | 0.33 | n/a | soft | Soft by design. |
+
+Not in the audit: the pool's shallows mask, a 512×512 canvas (1.33 MB) bound through a patched
+material's own uniform, which the inventory does not walk. The column and the moths carry their
+colour per vertex and ship no texture.
