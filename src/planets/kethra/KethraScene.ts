@@ -30,6 +30,10 @@ import { addWake, wake } from './wake';
 import { HoldToSkip } from '../../ui/HoldToSkip';
 import { buildCanopyCeiling } from './canopyCeiling';
 import type { CanopyCeiling } from './canopyCeiling';
+import { makePoolWater } from './water';
+import type { PoolWater, ShoreShape } from './water';
+import { addHeartCrystals, buildBanks, buildMist, buildMoss, buildRuins, buildTrees, treeBankSpots, LANDMARK_TREE, UNDERSTORY_TREES } from './dressing';
+import type { Mist, MothPerch } from './dressing';
 import { t } from '../../content/strings';
 
 /** Where the skiff is parked on the landing terrace, beside the arrival point. */
@@ -46,6 +50,21 @@ const WAKE_GREEN = new THREE.Color(0x3fd9a8);
 /** Height of the water plane, below every walking surface (the lowest, at the ramps' feet, is about
  * 0.2). */
 const WATER_Y = -0.9;
+
+/** What stands in the pool, for the water's shallows: the terraces, their ramps and the chamber. */
+const TERRACE_SHORES: ShoreShape[] = [
+  { x: 0, z: 16, hx: 5, hz: 5 },
+  { x: 0, z: 2, hx: 8, hz: 8 },
+  { x: -7, z: 10, hx: 2, hz: 4 },
+  { x: 7, z: 10, hx: 2, hz: 4 },
+  { x: -16, z: -2, hx: 5, hz: 4.5 },
+  { x: 16, z: -2, hx: 5, hz: 4.5 },
+  { x: -9.5, z: -0.5, hx: 2.2, hz: 2.5 },
+  { x: 9.5, z: -0.5, hx: 2.2, hz: 2.5 },
+  { x: 0, z: -7.5, hx: 3, hz: 2 },
+  { x: -20.3, z: -6.5, hx: 1.5, hz: 3 },
+  { x: H.CENTER.x, z: H.CENTER.z, hx: H.RADIUS + 1.4 },
+];
 
 /** Yields to the event loop so a frame can render between builders. */
 const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -97,6 +116,31 @@ function retintFlora(built: Map<string, THREE.InstancedMesh[]>): void {
       }
     }
   }
+}
+
+/**
+ * The canopy treatment every leaf material in the grove gets, kit trees and sourced ones alike.
+ *
+ * It leaves the authored diffuse texture alone (it's what makes the foliage read as real leaf
+ * clusters instead of a flat blob) and drives the bioluminescent dim/bright toggle entirely through
+ * a flat emissive tint. Reusing the diffuse map as an emissive mask was tried first, but it
+ * multiplies the emissive color channel-by-channel against the leaf texture — on the kit's
+ * red-foliage species (TwistedTree) that leaves almost no green channel to multiply against, so the
+ * toggle barely showed. A flat tint responds the same way regardless of the species' authored leaf
+ * color, so the whole canopy visibly reacts together, which matters here since this is the player's
+ * puzzle-progress feedback. The wake (wake.ts) carries it from dim to bright when the Heart wakes.
+ *
+ * The leaves come in autumn red (TwistedTree), summer green and photographed green; the art bible
+ * gives Kethra's canopy one palette, sea-greens and teals. Tinting by the leaf texture's brightness
+ * keeps every painted leaf cluster while putting every family in that palette.
+ *
+ * `wake` scales the glow the canopy keeps once the Heart is awake.
+ */
+function dressCanopy(mat: THREE.MeshStandardMaterial, tint: number, wake = 1): void {
+  mat.emissive = DIM_CANOPY_COLOR.clone();
+  mat.emissiveIntensity = 0.8;
+  tintByLuminance(mat, tint);
+  addWake(mat, wake === 1 ? CANOPY_WAKE : CANOPY_WAKE.clone().multiplyScalar(wake), 1.6);
 }
 
 // Quaternius Stylized Nature MegaKit species pools (see public/models/CREDITS.md and kit.ts).
@@ -362,6 +406,14 @@ export class KethraScene implements GameScene {
   private lights: { light: THREE.Light; base: number; keep: number }[] = [];
   private wakeSkip: HoldToSkip | null = null;
   private canopy!: CanopyCeiling;
+  private pool!: PoolWater;
+  private mist: Mist | null = null;
+  /** Where the resting moths sit: filled in by the builders that own those surfaces. */
+  private perches: MothPerch[] = [];
+  /** Out-of-reach dressing, kept out of the collider pass. */
+  private scenery: THREE.Object3D[] = [];
+  /** The landmark and understory trees: not drawn from inside the chamber, whose wall hides them. */
+  private outerTrees: THREE.Object3D[] = [];
   /**
    * The moon's shadow map is drawn once, not every frame, since nothing it shadows moves. Only the
    * moth's gaze (hush/HushGame.ts) needs a live shadow, and only of the chamber, so on frames the
@@ -416,7 +468,8 @@ export class KethraScene implements GameScene {
       await nextTask();
     }
 
-    await Promise.all([this.buildFoliage(), this.buildGroundCover(), this.buildClutter()]);
+    const fillers = generateFillerTrees();
+    await Promise.all([this.buildFoliage(fillers), this.buildGroundCover(), this.buildClutter(), this.buildDressing(fillers)]);
     await nextTask();
 
     this.scene.add(this.player.rig);
@@ -476,6 +529,8 @@ export class KethraScene implements GameScene {
     // The water is not a floor target: stepping off an edge falls through to the respawn reset.
     // Roughness keeps the moon's reflection a sheen rather than a bright block under bloom.
     const waterMat = new THREE.MeshStandardMaterial({ color: 0x040a09, roughness: 0.62, metalness: 0, envMapIntensity: 0.3 });
+    this.pool = makePoolWater(waterMat);
+    this.pool.setShores(TERRACE_SHORES);
     addWake(waterMat, WAKE_GREEN.clone().multiplyScalar(0.05), 1.3);
     const water = new THREE.Mesh(new THREE.CircleGeometry(110, 64), waterMat);
     water.rotation.x = -Math.PI / 2;
@@ -554,14 +609,14 @@ export class KethraScene implements GameScene {
     this.floorMeshes.push(ledgeStair);
   }
 
-  private async buildFoliage(): Promise<void> {
+  private async buildFoliage(fillers: TreePlacement[]): Promise<void> {
     // Tree collision stays on the explicit NAMED_TREES boxes built in colliders(); these batches are
     // deliberately not opted in via userData.collides. Marking them would collide the trunk of every
     // tree in the batcher — including all 36 belt trees, which the header comment above promises are
     // decorative — and would give each named tree a second, byte-identical box, since colliders()
     // already derives one from the same prims[0] geometry and the same transform.
     const batcher = new KitBatcher();
-    const allTrees: TreePlacement[] = [...NAMED_TREES, ...generateFillerTrees()];
+    const allTrees: TreePlacement[] = [...NAMED_TREES, ...fillers];
     for (const t of allTrees) {
       batcher.add(t.species, { position: new THREE.Vector3(...t.position), yaw: t.yaw, scale: t.scale });
     }
@@ -573,24 +628,45 @@ export class KethraScene implements GameScene {
       // 0 is the trunk) — see the per-species primitive inspection this rebuild was based on.
       const leafMesh = meshes[1];
       if (!leafMesh) continue;
-      const mat = leafMesh.material as THREE.MeshStandardMaterial;
-      // Leave the authored diffuse texture alone (it's what makes the foliage read as real leaf
-      // clusters instead of a flat blob) and drive the bioluminescent dim/bright toggle entirely
-      // through a flat emissive tint. Reusing the diffuse map as an emissive mask was tried first,
-      // but it multiplies the emissive color channel-by-channel against the leaf texture — on the
-      // kit's red-foliage species (TwistedTree) that leaves almost no green channel to multiply
-      // against, so the toggle barely showed. A flat tint responds the same way regardless of the
-      // species' authored leaf color, so the whole canopy visibly reacts together, which matters
-      // here since this is the player's puzzle-progress feedback. The wake (wake.ts) carries it
-      // from dim to bright when the Heart wakes.
-      mat.emissive = DIM_CANOPY_COLOR.clone();
-      mat.emissiveIntensity = 0.8;
-      // The kit's leaves come in autumn red (TwistedTree) and summer green; the art bible gives
-      // Kethra's canopy one palette, sea-greens and teals. Tinting by the leaf texture's brightness
-      // keeps every painted leaf cluster while putting both families in that palette.
-      tintByLuminance(mat, CANOPY_TINTS[species.length % CANOPY_TINTS.length]);
-      addWake(mat, CANOPY_WAKE, 1.6);
+      dressCanopy(leafMesh.material as THREE.MeshStandardMaterial, CANOPY_TINTS[species.length % CANOPY_TINTS.length]);
     }
+  }
+
+  /**
+   * The set dressing from dressing.ts: loam banks under the trees, moss, the colonnade, the Heart's
+   * crystal, the landmark tree and understory, mist and moths. The low tier goes without the mist
+   * (overdraw), the moths (too small to see at its resolution) and the understory, and builds six
+   * columns, two crystal clusters and half the landmark's leaf cards.
+   */
+  private async buildDressing(fillers: TreePlacement[]): Promise<void> {
+    const tier = getActiveEngine()?.getQualityTier();
+    const low = tier === 'low';
+    const understory = low ? [] : UNDERSTORY_TREES;
+    const banks = buildBanks([...fillers.map((tree) => ({ x: tree.position[0], z: tree.position[2] })), ...treeBankSpots(understory)], WATER_Y);
+    const moss = buildMoss();
+    this.scene.add(banks.mesh, moss);
+    this.scenery.push(banks.mesh, moss);
+    if (!low) {
+      this.mist = buildMist(WATER_Y);
+      this.scene.add(this.mist.mesh);
+    }
+    const [ruins, landmark, small] = await Promise.all([
+      low ? buildRuins(WATER_Y, [], 6) : buildRuins(WATER_Y, this.perches),
+      buildTrees('jacaranda', LANDMARK_TREE, WATER_Y, low ? 0.5 : 1),
+      understory.length ? buildTrees('tree_small', understory, WATER_Y, 1) : null,
+      low ? addHeartCrystals(this.heart.root, 2) : addHeartCrystals(this.heart.root),
+    ]);
+    this.scene.add(ruins.mesh);
+    this.scenery.push(ruins.mesh);
+    [landmark, small].forEach((tree, i) => {
+      if (!tree) return;
+      this.scene.add(...tree.bark, tree.leaves);
+      this.outerTrees.push(...tree.bark, tree.leaves);
+      // Half the kit canopy's residual glow: these crowns are cut-out cards with no painted shading, and
+      // the landmark's fills the view from the east terrace, where the full glow read as neon.
+      dressCanopy(tree.leaves.material as THREE.MeshStandardMaterial, CANOPY_TINTS[i * 2], 0.5);
+    });
+    this.pool.setShores([...TERRACE_SHORES, ...banks.shores, ...ruins.shores]);
   }
 
   private buildNPCs(): void {
@@ -722,6 +798,7 @@ export class KethraScene implements GameScene {
     valve.rotation.x = Math.PI / 2;
     valveGroup.add(bracket, pipe, valve);
     this.scene.add(valveGroup);
+    this.perches.push({ parent: valveGroup, position: new THREE.Vector3(0.12, 1.042, 0.35), normal: new THREE.Vector3(0, 1, 0), span: 0.17, turn: 1.9 });
     this.interaction.register({
       object: valveGroup,
       label: () => (gameState.hasFlag('kethra_helped_with_valve') ? 'Valve Already Repaired' : 'Realign the Lower Valve'),
@@ -743,6 +820,11 @@ export class KethraScene implements GameScene {
     shrineGroup.position.set(-1.5, TERRACE_TOP, 5);
     shrineGroup.rotation.y = 0.5;
     this.scene.add(shrineGroup);
+    // On the stele's face beside the lit record, and on the rim of the offering bowl.
+    this.perches.push(
+      { parent: shrineGroup, position: new THREE.Vector3(0.12, 1.42, 0.128), normal: new THREE.Vector3(0, 0, 1), span: 0.2, turn: 0.4 },
+      { parent: shrineGroup, position: new THREE.Vector3(0.22, 0.302, 0.42), normal: new THREE.Vector3(0, 1, 0), span: 0.16, turn: 4.1 },
+    );
     const shrineEntry = KETHRA_LORE_ENTRIES.find((l) => l.id === 'kethra_ritual_record');
     this.interaction.register({
       object: shrineGroup,
@@ -802,6 +884,7 @@ export class KethraScene implements GameScene {
     carvingGroup.position.set(-(H.GATE.halfWidth + 0.55), H.FLOOR_Y + 1.02, H.GATE.z - 1.04);
     carvingGroup.rotation.y = Math.PI;
     this.scene.add(carvingGroup);
+    this.perches.push({ parent: carvingGroup, position: new THREE.Vector3(-0.3, -0.45, 0.103), normal: new THREE.Vector3(0, 0, 1), span: 0.22, turn: 2.6 });
     const kindlingEntry = KETHRA_LORE_ENTRIES.find((l) => l.id === 'kethra_kindling_record');
     this.interaction.register({
       object: carvingGroup,
@@ -1129,6 +1212,7 @@ export class KethraScene implements GameScene {
       floorMeshes: this.floorMeshes,
       animated: [this.hush.moth.root, this.player.rig],
       exact: [this.hush.chamber.group, this.heart.root, this.heart.callStone],
+      scenery: this.scenery,
     }));
     return boxes;
   }
@@ -1163,8 +1247,17 @@ export class KethraScene implements GameScene {
     const dark = this.hush.inside * (gameState.hasFlag('kethra_mechanism_solved') ? 0.55 : 1);
     for (const l of this.lights) l.light.intensity = THREE.MathUtils.lerp(l.base, l.base * l.keep, dark);
     this.scene.environmentIntensity = THREE.MathUtils.lerp(0.5, 0.08, dark);
+    // Well inside the chamber the wall hides every tree out in the water. The moon's shadow map is
+    // redrawn as they come back, in case it was repainted while they were hidden.
+    const treesShown = this.hush.inside < 1;
+    if (this.outerTrees.length && this.outerTrees[0].visible !== treesShown) {
+      for (const tree of this.outerTrees) tree.visible = treesShown;
+      if (treesShown) this.repaintMoon();
+    }
 
     this.canopy.update(motion.ambientTime);
+    this.pool.update(motion.ambientTime);
+    this.mist?.update(motion.ambientTime);
     const motes = this.scene.getObjectByName('motes') as THREE.Points | undefined;
     if (motes) motes.rotation.y += ambientDt * 0.01;
   }
@@ -1182,6 +1275,8 @@ export class KethraScene implements GameScene {
     this.stopAmbient?.();
     this.stopMusic?.();
     this.interaction.clear();
+    this.pool.dispose();
+    this.mist?.dispose();
     this.scene.traverse((obj) => {
       // Kit-sourced InstancedMesh geometries are shared, cached templates (src/planets/kethra/kit.ts)
       // reused across scene visits — disposing them here would leave the cache holding freed GPU
