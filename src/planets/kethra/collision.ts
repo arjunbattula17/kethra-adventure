@@ -49,11 +49,13 @@ export interface KethraColliderOptions {
   animated: THREE.Object3D[];
   /** Structures that bring their own exact colliders (the Heart's chamber): merged, they would box as one. */
   exact?: THREE.Object3D[];
+  /** Dressing out in the pool, beyond anywhere the player can stand. */
+  scenery?: THREE.Object3D[];
 }
 
 export function buildKethraColliders(scene: THREE.Scene, opts: KethraColliderOptions): THREE.Box3[] {
   const skip = new Set<THREE.Object3D>();
-  for (const root of [...opts.floorMeshes, ...opts.animated, ...(opts.exact ?? [])]) root.traverse((o) => skip.add(o));
+  for (const root of [...opts.floorMeshes, ...opts.animated, ...(opts.exact ?? []), ...(opts.scenery ?? [])]) root.traverse((o) => skip.add(o));
 
   const boxes: THREE.Box3[] = [];
   const box = new THREE.Box3();

@@ -63,6 +63,19 @@ export function loadPbr(name: PbrTextureName, repeat: [number, number] = [1, 1])
   return { map, normalMap, roughnessMap };
 }
 
+export type ColourTextureName = 'forest_ground' | 'grass_ground';
+
+/**
+ * A colour map on its own, for Kethra's loam and moss: both are tinted by brightness and seen under
+ * flat or distant shading, where a normal and a roughness map would cost memory and show nothing.
+ */
+export function loadColour(name: ColourTextureName, repeat: [number, number] = [1, 1]): THREE.Texture {
+  const map = load(`${BASE}/${name}/diff.jpg`, true).clone();
+  map.repeat.set(repeat[0], repeat[1]);
+  markUpdateWhenReady(map);
+  return map;
+}
+
 export function applyPbr(material: THREE.MeshStandardMaterial, name: PbrTextureName, repeat: [number, number] = [1, 1]): void {
   const maps = loadPbr(name, repeat);
   material.map = maps.map;
