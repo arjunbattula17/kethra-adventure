@@ -195,7 +195,8 @@ export const STRINGS = {
   // Credits. Required attribution for the CC BY assets (docs/ASSET_LICENSE_LOG.md).
   'credits.planets': 'Planet maps adapted from Solar System Scope textures (solarsystemscope.com), based on NASA imagery. CC BY 4.0.',
   'credits.kits': 'Ship interior and grove models: Modular Sci-Fi MegaKit and Stylized Nature MegaKit by Quaternius (quaternius.com). CC0.',
-  'credits.textures': 'Surface textures by Poly Haven (polyhaven.com). CC0.',
+  'credits.models': 'Kethra’s column, crystal and moths adapted from “Column, old Roman” by aluxado, “Crystal Cluster 2 (Free)” by chrismartin1337 and “Moth” by Peter Farell (sketchfab.com). CC BY 4.0.',
+  'credits.textures': 'Surface textures and Kethra’s jacaranda and small tree by Poly Haven (polyhaven.com). CC0.',
   'credits.font': 'Rajdhani by Indian Type Foundry, and Atkinson Hyperlegible by the Braille Institute of America. Both SIL Open Font License 1.1.',
   'credits.three': 'Rendering by three.js (threejs.org). MIT License.',
   'credits.original': 'Made by TSA team #____: code, story, characters, sound and procedural art.',

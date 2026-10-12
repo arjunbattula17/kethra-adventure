@@ -13,6 +13,13 @@ the end of the game carries it (`credits.*` in `src/content/strings.ts`).
 | metal_plate | `public/textures/metal_plate/` | Poly Haven — https://polyhaven.com/a/metal_plate | CC0 1.0 | No |
 | metal_plate_02 | `public/textures/metal_plate_02/` | Poly Haven — https://polyhaven.com/a/metal_plate_02 | CC0 1.0 | No |
 | lichen_rock | `public/textures/lichen_rock/` | Poly Haven — https://polyhaven.com/a/lichen_rock | CC0 1.0 | No |
+| forest_ground_06 as forest_ground (colour map only): Kethra's loam banks, added 2026-10-12 | `public/textures/forest_ground/` | Poly Haven — https://polyhaven.com/a/forest_ground_06 | CC0 1.0 | No |
+| grass_ground (colour map only): Kethra's terrace moss, added 2026-10-12 | `public/textures/grass_ground/` | Poly Haven — https://polyhaven.com/a/grass_ground | CC0 1.0 | No |
+| Jacaranda Tree, rebuilt low-poly: Kethra's landmark tree, added 2026-10-12 | `public/models/kethra/jacaranda.glb` | Poly Haven (Rob Tuytel, Rico Cilliers) — https://polyhaven.com/a/jacaranda_tree | CC0 1.0 | No (credited anyway) |
+| Tree Small 02, rebuilt low-poly: Kethra's understory trees, added 2026-10-12 | `public/models/kethra/tree_small.glb` | Poly Haven (Rico Cilliers) — https://polyhaven.com/a/tree_small_02 | CC0 1.0 | No (credited anyway) |
+| "Column, old Roman" by aluxado, rebuilt low-poly: Kethra's colonnade, added 2026-10-12 | `public/models/kethra/column.glb` | Sketchfab — https://sketchfab.com/3d-models/column-old-roman-b1345f1ef29848ed8e1a0a3649fbca22 | CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/ | **Yes** |
+| "Crystal Cluster 2 (Free)" by chrismartin1337, reduced: the crystal in the Cistern Heart's basin, added 2026-10-12 | `public/models/kethra/crystal.glb` | Sketchfab — https://sketchfab.com/3d-models/crystal-cluster-2-free-b1bed3164820477894d4f76307a26a13 | CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/ | **Yes** |
+| "Moth" by Peter Farell, rebuilt low-poly: Kethra's resting moths, added 2026-10-12 | `public/models/kethra/moth.glb` | Sketchfab — https://sketchfab.com/3d-models/moth-9d1facf05aad4c1ea420f3c90cb9d2f9 | CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/ | **Yes** |
 | bark_willow *(unused, D-10)* | `public/textures/bark_willow/` | Poly Haven — https://polyhaven.com/a/bark_willow | CC0 1.0 | No |
 | rusty_metal_04 as ship_wall *(unused, D-10)* | `public/textures/ship_wall/` | Poly Haven — https://polyhaven.com/a/rusty_metal_04 | CC0 1.0 | No |
 | metal_grate_rusty as ship_floor *(unused, D-10)* | `public/textures/ship_floor/` | Poly Haven — https://polyhaven.com/a/metal_grate_rusty | CC0 1.0 | No |
