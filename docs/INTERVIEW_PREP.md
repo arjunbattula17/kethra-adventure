@@ -14,8 +14,8 @@ vanished civilisation. There is no combat: you progress by puzzles, conversation
 **2. How does it fit the TSA theme and challenge?**
 - **Deep space:** a stranded ship in an uncharted system.
 - **RPG:** six stats, XP and levels, skill points, and stat-gated branching dialogue.
-- **Progression by puzzles:** the Rite of Three Breaths on Kethra, the breaker bus on the
-  Anchorage, the course plot.
+- **Progression by puzzles:** the Rite of Three Breaths on Kethra, the ring bus on the
+  Anchorage, the intercept plot.
 - **No combat:** the Wickmoth guardian is calmed by dimming a light, never fought.
 
 **3. Where did the idea come from?**
@@ -64,10 +64,11 @@ modern browser, which is how judges play.
 **11. How is a level built?**
 - The scene code builds the space: `src/planets/vessek/VessekScene.ts`.
 - Everything a writer would change is data in separate files: dialogue (`vessekDialogue.ts`),
-  documents (`vessekLore.ts`) and the puzzle's rules (`BreakerPuzzle.ts`).
+  documents (`vessekLore.ts`), the puzzle's rules (`bus.ts`) and the things to find
+  (`src/content/discoveries.ts`).
 
 **12. Walk us through one puzzle's code.**
-`BreakerPuzzle.toggle()` in `src/planets/vessek/BreakerPuzzle.ts` makes three checks:
+`RingBus.throwLever()` in `src/planets/vessek/bus.ts` makes three checks:
 - **Dependencies:** does this circuit need another one on first?
 - **Capacity:** would it push the bus over 6 units? If so it trips, and the auto-reset lights come
   back on.
@@ -75,9 +76,9 @@ modern browser, which is how judges play.
 
 **13. How do the stats actually matter?**
 - Dialogue options carry `requires: { attribute, min }` (`DialogueSystem.ts`).
-- World objects check stats too: the ring plate needs archaeology 2, and the duct needs
-  traversal 2.
-- Stats also change what you see: engineering 2 shows breaker loads, perception 2 marks the
+- World objects check stats too: the ring plate needs archaeology 2, the bent grate into the
+  short duct needs traversal 2, and the Wren's relay rack needs engineering 2.
+- Stats also change what you see: engineering 2 shows each lever's load, perception 2 marks the
   circuits that switched themselves back on.
 - Every puzzle can still be solved at starting stats.
 
@@ -120,7 +121,7 @@ fades the Aiveth's glow to show mood.
 
 **20. What would you do next?**
 - Build levels 4–5 (Orrun's Reach, Isilthe).
-- Replace the course plot's typed answers with actions on the chart (D-7).
+- Build the live 3D title that cuts straight into the opening (docs/REPORT.md, next steps).
 - Atlas the Wren's textures so it runs faster on Chromebooks.
 - Test on a real Mac and a real Chromebook.
 

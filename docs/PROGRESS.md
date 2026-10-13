@@ -5,10 +5,11 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
-**2026-09-27: M5 built and committed; its verification is unfinished.** The Vessek flow passes
-end to end, but the full journey run was stopped for low memory, and the M5 screenshots and the
-twenty-one-ship Anchorage's look are still to check (the open items under M5). Milestone check-ins
-are OFF, so work continues milestone to milestone without stopping.
+**2026-10-13: the finishing pass.** M5's verification is closed. M6 is built except the live 3D
+title: the ending has its summary and a chapter select. Every level has a survey of things to find
+(DECISIONS D-26, D-27). A whole-game pass found and fixed six bugs on the player's path (QA log).
+docs/REPORT.md is the report. What is left is in "Open issues" and in the report's next steps: the
+live title, a timed human playthrough, and real hardware.
 
 ## Milestones
 - [x] Phase 0: brief saved, branch, baseline (screens, perf, journey test)
@@ -49,7 +50,7 @@ are OFF, so work continues milestone to milestone without stopping.
   - [x] The win: the Heart wakes, the moth settles on it with its wings open, and the wake travels out of the chamber, up the terraces and into the canopy (wake.ts), filmed on the player's own camera, hold to skip
   - [x] The Rite's DOM panel and the lantern bloom deleted; MG2's moth no longer overwritten by the old patrol
   - [x] Kethra's floor: a still pool the terraces stand in (the fall reset at its surface), the lantern-tree canopy overhead with the skiff's hole in it, the pillars grounded, the chamber on foundations, the build split into tasks
-- [ ] **M5 Level 2: Vessek expanded** (built; verification open)
+- [x] **M5 Level 2: Vessek expanded**
   - [x] Four compartments joined by tubes, each lashed hull with its own light: the Lantern Bay hall, the school hold, the hydroponics tanker and the aft junction (src/planets/vessek/layout.ts, rooms.ts, dressing.ts)
   - [x] The ring bus in the world (bus.ts, busWorld.ts): six units across eight circuits, each lever in the room it serves, conduits that glow with the flow, gauges in the hall, the school and the junction; the dock lights and hall lamps switch themselves back on. Engineering 2 stamps each lever's load, perception 2 marks the self-resetting ones and warns before they come back
   - [x] Dace's ducts: crawl-only (crouch now lowers the player to 1.1 m and holds wherever standing would collide), ladders, one-way drops, chalk arrows, and fans that block a duct while their circuit runs
@@ -57,13 +58,21 @@ are OFF, so work continues milestone to milestone without stopping.
   - [x] Stats change the route, not whether you can win: persuasion 3's deal throws the hall lamps' lockout for you, insight 2 (after the Heart) trades for the junction's keypad code, traversal 2 fits the short duct from the tanker
   - [x] The docking variant of the cruise: the Anchorage's broken ring in front of the violet world, its lamps blinking out of sync; the Wren slows in between the moored hulls to the Lantern Bay's collar under the title "Vessek Anchorage" (src/planets/vessek/anchorage.ts)
   - [x] The breaker panel deleted (BreakerPuzzle.ts and its CSS)
-  - [ ] Look at the Anchorage with its twenty moored hulls (three rafted outboard): built and type-checked, not yet seen; the docking frames and numbers below are from the thirteen-hull version
-  - [ ] M5 screenshots, 1920×1080 Low + High
-  - [ ] `npm run journey` on this build (the base URL must be the default `/kethra-adventure/`)
-  - [ ] Vessek's own perf row against its budget (180 / 200k Low, 400 / 400k High)
-- [ ] M6 Opening, menus, ending
-- [ ] M7 Whole-game pass and art pass
-- [ ] M8 Report
+  - [x] The Anchorage with its twenty moored hulls, looked at (2026-10-13): the broken ring, the hulls along its arc and the Wren coming in to the Lantern Bay's collar all read, on Low and High, with no page errors
+  - [x] M5 screenshots, 1920×1080 Low + High: the docking approach at five moments (2026-10-13, inspected from scratch, not committed; the level's interior shots are with the finds below)
+  - [x] `npm run journey` (2026-10-12 and again 2026-10-13)
+  - [x] Vessek's own perf row (2026-10-13): over on draw calls on both presets, inside on triangles (Performance, below)
+- [~] **M6 Opening, menus, ending** (2026-10-13; the live title is not built)
+  - [x] The ending's summary: days in flight, survey finds and level counting up, the six skills, the survey world by world, the choices the save recorded (src/ui/JourneySummary.ts)
+  - [x] A chapter select on the title and after the credits: any level from the player's own arrival, or from a stand-in with a first playthrough's skills (src/core/chapters.ts, src/ui/ChapterSelect.ts)
+  - [x] The intro respects reduced motion (issue 10)
+  - [ ] The live 3D title with a match cut into the intro (issue 37)
+  - [ ] Menus, pause and settings re-checked against the plate kit; the arrival card's redesign (issue 25)
+- [~] **M7 Whole-game pass and art pass** (2026-10-13; the pass is done, the full screenshot matrix is not)
+  - [x] The survey: 4 finds aboard the Wren, 8 on Kethra, 6 at the Anchorage (src/content/discoveries.ts)
+  - [x] Every suite on the final build, and six bugs on the player's path fixed (QA log)
+  - [ ] Four resolutions × Low/High screenshots of every beat; frame-stepped transitions at 30 and 144 Hz
+- [x] **M8 Report** (docs/REPORT.md)
 
 ## Open issues
 | # | Sev | Issue | Where | Plan |
@@ -77,7 +86,7 @@ are OFF, so work continues milestone to milestone without stopping.
 | 7 | P2 | The Wren is still over its Low budget: 256 calls against 150 (was 614). Its scene pass is 30–50% cheaper than the baseline's in a controlled A/B (below), but perf-run's Low p95 at 6× still misses 33 ms in the Wren, Kethra and Vessek | ship/interior/*, all scenes | M7: the remaining calls are unique-parameter materials; measure with the steadier method in issue 16 |
 | 8 | ~~P2~~ | **Fixed (131f3a3)**: per-scene grades; space grade has no toe lift | GradeGlowPass.ts | |
 | 9 | ~~P2~~ | **Fixed (131f3a3)**: world text on bundled faces; counters on Atkinson tabular | *Textures.ts, style.css | |
-| 10 | P2 | Reduced motion: glides and FOV now handled; the intro dolly and the white-sky swell still ignore it | IntroScene | M6 (intro rebuild) |
+| 10 | ~~P2~~ | **Fixed (2026-10-13)**: with reduced motion the intro holds one framing and the white sky swells to 40% | IntroScene | |
 | 11 | ~~P3~~ | **Fixed (131f3a3)**: reveal frees its resources; Kethra's timer is scene-owned | | |
 | 12 | P3 | Floor textures: one canvas wrapped by several CanvasTextures (per-texture `.repeat`), so the same image uploads more than once. The Low downscale's reach is now moot for the Wren: its small canvases live in atlas pages, which the downscale deliberately skips so Low keeps each canvas's own resolution | floorTextures.ts:21-47 | M7 (bake the repeat into UVs so the textures can share) |
 | 13 | ~~P3~~ | **Fixed (M4)**: the pillars stand on the terraces; the Heart sits in its own chamber | | |
@@ -99,10 +108,14 @@ are OFF, so work continues milestone to milestone without stopping.
 | 29 | P3 | The Hush's view on High draws 669k triangles against 500k: the background tree belt behind the chamber's walls is still drawn | KethraScene filler trees | M7: the design's LOD or impostors for the belt |
 | 30 | P3 | tools/record-gameplay.mjs still travels by the pre-M2 fade (it emits `galaxy:travel_to` and waits 2.2 s); its Hush clip is updated, but the trip needs tools/lib/travel.mjs | tools/record-gameplay.mjs | M8, before the video is recorded |
 | 31 | P3 | MG2's Wickmoth now flies its layer-4 path: the old patrol overwrote its position every frame, so it had never been on screen | canopy/CanopyScene.ts | M7 art pass: look at layer 4 with it there |
-| 32 | P3 | The team docs still describe the breaker panel and the one-room Vessek (EXPLAIN_TO_TEAM.md, docs/INTERVIEW_PREP.md, docs/DEMO_VIDEO_SHOTLIST.md, docs/STORYBOARD_CHECK.md) | team docs | M8, with the report |
+| 32 | P3 | **Mostly fixed (2026-10-13)**: the four team docs no longer point at `BreakerPuzzle.ts` or the keypad plot, and describe the ring bus, the survey, Chapters and the summary. docs/STORYBOARD_CHECK.md still predates MG2, MG3, First light and the cruise in places | docs/STORYBOARD_CHECK.md | Re-walk the storyboard against a playthrough |
 | 33 | P2 | The Kethra dressing (D-25) takes the scene further over budget: High 467 draw calls against 450, Low 361k triangles against 320k, the Hush view 872k against 500k on High, and 102.5 MB of textures against 90 MB (the scene was about 96 MB before it) | planets/kethra/dressing.ts | Team decision on D-25; if it stays, the understory trees and the landmark's leaf cards are the first things to thin |
-| 34 | P3 | `tools/collision-check.mjs kethra` cannot reach Kethra: it still travels by the pre-M2 `galaxy:travel_to` event and times out on the Wren. Run from a copy that calls `flow.debugGo('kethra')` it passes (9/9 targets reachable) | tools/collision-check.mjs | Move it to tools/lib/travel.mjs with issue 30 |
-| 35 | P3 | `tools/test-mg3-flow.mjs` is flaky, and was before the Kethra dressing: run five times each on builds served side by side, alternating, e4f525e passed 3 and the working tree 4 (five earlier runs of the working tree: 4). A failing run always loses a breath at the call-stone (seen, or not counted) and then every check after it | tools/test-mg3-flow.mjs | Find why a breath timed off the moth's sweep is sometimes seen; until then one failure is not a regression |
+| 34 | ~~P3~~ | **Fixed (2026-10-13)**: the tool travels by `flow.debugGo('kethra')`, and marks the one target reached by jumping (Oshel's lantern, which tools/test-survey.mjs jumps to) | tools/collision-check.mjs | |
+| 35 | ~~P3~~ | **Fixed (2026-10-13)**: the flake was the test's. A breath sends the moth a step closer and no breath counts while it flies there (the HUD says "Let it settle first"); the test read its perch, and breathed again, the moment the breath counted. It now waits for the moth to arrive. 5 of 5 runs passed on the final build | tools/test-mg3-flow.mjs | |
+| 36 | P3 | Kethra on Medium and High logs about 200 WebGL warnings on arrival ("Mismatch between texture format and sampler type"): a shadow sampler bound before its map has been drawn. Not on Low, not aboard the Wren. Present at 0e1a526 with the same counts (101, 72 and 33 by draw type), so not from the finishing pass. Nothing visible was traced to it | KethraScene (the moon's one-time shadow and the gaze's shadow pass) | Find which light's map is sampled before its first render; it may be the cause of part of issue 22's stall |
+| 37 | P2 | The live 3D title with a match cut into the intro (DESIGN §1, M6) is not built: the title is still the DOM screen over a planet image | boot.ts, GameFlow.bootIntro, TitleScreen | docs/REPORT.md, next steps: hold the intro's first frame behind the DOM title first, then prepare the ship while the title is up, and measure a cold cache before removing the loading screen |
+| 38 | P3 | The evidence board's only connection is made automatically by Fen's dialogue, so the board's own "select two clues" action always answers "already connected" or "no clear connection" | JournalSystem.CONNECTION_INSIGHTS | Give the board pairs of its own to find (the survey's texts are candidates), or drop the action |
+| 39 | P3 | Three of the Wren's seven systems (navigation, shields, power distribution) can be repaired to no effect | GameFlow's `ship:repaired` handlers | Give each a consequence or remove it from the panel |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -191,6 +204,18 @@ are OFF, so work continues milestone to milestone without stopping.
 | 2026-10-12 | `tools/test-mg3-flow.mjs`, five runs each on e4f525e and the working tree, alternating | e4f525e 3/5, working tree 4/5 (issue 35) |
 | 2026-10-12 | Tree maps right-sized after the audit (leaves 1024 → 512 and 512 → 256, bark 512 → 256) | Same triangle counts, Khronos validator clean, no difference in the closest views; Kethra's textures 109.5 → 102.5 MB. The suites above ran before this last change, which is texture data only; build, `test-kethra-flow` and the screenshots were repeated after it |
 | 2026-10-12 | Not done | No real Chromebook |
+| 2026-10-13 | A script holding W from Kethra's spawn, 7 s (walk straight ahead, as a player does) | Before: into the pool three times (2.2 s, 4.6 s, 6.8 s). After the span from the landing: across it and on over the plaza, no fall |
+| 2026-10-13 | Reading an inscription on Kethra | Before: a one-line toast; the text only in the journal aboard the Wren. After: the text on screen, for the three inscriptions, the shrine and the last carving |
+| 2026-10-13 | `tools/test-survey.mjs` (new): every find, its reward once, its text | The Wren 20/20 (the note, key and locker chain; the day-22 log restored). Kethra 23/23 (the stones crossed with real walking jumps, a fall returning to the terrace, the perch hidden until the moth leaves it). Vessek 14/14 (Dace's duct crawled with real keys; her star question reachable) |
+| 2026-10-13 | `tools/test-ending.mjs` (new) | 24/24: Chapters on the title; a chapter boots straight into its level with a first playthrough's skills; a saved journey is replaced only on the second press; the pause menu's survey line; the summary's figures (17 days in flight), skills, survey by world and choices; Chapters from the ending |
+| 2026-10-13 | The stepping stones, first layout | Thrown out twice. Laid from the terrace's east edge they started behind a boulder's collision box and ended under a bough at head height (found by listing the scene's objects and mapping the tree's limbs). With a short first gap, the same jump overshot the first stone. Final: from the north edge, every gap the same |
+| 2026-10-13 | WebGL warnings on Kethra (issue 36) | Built 0e1a526 alongside: identical counts there, so not from this pass |
+| 2026-10-13 | `tools/test-mg3-flow.mjs` after its fix, five runs on the final build | 5 of 5 (issue 35) |
+| 2026-10-13 | `tools/collision-check.mjs` after its fix | The Wren: 1,757 of 1,757 open cells reachable, 9/9 targets on foot (the five new ones among them). Kethra: 10 targets on foot, and Oshel’s lantern marked as reached by jumping; the 237 cells not walkable from the spawn are the stepping stones and the slab |
+| 2026-10-13 | `tools/run-journey.mjs` on the final build (now sixteen tests) | 16/16 |
+| 2026-10-13 | `stress_tests/run.mjs` on the final build | 12 of 13 scenarios on the full run (s08-kethra with its one KNOWN, BUG-013). The thirteenth, s07-flow, failed its double-click check: the Warden now opens on her topics once met, so its two conversations began on different lines. With the scenario corrected it passes on its own, 15/15 |
+| 2026-10-13 | Looked at, 1366×768: each new find from where a player stands; the title, the chapter list, the pause menu and the ending's summary at 1366×768 and 1280×720 | Kept. Changed on the way: the bench note moved out of the task lamp's hot spot; Mbeki's letter made plain paper (the amber tape is Carrow's); the seed book rebuilt as covers and pages with a label |
+| 2026-10-13 | Not done | A real Chromebook; a human playthrough; the four-size screenshot matrix |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;
@@ -305,3 +330,27 @@ the final build). See DECISIONS D-25.
   more) is not seen by the audit. The scene was therefore about 96 MB before it.
 - **Not measured:** a real Chromebook, and the cold-cache shader link on arrival (issue 22), which
   the extra programs will lengthen.
+
+### Finishing pass (2026-10-13)
+`tools/measure-scene.mjs` at 1366×768, production builds, one run each; Low at 6× CPU. "Before" is
+0e1a526: for Kethra and the Hush the table above, for the Wren and Vessek that commit built and
+measured the same day (Vessek's own row had never been taken).
+
+| Scene | Preset | Draw calls | Triangles | Budget (calls / tris) |
+|---|---|---|---|---|
+| The Wren | Low, before → after | 269 → **271** | 148k → 148k | 150 / 150k |
+| The Wren | High, before → after | 546 → **550** | 296k → 296k | 350 / 300k |
+| Kethra | Low, before → after | 229 → **231** | 361k → **362k** | 160 / 320k |
+| Kethra | High, before → after | 467 → **471** | 842k → 843k | 450 / 900k |
+| Hush | Low, before → after | 141 → **138** | 359k → **359k** | 120 / 200k |
+| Hush | High, before → after | 302 → **302** | 872k → **872k** | 300 / 500k |
+| Vessek | Low, before → after | 218 → **221** | 186k → 187k | 180 / 200k |
+| Vessek | High, before → after | 444 → **450** | 373k → 373k | 400 / 400k |
+
+- **What the finds cost:** two to six draw calls a scene and about a thousand triangles. The Wren +2 / +4
+  (Low / High), Kethra +2 / +4, Vessek +3 / +6. Kethra's stepping stones are in the ruins mesh and cost
+  no call of their own; its four are the span from the landing and Oshel's lantern and crook.
+- **The Hush view** reads 141 → 138 on Low. That pose's count moves by a few with where the moth's
+  gaze is in its sweep; nothing in this pass draws less.
+- **All four scenes are over their draw-call budgets on both presets**, as they were before this
+  pass. None of that is new and none of it was reduced. Frame times were not compared (issue 16).

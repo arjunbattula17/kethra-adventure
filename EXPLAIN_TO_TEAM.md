@@ -92,7 +92,7 @@ without errors), `test-tutorial-flow.mjs` (36 checks through the opening), `intr
   (BACKLOG B-5).
 
 ## Title screen (`src/ui/TitleScreen.ts`)
-**What:** the first screen: Continue / New Game / Controls / Settings (the credits roll at the ending). Plain HTML and
+**What:** the first screen: Continue / New Game / Chapters / Controls / Settings (the credits roll at the ending). Plain HTML and
 CSS, so it appears instantly.
 **Why:** the rules require a controls screen reachable from a menu; the CC BY assets need visible
 credit; and browsers won't play sound until the player clicks something.
@@ -117,17 +117,22 @@ panel beside them. Set Course is how the player travels.
 **What:** the Lantern Bay, town hall of a ring of stranded ships. Talk to Harbormaster Varro, and
 a "rehearsal" white sky knocks the power out; bring it back before the food freezes, then read
 the ledger that shows the pulse came early after you relit Kethra's Heart.
-- *"How does the breaker puzzle work?"* `BreakerPuzzle.ts`: six circuits, a bus that carries 6
-  units. The heaters need the pumps, everything needs the regulator, and two circuits switch
-  themselves back on. The heaters and scrubbers need exactly 6, so the answer is to switch *off*
-  the dock lights and the harbormaster's own hall lamps first. Each breaker's label is a note from
-  a different crew: reading the room solves it.
-- *"What happens if you run out of time?"* The seedlings frost, Dace's backup warmers buy another
-  try, and the breakers reset at once. Failing costs seconds, never progress.
-- *"Where do the stats matter?"* Engineering shows the load on each breaker; perception notices
-  which circuits came back on by themselves; traversal gets you through Dace's duct for extra
-  time; persuasion, insight or engineering open better bargains with Varro; archaeology reads the
-  Kindling plate under the grate.
+- *"How does the power puzzle work?"* `bus.ts` holds the rules and `busWorld.ts` puts them in the
+  rooms: eight circuits on a bus that carries 6 units, each with a physical lever in the room it
+  serves. The heaters need the pumps, everything needs the regulator, and two circuits (the dock
+  lights and the hall lamps) switch themselves back on. The heaters and scrubbers need exactly 6,
+  so those two have to be off and stay off: their lockout boxes are in the ducts. Each lever's tag
+  is a note from a different crew, so reading the room solves it.
+- *"What happens if you run out of time?"* The frost clock restarts and the bus drops back to the
+  regulator. Lockouts already thrown, and everything else, are kept: failing costs seconds, never
+  progress.
+- *"Where do the stats matter?"* Engineering stamps each lever's load on its tag; perception marks
+  the circuits that reset themselves and warns before they do; traversal opens the bent grate into
+  the short duct; persuasion, insight or engineering open better bargains with Varro; archaeology
+  reads the Kindling plate under the grate.
+- *"What is there to find?"* Three things off the path, counted in the level's survey: the scope
+  at the east port, Dace's chalk sky in her duct, and the seed book behind the last grow table
+  (`src/content/discoveries.ts`).
 
 ## Characters (`src/characters/Figure.ts`)
 **What:** every person in the game is built in code from simple shapes with few sides and flat

@@ -13,6 +13,42 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-13 (Claude Code, model Claude Opus 5.5)
+
+**Asked for by the team:** a general "finish my unfinished game" prompt, pasted with its blanks
+unfilled: analyse the project first, keep its feel, end with exactly three fully playable levels
+that reward exploration, and ask no questions. The AI read it against the project instead of
+taking it literally: the game already had three levels and an ending, so the work became closing
+what the overhaul's own log left open and adding things to find.
+
+**What the AI generated or changed**
+- **Bugs found by reading and then running the game** (docs/PROGRESS.md, QA log): walking straight
+  ahead from Kethra's landing fell into the pool; Kethra's inscriptions never showed their text;
+  Dace's later conversation could not be reached; the trip to the Anchorage was announced with
+  Kethra's day count; the intro ignored the reduced-motion setting; a mouse-capture error.
+- **The survey** (DECISIONS D-26): ten new things to find, all of their text written by the AI
+  from LORE.md, in `src/content/discoveries.ts`. Nothing was downloaded: the stepping stones, the
+  scope, the chalk sky, the notes and the seed book are all built or drawn in code.
+- **The ending's summary and the chapter select** (DECISIONS D-27).
+- **Tests:** `tools/test-survey.mjs` and `tools/test-ending.mjs`; `tools/collision-check.mjs` and
+  `tools/test-kethra-flow.mjs` brought up to date.
+- **The team's documents** corrected where they still described the deleted breaker panel and
+  keypad plot (EXPLAIN_TO_TEAM, INTERVIEW_PREP, DEMO_VIDEO_SHOTLIST, STORYBOARD_CHECK).
+- **Decisions the AI made and the team should review:** every line of new story text and the
+  canon it implies (listed in D-26); which skill each find pays; that chapters are open from the
+  first launch; that the live 3D title was not built.
+
+**What the team must be able to explain**
+- Why exploring raises skills, and one route it opens (Mbeki's letter and Oshel's grove together
+  reach the persuasion Varro's message deal asks for).
+- How a find is made: one entry of data, one placement in its level.
+- How the fall on Kethra was found (a script that held W from the spawn) and fixed (a span of stone).
+- Why the stepping stones are all the same jump apart: a short first gap was tried, and the same
+  jump overshot it.
+- What a chapter starts from: your own arrival if you have played there, a stand-in if not.
+
+---
+
 ## Session 2026-10-12 (Claude Code, model Claude Opus 5.5)
 
 **Asked for by the team:** a list of assets for Kethra (two Poly Haven trees, two Poly Haven ground

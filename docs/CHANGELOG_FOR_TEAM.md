@@ -6,6 +6,42 @@ Measured numbers cite their files; the rest is description.
 
 ---
 
+## Finishing pass (2026-10-13)
+
+### The survey: things to find on every level
+- **What:** each level now counts its optional finds as its survey: 4 aboard the Wren, 8 on Kethra,
+  6 at the Anchorage. Ten are new: Carrow's note, key and locker, Mbeki's letter and the dead relay
+  on the Wren; the stepping stones to Oshel's grove and the Wickmoth's empty perch on Kethra; the
+  scope, Dace's chalk sky and the seed book at the Anchorage. Files: `src/content/discoveries.ts`,
+  `src/journal/Survey.ts`, and a `buildFinds` in each level.
+- **Why:** nothing optional aboard the Wren paid anything, and nothing in the game raised
+  perception, so several stat routes could not be reached in a normal run. Each find pays a skill
+  the next level checks.
+- **Rubric:** Technical Skill (stats drive the puzzles); Overall Appeal; Bonus.
+- **Say:** "Looking around is how you get better at the game. A letter in a suit locker on the ship
+  is why the Warden on the next world will listen to you."
+
+### Kethra: the first step, and inscriptions you can read
+- **What:** a span of stone joins the landing terrace to the plaza; reading an inscription, the
+  shrine or the last carving shows its text on screen; the Warden remembers you; leaving the
+  chamber puts the objective back.
+- **Why:** walking straight ahead on arrival fell into the pool every time, and the puzzle's
+  evidence was filed in a journal that only opens back on the ship.
+- **Rubric:** Overall Appeal; Storyline & Flow.
+- **Say:** "A script that held the W key found the fall in seven seconds. The fix is one slab."
+
+### The ending's summary, and Chapters
+- **What:** before the credits, the journey in figures that count up, the six skills, the survey
+  world by world and the choices made. Chapters, on the title and after the credits, starts the
+  game at any of the three levels. Files: `src/ui/JourneySummary.ts`, `src/ui/ChapterSelect.ts`,
+  `src/core/chapters.ts`.
+- **Why:** docs/DESIGN.md §6 planned both; a judge can now go straight to level 3.
+- **Rubric:** hard constraint (three levels, judged through level 3); Overall Appeal.
+- **Say:** "If you only have five minutes, Chapters takes you to any level with the skills a first
+  playthrough would have by then."
+
+---
+
 ## Story and levels
 
 ### Level 3: Vessek Anchorage

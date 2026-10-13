@@ -6,8 +6,8 @@ game; don't draw them as playable.
 
 ## Title
 1. **Title screen.** "KETHRA" in large type, cut by an amber scan line: ink above, sea-green below.
-   Kethra turns slowly at the right. Buttons: Continue (only if saved), New game, Controls,
-   Settings. No footer; the credits roll at the end of the game.
+   Kethra turns slowly at the right. Buttons: Continue (only if saved), New game, Chapters,
+   Controls, Settings. No footer; the credits roll at the end of the game.
 2. **Controls / Settings** open as panels over the title.
 
 ## Intro: "Cold Start" (24 s, skippable with Space, Enter or a click)
@@ -33,8 +33,8 @@ game; don't draw them as playable.
 15. **Galaxy reveal:** the whole system appears around its sun, with the captions "You are stranded,
     alone, in a galaxy no chart has ever mapped." and "Somewhere out there is the truth — and a
     way home."
-16. **Course plot** panel over the console: three questions (How far is the transfer? How many days
-    at cruise? How many reserve cells?), then "Burn committed."
+16. **Intercept** (mini-game 1), on the system the scan just resolved: day ticks along Kethra's
+    orbit, and one choice, the tick where the Wren and Kethra arrive on the same day. Then launch.
 17. **Ship hub.** HUD: objective top left, level and keys bottom right. Toasts: travel logs
     restored, repair interface online, Kethra in range.
 18. **Navigation map:** the solar chart plus a dossier. Kethra is selected; press Set course.
@@ -77,9 +77,9 @@ game; don't draw them as playable.
     deck (grow lights, dock, hall, gallery) until only amber emergency strips are left. Caption:
     "Varro: 'Rehearsal pulse. Two years early.'"
 40. **HUD:** the frost meter under the objective ("Hydroponics 11.9 °C").
-41. **(Optional) Dace's duct:** traversal 2 opens the warm-water valve for more time.
-42. **Breaker gallery panel:** six breakers with notes from six crews, a 6-unit bus meter and the
-    frost bar.
+41. **(Optional) the bent grate:** traversal 2 opens the short duct from the tanker to the junction.
+42. **The ring bus, in the rooms:** eight levers, each in the compartment it serves and tagged with
+    a note from a crew; load gauges in the hall, the school and the junction; the frost bar.
     - Fail beat: "Overload…" or "The heaters trip… pumps first."
     - Frost-out: "backup warmers bought one more try."
 43. **Power restored:** the ring relights in reverse, and the ships outside get their lights back.
@@ -99,7 +99,9 @@ game; don't draw them as playable.
     - "Under Isilthe's sea, the Choir is still singing."
     - "This time, someone knows how to answer it."
 50. **Credits:** "End of part one. The ledger goes home." A one-line recap, the team credit, every
-    licensed asset, and then two buttons: Keep exploring / Title screen.
+    licensed asset. Above the credits, a summary: days in flight, survey finds and level counting
+    up, the six skills, and the choices made. Then three buttons: Keep exploring / Chapters /
+    Title screen.
 
 ## Always available
 - **Pause menu** (Esc): resume, settings, controls, restart this level, save and quit.

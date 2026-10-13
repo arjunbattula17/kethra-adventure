@@ -183,3 +183,72 @@ docs/ASSET_LICENSE_LOG.md and a line in the end credits (`credits.models`). If t
 hold to CC0 only, remove `column.glb`, `crystal.glb` and `moth.glb` and their callers in
 `dressing.ts`. (2) Kethra was already over its Low-tier budget and this adds to it; the numbers are
 in docs/PROGRESS.md.
+
+### D-26 · ADD · The survey: things to find on every level — *Built 2026-10-13, team to approve the canon*
+Every level now has optional finds, counted as that level's **survey** (the word the surface chart
+already used). They are data in `src/content/discoveries.ts`: 4 aboard the Wren, 8 on Kethra, 6 at
+the Anchorage. Ten are new; the other eight are finds the levels already had (Kethra's inscriptions,
+shrine, valve and last carving; the Anchorage's ring plate, bent grate and Dace's question), which
+now count toward the same total.
+
+**Why these rewards.** Before this, nothing in the game raised perception, and persuasion rose only
+at the very end, so the Warden's trust (persuasion 2), Varro's message deal (persuasion 3) and the
+perception routes through MG2, MG3 and the ring bus could only be reached by spending the one or two
+skill points a run earns. The new finds pay the stats the next gates check: the Wren's pay
+perception, persuasion and insight before Kethra; Kethra's pay persuasion and perception before the
+Anchorage. Looking around is how a route opens.
+
+**What is new, level by level.**
+- **The Wren** (offered once the course is plotted): Carrow's note at the workbench, which sends you
+  to a key under the sub-deck hatch and so into her locker; Mbeki's unsent letter in the suit
+  lockers; the dead COMMS relay, readable at engineering 2. The locker holds a spare log buffer that
+  restores the corrupted day-22 travel log, which the journal had always promised and never done.
+- **Kethra:** stepping stones from the east terrace's north edge out to the landmark tree, and
+  Oshel's grove under it (the lantern there is dark until the Heart wakes, and the text changes with
+  it); the Wickmoth's perch on the far arch, readable only once it has settled on the Heart.
+- **The Anchorage:** the scope at the hall's east port; Dace's chalk sky, on the wall of her duct and
+  so behind the fan circuit; the seed book behind the tanker's last grow table.
+
+**Canon this adds, for the team to approve (LORE.md is yours, D-1).** Each is written from a line
+already in LORE.md and changes nothing that exists:
+- Carrow kept a spare log buffer and a key ARK told her not to keep; the COMMS relay was a known
+  fault ARK would not pay to fix. (LORE: she "left notes taped inside panels".)
+- Mbeki wrote, and never sent, an objection to the contract. (LORE: "the one who argued against
+  taking the contract".)
+- The restored day-22 log fills its three gaps with "a tone on long-range scan", "on a fixed cycle"
+  and "ORION to take apart". (LORE: the rehearsal is "a hum on long-range scanners".) The final
+  log, with its "we were never supposed to—", is left corrupted: that reading is still yours.
+- Oshel's grove is the islet under the old tree. Oshel is still never seen.
+- The Aiveth's marks on the far arch stop short of the moth's perch. This says only what LORE
+  already says, that the Wickmoth predates the Aiveth; open question 5 stays open.
+- The Anchorage has a scope (the ledger's "Scope:" entries), and from it Kethra is now the brightest
+  thing in the sky. Dace draws other stars from stories. The hydroponics crop came from the ships'
+  galley stores; the Six Sisters "brought the songs".
+
+**Also fixed here, because the finds depend on them.** Reading an inscription, the shrine or the last
+carving on Kethra now shows its text on screen. Before, each showed a one-line toast and filed the
+text in a journal that only opens aboard the Wren, so the Rite's order could not be read where it is
+needed.
+
+**To undo:** delete the entries in `src/content/discoveries.ts` and their placements
+(`src/ship/interior/finds.ts`, `KethraScene.buildFinds`, `VessekScene.buildFinds`); the stepping
+stones are `STEPPING_STONES` in `src/planets/kethra/dressing.ts`.
+
+### D-27 · ADD · The ending's summary, and a chapter select — *Built 2026-10-13; closes D-6*
+The two pieces of docs/DESIGN.md §6 that were still missing from the ending.
+- **Summary.** Before the credits: days in flight, survey finds and level as three figures that count
+  up; the six skills; the survey world by world; and the choices the save recorded (the deal with
+  Varro, whether the Wickmoth ever caught your light, what was recovered).
+- **Chapters**, on the title and at the end of the credits. Each of the three levels can be started
+  directly. A chapter starts from your own save as it stood when you arrived there, if you have
+  been; otherwise from a stand-in with the flags and stats a first playthrough has by then
+  (`src/core/chapters.ts`). **Starting a chapter replaces the saved journey**, and with a journey
+  saved the first press only arms the row.
+
+**One thing to decide.** Chapters are open from the first launch, so that a judge can go straight to
+level 3 without playing levels 1 and 2. If the team would rather a chapter unlock only once reached,
+filter `CHAPTERS` in `ChapterSelect.open()` by `Chapters.hasOwn`.
+
+**Not built:** the live 3D title with a match cut into the intro (DESIGN §1). The title is still the
+DOM screen. It changes the boot path, the game's least-tested and most timing-sensitive code, and
+wants a cold-cache check on real hardware; it is the first item in docs/REPORT.md's next steps.

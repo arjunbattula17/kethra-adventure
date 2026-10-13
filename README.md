@@ -58,6 +58,7 @@ opening), `test-kethra-flow.mjs` (level 2), `test-vessek-flow.mjs` (level 3 and 
 - docs/AI_AND_ASSET_LOG.md: AI use record
 - EXPLAIN_TO_TEAM.md: interview prep
 - DEPLOY.md: deploy checklist
+- docs/REPORT.md: the finishing pass: what the game was, what changed, how it was verified
 
 Submission documents in `docs/`: AUDIT, PLAN, CHANGELOG_FOR_TEAM, CONTROLS_AND_HOW_TO_PLAY,
 STORYBOARD_CHECK, DEMO_VIDEO_SHOTLIST, INTERVIEW_PREP, PLAYTEST_REPORT; art direction:
