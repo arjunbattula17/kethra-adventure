@@ -5,6 +5,11 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
+**2026-10-13: the release pass** (docs/REPORT_2.md, written phase by phase). Phase 0 audited the
+finishing pass and corrected four things in it. Phase 1 took the three CC BY models out of the build
+and wrote the licence audit (docs/ASSETS.md) and the canon review sheet (docs/CANON_REVIEW.md).
+Where the pass stopped is the last section of that report.
+
 **2026-10-13: the finishing pass.** M5's verification is closed. M6 is built except the live 3D
 title: the ending has its summary and a chapter select. Every level has a survey of things to find
 (DECISIONS D-26, D-27). A whole-game pass found and fixed six bugs on the player's path (QA log).
@@ -109,13 +114,15 @@ live title, a timed human playthrough, and real hardware.
 | 30 | P3 | tools/record-gameplay.mjs still travels by the pre-M2 fade (it emits `galaxy:travel_to` and waits 2.2 s); its Hush clip is updated, but the trip needs tools/lib/travel.mjs | tools/record-gameplay.mjs | M8, before the video is recorded |
 | 31 | P3 | MG2's Wickmoth now flies its layer-4 path: the old patrol overwrote its position every frame, so it had never been on screen | canopy/CanopyScene.ts | M7 art pass: look at layer 4 with it there |
 | 32 | P3 | **Mostly fixed (2026-10-13)**: the four team docs no longer point at `BreakerPuzzle.ts` or the keypad plot, and describe the ring bus, the survey, Chapters and the summary. docs/STORYBOARD_CHECK.md still predates MG2, MG3, First light and the cruise in places | docs/STORYBOARD_CHECK.md | Re-walk the storyboard against a playthrough |
-| 33 | P2 | The Kethra dressing (D-25) takes the scene further over budget: High 467 draw calls against 450, Low 361k triangles against 320k, the Hush view 872k against 500k on High, and 102.5 MB of textures against 90 MB (the scene was about 96 MB before it) | planets/kethra/dressing.ts | Team decision on D-25; if it stays, the understory trees and the landmark's leaf cards are the first things to thin |
+| 33 | P2 | The Kethra dressing (D-25) takes the scene further over budget: High 467 draw calls against 450, Low 361k triangles against 320k, the Hush view 872k against 500k on High, and 102.5 MB of textures against 90 MB (the scene was about 96 MB before it). *2026-10-13:* its three CC BY models are rebuilt in code (D-30), which took Low to 349k and the Hush view on High to 819k; the draw calls are unchanged | planets/kethra/dressing.ts | Team decision on D-25; if it stays, the understory trees and the landmark's leaf cards are the first things to thin |
 | 34 | ~~P3~~ | **Fixed (2026-10-13)**: the tool travels by `flow.debugGo('kethra')`, and marks the one target reached by jumping (Oshel's lantern, which tools/test-survey.mjs jumps to) | tools/collision-check.mjs | |
 | 35 | ~~P3~~ | **Fixed (2026-10-13)**: the flake was the test's. A breath sends the moth a step closer and no breath counts while it flies there (the HUD says "Let it settle first"); the test read its perch, and breathed again, the moment the breath counted. It now waits for the moth to arrive. 5 of 5 runs passed on the final build | tools/test-mg3-flow.mjs | |
 | 36 | P3 | Kethra on Medium and High logs about 200 WebGL warnings on arrival ("Mismatch between texture format and sampler type"): a shadow sampler bound before its map has been drawn. Not on Low, not aboard the Wren. Present at 0e1a526 with the same counts (101, 72 and 33 by draw type), so not from the finishing pass. Nothing visible was traced to it | KethraScene (the moon's one-time shadow and the gaze's shadow pass) | Find which light's map is sampled before its first render; it may be the cause of part of issue 22's stall |
 | 37 | P2 | The live 3D title with a match cut into the intro (DESIGN §1, M6) is not built: the title is still the DOM screen over a planet image | boot.ts, GameFlow.bootIntro, TitleScreen | docs/REPORT.md, next steps: hold the intro's first frame behind the DOM title first, then prepare the ship while the title is up, and measure a cold cache before removing the loading screen |
 | 38 | P3 | The evidence board's only connection is made automatically by Fen's dialogue, so the board's own "select two clues" action always answers "already connected" or "no clear connection" | JournalSystem.CONNECTION_INSIGHTS | Give the board pairs of its own to find (the survey's texts are candidates), or drop the action |
 | 39 | P3 | Three of the Wren's seven systems (navigation, shields, power distribution) can be repaired to no effect | GameFlow's `ship:repaired` handlers | Give each a consequence or remove it from the panel |
+| 40 | P1 | `reference/bar.png` and its ten crops are a commercial game's promotional image with its logos, in a repository that is public. Not in the build; nothing was copied from it | `reference/`, docs/interior-art-brief.md, the interior review tools | **Team:** remove it before the repository is shown to anyone, and decide with the advisor whether the published history needs D-12's fresh-repository fix (docs/ASSETS.md) |
+| 41 | P3 | Arriving at Kethra logs "THREE.Material: parameter 'map' has value of undefined" once, on every tier. In the build before the release pass too | Not traced; a material built with a `map` key that is undefined | Find the constructor and drop the key |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -216,6 +223,15 @@ live title, a timed human playthrough, and real hardware.
 | 2026-10-13 | `stress_tests/run.mjs` on the final build | 12 of 13 scenarios on the full run (s08-kethra with its one KNOWN, BUG-013). The thirteenth, s07-flow, failed its double-click check: the Warden now opens on her topics once met, so its two conversations began on different lines. With the scenario corrected it passes on its own, 15/15 |
 | 2026-10-13 | Looked at, 1366×768: each new find from where a player stands; the title, the chapter list, the pause menu and the ending's summary at 1366×768 and 1280×720 | Kept. Changed on the way: the bench note moved out of the task lamp's hot spot; Mbeki's letter made plain paper (the amber tape is Carrow's); the seed book rebuilt as covers and pages with a label |
 | 2026-10-13 | Not done | A real Chromebook; a human playthrough; the four-size screenshot matrix |
+| 2026-10-13 | Release pass, Phase 0: the four player-path fixes run again by a script written without the finishing pass's tests (another tier and seed, the real trip in, levers thrown by hand) | 22 of 22 |
+| 2026-10-13 | Release pass, Phase 0: the cruise to the Anchorage, two frames 0.38 s apart in transit | The hull lit, then dark: eleven laps of the sun in ten seconds. Capped at six (D-28) |
+| 2026-10-13 | Release pass, Phase 0: a chapter whose level file is refused | Before: a black screen. After: aboard the Wren with the chapter's progress (`tools/test-ending.mjs`, now 25 checks) |
+| 2026-10-13 | The test machine slept, 08:29:35 to 09:14:34 (power log), one second into a chamber-test run | That run discarded. The chamber test passed five other runs, three in a row after the wake. A keep-awake request was held for the rest of the pass's runs |
+| 2026-10-13 | `tools/run-journey.mjs` on c53e322, checked out and built on its own | 16/16 |
+| 2026-10-13 | Release pass, Phase 1: every third-party file's licence read at its source | docs/ASSETS.md. Found: three.js's licence notice missing from the bundle (the text now ships); two textures logged as unused that two levels load; a font credit for a file that is not there; one unlicensed reference image in the repository (issue 40) |
+| 2026-10-13 | Phase 1: the column, crystal and moth built in code, looked at beside the models from the same cameras (High: plaza, landing, chamber asleep and awake, each moth perch; Low: plaza, chamber) | The first version thrown out: columns like a picket fence with a saw-tooth top, crystals pale and without facets, the moth four white triangles. Redone; pairs in docs/screenshots/release/ |
+| 2026-10-13 | Phase 1: `tools/test-ending.mjs` (with the chapter gate), `tools/test-survey.mjs kethra`, `tools/collision-check.mjs kethra` | 28/28, 23/23, 11 targets with none failing |
+| 2026-10-13 | Phase 1: `tools/run-journey.mjs` on the build that was committed | 16/16 (10:20 to 10:41); no source file changed between that build and the commit |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;
@@ -354,3 +370,17 @@ measured the same day (Vessek's own row had never been taken).
   gaze is in its sweep; nothing in this pass draws less.
 - **All four scenes are over their draw-call budgets on both presets**, as they were before this
   pass. None of that is new and none of it was reduced. Frame times were not compared (issue 16).
+
+### Release pass, Phase 1 (2026-10-13)
+`tools/measure-scene.mjs` at 1366×768, one run each, unthrottled (the counts do not depend on the
+throttle). "Before" is the table above. The three code-built pieces (D-30) replace 2,200, 2,157 and
+900 triangles with 810, 216 and 80, and one 512 px texture with none.
+
+| Scene | Preset | Draw calls | Triangles | Textures | Budget (calls / tris) |
+|---|---|---|---|---|---|
+| Kethra | Low, before → after | 231 → 231 | 362k → **349k** | 63 → 62 | 160 / 320k |
+| Kethra | High, before → after | 471 → 471 | 843k → **798k** | 86 → 85 | 450 / 900k |
+| Hush | Low, before → after | 138 → 141 | 359k → **347k** | 63 → 62 | 120 / 200k |
+| Hush | High, before → after | 302 → 301 | 872k → **819k** | 86 → 85 | 300 / 500k |
+
+The build is 98.0 MB (was 98.2).

@@ -68,7 +68,7 @@ const bootFlags = ['newGame', 'skipIntro', 'skipTutorial', 'unlockKethra', 'unlo
 let savedJourney: 'none' | 'loaded' | 'unreadable' = 'none';
 // ?chapter=<id> starts the journey over at that chapter (the title's and the ending's Chapters).
 const chapterParam = params.get('chapter');
-const chapter = CHAPTERS.find((c) => c.id === chapterParam)?.id ?? null;
+const chapter = CHAPTERS.find((c) => c.id === chapterParam && Chapters.offered(c.id))?.id ?? null;
 let chapterLevel: 'kethra' | 'vessek' | null = null;
 if (params.get('newGame') || chapter) {
   SaveSystem.clear();
@@ -156,5 +156,5 @@ document.addEventListener('visibilitychange', () => AudioSystem.setSuspended(doc
 window.addEventListener('blur', () => PauseMenu.request());
 
 // A read-only probe for the test tools (tools/*.mjs). The interactive harness only loads with ?debug.
-(window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'], motion, miniGame: activeMiniGame, survey: DISCOVERIES };
+(window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'], motion, miniGame: activeMiniGame, survey: DISCOVERIES, chapters: Chapters };
 if (params.has('debug')) void import('./debug/DebugHarness').then(({ startDebugHarness }) => startDebugHarness(engine, flow));

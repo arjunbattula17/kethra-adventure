@@ -49,30 +49,21 @@ equirect maps in `public/textures/planets/` — see `public/textures/CREDITS.md`
 
 ## `kethra/`: Kethra's set dressing
 
-Five models rebuilt for Kethra from sourced originals. None is used as downloaded: each was reduced
+Two trees rebuilt for Kethra from sourced originals. Neither is used as downloaded: each was reduced
 and restyled to sit beside the Stylized Nature kit (ART_BIBLE.md, "one style per scene"), and the
 game then tints them into the grove's palette at load (`src/planets/kethra/dressing.ts`).
 
 | File | Source | Author | License |
 |---|---|---|---|
-| `column.glb` | "Column, old Roman" - https://sketchfab.com/3d-models/column-old-roman-b1345f1ef29848ed8e1a0a3649fbca22 | aluxado | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
-| `crystal.glb` | "Crystal Cluster 2 (Free)" - https://sketchfab.com/3d-models/crystal-cluster-2-free-b1bed3164820477894d4f76307a26a13 | chrismartin1337 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
-| `moth.glb` | "Moth" - https://sketchfab.com/3d-models/moth-9d1facf05aad4c1ea420f3c90cb9d2f9 | Peter Farell | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | `jacaranda.glb` | Jacaranda Tree - https://polyhaven.com/a/jacaranda_tree | Rob Tuytel, Rico Cilliers (Poly Haven) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `tree_small.glb` | Tree Small 02 - https://polyhaven.com/a/tree_small_02 | Rico Cilliers (Poly Haven) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 
-The three CC BY models are credited in the end credits (`credits.models` in
-`src/content/strings.ts`), which is what that licence requires. All five were modified:
+Kethra's colonnade, its resting moths and the crystal in the Heart's basin are built in code
+(`columnGeometry`, `mothGeometry` and `crystalGeometry` in `src/planets/kethra/dressing.ts`). They
+replaced `column.glb`, `moth.glb` and `crystal.glb` on 2026-10-13: three CC BY 4.0 models from
+Sketchfab ("Column, old Roman" by aluxado, "Moth" by Peter Farell, "Crystal Cluster 2 (Free)" by
+chrismartin1337), which are no longer in the build.
 
-- **`column.glb`** - a photo scan of 999,844 triangles with an 8192 px photo texture. Vertices were
-  merged by position, the mesh reduced to 2,200 triangles, and the photo's light and moss sampled
-  into vertex colour as a multiplier on the game's own cut-stone colour. No texture ships. The game
-  sinks the square plinth under the water and stretches the fluted shaft to make taller columns.
-- **`moth.glb`** - a photo scan of a moth resting on a rock slab (37,821 triangles, 4096 px
-  texture). The slab was cut away, the moth reduced to 900 triangles, and its wing pattern kept as
-  vertex colour in value only. No texture ships. It is used at real moth size (about 0.2 m).
-- **`crystal.glb`** - 36,746 triangles and two 2048 px textures reduced to 2,157 triangles and one
-  512 px colour map; a stray line object in the original was removed.
 - **`jacaranda.glb`** and **`tree_small.glb`** - film-quality trees of 3,863,832 and 2,062,487
   triangles. The trunk and main limbs were reduced and the twigs dropped; the leaves, which are
   textured cards, were thinned to an even subset and each rebuilt as one quad (7,244 and 1,600

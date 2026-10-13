@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // node with no transform and its primitives are ready to instance as they are.
 const BASE = `${import.meta.env.BASE_URL}models/kethra`;
 
-export type PropName = 'column' | 'crystal' | 'moth' | 'jacaranda' | 'tree_small';
+export type PropName = 'jacaranda' | 'tree_small';
 
 export interface PropPrimitive {
   geometry: THREE.BufferGeometry;

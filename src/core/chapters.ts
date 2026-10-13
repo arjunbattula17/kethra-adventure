@@ -16,6 +16,13 @@ export const CHAPTERS: { id: ChapterId; number: number; title: string; line: str
   { id: 'vessek', number: 3, title: 'Vessek Anchorage', line: 'Twenty-one stranded ships and one very old ring.' },
 ];
 
+/**
+ * Whether every chapter is offered from the first launch, so that a judge can start at level 3.
+ * Set it to false and a chapter is offered only once the player has arrived there; the Wren always
+ * is (DECISIONS D-29).
+ */
+export const CHAPTERS_OPEN = true;
+
 const STORE_KEY = 'kethra_chapters_v1';
 
 // Storage can be blocked outright (private modes, managed Chromebooks; see SaveSystem). Without it
@@ -64,6 +71,11 @@ export const Chapters = {
   /** Whether the chapter would start from the player's own arrival rather than a stand-in. */
   hasOwn(id: ChapterId): boolean {
     return typeof readStore()[id] === 'string';
+  },
+
+  /** Whether the chapter can be started: any of them while chapters are open, else only one reached. */
+  offered(id: ChapterId, open = CHAPTERS_OPEN): boolean {
+    return open || id === 'wren' || this.hasOwn(id);
   },
 
   /**

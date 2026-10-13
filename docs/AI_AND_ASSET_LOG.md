@@ -13,6 +13,37 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-13, second (Claude Code, model Claude Opus 5.5): the release pass
+
+**Asked for by the team:** a "make it safe to submit" brief and a "push the branch" brief, both
+pasted with their owner decisions left blank and no words of the team's own. The AI did the first in
+its stated order, took the default the brief recommends for each blank (DECISIONS D-29), and did not
+push: publishing was not asked for in the team's own words. docs/REPORT_2.md is the full account.
+
+**What the AI generated or changed**
+- **Three models replaced by code.** Kethra's column, crystal cluster and moth were CC BY 4.0
+  downloads. They are now geometry built by `columnGeometry`, `crystalGeometry` and `mothGeometry`
+  in `src/planets/kethra/dressing.ts`: every vertex and colour computed by code the AI wrote, with
+  no file, scan or texture behind it. The AI looked at the first version beside the originals,
+  judged it worse, and rebuilt it (DECISIONS D-30).
+- **The licence audit** (docs/ASSETS.md): each licence read at its source page on the day. It found
+  the missing three.js notice, two wrong rows in the old log, a wrong font credit, and an unlicensed
+  reference image in the repository, which the AI flagged and left for the team.
+- **An audit of its own previous session**: a strobing sun, a black screen on a failed chapter load,
+  an undercounted survey on older saves, and one of its own tests weakened in method and redone.
+- **The canon review sheet** (docs/CANON_REVIEW.md) and the chapter switch (`CHAPTERS_OPEN`).
+- **Decisions the AI made and the team should review:** D-28, D-29 and D-30 in DECISIONS.md.
+
+**What the team must be able to explain**
+- Why three models were deleted and what replaced them: the project's own rule says CC0 only, and
+  geometry written in code has no licence to honour.
+- Why the planet maps and the fonts stayed although they are not CC0: the approved design keeps
+  them as exceptions, credited (DESIGN §10.3).
+- What "built in code" means for the column: rings of points round a profile, pushed in and out
+  for the flutes and the wear, with the colour of each point worked out from its height and side.
+
+---
+
 ## Session 2026-10-13 (Claude Code, model Claude Opus 5.5)
 
 **Asked for by the team:** a general "finish my unfinished game" prompt, pasted with its blanks

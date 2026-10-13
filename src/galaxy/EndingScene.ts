@@ -35,7 +35,6 @@ const CREDIT_KEYS: StringKey[] = [
   'credits.original',
   'credits.planets',
   'credits.kits',
-  'credits.models',
   'credits.textures',
   'credits.font',
   'credits.three',

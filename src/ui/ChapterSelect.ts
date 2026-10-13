@@ -25,7 +25,7 @@ export const ChapterSelect = {
     const list = document.createElement('div');
     list.className = 'chapter-list';
     let armed: ChapterId | null = null;
-    for (const chapter of CHAPTERS) {
+    for (const chapter of CHAPTERS.filter((c) => Chapters.offered(c.id))) {
       const row = document.createElement('button');
       row.className = 'chapter-row';
       const number = document.createElement('span');

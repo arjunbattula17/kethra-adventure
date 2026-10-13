@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { deinterleaveGeometry, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { loadColour } from '../../core/TextureLibrary';
 import { loadProp } from './props';
 import { tintByLuminance } from './grove';
@@ -7,11 +7,12 @@ import { addWake } from './wake';
 import type { ShoreShape } from './water';
 
 /**
- * Kethra's set dressing built from sourced models and textures (public/models/CREDITS.md,
- * "kethra/"), each reworked into the grove's own look rather than placed as downloaded: a ruined
- * colonnade standing in the pool, loam banks under the tree belts, moss on the terraces, resonant
- * crystal grown in the Heart's basin, a landmark tree and understory out in the water, mist over
- * it, and a few moths at rest by the glyph lights. None of it is walked on or collided with.
+ * Kethra's set dressing: a ruined colonnade standing in the pool, loam banks under the tree belts,
+ * moss on the terraces, resonant crystal grown in the Heart's basin, a landmark tree and understory
+ * out in the water, mist over it, and a few moths at rest by the glyph lights. The colonnade, the
+ * crystal, the moths and the stepping stones are built here in code; the two trees and the two
+ * ground maps are sourced (public/models/CREDITS.md, "kethra/") and reworked into the grove's look.
+ * Only the stepping stones are walked on.
  */
 
 const WAKE_GREEN = new THREE.Color(0x3fd9a8);
@@ -35,9 +36,9 @@ const _s = new THREE.Vector3();
 
 // --- Colonnade ---------------------------------------------------------------------------------
 
-/** The column model's square plinth ends here; it is sunk so only the round base shows. */
+/** The column's square plinth ends here; it is sunk so only the round base shows. */
 const PLINTH_TOP = 0.62;
-/** Above this the model is plain fluted shaft, which can be stretched without distorting the base. */
+/** Above this the column is plain fluted shaft, which can be stretched without distorting the base. */
 const SHAFT_FROM = 1.25;
 
 /**
@@ -69,6 +70,145 @@ export interface MothPerch {
 const STONE = new THREE.Color(0x66736e);
 const MOTH = new THREE.Color(0xcfe8dc);
 const UP = new THREE.Vector3(0, 1, 0);
+
+/** Segments round a column: two to a flute. */
+const COLUMN_SEGMENTS = 32;
+const COLUMN_HEIGHT = 3.2;
+/** Half the plinth's side. */
+const PLINTH_HALF = 0.92;
+/** The column above its plinth as [height, radius]: two mouldings, then the shaft, tapering. */
+const COLUMN_PROFILE: [number, number][] = [
+  [PLINTH_TOP, 0.88],
+  [0.72, 0.92],
+  [0.84, 0.82],
+  [0.92, 0.73],
+  [1.02, 0.79],
+  [1.13, 0.71],
+  [SHAFT_FROM, 0.6],
+  [1.6, 0.592],
+  [1.95, 0.584],
+  [2.3, 0.576],
+  [2.65, 0.568],
+  [2.95, 0.561],
+  [COLUMN_HEIGHT, 0.555],
+];
+
+/** Where the shaft is broken off, by angle round it: one long slant with a shoulder, no teeth. */
+function columnBreak(a: number): number {
+  return COLUMN_HEIGHT - 0.6 * (0.5 + 0.5 * Math.sin(a + 1.1)) - 0.1 * Math.sin(2 * a + 0.4) - 0.1;
+}
+
+/**
+ * A ruined column: a square plinth, a moulded base, a shallow-fluted shaft worn out of true and a
+ * top broken off on a slant. Flat-shaded with its colour per vertex (mottled, darker in the flutes
+ * and toward the water, moss up from the foot and up one side) and no other attribute, so it merges
+ * with the stones and the moths. The same height, plinth and shaft foot as the scanned column it
+ * replaced (DECISIONS D-30).
+ */
+function columnGeometry(): THREE.BufferGeometry {
+  const N = COLUMN_SEGMENTS;
+  const position: number[] = [];
+  const color: number[] = [];
+  const index: number[] = [];
+  // Moss pulls toward green; the stone's own colour is the material's.
+  const push = (x: number, y: number, z: number, shade: number, moss: number) => {
+    position.push(x, y, z);
+    color.push(shade * (1 - 0.3 * moss), shade * (1 + 0.02 * moss), shade * (1 - 0.34 * moss));
+  };
+  COLUMN_PROFILE.forEach(([h, r]) => {
+    const shaft = h >= SHAFT_FROM;
+    for (let j = 0; j < N; j++) {
+      const a = (j / N) * Math.PI * 2;
+      // Rings above the break lie on it.
+      const y = Math.min(h, columnBreak(a));
+      const groove = shaft && j % 2 === 1;
+      const worn = 1 + 0.03 * Math.sin(3.1 * y + 2 * a + 0.7) + 0.018 * Math.sin(7.3 * y - 3 * a);
+      const radius = r * worn * (groove ? 0.955 : 1);
+      const up = THREE.MathUtils.clamp((y - PLINTH_TOP) / 1.5, 0, 1);
+      const moss = Math.min(1, (1 - up) * (0.65 + 0.35 * Math.sin(a + 0.5)) + 0.45 * Math.max(0, Math.sin(a - 2.2)) * THREE.MathUtils.clamp(1 - (y - 1.2) / 1.7, 0, 1));
+      const mottle = 0.1 * Math.sin(2 * a + 1.9 * y) + 0.06 * Math.sin(5 * a - 3.3 * y + 1);
+      const shade = (groove ? 0.86 : 1) * (0.66 + 0.16 * up + mottle);
+      push(Math.cos(a) * radius, y, Math.sin(a) * radius, shade, moss);
+    }
+  });
+  for (let ring = 0; ring < COLUMN_PROFILE.length - 1; ring++) {
+    for (let j = 0; j < N; j++) {
+      const a = ring * N + j;
+      const b = ring * N + ((j + 1) % N);
+      index.push(a, a + N, b, b, a + N, b + N);
+    }
+  }
+  // The break: a fan to a centre a little under the slant, so the broken face is dished.
+  const topRing = (COLUMN_PROFILE.length - 1) * N;
+  const centre = position.length / 3;
+  push(0, COLUMN_HEIGHT - 0.52, 0, 0.5, 0);
+  for (let j = 0; j < N; j++) index.push(topRing + j, centre, topRing + ((j + 1) % N));
+  // The plinth: four sides and its top, under the round base.
+  const p0 = position.length / 3;
+  for (const y of [0, PLINTH_TOP]) {
+    for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) push(sx * PLINTH_HALF, y, sz * PLINTH_HALF, 0.78, y > 0 ? 0.6 : 0.9);
+  }
+  for (let k = 0; k < 4; k++) {
+    const a = p0 + k;
+    const b = p0 + ((k + 1) % 4);
+    index.push(a, a + 4, b, b, a + 4, b + 4);
+  }
+  index.push(p0 + 4, p0 + 7, p0 + 5, p0 + 5, p0 + 7, p0 + 6);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(color, 3));
+  g.setIndex(index);
+  return g;
+}
+
+/** The right forewing's and hindwing's outlines as [x, z], front edge first: half a unit wingspan. */
+const FOREWING: [number, number][] = [[0.06, 0.2], [0.22, 0.27], [0.4, 0.25], [0.5, 0.15], [0.47, 0.03], [0.36, -0.06], [0.2, -0.07], [0.05, -0.03]];
+const HINDWING: [number, number][] = [[0.05, -0.02], [0.2, -0.06], [0.31, -0.13], [0.32, -0.24], [0.24, -0.33], [0.12, -0.34], [0.04, -0.24]];
+
+/**
+ * A moth at rest with its wings open: unit wingspan along x, head toward +z, lying on y = 0. Pale
+ * wings with a darker band and a spotted margin. Its colour goes in per vertex as a multiple of the
+ * stone's, which is the merged material's own.
+ */
+function mothGeometry(): THREE.BufferGeometry {
+  const tint = [MOTH.r / STONE.r, MOTH.g / STONE.g, MOTH.b / STONE.b];
+  const position: number[] = [];
+  const color: number[] = [];
+  const index: number[] = [];
+  const v = (x: number, y: number, z: number, shade: number): number => {
+    position.push(x, y, z);
+    color.push(tint[0] * shade, tint[1] * shade, tint[2] * shade);
+    return position.length / 3 - 1;
+  };
+  // The body: a narrow diamond, a little proud of the wings.
+  const nose = v(0, 0.03, 0.17, 0.5);
+  const tail = v(0, 0.012, -0.2, 0.42);
+  const left = v(-0.04, 0.045, 0, 0.55);
+  const right = v(0.04, 0.045, 0, 0.55);
+  index.push(nose, right, left, left, right, tail);
+  for (const side of [-1, 1]) {
+    // Each wing fans out from its root in two rings: the band halfway, then the margin, lifting
+    // toward the tip. The hindwing is tucked behind the forewing and lies flatter.
+    for (const [outline, rootZ, lift] of [[FOREWING, 0.07, 0.1], [HINDWING, -0.08, 0.04]] as const) {
+      const root = v(side * 0.03, 0.02, rootZ, 0.68);
+      const band: number[] = [];
+      const margin: number[] = [];
+      outline.forEach(([x, z], i) => {
+        const far = Math.hypot(x, z - rootZ) / 0.5;
+        band.push(v(side * (0.03 + (x - 0.03) * 0.55), 0.016 + lift * far * far * 0.3, rootZ + (z - rootZ) * 0.55, i % 2 ? 0.56 : 0.44));
+        margin.push(v(side * x, 0.012 + lift * far * far, z, i % 2 ? 0.36 : 0.62));
+      });
+      for (let i = 0; i < outline.length - 1; i++) {
+        index.push(root, band[i], band[i + 1], band[i], margin[i], band[i + 1], band[i + 1], margin[i], margin[i + 1]);
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(color, 3));
+  g.setIndex(index);
+  return g;
+}
 
 /** A stone standing in the pool, as [x, z, top y, radius of its top, sides]. */
 export type Stone = [number, number, number, number, number];
@@ -123,20 +263,16 @@ export function stoneGeometry([x, z, top, radius, sides]: Stone, waterY: number)
 
 /**
  * Every column, each with its own height, turn and lean, and the moths at rest on `perches`: small
- * pale moths drawn to the glyph lights, still as the stone. Both models are flat-shaded and carry
- * their colour per vertex, so they merge into one mesh, one material and one draw call. `stones`
- * join the same mesh, cut down to the column's two attributes (position and colour).
+ * pale moths drawn to the glyph lights, still as the stone. Columns, moths and `stones` are all
+ * flat-shaded with their colour per vertex, so they merge into one mesh, one material and one draw
+ * call.
  */
-export async function buildRuins(waterY: number, perches: MothPerch[], count = COLUMNS.length, stones: Stone[] = []): Promise<{ mesh: THREE.Mesh; shores: ShoreShape[] }> {
+export function buildRuins(waterY: number, perches: MothPerch[], count = COLUMNS.length, stones: Stone[] = []): { mesh: THREE.Mesh; shores: ShoreShape[] } {
   const columns = COLUMNS.slice(0, count);
-  const [[column], [moth]] = await Promise.all([loadProp('column'), perches.length ? loadProp('moth') : [null]]);
-  // Both files store position and colour interleaved, which loads as attributes that will not merge
-  // with the plain ones the stones are built from.
-  deinterleaveGeometry(column.geometry);
-  if (moth) deinterleaveGeometry(moth.geometry);
+  const column = columnGeometry();
   const parts: THREE.BufferGeometry[] = [];
   for (const [x, z, stretch, yaw, lean] of columns) {
-    const g = column.geometry.clone();
+    const g = column.clone();
     const pos = g.getAttribute('position') as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
@@ -145,19 +281,18 @@ export async function buildRuins(waterY: number, perches: MothPerch[], count = C
     g.applyMatrix4(_m.compose(_p.set(x, waterY - PLINTH_TOP, z), _q.setFromEuler(_e.set(lean, yaw, lean * 0.6, 'YXZ')), _s.set(1, 1, 1)));
     parts.push(g);
   }
-  if (moth) {
-    // The material's colour is the stone's, so the moths' own goes into their vertex colours.
-    const col = moth.geometry.getAttribute('color') as THREE.BufferAttribute;
-    for (let i = 0; i < col.count; i++) col.setXYZ(i, (col.getX(i) * MOTH.r) / STONE.r, (col.getY(i) * MOTH.g) / STONE.g, (col.getZ(i) * MOTH.b) / STONE.b);
+  column.dispose();
+  if (perches.length) {
+    const moth = mothGeometry();
     const turn = new THREE.Quaternion();
     for (const perch of perches) {
       perch.parent.updateWorldMatrix(true, false);
       _q.setFromUnitVectors(UP, perch.normal).multiply(turn.setFromAxisAngle(UP, perch.turn));
-      const g = moth.geometry.clone();
+      const g = moth.clone();
       g.applyMatrix4(_m.compose(perch.position, _q, _s.setScalar(perch.span)).premultiply(perch.parent.matrixWorld));
       parts.push(g);
     }
-    moth.geometry.dispose();
+    moth.dispose();
   }
   for (const stone of stones) {
     const g = stoneGeometry(stone, waterY);
@@ -179,11 +314,10 @@ export async function buildRuins(waterY: number, perches: MothPerch[], count = C
   }
   const merged = mergeGeometries(parts, false)!;
   for (const g of parts) g.dispose();
-  column.geometry.dispose();
 
-  // The chamber's cut stone (hush/chamber.ts): flat-shaded and untextured. The scan's own light and
-  // moss survive as vertex colour, which is the variation the art bible asks worn stone to carry.
-  // Double-sided for the moths: their scan caught the wings from above only, so the shell is open.
+  // The chamber's cut stone (hush/chamber.ts): flat-shaded and untextured, with the mottling and
+  // moss the art bible asks worn stone to carry in its vertex colours. Double-sided for the moths,
+  // whose wings are single sheets.
   const mat = new THREE.MeshStandardMaterial({ color: STONE, roughness: 0.88, flatShading: true, vertexColors: true, side: THREE.DoubleSide });
   addWake(mat, WAKE_GREEN.clone().multiplyScalar(0.02), 0.6);
   const mesh = new THREE.Mesh(merged, mat);
@@ -340,20 +474,76 @@ const CRYSTALS: [number, number, number, number][] = [
 ];
 
 /**
+ * The cluster's shards as [x, z, radius, height, lean, direction leaned in]: one tall in the middle,
+ * four long ones leaning out round it, three shorter ones lower, and four chips lying at the root.
+ */
+const SHARDS: [number, number, number, number, number, number][] = [
+  [0, 0, 0.09, 1.0, 0.06, 0.4],
+  [0.07, 0.03, 0.076, 0.84, 0.38, 0.3],
+  [-0.05, 0.07, 0.07, 0.74, 0.46, 2.1],
+  [-0.04, -0.07, 0.074, 0.8, 0.42, 4.0],
+  [0.06, -0.06, 0.062, 0.64, 0.6, 5.4],
+  [0.1, 0.09, 0.056, 0.5, 0.82, 1.2],
+  [-0.11, 0.0, 0.058, 0.54, 0.78, 3.1],
+  [0.02, -0.12, 0.054, 0.46, 0.88, 4.7],
+  [0.15, -0.02, 0.044, 0.3, 1.12, 6.0],
+  [-0.08, 0.13, 0.042, 0.27, 1.18, 2.5],
+  [-0.12, -0.1, 0.044, 0.29, 1.1, 3.7],
+  [0.07, 0.15, 0.04, 0.24, 1.2, 1.6],
+];
+
+/** How light each of a shard's six faces is, so the facets read under any light. */
+const FACETS = [1, 0.66, 0.84, 0.58, 0.92, 0.72];
+
+/**
+ * A cluster of six-sided shards on one root, a unit tall: each a prism widening a little toward a
+ * short point, leaning out from the middle. Every face has its own corners, so each carries one
+ * shade: dark at the root, pale at the point. The same height and footprint as the modelled cluster
+ * it replaced (D-30).
+ */
+function crystalGeometry(): THREE.BufferGeometry {
+  const position: number[] = [];
+  const color: number[] = [];
+  const at = new THREE.Vector3();
+  SHARDS.forEach(([x, z, radius, height, lean, toward], shard) => {
+    // About the axis square to the lean, so the point tips toward (cos, sin) of `toward`.
+    _q.setFromAxisAngle(_p.set(Math.sin(toward), 0, -Math.cos(toward)), lean);
+    const put = (k: number, ly: number, r: number, shade: number) => {
+      const a = ((k % 6) / 6) * Math.PI * 2 + shard;
+      at.set(Math.cos(a) * r, ly, Math.sin(a) * r).applyQuaternion(_q);
+      position.push(at.x + x, at.y, at.z + z);
+      color.push(shade, shade, shade);
+    };
+    const shoulder = height * 0.86;
+    for (let k = 0; k < 6; k++) {
+      const face = FACETS[(k + shard) % 6];
+      // The side, root to shoulder, then the point above it.
+      put(k, 0, radius * 0.8, face * 0.4);
+      put(k, shoulder, radius, face);
+      put(k + 1, 0, radius * 0.8, face * 0.4);
+      put(k + 1, 0, radius * 0.8, face * 0.4);
+      put(k, shoulder, radius, face);
+      put(k + 1, shoulder, radius, face);
+      put(k, shoulder, radius, face * 1.15);
+      put(k, height, 0, 1.35);
+      put(k + 1, shoulder, radius, face * 1.15);
+    }
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(color, 3));
+  return g;
+}
+
+/**
  * Resonant crystal ("Kindling-grown; holds a colour and gives it back", LORE.md) grown up through
  * the Heart's water. Dark and cold while the Heart sleeps; the wake leaves it lit.
  */
-export async function addHeartCrystals(heartRoot: THREE.Group, count = CRYSTALS.length): Promise<void> {
-  const [{ geometry, material }] = await loadProp('crystal');
-  material.roughness = 0.28;
-  material.metalness = 0;
-  // The model is painted blue over pink; by brightness alone it comes out in the Heart's own azure.
-  tintByLuminance(material, 0x8fd6ee, 2.1);
-  material.emissive.set(0x2a8fa0);
-  material.emissiveMap = material.map;
-  material.emissiveIntensity = 0.16;
-  addWake(material, new THREE.Color(0x5fb4d0).multiplyScalar(0.5), 1.2);
-  const mesh = new THREE.InstancedMesh(geometry, material, count);
+export function addHeartCrystals(heartRoot: THREE.Group, count = CRYSTALS.length): void {
+  // The Heart's own azure; the facets' shading is in the geometry.
+  const material = new THREE.MeshStandardMaterial({ color: 0x8fd6ee, roughness: 0.28, metalness: 0, flatShading: true, vertexColors: true, emissive: 0x2a8fa0, emissiveIntensity: 0.06 });
+  addWake(material, new THREE.Color(0x5fb4d0).multiplyScalar(0.3), 1.2);
+  const mesh = new THREE.InstancedMesh(crystalGeometry(), material, count);
   CRYSTALS.slice(0, count).forEach(([a, r, height, lean], i) => {
     // Leaning outward from the plinth, each turned differently about its own axis.
     _q.setFromEuler(_e.set(lean * Math.cos(a), a * 2.3, -lean * Math.sin(a), 'XZY'));

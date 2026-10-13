@@ -117,6 +117,26 @@ check('the hash is cleared', (await page.evaluate(() => location.hash)) === '');
 
 check('no page or console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 
+// ------------------------------------------------------------------ the list's gate (CHAPTERS_OPEN, DECISIONS D-29)
+// The build ships with chapters open, which the list above showed. Gated, a chapter is offered only
+// once reached, which the store of arrivals records: it is emptied for the check and put back after.
+console.log('\n— chapters, gated');
+const gate = await page.evaluate(() => {
+  const { chapters } = window.__DEBUG__;
+  const kept = localStorage.getItem('kethra_chapters_v1');
+  localStorage.removeItem('kethra_chapters_v1');
+  const fresh = ['wren', 'kethra', 'vessek'].map((id) => chapters.offered(id, false));
+  chapters.remember('kethra', '{}');
+  const reached = ['wren', 'kethra', 'vessek'].map((id) => chapters.offered(id, false));
+  const open = ['wren', 'kethra', 'vessek'].map((id) => chapters.offered(id, true));
+  if (kept === null) localStorage.removeItem('kethra_chapters_v1');
+  else localStorage.setItem('kethra_chapters_v1', kept);
+  return { fresh, reached, open };
+});
+check('gated, a new player is offered the Wren alone', gate.fresh.join() === 'true,false,false', JSON.stringify(gate.fresh));
+check('gated, a level reached is offered and one not reached is not', gate.reached.join() === 'true,true,false', JSON.stringify(gate.reached));
+check('open, all three are offered', gate.open.join() === 'true,true,true', JSON.stringify(gate.open));
+
 // ------------------------------------------------------------------ a chapter whose level cannot be fetched
 // Last, because the refused request is itself a console error. A chapter boots with no ship behind
 // it, so a level that fails to load has to end up somewhere playable.

@@ -85,6 +85,11 @@ never requests, and `public/textures/ship_*` plus `bark_willow` (32 MB) are load
 Together that is ~70 MB of a 108 MB build. They are third-party kit files, not student-made, and
 would be archived rather than deleted.
 
+*Corrected 2026-10-13:* two of those have since come into use and must stay. `ship_wall` is the
+Anchorage's walls and `bark_willow` the roots in the Heart's chamber. What is still loaded by
+nothing: `ship_floor`, `ship_console` and `ship_trim` (19.7 MB) and the 20 kit PNGs (37.1 MB), of a
+build that is now 98 MB (docs/ASSETS.md).
+
 ### D-11 · Team decision · Lore contradictions
 Listed in LORE.md, "Conflicts in existing text". The main one: are there crew asleep aboard the
 Wren (the chosen reading, which keeps "the only one aboard awake" and the log's "we") or is the
@@ -177,6 +182,9 @@ none as downloaded (public/models/CREDITS.md, "kethra/"):
   This does not settle D-9: the terraces still wear the photo-scanned lichen rock.
 - **Water and mist** are written for this scene (src/planets/kethra/water.ts, dressing.ts).
 
+*Settled 2026-10-13 (D-30):* the three CC BY models are out of the build and the colonnade, the
+moths and the crystal are built in code. Point (1) below is closed; point (2) is not.
+
 **Two things for the team to decide.** (1) docs/BRIEF.md says third-party assets are CC0 only. The
 three Sketchfab models are CC BY 4.0, handled the way the planet maps already are: a row in
 docs/ASSET_LICENSE_LOG.md and a line in the end credits (`credits.models`). If the team wants to
@@ -263,3 +271,54 @@ once a second. The laps are now capped at six, the count the sequence was tuned 
   The counter is what tells the player the days; the sun is the mood.
 - **Kethra's trip is unchanged** (six days, six laps).
 - **To undo:** raise `SUN_LAPS_MAX`, or lengthen the transit beat for long trips instead.
+
+### D-29 · Team decision · Four answers the release brief left blank — *Defaults taken 2026-10-13, each reversible*
+The brief for the release pass asked the owner four questions and arrived with all four unanswered.
+It also said not to stop and ask. Each took the choice that is easiest to undo, and the one the brief
+itself recommended where it recommended one.
+- **Team number: left as the placeholder.** The credits still read "team #____"
+  (`credits.original` in `src/content/strings.ts`), and so does the first line of README.md. A made-up
+  number would be worse than a blank one.
+- **Chapters: open, behind a flag.** Every chapter can be started from the first launch, so a judge
+  can go straight to level 3. `CHAPTERS_OPEN` in `src/core/chapters.ts` is the switch: set it to
+  `false` and a chapter is offered only once the player has arrived there, in the list and by its
+  `?chapter=` address alike; the Wren always is. `tools/test-ending.mjs` checks both settings of the
+  rule. This is the choice D-27 left open.
+- **The survey's story text (D-26): not yet approved, kept.** It stays in the game, and every new
+  line is set beside its source in docs/CANON_REVIEW.md for the team to mark keep, change or cut.
+  That file opens with four places where the text goes past LORE.md.
+- **Deadline: none assumed.** The work ran in the brief's order and stopped where docs/REPORT_2.md
+  says it stopped.
+
+**One more, not in the brief's list.** A second brief asked for this branch to be pushed and a pull
+request opened, with its own questions also blank. Nothing was pushed. Publishing cannot be taken
+back, and it was not asked for in the owner's own words.
+
+### D-30 · REPLACE · Kethra's column, moths and crystal are built in code — *Done 2026-10-13; settles D-25 (1)*
+docs/BRIEF.md says third-party assets are CC0 only, and D-25 left three CC BY 4.0 models in the
+build for the team to rule on. The release brief ruled: replace them. A licence the project's own
+rule forbids is a hard constraint, so this was done without waiting (see the buckets at the top).
+- **What changed.** `column.glb`, `moth.glb` and `crystal.glb` are deleted. `columnGeometry`,
+  `mothGeometry` and `crystalGeometry` in `src/planets/kethra/dressing.ts` build the same three
+  things: a fluted column with a square plinth, a moulded base and a top broken on a slant; a moth
+  at rest with its wings open; a cluster of seven six-sided shards. Each keeps the size and
+  placement its model had, so nothing in the level moved. Their credit line is gone from the ending.
+- **What it gives up.** The column was a scan of a real ruin and carried a real ruin's wear. The
+  code-built one is plainer: a shaft worn a little out of true, one slanted break, and moss and
+  mottling painted into its vertices. The crystal lost its painted edge highlights; its facets are
+  shaded in the geometry instead, and its shards are thinner. The moth's wings are a simpler shape
+  with a band and a spotted margin. Before and after are in docs/screenshots/release/ (`p1-*`).
+  The first version of each was weaker than this and was redone after being looked at beside the
+  model it replaced (docs/REPORT_2.md, Phase 1).
+- **What stays, on purpose.** The planet maps (CC BY 4.0) and the two fonts (SIL OFL 1.1) are the
+  exceptions docs/DESIGN.md §10.3 approved on 2026-09-27. The release brief's "no non-CC0 asset
+  remains" would remove them too; the project's rule wins where the two disagree, so they are kept
+  and listed in docs/ASSETS.md as approved exceptions for the team to confirm.
+- **Found by the same audit.**
+  - The built game no longer carried three.js's licence notice, which its MIT licence asks to
+    travel with copies. The text now ships as `public/licenses/three.js-LICENSE.txt`.
+  - `reference/bar.png` and its ten crops are a commercial game's promotional image. It is not in
+    the build and nothing was copied from it, but the repository is public and the project has no
+    licence for it. **Left in place for the team to remove** (docs/ASSETS.md says why).
+  - Two rows of the licence log called textures unused that two levels load (corrected under D-10).
+- **To undo:** `git revert` this commit restores the three files, their loader and their credit.

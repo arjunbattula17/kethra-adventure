@@ -677,11 +677,11 @@ export class KethraScene implements GameScene {
       this.mist = buildMist(WATER_Y);
       this.scene.add(this.mist.mesh);
     }
-    const [ruins, landmark, small] = await Promise.all([
-      low ? buildRuins(WATER_Y, [], 6, STEPPING_STONES) : buildRuins(WATER_Y, this.perches, undefined, STEPPING_STONES),
+    const ruins = low ? buildRuins(WATER_Y, [], 6, STEPPING_STONES) : buildRuins(WATER_Y, this.perches, undefined, STEPPING_STONES);
+    addHeartCrystals(this.heart.root, low ? 2 : undefined);
+    const [landmark, small] = await Promise.all([
       buildTrees('jacaranda', LANDMARK_TREE, WATER_Y, low ? 0.5 : 1),
       understory.length ? buildTrees('tree_small', understory, WATER_Y, 1) : null,
-      low ? addHeartCrystals(this.heart.root, 2) : addHeartCrystals(this.heart.root),
     ]);
     this.scene.add(ruins.mesh);
     this.scenery.push(ruins.mesh);
