@@ -5,13 +5,14 @@ import { SettingsPanel } from './SettingsPanel';
 import { AudioSystem } from '../audio/AudioSystem';
 import { BINDINGS, BINDING_ORDER } from '../content/controls';
 import type { BindingId } from '../content/controls';
+import { ChapterSelect } from './ChapterSelect';
 
 /**
  * The title screen: the first thing a judge sees. Plain DOM and CSS, so it appears instantly while
  * nothing 3D has loaded yet, and the first click on it is what unlocks audio (browsers block sound
  * until the page gets a gesture).
  *
- * Continue / New Game / Controls / Settings. Controls opens in the shared
+ * Continue / New Game / Chapters / Controls / Settings. Chapters and Controls open in the shared
  * panel system. The controls list prints src/content/controls.ts, the same table the player code
  * reads its keys from. The credits, including the attribution the CC BY assets require, roll at
  * the end of the game (EndingScene).
@@ -72,11 +73,17 @@ export const TitleScreen = {
     };
     if (opts.hasSave) add('title.continue', true, () => close(opts.onContinue));
     add('title.newGame', !opts.hasSave, () => close(opts.onNewGame));
+    add('title.chapters', false, () => ChapterSelect.open());
     add('title.controls', false, () => this.showControls());
     add('title.settings', false, () => SettingsPanel.open());
 
     document.body.appendChild(root);
     (menu.querySelector('.title-btn') as HTMLButtonElement | null)?.focus();
+    // The ending's Chapters button arrives here with the list asked for.
+    if (location.hash === '#chapters') {
+      history.replaceState(null, '', location.pathname + location.search);
+      ChapterSelect.open();
+    }
   },
 
   showControls(): void {

@@ -12,6 +12,7 @@ import type { SpaceSky } from './spaceSky';
 import { GRADES } from '../core/GradeGlowPass';
 import { t } from '../content/strings';
 import type { StringKey } from '../content/strings';
+import { buildJourneySummary } from '../ui/JourneySummary';
 
 /**
  * The ending of part one (LORE.md, "Level by level"): the Wren sends the Anchorage's ledger home.
@@ -172,10 +173,13 @@ export class EndingScene implements GameScene {
       <div class="eyebrow">End of part one</div>
       <div class="chapter-title">The ledger goes home</div>
       <p class="credits-lede"></p>
+      <div class="credits-summary"></div>
       <div class="credits-list"></div>
       <div class="credits-actions"></div>
     </div>`;
     (el.querySelector('.credits-lede') as HTMLElement).textContent = t('ending.lede');
+    const summary = buildJourneySummary();
+    (el.querySelector('.credits-summary') as HTMLElement).appendChild(summary.el);
     const list = el.querySelector('.credits-list') as HTMLElement;
     for (const key of CREDIT_KEYS) {
       const p = document.createElement('p');
@@ -190,17 +194,29 @@ export class EndingScene implements GameScene {
       AudioSystem.playConfirm();
       this.finish();
     };
-    const title = document.createElement('button');
-    title.className = 'btn secondary';
-    title.textContent = 'Title screen';
-    title.onclick = () => {
-      AudioSystem.playConfirm();
-      this.finish();
-      window.setTimeout(() => location.assign(location.pathname), 400);
+    // Both leave for the title once the journey is saved; Chapters asks it to open the chapter list
+    // (TitleScreen reads the hash). A change of hash alone does not reload a page, hence the reload.
+    const leave = (label: string, chapters: boolean): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.className = 'btn secondary';
+      b.textContent = label;
+      b.onclick = () => {
+        AudioSystem.playConfirm();
+        this.finish();
+        window.setTimeout(() => {
+          if (!chapters) return location.assign(location.pathname);
+          history.replaceState(null, '', `${location.pathname}#chapters`);
+          location.reload();
+        }, 400);
+      };
+      return b;
     };
-    actions.append(keep, title);
+    actions.append(keep, leave(t('title.chapters'), true), leave('Title screen', false));
     document.body.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('visible'));
+    requestAnimationFrame(() => {
+      el.classList.add('visible');
+      summary.play();
+    });
     this.creditsEl = el;
     AudioSystem.playLevelEnd();
     keep.focus({ preventScroll: true });

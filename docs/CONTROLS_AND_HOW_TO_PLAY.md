@@ -90,5 +90,12 @@ reduced motion, text size and mouse sensitivity.
 **Saving.** The game saves by itself at every milestone; Continue on the title screen picks up
 where you left off.
 
+**Chapters.** Chapters on the title screen starts the game at any of its three levels. Starting a
+chapter replaces the saved journey, so the list asks twice when there is one.
+
+**The survey.** Every level has optional things to find: notes the crew left, places off the path,
+a wall of chalk in a duct. Each one read is counted in that level's survey (shown in the pause menu
+and at the end), and most raise a skill, which opens routes later on.
+
 **Playing without a mouse.** The arrow keys turn and move, `E` interacts, number keys answer
 dialogue, and `Tab`/`Enter` work every menu.

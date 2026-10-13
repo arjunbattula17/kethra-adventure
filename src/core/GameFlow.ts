@@ -18,12 +18,12 @@ import { PanelManager } from '../ui/PanelManager';
 import type { GameScene } from './Engine';
 import { motion, MotionScope, ease } from '../motion';
 import { chartTrip } from '../galaxy/planetData';
+import { Chapters, CHAPTERS } from './chapters';
 
 /** The levels a player travels to, with the card that names each one on arrival. */
-const LEVELS: Record<string, { number: number; title: string; line: string }> = {
-  kethra: { number: 2, title: 'Kethra', line: 'Terraced ruins under a dimming canopy. Someone lives here.' },
-  vessek: { number: 3, title: 'Vessek Anchorage', line: 'Twenty-one stranded ships and one very old ring.' },
-};
+const LEVELS: Record<string, { number: number; title: string; line: string }> = Object.fromEntries(
+  CHAPTERS.filter((c) => c.id !== 'wren').map((c) => [c.id, c]),
+);
 
 /**
  * Scene-level states of a playthrough. One transition runs at a time, and only along EDGES, so a
@@ -198,6 +198,16 @@ export class GameFlow {
     });
     // If the intro chunk failed to load, go straight to the ship so the screen isn't left black.
     if (!introLoaded) await this.go('wren', () => this.beginTutorialOnShip());
+  }
+
+  /**
+   * Boots straight into a level, for the chapter select: the state is already at that chapter's
+   * start (Chapters.begin), and the Wren is not built first.
+   */
+  async startAt(planetId: 'kethra' | 'vessek'): Promise<void> {
+    if (this.state !== 'boot') return;
+    this.engine.start();
+    await this.go(planetId, () => this.enterPlanet(planetId), true);
   }
 
   /**
@@ -612,6 +622,7 @@ export class GameFlow {
     await UIManager.fadeToBlack();
     level.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
     this.levelSnapshot = { planetId, json: gameState.toJSON() };
+    Chapters.remember(planetId, this.levelSnapshot.json);
     await this.engine.setScene(() => level, { prepared: true });
     // The departure hid it (takeTheHelm); the level is first person again.
     UIManager.setCrosshairVisible(true);

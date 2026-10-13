@@ -23,6 +23,7 @@ import { activeMiniGame } from './debug/hooks';
 import { InputManager } from './core/InputManager';
 import { DISCOVERIES } from './content/discoveries';
 import { Survey } from './journal/Survey';
+import { Chapters, CHAPTERS } from './core/chapters';
 
 
 const params = new URLSearchParams(location.search);
@@ -60,15 +61,21 @@ SettingsPanel.init();
 
 // The test and capture tools boot with these flags and skip the title screen; so does New Game
 // from the title itself, which reboots with ?newGame=1 when a save is loaded.
-const bootFlags = ['newGame', 'skipIntro', 'skipTutorial', 'unlockKethra', 'unlockVessek', 'jump'].some((k) => params.has(k));
+const bootFlags = ['newGame', 'skipIntro', 'skipTutorial', 'unlockKethra', 'unlockVessek', 'jump', 'chapter'].some((k) => params.has(k));
 // load() returns false on unreadable JSON. It used to be called for its side effect and the success
 // toast shown regardless, so a corrupt save told the player their journey had been restored and
 // then dropped them into a fresh game. The toast now waits for the player to press Continue.
 let savedJourney: 'none' | 'loaded' | 'unreadable' = 'none';
-if (params.get('newGame')) {
+// ?chapter=<id> starts the journey over at that chapter (the title's and the ending's Chapters).
+const chapterParam = params.get('chapter');
+const chapter = CHAPTERS.find((c) => c.id === chapterParam)?.id ?? null;
+let chapterLevel: 'kethra' | 'vessek' | null = null;
+if (params.get('newGame') || chapter) {
   SaveSystem.clear();
+  if (chapter) chapterLevel = Chapters.begin(chapter);
   // Drop the flag from the address bar, so a later reload continues instead of wiping progress.
   params.delete('newGame');
+  params.delete('chapter');
   history.replaceState(null, '', location.pathname + (params.size ? `?${params}` : '') + location.hash);
 } else if (SaveSystem.hasSave()) {
   savedJourney = SaveSystem.load() ? 'loaded' : 'unreadable';
@@ -119,9 +126,11 @@ if (bootFlags) {
   if (savedJourney === 'loaded') UIManager.toast(t('toast.continue'));
   // ?jump=<state> goes straight on to a state once the boot has settled (the debug harness's F1).
   const jump = params.get('jump');
-  void flow.start().then(() => {
-    if (jump === 'tutorial' || jump === 'reveal' || jump === 'kethra' || jump === 'vessek' || jump === 'ending') void flow.debugGo(jump);
-  });
+  if (chapterLevel) void flow.startAt(chapterLevel);
+  else
+    void flow.start().then(() => {
+      if (jump === 'tutorial' || jump === 'reveal' || jump === 'kethra' || jump === 'vessek' || jump === 'ending') void flow.debugGo(jump);
+    });
 } else {
   document.body.classList.add('title-open');
   TitleScreen.show({
