@@ -8,7 +8,13 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 **2026-10-13: the release pass** (docs/REPORT_2.md, written phase by phase). Phase 0 audited the
 finishing pass and corrected four things in it. Phase 1 took the three CC BY models out of the build
 and wrote the licence audit (docs/ASSETS.md) and the canon review sheet (docs/CANON_REVIEW.md).
-Where the pass stopped is the last section of that report.
+Phase 2 brought Kethra, the Heart's chamber and the Anchorage inside their draw-call budgets on both
+presets; **the Wren is still over** (246 against 150 on Low), so the pass stopped there and Phases 3
+and 4 (WebKit, the throttled playthrough, the screenshot matrix, the live title) were not started
+(DECISIONS D-31). **Phase 2's code is on the local branch `overhaul-phase2-unverified`, not on
+`overhaul`:** its journey run was cut off at 9 of 16 when the machine ran out of memory. And the
+remote branch has fifteen commits this one lacks, which have to be merged before anything is pushed
+(D-32).
 
 **2026-10-13: the finishing pass.** M5's verification is closed. M6 is built except the live 3D
 title: the ending has its summary and a chapter select. Every level has a survey of things to find
@@ -88,7 +94,7 @@ live title, a timed human playthrough, and real hardware.
 | 4 | ~~P2~~ | **Fixed (131f3a3)**: stale timers closing the wrong panel (`close(id)`) | PanelManager.ts | |
 | 5 | ~~P2~~ | **Fixed (131f3a3)**: replaced panels now close properly | PanelManager.ts | |
 | 6 | ~~P2~~ | **Fixed (131f3a3)**: beacon sweeps registered noMerge | lighting.ts | |
-| 7 | P2 | The Wren is still over its Low budget: 256 calls against 150 (was 614). Its scene pass is 30–50% cheaper than the baseline's in a controlled A/B (below), but perf-run's Low p95 at 6× still misses 33 ms in the Wren, Kethra and Vessek | ship/interior/*, all scenes | M7: the remaining calls are unique-parameter materials; measure with the steadier method in issue 16 |
+| 7 | P2 | *2026-10-13: 246 on Low and 500 on High on the branch `overhaul-phase2-unverified` (budgets 150 and 350); what the remaining draws are is in DECISIONS D-31.* The Wren is still over its Low budget: 256 calls against 150 (was 614). Its scene pass is 30–50% cheaper than the baseline's in a controlled A/B (below), but perf-run's Low p95 at 6× still misses 33 ms in the Wren, Kethra and Vessek | ship/interior/*, all scenes | M7: the remaining calls are unique-parameter materials; measure with the steadier method in issue 16 |
 | 8 | ~~P2~~ | **Fixed (131f3a3)**: per-scene grades; space grade has no toe lift | GradeGlowPass.ts | |
 | 9 | ~~P2~~ | **Fixed (131f3a3)**: world text on bundled faces; counters on Atkinson tabular | *Textures.ts, style.css | |
 | 10 | ~~P2~~ | **Fixed (2026-10-13)**: with reduced motion the intro holds one framing and the white sky swells to 40% | IntroScene | |
@@ -109,7 +115,7 @@ live title, a timed human playthrough, and real hardware.
 | 25 | P3 | After the cruise the arrival card repeats the planet's name the kinetic title just gave | GameFlow.cruiseTo | M6 (the card's redesign) |
 | 26 | P3 | MG2's foliage reads as stylized blobs where it's lit; the limbs are plain tapered cylinders | canopy/CanopyScene.ts | M7 art pass |
 | 27 | P3 | A naive autopilot steering straight at each gap scraped 11 times in one descent (132 s): the short limbs hugging each gap leave about 2 m of margin | canopy/layout.ts | Playtest; widen the hugging ring if players find it punishing |
-| 28 | P2 | Kethra on Low is over budget: 229 draw calls against 160 (baseline 155). Toggled one at a time: the kit's instanced foliage and scatter are 69 calls, the chamber 11, the canopy 4; the other 145 aren't broken down yet | KethraScene | M7: break the rest down by object, then merge static props per material (as the Wren's batchStaticGeometry does) |
+| 28 | ~~P2~~ | **Fixed on the branch `overhaul-phase2-unverified` (2026-10-13)**, pending its journey run: 122 on Low and 253 on High, inside both budgets (D-31). Was: Kethra on Low is over budget: 229 draw calls against 160 (baseline 155). Toggled one at a time: the kit's instanced foliage and scatter are 69 calls, the chamber 11, the canopy 4; the other 145 aren't broken down yet | KethraScene | M7: break the rest down by object, then merge static props per material (as the Wren's batchStaticGeometry does) |
 | 29 | P3 | The Hush's view on High draws 669k triangles against 500k: the background tree belt behind the chamber's walls is still drawn | KethraScene filler trees | M7: the design's LOD or impostors for the belt |
 | 30 | P3 | tools/record-gameplay.mjs still travels by the pre-M2 fade (it emits `galaxy:travel_to` and waits 2.2 s); its Hush clip is updated, but the trip needs tools/lib/travel.mjs | tools/record-gameplay.mjs | M8, before the video is recorded |
 | 31 | P3 | MG2's Wickmoth now flies its layer-4 path: the old patrol overwrote its position every frame, so it had never been on screen | canopy/CanopyScene.ts | M7 art pass: look at layer 4 with it there |
@@ -123,6 +129,9 @@ live title, a timed human playthrough, and real hardware.
 | 39 | P3 | Three of the Wren's seven systems (navigation, shields, power distribution) can be repaired to no effect | GameFlow's `ship:repaired` handlers | Give each a consequence or remove it from the panel |
 | 40 | P1 | `reference/bar.png` and its ten crops are a commercial game's promotional image with its logos, in a repository that is public. Not in the build; nothing was copied from it | `reference/`, docs/interior-art-brief.md, the interior review tools | **Team:** remove it before the repository is shown to anyone, and decide with the advisor whether the published history needs D-12's fresh-repository fix (docs/ASSETS.md) |
 | 41 | P3 | Arriving at Kethra logs "THREE.Material: parameter 'map' has value of undefined" once, on every tier. In the build before the release pass too | Not traced; a material built with a `map` key that is undefined | Find the constructor and drop the key |
+| 42 | P2 | The design's frame target (p95 ≤ 33 ms on Low at 6× CPU) is met in none of the three levels: Kethra 37–39 ms, the Anchorage 34–42 ms, the Wren 50–71 ms (three runs each, 2026-10-13) | every level | The Wren first: it is the opening level and the furthest off |
+| 43 | P3 | Kethra holds 22.7 MB of vertex data on Low where it held 11.9: the merged kit gives every tree its own copy of its vertices | kit.ts `mergeKit` | Free the CPU-side copies after upload, or use three's BatchedMesh where the multi-draw extension exists |
+| 44 | P3 | The Anchorage is inside its Low draw-call budget by 4 (176 of 180) at the view it opens on; other views were not counted | VessekScene | The lever plates (7 draws) and the lamps (one material each, 34 draws) are the next things to fold |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -231,6 +240,14 @@ live title, a timed human playthrough, and real hardware.
 | 2026-10-13 | Release pass, Phase 1: every third-party file's licence read at its source | docs/ASSETS.md. Found: three.js's licence notice missing from the bundle (the text now ships); two textures logged as unused that two levels load; a font credit for a file that is not there; one unlicensed reference image in the repository (issue 40) |
 | 2026-10-13 | Phase 1: the column, crystal and moth built in code, looked at beside the models from the same cameras (High: plaza, landing, chamber asleep and awake, each moth perch; Low: plaza, chamber) | The first version thrown out: columns like a picket fence with a saw-tooth top, crystals pale and without facets, the moth four white triangles. Redone; pairs in docs/screenshots/release/ |
 | 2026-10-13 | Phase 1: `tools/test-ending.mjs` (with the chapter gate), `tools/test-survey.mjs kethra`, `tools/collision-check.mjs kethra` | 28/28, 23/23, 11 targets with none failing |
+| 2026-10-13 | Release pass, Phase 2: every view `tools/measure-scene.mjs` reaches, both presets, before any change | Over on draw calls: the Wren, Kethra, the Heart's chamber, the Anchorage. Inside: intro, reveal, cruise, MG2, the docking shot, the ending (table under Performance) |
+| 2026-10-13 | Phase 2: one frame's draws recorded and grouped by material (a script hooking `renderBufferDirect`) | Kethra: 68 draws were the kit's species, 24 the terraces, about 24 each character. High draws every mesh a second time for ambient occlusion |
+| 2026-10-13 | Phase 2: the same fixed cameras before and after, compared pixel by pixel | Mean difference per channel, of 255: the Wren 0.00–0.19 (7 cameras), the Anchorage 0.01–0.49 (6), Kethra 0.01–1.31 (21, High). One Low frame of the chamber differs by 10.5: the moth's gaze mid-sweep |
+| 2026-10-13 | Phase 2: Low at 6× CPU, three runs of each build in turn | Kethra's median frame 29–31 ms → 20–22 ms. The Anchorage about 2 ms better. The Wren no different |
+| 2026-10-13 | Phase 2: Kethra, chamber, Anchorage, survey and dialogue tests; both collision checks | All passed. Kethra's colliders 242 → 230 (pillars, valve and carving are one box each); 17 fewer walkable cells beside them; every target still reached |
+| 2026-10-13 | Phase 2: `tools/run-journey.mjs` on the build that was committed | Cut off at 9 of 16, all nine passing, when the machine ran out of memory. The code stays on its own branch until all 16 pass |
+| 2026-10-13 | Phase 2: `stress_tests/run.mjs` on the same build | Not run: the machine was out of memory |
+| 2026-10-13 | Not done (the pass stopped after Phase 2) | The journey under WebKit; a throttled playthrough; the four-size screenshot matrix; the live title; a real Chromebook; a human playthrough |
 | 2026-10-13 | Phase 1: `tools/run-journey.mjs` on the build that was committed | 16/16 (10:20 to 10:41); no source file changed between that build and the commit |
 
 ## Performance
@@ -384,3 +401,33 @@ throttle). "Before" is the table above. The three code-built pieces (D-30) repla
 | Hush | High, before → after | 302 → 301 | 872k → **819k** | 86 → 85 | 300 / 500k |
 
 The build is 98.0 MB (was 98.2).
+
+### Release pass, Phase 2 (2026-10-13)
+`tools/measure-scene.mjs` at 1366×768, the view each scene opens on, one run each for the counts.
+Draw calls a frame, budget in brackets. "Before" is the Phase 1 build, which is what `overhaul`
+holds; "after" is the branch `overhaul-phase2-unverified`.
+
+| View | Low: before → after | High: before → after |
+|---|---|---|
+| Intro | 19 (80) | 32 (160) |
+| The Wren | 271 → **246** (150) | 550 → **500** (350) |
+| Reveal and MG1 | 29 (80) | 39 (160) |
+| Cruise | 22 (80) | 32 (160) |
+| MG2 Canopy | 30 (120) | 40 (300) |
+| Kethra | 231 → **122** (160) | 471 → **253** (450) |
+| Hush | 141 → **91** (120) | 301 → **202** (300) |
+| Docking shot | 31 (80) | 41 (160) |
+| Vessek | 221 → **176** (180) | 450 → **360** (400) |
+| Ending | 24 (80) | 34 (160) |
+
+- **Inside now:** Kethra, the Hush view and Vessek, on both presets. **Still over:** the Wren.
+- **Triangles** did not change. Still over on Low: Kethra 349k against 320k, the Hush view 347k
+  against 200k, MG2 271k against 250k; on High the Hush view 820k against 500k.
+- **Frame time, Low at 6× CPU, three runs of each build in turn** (median / p95, ms). Kethra:
+  28.8 / 47.6, 29.0 / 52.2, 30.6 / 52.1 before; 21.5 / 38.5, 21.6 / 36.9, 20.0 / 38.4 after. Vessek:
+  23.0 / 38.0, 22.5 / 40.1, 20.0 / 38.6 before; 20.6 / 33.8, 21.1 / 41.8, 18.2 / 34.8 after. The
+  Wren: 32.9 / 53.1, 33.6 / 54.7, 34.7 / 52.1 before; 33.0 / 50.5, 31.5 / 60.1, 35.3 / 71.2 after.
+  Alternating the builds made the runs of one build agree to within 2 ms at the median, which
+  single runs never did (issue 16).
+- **Memory:** vertex data on Low, Kethra 11.9 → 22.7 MB, Vessek 10.1 → 10.1, the Wren 8.2 → 8.6.
+- **Not measured:** a real Chromebook; views other than the one each scene opens on.

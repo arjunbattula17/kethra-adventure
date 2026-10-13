@@ -322,3 +322,79 @@ rule forbids is a hard constraint, so this was done without waiting (see the buc
     licence for it. **Left in place for the team to remove** (docs/ASSETS.md says why).
   - Two rows of the licence log called textures unused that two levels load (corrected under D-10).
 - **To undo:** `git revert` this commit restores the three files, their loader and their credit.
+
+### D-31 · UPGRADE · Draw calls: three levels brought inside budget, the Wren not — *Built 2026-10-13 on the branch `overhaul-phase2-unverified`; not yet on `overhaul`*
+Four views were over docs/DESIGN.md §7's draw-call budgets on both presets: the Wren, Kethra, the
+Heart's chamber and the Anchorage. Three are now inside. The Wren is closer and still over.
+
+| View | Low: before → after (budget) | High: before → after (budget) |
+|---|---|---|
+| Kethra | 231 → **122** (160) | 471 → **253** (450) |
+| The Heart's chamber | 141 → **91** (120) | 301 → **202** (300) |
+| The Anchorage | 221 → **176** (180) | 450 → **360** (400) |
+| The Wren | 271 → 246 (**150**) | 550 → 500 (**350**) |
+
+- **What was done.** Nothing was removed and nothing looks different: the before and after
+  screenshots match to within the things that move. Kethra's plants and rocks were an instanced mesh
+  per species and are now a mesh per material (`mergeKit`); its terraces and ramps are one mesh per
+  stone colour. Figures, fans, the valve, the carving and the pillars are a mesh per material in
+  each part that moves as a unit (`mergeRigid`). The shared batcher now lets surfaces share a
+  material when they differ only in how one image tiles (`shareTiledTextures`).
+- **What it cost.** Kethra holds 22.7 MB of vertex data where it held 11.9: every tree now owns a
+  copy of its vertices. Nothing else grew.
+- **What it bought, measured.** Kethra on Low at 6× CPU, three runs of each build in turn: the
+  median frame went from 29–31 ms to 20–22 ms. The Anchorage: about 2 ms better. The Wren: no
+  difference that survives the noise.
+- **Why the Wren is still over.** Its 241 scene draws on Low are: 69 surfaces that each carry their
+  own tiling colour, normal and roughness maps (63 of them painted on canvases at start-up); 50
+  small painted decals, glows and labels, 35 of them transparent; 66 untextured parts, 26 of which
+  glow and are dimmed one by one by the power stages; 29 atlas pages; 17 instanced props; ten
+  others. The first three kinds cannot share a material by the means used here. Getting to 150 needs
+  either texture arrays for the painted surfaces (a custom shader on every surface of the game's
+  best-looking room) or fewer distinct painted surfaces (an art decision). Both are larger than a
+  release pass should take on blind.
+- **One cheaper thing for High only, not done.** On High every mesh is drawn a second time for the
+  ambient-occlusion pass (240 of the Wren's 500). Drawing one merged stand-in in that pass instead
+  would bring the Wren's High count near 300. It does nothing for Low, which is the tier that matters
+  on a school laptop.
+- **Where the code is.** On the local branch `overhaul-phase2-unverified`, one commit ahead of
+  `overhaul`. Its journey run was cut off at 9 of 16 (all passing) when the machine ran out of
+  memory, and a commit goes on `overhaul` only once it has passed all 16. docs/REPORT_2.md has the
+  three commands that finish the job.
+- **What follows from that.** The release brief's phases are strictly ordered and Phase 2's exit
+  is "every scene within its budget". It is not met, so Phases 3 and 4 (WebKit, the throttled
+  playthrough, the screenshot matrix, the live title) were **not started**. docs/REPORT_2.md says
+  exactly where the work stopped and what the team can choose next.
+- **The frame target is a separate matter and is not met either.** DESIGN §7 asks for p95 ≤ 33 ms on
+  Low at 6× CPU. Measured after this work: Kethra 37–39 ms, the Anchorage 34–42 ms, the Wren 50–71 ms.
+- **To undo:** each of the three techniques is one function and one call site.
+
+### D-32 · Team decision · The remote branch has fifteen commits this one lacks — *Found 2026-10-13; nothing merged, nothing pushed*
+Found at the very end of the release pass, by the first check of the push brief (a fetch). On the
+remote, `overhaul` and `master` both stand at `30fbd3c`: fifteen commits by a second author, dated
+2026-09-27 to 09-30, that this branch has never had. This branch has commits the remote has never
+had. The two part at `ca4e4b2` (2026-09-29).
+- **What the remote's commits hold**, by their own summary (docs/PERF_CHANGELOG_FOR_TEAM.md on that
+  branch): performance work measured on a laptop with Intel UHD graphics. Fewer lights in the Wren
+  and the Anchorage, the Wren's instanced pieces merged, textures freed between scenes, each level
+  prepared during its cruise, a retry for dropped downloads, recovery from a graphics reset, and a
+  hands-on MG1. One commit message reports the Wren at a steady 30 fps on that laptop where it had
+  been 16 to 20.
+- **What that means for this pass.** Every figure in docs/REPORT_2.md was measured on a build
+  without that work. Things the pass lists as open may be closed there: the arrival stall on Kethra
+  (issue 22), and "no real weak machine was measured". The Wren's draw calls, where this pass
+  stopped (D-31), are something the remote also worked on, by a different route.
+- **What that means for a push.** This branch cannot be pushed as it stands. Git would refuse it,
+  because it is fifteen commits behind; forcing it would delete the other author's work, which the
+  push brief forbids and nobody asked for.
+- **A merge conflicts in fourteen files:** DECISIONS.md, docs/PROGRESS.md, src/boot.ts,
+  src/core/Engine.ts, src/core/GameFlow.ts, src/core/InputManager.ts, src/galaxy/IntroScene.ts,
+  src/planets/kethra/KethraScene.ts, src/planets/kethra/kit.ts, src/planets/vessek/VessekScene.ts,
+  src/player/PlayerController.ts, src/ship/ShipInteriorScene.ts, src/ship/interior/kit.ts,
+  tools/test-mg3-flow.mjs. Both sides also use the decision number D-25 for different decisions.
+- **Recommended.** Merge `origin/overhaul` into this branch on this machine, resolve the fourteen
+  by hand with both authors' intent in view, renumber the decisions that collide, run every suite,
+  measure every scene again, and only then push. The remote's MG1 differs from the one this
+  branch's tests play, so expect test work too. That is a day of careful work on someone else's
+  code and a choice between ways of doing it, so it was not started without the team's word.
+- **Not done, on purpose:** no merge, no rebase, no push, no force.

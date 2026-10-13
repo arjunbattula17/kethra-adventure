@@ -4,6 +4,17 @@ The brief for this pass: make the game safe to submit, fast on weak hardware and
 four strict phases after an audit, and stop at a clean commit wherever time runs out. This file is
 written phase by phase, so that wherever it ends is where the work ended.
 
+**Read this first.** At the very end of the pass a fetch showed that the remote `overhaul` branch
+holds fifteen commits this branch has never had: a second author's performance work, measured on
+a real Intel UHD laptop. The two branches have parted and conflict in fourteen files (DECISIONS
+D-32). So nothing here can be pushed until they are merged by hand; every measurement below is of
+a build without that work; and the place this pass stopped, the Wren's draw calls, is something
+the other branch also worked on. Merging the two is the next job.
+
+**And second:** Phase 2's code is on a local branch of its own, `overhaul-phase2-unverified`,
+because its last verification run was cut off when the machine ran out of memory. `overhaul` holds
+Phases 0 and 1, both proven, and this report.
+
 **Where the brief and the project disagree** (the brief says the project's rules win):
 - *"No non-CC0 asset remains."* The project's approved design (docs/DESIGN.md §10.3, approved
   2026-09-27) keeps two exceptions: the planet surface maps (CC BY 4.0) and the two fonts (SIL OFL
@@ -147,3 +158,243 @@ both in the list and by its `?chapter=` address. `tools/test-ending.mjs` checks 
 
 **Exit:** no CC BY model, no unlicensed file in the build; credits match what ships; the two
 approved exceptions are documented; one repository-only image is flagged for a person.
+
+---
+
+## Phase 2 · Performance
+
+### Measured first
+Every view `tools/measure-scene.mjs` can reach, both presets, on the Phase 1 build, before any
+change. The tool gained two views it could not reach, the cruise in mid-transit and MG2.
+Draw calls a frame, with the budget from docs/DESIGN.md §7 in brackets.
+
+| View | Low | High |
+|---|---|---|
+| Intro | 19 (80) | 32 (160) |
+| **The Wren** | **271 (150)** | **550 (350)** |
+| Reveal and MG1 | 29 (80) | 39 (160) |
+| Cruise | 22 (80) | 32 (160) |
+| MG2 Canopy | 30 (120) | 40 (300) |
+| **Kethra** | **231 (160)** | **471 (450)** |
+| **The Heart's chamber** | **141 (120)** | **301 (300)** |
+| Docking shot | 31 (80) | 41 (160) |
+| **The Anchorage** | **221 (180)** | **450 (400)** |
+| Ending | 24 (80) | 34 (160) |
+
+Four views over, on both presets; the six space and cinematic views well inside. One triangle count
+is over that this phase did not touch: MG2 draws 271k on Low against 250k.
+
+### Where the calls were going
+A script that records every draw of one frame showed three things the earlier logs had not:
+- **Kethra's plants and rocks were 68 draws**: one instanced mesh per species per part, though the
+  56 species use only 12 materials between them. Its 12 terraces and ramps were 24 more, each with
+  its own material because each tiled the rock map differently.
+- **Each character was about 24 draws**, a primitive at a time.
+- **On High every mesh is drawn twice**, once more for the ambient-occlusion pass, so a draw saved
+  is two saved there.
+
+### What changed
+| View | Low: before → after (budget) | High: before → after (budget) | |
+|---|---|---|---|
+| Kethra | 231 → **122** (160) | 471 → **253** (450) | inside |
+| The Heart's chamber | 141 → **91** (120) | 301 → **202** (300) | inside |
+| The Anchorage | 221 → **176** (180) | 450 → **360** (400) | inside, by 4 on Low |
+| The Wren | 271 → 246 (150) | 550 → 500 (350) | **still over** |
+
+The six views that were already inside were not measured again after the change; none of them
+uses the code that changed.
+
+Standard three.js merging, in three functions:
+- `mergeKit` (src/planets/kethra/kit.ts): instanced kit meshes that draw alike become one mesh, each
+  placement baked into its vertices. Run once the colliders, which read the placements, are built.
+- `mergeRigid` (src/core/mergeRigid.ts): the meshes of a part that moves as a unit become one mesh
+  per material. Used for the characters (legs, torso, each arm, head), the Anchorage's fans, and by
+  hand for Kethra's pillars, valve and carving.
+- `shareTiledTextures` (src/ship/interior/materialMerge.ts): where surfaces sample the same image
+  and differ only in how it tiles, the tiling moves into each mesh's UVs so they can share one
+  material. The Wren's and the Anchorage's existing batcher then merges them (it found 117
+  shareable materials where it had found 26).
+- Smaller: Kethra's terraces as one mesh per stone colour, its glow motes as one mesh per colour,
+  the Anchorage's duct floors as one mesh, the ledger's page as a sheet instead of a per-face
+  material.
+
+### Nothing looks different
+The same fixed cameras before and after, compared pixel by pixel (mean difference per channel on a
+0–255 scale): the Wren, 7 cameras, 0.00–0.19; the Anchorage, 6 cameras, 0.01–0.49; Kethra, 21
+cameras, 0.01–1.31 on High. What difference there is, is the things that move: motes, water, lamps,
+the moth's gaze (one Low frame of the chamber differs by 10.5 because the gaze was mid-sweep).
+Three of the pairs are in `docs/screenshots/release/` (`p2-*.png`) on the Phase 2 branch.
+
+### What it bought
+Low at 6× CPU, three runs of each build in turn, median / 95th-percentile frame in ms:
+
+| | Before | After |
+|---|---|---|
+| Kethra | 28.8 / 47.6, 29.0 / 52.2, 30.6 / 52.1 | **21.5 / 38.5, 21.6 / 36.9, 20.0 / 38.4** |
+| The Anchorage | 23.0 / 38.0, 22.5 / 40.1, 20.0 / 38.6 | 20.6 / 33.8, 21.1 / 41.8, 18.2 / 34.8 |
+| The Wren | 32.9 / 53.1, 33.6 / 54.7, 34.7 / 52.1 | 33.0 / 50.5, 31.5 / 60.1, 35.3 / 71.2 |
+
+Kethra's median frame is about a quarter shorter and its runs agree with each other. The Anchorage
+is about 2 ms better at the median, and its 95th percentile is inside the noise. **The Wren shows
+no gain**: 25 fewer draws of 271 is not measurable.
+
+**The design's frame target, p95 ≤ 33 ms on Low at 6× CPU, is not met in any of the three levels**,
+before or after.
+
+### What it cost
+Vertex data held by each scene on Low: Kethra 11.9 → **22.7 MB** (each tree now owns a copy of its
+vertices); the Anchorage 10.1 → 10.1; the Wren 8.2 → 8.6. Texture counts did not change.
+
+### Verified
+- **The journey suite was cut off at 9 of 16, all nine passing.** The machine ran critically short
+  of memory while the run was unattended, and the session's background jobs were stopped: the
+  journey run, the preview server it was using, and the keep-awake request. The seven tests that
+  did not run in that pass are MG2, the chamber, the dialogue test, the Kethra flow, the Anchorage
+  flow, the survey and the ending. Five of those seven had been run by hand on this code earlier
+  (below). MG2 and the ending test had not been run on it at all, and both end inside a level
+  whose code changed, so they are the two that most need running.
+- **`stress_tests/run.mjs` was not run on the Phase 2 code**, for the same reason.
+- Type-check clean on the code as it stands.
+- Run by hand during the work: `tools/test-vessek-flow.mjs` 49/49 and `tools/test-survey.mjs` 20/20
+  (the Wren) and 14/14 (the Anchorage) on the final code; `tools/test-kethra-flow.mjs` 16/16,
+  `tools/test-mg3-flow.mjs` 28/28, `tools/test-dialogue-esc.mjs` 4/4 and the Kethra survey 23/23 on
+  the code one step before final (the batcher's tiling step and the Anchorage's fans and floors
+  came after; Kethra's own code did not change again).
+- `tools/collision-check.mjs`: the Wren 1,757 of 1,757 cells reachable, as before. Kethra 11 targets,
+  none failing; its colliders went from 242 to 230 because the pillars, valve and carving are one
+  box each now, and 17 fewer cells are walkable next to them.
+
+### Phase 2's code is on its own branch, not on `overhaul`
+The brief's rule is that every commit passes the journey suite on its own. Phase 2's did not get
+to finish its run, so its code is **not** on `overhaul`. It is committed on a local branch,
+`overhaul-phase2-unverified`, one commit ahead of `overhaul`, so nothing is lost and nothing unproven
+is presented as proven. To bring it in once memory is free:
+
+```
+git switch overhaul-phase2-unverified
+npm run build && npm run preview -- --port 4191 --strictPort      (one terminal)
+node tools/run-journey.mjs http://localhost:4191/kethra-adventure/    (another; about 25 minutes)
+git switch overhaul && git merge --ff-only overhaul-phase2-unverified    (only if all 16 pass)
+```
+
+Every Phase 2 figure in this report is of that branch.
+
+### Phase 2's exit is not met
+The brief's exit for this phase is every scene inside its draw-call budget. **The Wren is not**: 246
+against 150 on Low, 500 against 350 on High. DECISIONS D-31 says what its remaining draws are and
+why the means used here cannot share them. The honest summary: three of four levels fixed, the
+fourth improved by a tenth, and the fourth is the one the player spends the opening in.
+
+---
+
+## Where the pass stopped
+
+**In Phase 2, for two separate reasons.** The Wren is still over its draw-call budget, which is the
+phase's exit; and the phase's last verification run was cut off when the machine ran out of memory
+(above). `overhaul` itself stands at a clean, proven commit: Phase 1, plus these documents. The
+brief orders the phases strictly and allows a phase only once the one before has met its exit, so:
+
+- **Phase 3 was not started.** Not done: the journey under WebKit; a 4× and 6× throttled
+  playthrough; the four-size screenshot matrix; reduced motion, pause, restart, save and resume
+  checked in two browsers. One known problem sits here untouched: docs/PERF_AUDIT.md records that
+  Playwright's WebKit build on Windows shows a black 3D view after New Game. It was never checked on
+  a real Mac.
+- **Phase 4 was not started.** Not done: the live 3D title, a third Kethra find, docs/PLAYTEST.md
+  and its telemetry.
+
+If the team would rather have Phase 3 than a finished Wren, that is a reasonable call and it is
+theirs: say so and the next pass starts there. **Before either, see D-32:** the remote branch has
+work on the Wren's performance that this branch has not seen, and the two have to be merged first.
+
+---
+
+## What was not verified, and what will most likely break
+
+**Not verified**
+- **Any real weak machine, by this pass.** Every number here is from one PC with an RTX 4060, with
+  the CPU throttled as a stand-in. A Chromebook's GPU, memory pressure and thermal throttling are
+  not modelled by that. (The remote branch holds a teammate's measurements on an Intel UHD laptop;
+  see D-32. They are of a different build from this one.)
+- **Any browser but Chromium.** See Phase 3.
+- **A person playing.** Every playthrough was a script. Nobody has judged whether the three
+  rebuilt models, the survey's text or the chapter list read well.
+- **The canon** (docs/CANON_REVIEW.md): written from LORE.md, approved by nobody.
+- **Every camera.** The draw-call figures are the view each scene opens on, which is how the budget
+  has always been measured. Other views differ: the Anchorage is inside its Low budget by only 4.
+- **The wake on Kethra with the merged kit**, beyond the flow tests passing and the awake
+  screenshots matching.
+
+**Most likely to break on real hardware or with real people**
+1. **The Wren on a school laptop.** It is the first level, it is the one still over budget, and at 6×
+   throttle its 95th-percentile frame is 50 ms or worse.
+2. **Kethra's arrival stall** (issue 22, about ten seconds linking shaders on a cold cache). Untouched
+   by this pass, and the first thing a judge on a fresh machine would meet after the cruise. The
+   remote branch has a commit aimed at exactly this (D-32), which this branch does not have.
+3. **Safari.** Unknown, with one black-screen report on record.
+4. **Memory on a 4 GB machine at Kethra**: 11 MB more vertex data than before, on a scene already
+   over its texture budget.
+5. **A judge reading the repository** and finding `reference/bar.png`.
+
+---
+
+## Decisions made on the owner's behalf
+All in DECISIONS.md, each with how to undo it.
+- **D-28** The cruise's sun laps the hull at most six times.
+- **D-29** The four blank owner answers took their defaults: team number left as a placeholder;
+  chapters open, behind `CHAPTERS_OPEN`; the survey's text kept and listed for review; no deadline
+  assumed. And the second brief's push was not carried out.
+- **D-30** The three CC BY models rebuilt in code; the planet maps and fonts kept as the approved
+  exceptions; the reference image flagged and left.
+- **D-31** Three levels brought inside their draw-call budgets at the price of 11 MB at Kethra; the
+  Wren left over budget rather than rewriting its shaders blind; the pass stopped in Phase 2.
+- **D-32** On finding that the remote branch has fifteen commits this one lacks: not merged, not
+  rebased, not pushed. Recorded, with the fourteen files that conflict, for the team to decide.
+
+Smaller choices, made and reversible: the release brief's "no non-CC0 asset" was read as "none
+beyond the two the approved design keeps"; the brief's stray `tsc` package was removed from the npx
+cache; a keep-awake request was held on this PC during the long runs (it ended with the other
+background jobs when memory ran short); Phase 2's unproven code was kept on its own branch.
+
+---
+
+## Needs a human, most urgent first
+1. **The remote has fifteen commits this branch lacks, and the two conflict** (DECISIONS D-32).
+   A second author's performance work, measured on a real Intel UHD laptop, was pushed to
+   `overhaul` and `master` on the remote at the end of September. This branch never had it.
+   Nothing here can be pushed until the two are merged by hand, and nothing here was measured with
+   that work in. Decide who merges and when; it is the next job whatever else is chosen.
+2. **`reference/bar.png` and `reference/crops/`**: a commercial game's promotional image in a public
+   repository. Remove it, and ask the advisor whether the history needs a fresh repository (D-12).
+3. **Phase 2 needs its journey run** before it joins `overhaul` (the commands are under Phase 2).
+   It was not restarted here: the machine had 1.1 GB of its 15.7 GB free when checked afterwards.
+4. **The push.** Nothing has been pushed, and item 1 is why it cannot simply be. The second
+   brief's checks, run without changing anything: this branch is behind the remote and a merge
+   conflicts (its first gate fails); this branch's own commits add no file over 5 MB (the largest
+   is 1.4 MB), no stray file types and no paths from this machine; docs/ASSETS.md exists; every
+   commit here is by one account. A clean install was not run. A scan for key files by name was
+   refused by this machine's command policy and replaced by a listing of added files by type.
+5. **The team number** in `src/content/strings.ts` (`credits.original`) and README.md, line 1.
+6. **TSA's rules on CC BY and OFL material.** The planet maps and both fonts are credited and
+   licensed for this use, but they are not CC0. docs/ASSETS.md has the detail.
+7. **Phase 3 or the Wren?** Decide which the next pass does first (D-31).
+8. **docs/CANON_REVIEW.md**: mark each row keep, change or cut. Four are flagged at the top.
+9. **A real Chromebook and a real Mac**, with docs/TESTING_ON_A_REAL_CHROMEBOOK.md.
+10. **The commit author names.** This branch's commits carry one account name; the remote's fifteen
+   carry a second author's handle and personal email address. If the repository is submitted, D-12's
+   fresh-repository fix covers both.
+11. **57 MB of files nothing loads** (D-10, corrected: two of its textures are in use).
+12. **Chapters open or gated** for the submitted build (`CHAPTERS_OPEN`).
+
+---
+
+## Git receipt
+- `overhaul`, local: `c53e322` (Phase 0), `fe67639` (Phase 1), then the commit that adds this
+  report. Working tree clean. Phases 0 and 1 each passed the journey suite 16 of 16 on their own
+  build; the report's commit changes no code.
+- `overhaul-phase2-unverified`, local: one commit ahead of `overhaul`, holding Phase 2's code.
+  Type-checks; journey 9 of 16 run, all passing, then cut off.
+- Remote: untouched. Nothing pushed, nothing merged, nothing rebased, nothing forced. After the
+  fetch, `origin/overhaul` and `origin/master` are at `30fbd3c`, fifteen commits this branch does
+  not have (D-32).
+- No longer running: this session's preview servers and its keep-awake request. Left running, not
+  this session's: the servers on ports 4174, 4180, 5173 and 5176.

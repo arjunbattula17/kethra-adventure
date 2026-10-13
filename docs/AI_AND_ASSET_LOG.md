@@ -32,6 +32,13 @@ push: publishing was not asked for in the team's own words. docs/REPORT_2.md is 
 - **An audit of its own previous session**: a strobing sun, a black screen on a failed chapter load,
   an undercounted survey on older saves, and one of its own tests weakened in method and redone.
 - **The canon review sheet** (docs/CANON_REVIEW.md) and the chapter switch (`CHAPTERS_OPEN`).
+- **Draw-call work** (DECISIONS D-31): the AI measured every scene, wrote a script to see where
+  each frame's draws went, and merged meshes three ways (`mergeKit`, `mergeRigid`,
+  `shareTiledTextures`). Kethra, the Heart's chamber and the Anchorage are inside their budgets with
+  that code; the Wren is not, and the AI stopped the pass there as the brief's order requires
+  instead of starting the browser work. The code is on a branch of its own
+  (`overhaul-phase2-unverified`) because the machine ran out of memory before its last test run
+  finished, and the AI did not put unproven code on the main line.
 - **Decisions the AI made and the team should review:** D-28, D-29 and D-30 in DECISIONS.md.
 
 **What the team must be able to explain**
@@ -41,6 +48,11 @@ push: publishing was not asked for in the team's own words. docs/REPORT_2.md is 
   them as exceptions, credited (DESIGN §10.3).
 - What "built in code" means for the column: rings of points round a profile, pushed in and out
   for the flutes and the wear, with the colour of each point worked out from its height and side.
+- What a draw call is and why merging helps: the graphics card is told to draw one mesh with one
+  material at a time, and each telling costs the processor. Forty trees that share a bark material
+  can be one mesh. The price was memory, because each tree then needs its own copy of its points.
+- Why the Wren did not get the same treatment: its walls, floors and screens are each painted
+  separately, so they have nothing to share.
 
 ---
 
