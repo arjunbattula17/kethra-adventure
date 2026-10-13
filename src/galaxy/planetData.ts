@@ -1,3 +1,5 @@
+import { NAV } from '../content/tuning';
+
 export interface PlanetDefinition {
   id: string;
   name: string;
@@ -61,3 +63,13 @@ export const PLANETS: PlanetDefinition[] = [
     mapY: 78,
   },
 ];
+
+/**
+ * A trip flown at the solar chart's own figures: whole days at cruise speed from the Wren's orbit
+ * (arriving on the last of them), and the cells that many days and the margin need.
+ */
+export function chartTrip(planetId: string): { days: number; cells: number } {
+  const orbit = PLANETS.find((p) => p.id === planetId)?.orbitRadius ?? NAV.SHIP_ORBIT_MKM;
+  const days = Math.ceil(Math.abs(orbit - NAV.SHIP_ORBIT_MKM) / NAV.CRUISE_MKM_PER_DAY);
+  return { days, cells: Math.ceil((days + NAV.MARGIN_DAYS) / NAV.DAYS_PER_CELL) };
+}

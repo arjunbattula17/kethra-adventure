@@ -17,6 +17,7 @@ import { ShipLibrary } from '../journal/shipLibrary';
 import { PanelManager } from '../ui/PanelManager';
 import type { GameScene } from './Engine';
 import { motion, MotionScope, ease } from '../motion';
+import { chartTrip } from '../galaxy/planetData';
 
 /** The levels a player travels to, with the card that names each one on arrival. */
 const LEVELS: Record<string, { number: number; title: string; line: string }> = {
@@ -576,8 +577,11 @@ export class GameFlow {
       UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
       throw new Error(`level ${planetId} failed to load`);
     }
+    // Kethra's trip is the one the player plotted in MG1. Any other flies what the chart quotes: it
+    // used to borrow Kethra's six days, so ORION announced six for a trip the map gives as 10.4.
     const course = gameState.data.course;
-    const cruise = new CruiseScene({ destination: planetId === 'vessek' ? 'vessek' : 'kethra', days: course?.days ?? 6, cells: course?.cells ?? 4 });
+    const trip = planetId === 'kethra' && course ? course : chartTrip(planetId);
+    const cruise = new CruiseScene({ destination: planetId === 'vessek' ? 'vessek' : 'kethra', days: trip.days, cells: trip.cells });
     const cruiseReady = this.engine.prepareScene(cruise);
     // Awaited after the departure; marked handled now so an early failure isn't reported as uncaught.
     cruiseReady.catch(() => {});

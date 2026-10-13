@@ -254,6 +254,7 @@ export class GameState {
   }
 
   connectClues(a: string, b: string, insight: string): void {
+    if (this.data.clueConnections.some((c) => (c.a === a && c.b === b) || (c.a === b && c.b === a))) return;
     this.data.clueConnections.push({ a, b, insight });
     bus.emit('clue:connected', { a, b, insight });
   }

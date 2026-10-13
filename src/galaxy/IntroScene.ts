@@ -14,6 +14,7 @@ import { getPointSprite } from './spaceDressing';
 import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
 import { GRADES } from '../core/GradeGlowPass';
+import { motion } from '../motion';
 
 /**
  * The opening cinematic, "Cold Start": the moment the Wren died, and the moment it came back.
@@ -91,6 +92,10 @@ const LEVEL = {
   whiteSkyAmbient: 3.2,
   /** Opacity of the white shell at the white sky's peak. */
   whiteSkyShell: 0.9,
+  /** With reduced motion: how much of the white sky's swell is kept, and where on its path the
+   * camera holds (the whole hull in frame). */
+  reducedWhiteSky: 0.4,
+  reducedCamera: 0.5,
 } as const;
 
 /** Wave front travel along the hull's X axis, in ship units (viewports span about -4.0..2.3). */
@@ -429,7 +434,7 @@ export class IntroScene implements GameScene {
 
     // The distant star lights the hull throughout; the white sky briefly drowns everything.
     const wake = easeOutCubic(ramp(t, TIMELINE.rim.at, TIMELINE.rim.dur));
-    const white = whiteSkyAmount(t);
+    const white = whiteSkyAmount(t) * (motion.reduced ? LEVEL.reducedWhiteSky : 1);
     this.rim.intensity = LEVEL.rim * wake;
     this.fill.intensity = LEVEL.fill * wake;
     this.scene.environmentIntensity = LEVEL.envStart + (LEVEL.envEnd - LEVEL.envStart) * wake;
@@ -499,7 +504,7 @@ export class IntroScene implements GameScene {
   /** One continuous move over the whole sequence, arc-length parameterised so speed follows the
    * ease alone rather than the spacing of the keys. */
   private placeCamera(t: number): void {
-    const u = easeInOutSine(clamp01(t / TIMELINE.done));
+    const u = motion.reduced ? LEVEL.reducedCamera : easeInOutSine(clamp01(t / TIMELINE.done));
     this.cameraCurve.getPointAt(u, this.scratchPos).add(this.ship.position);
     this.lookCurve.getPointAt(u, this.scratchLook).add(this.ship.position);
     this.camera.position.copy(this.scratchPos);

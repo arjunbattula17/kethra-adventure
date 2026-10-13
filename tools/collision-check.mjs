@@ -18,8 +18,11 @@ await page.goto(`${baseUrl}?skipIntro=1&newGame=1&unlockKethra=1`, { waitUntil: 
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 90000 });
 const wantClass = scene === 'kethra' ? 'KethraScene' : 'ShipInteriorScene';
 if (scene === 'kethra') {
-  await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene?.(), undefined, { timeout: 90000 });
-  await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'kethra'));
+  // Through the flow's own jump. The galaxy:travel_to event this used to send now begins the
+  // departure at the helm (First light, then the cruise), which waits on a held key and never
+  // arrives by itself.
+  await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene?.() && !window.__DEBUG__.flow.isTransitioning(), undefined, { timeout: 90000 });
+  await page.evaluate(() => void window.__DEBUG__.flow.debugGo('kethra'));
 }
 try {
   await page.waitForFunction((cls) => {
@@ -128,8 +131,10 @@ const out = await page.evaluate((baseline) => {
   //          tool certified the Kethra valve as reachable while the real proximity zone sat 8.6 m
   //          away at the plaza origin.
   const targets = sc.interaction.interactables.map((it) => {
-    const b = new B3().setFromObject(it.object);
     const origin = it.object.getWorldPosition(new (sc.player.rig.position.constructor)());
+    const b = new B3().setFromObject(it.object);
+    // A target with no geometry (an anchor found by standing near it) is just its origin.
+    if (b.isEmpty()) b.set(origin, origin);
     let aim = Infinity, prox = Infinity, at = null;
     for (let j = 0; j < NZ; j++) {
       for (let i = 0; i < NX; i++) {
@@ -178,9 +183,13 @@ console.log(`${out.scene}: colliders=${out.colliders}  grid=${out.gridCells}  on
 console.log(`spawn blocked: ${out.spawnBlocked ? 'YES  <-- FAIL' : 'no'}`);
 if (out.openCount !== out.reach) console.log(`NOTE: ${out.openCount - out.reach} clear cells are not reachable from spawn (separate terrace / too tall a step)`);
 if (out.bigSteps) console.log(`NOTE: ${out.bigSteps} cell transitions need a step over MAX_STEP_UP; the player can make them but the level probably did not intend it`);
+// Reached by jumping, which the flood fill does not model (it walks): tools/test-survey.mjs crosses
+// Kethra's stepping stones with real jumps and reads this.
+const JUMP_ONLY = new Set(['Look at the child’s lantern']);
 for (const t of out.targets) {
   const via = t.aim <= t.range ? 'aim' : t.prox <= t.range ? 'proximity only' : '-';
-  console.log(`  ${t.ok ? 'OK  ' : 'FAIL'} "${t.label}"  aim ${t.aim}m / prox ${t.prox}m (range ${t.range}, via ${via}) from ${JSON.stringify(t.standAt)}`);
+  const status = t.ok ? 'OK  ' : JUMP_ONLY.has(t.label) ? 'JUMP' : 'FAIL';
+  console.log(`  ${status} "${t.label}"  aim ${t.aim}m / prox ${t.prox}m (range ${t.range}, via ${via}) from ${JSON.stringify(t.standAt)}`);
   if (t.originOutside > 0.5) console.log(`       WARNING: object origin sits ${t.originOutside}m outside its own bounds — the proximity fallback fires where the object is not`);
 }
 if (process.argv.includes('--map')) {

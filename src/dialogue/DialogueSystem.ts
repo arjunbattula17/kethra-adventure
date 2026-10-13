@@ -49,11 +49,11 @@ class DialogueSystemImpl {
     return this.tree !== null;
   }
 
+  /** Opens on the tree's start node through goto(), so that node's onEnter runs like any other's. */
   start(tree: DialogueTree, onClose?: () => void): void {
     this.tree = tree;
-    this.currentNodeId = tree.startNode;
     this.onClose = onClose ?? null;
-    this.render();
+    this.goto(tree.startNode);
   }
 
   private goto(nodeId: string | null): void {

@@ -87,7 +87,10 @@ class InputManagerImpl {
   requestPointerLock(): void {
     // A captured mouse freezes the cursor that MG1 and MG2 steer by.
     if (!this.mouseLookWanted()) return;
-    this.lockedElement?.requestPointerLock?.();
+    // Browsers refuse a request that follows too closely on the last (a panel closed, reopened and
+    // closed again). The pointerlockerror event that goes with the refusal is what tells the player
+    // to click (UIManager); the promise only needs to not go unhandled.
+    void Promise.resolve(this.lockedElement?.requestPointerLock?.()).catch(() => {});
   }
 }
 
