@@ -22,6 +22,7 @@ import { buildConsole } from './interior/console';
 import { buildSuspendedDisplay } from './interior/suspendedDisplay';
 import { buildDetailProps } from './interior/props';
 import { buildLighting } from './interior/lighting';
+import { buildWrenFinds } from './interior/finds';
 import { batchStaticGeometry } from './interior/batchStaticGeometry';
 import { mulberry32 } from '../core/rng';
 import { buildInteriorColliders } from './interior/collision';
@@ -148,6 +149,7 @@ export class ShipInteriorScene implements GameScene {
     this.throttle = buildThrottle(ctx);
     buildSuspendedDisplay(ctx);
     buildLighting(ctx);
+    buildWrenFinds(ctx);
     // buildWalls/buildAirlock/buildDetailProps each load real glTF kit pieces asynchronously and
     // add their own independent geometry — nothing else here reads what they produce, so they run
     // concurrently. batchStaticGeometry's merge pass below is documented (see its own header

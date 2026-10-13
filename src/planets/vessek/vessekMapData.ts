@@ -18,6 +18,9 @@ export const VESSEK_MAP: PlanetMapConfig = {
     { id: 'hall_duct', label: 'The hall duct', kind: 'hazard', x: 6, z: -14, discoveredFlag: 'vessek_lockout_lamps' },
     { id: 'hydroponics', label: 'Hydroponics tanker', kind: 'resource', x: 0, z: -26 },
     { id: 'junction', label: 'Aft junction', kind: 'objective', x: 18, z: -28, discoveredFlag: 'vessek_junction_reset' },
+    { id: 'scope', label: 'The Anchorage scope', kind: 'lore', x: 6.9, z: 2, discoveredFlag: 'vessek_found_scope' },
+    { id: 'chalk_sky', label: 'Dace’s chalk sky', kind: 'lore', x: -18.6, z: -15.5, discoveredFlag: 'vessek_found_sky' },
+    { id: 'seed_book', label: 'The seed book', kind: 'lore', x: 2, z: -35.4, discoveredFlag: 'vessek_found_seeds' },
   ],
   // Mirrors layout.ts's rooms and tubes; update them together.
   terrain: [

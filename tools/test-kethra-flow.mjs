@@ -66,16 +66,20 @@ await pressE();
 check('Warden Corvenna talks', (await page.textContent('#dialogue-speaker').catch(() => null)) === 'Warden Corvenna');
 await closePanel();
 
-// 3. The three inscriptions, and re-reading grants nothing more.
+// 3. The three inscriptions, and re-reading grants nothing more. Each read puts its text on screen
+// (tools/test-survey.mjs checks what it says), which pauses the game until it is closed.
 for (const [x, y, z] of [[-16, 2.4, -2.2], [16, 2.4, -2.2], [-20, 4.2, -7.2]]) {
   await teleport(x, y, z);
   await pressE();
+  await closePanel();
 }
 let s = await state();
 check('all three inscriptions recorded', ['kethra_fragment_1_read', 'kethra_fragment_2_read', 'kethra_fragment_3_read'].every((f) => s.flags.includes(f)));
 const archaeology = s.attributes.archaeology;
 await pressE();
+await closePanel();
 await pressE();
+await closePanel();
 s = await state();
 check('re-reading an inscription grants no more archaeology', s.attributes.archaeology === archaeology, `${archaeology} -> ${s.attributes.archaeology}`);
 
@@ -84,6 +88,7 @@ await teleport(2.5, 1.8, 8.5);
 await pressE();
 await teleport(-1.5, 1.7, 5.5);
 await pressE();
+await closePanel();
 s = await state();
 check('valve realigned', s.flags.includes('kethra_helped_with_valve'));
 check('shrine record in the journal', s.journalLogs.some((l) => l.id === 'kethra_ritual_record' && l.unlocked));
@@ -110,8 +115,10 @@ check('Heart solved and crystals awarded', s.flags.includes('kethra_mechanism_so
 // 7. The last carving, on the inner face of the gate's west pillar, marked on the map's survey.
 await teleport(-4.07, 1.6, -11.5, Math.PI); // in front of the carving, facing it
 await pressE();
+await closePanel();
 const insight = (await state()).attributes.insight;
 await pressE();
+await closePanel();
 s = await state();
 check('carving deciphered (map survey flag set)', s.flags.includes('kethra_kindling_record'));
 check('re-reading the carving grants no more insight', s.attributes.insight === insight);

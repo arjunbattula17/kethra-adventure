@@ -26,6 +26,7 @@ import { applyPbr } from '../../core/TextureLibrary';
 import { registerMiniGame } from '../../debug/hooks';
 import { varroDialogue, daceDialogue } from './vessekDialogue';
 import { VESSEK_ENTRIES } from './vessekLore';
+import { Survey } from '../../journal/Survey';
 import { RingBus, CIRCUITS } from './bus';
 import type { BusEvent, CircuitId } from './bus';
 import { BusWorld } from './busWorld';
@@ -205,6 +206,7 @@ export class VessekScene implements GameScene {
       onEvent: (e) => this.onBusEvent(e),
     });
     this.buildInteractions();
+    this.buildFinds();
 
     this.scene.add(this.player.rig);
     this.player.setFloorTargets([this.floor, ...rooms.floors]);
@@ -454,6 +456,135 @@ export class VessekScene implements GameScene {
         }
         UIManager.showDocument(plateEntry.title, plateEntry.body);
       },
+    });
+  }
+
+  /**
+   * The survey's three finds that are new places to look (src/content/discoveries.ts): the scope at
+   * the hall's east port, Dace's chalk sky on the wall of the long duct, and the seed book behind the
+   * tanker's last grow table. Their meshes use the dressing's own material settings, so the batching
+   * pass folds them into existing draws; each is found by standing at it, through an anchor.
+   */
+  private buildFinds(): void {
+    const steel = new THREE.MeshStandardMaterial({ color: 0x4a5258, metalness: 0.6, roughness: 0.5 });
+    const part = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number): THREE.Mesh => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      this.scene.add(m);
+      return m;
+    };
+    const anchor = (x: number, y: number, z: number): THREE.Object3D => {
+      const o = new THREE.Object3D();
+      o.position.set(x, y, z);
+      this.scene.add(o);
+      return o;
+    };
+
+    // A survey scope on a stand at the east port's second bay, its tube raised out through the glass.
+    const SCOPE = { x: 6.95, z: 2 };
+    part(new THREE.CylinderGeometry(0.22, 0.26, 0.05, 8), steel, SCOPE.x, 0.025, SCOPE.z);
+    part(new THREE.CylinderGeometry(0.035, 0.05, 1.3, 6), steel, SCOPE.x, 0.7, SCOPE.z);
+    const tilt = -Math.PI / 2 + 0.3;
+    part(new THREE.CylinderGeometry(0.075, 0.09, 0.85, 10), steel, SCOPE.x + 0.05, 1.42, SCOPE.z).rotation.z = tilt;
+    part(new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8), steel, SCOPE.x - 0.41, 1.28, SCOPE.z).rotation.z = tilt;
+    this.interaction.register({
+      object: anchor(SCOPE.x - 0.41, 1.28, SCOPE.z),
+      label: 'Look through the scope',
+      range: 2.2,
+      onInteract: () => Survey.collect('vessek_scope'),
+    });
+
+    // Dace's sky: chalk on the west wall of the long duct, halfway along its upper run, opposite the
+    // chalk arrows. Drawn like them (dressing.ts) so the two share a material's settings.
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 256;
+    const c = canvas.getContext('2d')!;
+    const chalk = 'rgba(236,232,220,0.9)';
+    let seed = 0x5ca1;
+    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    c.strokeStyle = chalk;
+    c.fillStyle = chalk;
+    c.lineWidth = 2;
+    c.font = '700 20px sans-serif';
+    for (let i = 0; i < 58; i++) {
+      const x = 16 + rand() * 480;
+      const y = 14 + rand() * 228;
+      if (Math.hypot(x - 150, y - 128) < 70) continue;
+      c.beginPath();
+      c.arc(x, y, 1.6 + rand() * 1.6, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.arc(x, y, 6 + rand() * 4, 0, Math.PI * 2);
+      c.stroke();
+      if (i % 4 === 0) c.fillText('?', x + 11, y + 7);
+    }
+    c.beginPath();
+    c.arc(150, 128, 11, 0, Math.PI * 2);
+    c.fill();
+    c.lineWidth = 3;
+    c.beginPath();
+    c.arc(150, 128, 26, 0, Math.PI * 2);
+    c.stroke();
+    c.font = '700 30px sans-serif';
+    c.fillText('OURS', 114, 190);
+    const skyTex = new THREE.CanvasTexture(canvas);
+    skyTex.colorSpace = THREE.SRGBColorSpace;
+    const SKY = { x: -18 - (L.DUCT_WIDTH / 2 - 0.01), y: L.UPPER + 0.62, z: -15.5 };
+    const sky = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.85), new THREE.MeshBasicMaterial({ map: skyTex, transparent: true, depthWrite: false }));
+    // Facing east into the duct, with its right-hand edge to the north, as someone reading it sees it.
+    const right = new THREE.Vector3(0, 0, -1);
+    const normal = new THREE.Vector3(1, 0, 0);
+    sky.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, new THREE.Vector3().crossVectors(normal, right), normal));
+    sky.position.set(SKY.x, SKY.y, SKY.z);
+    this.scene.add(sky);
+    this.interaction.register({
+      object: anchor(SKY.x, SKY.y, SKY.z),
+      label: 'Look at the chalk on the wall',
+      range: 1.9,
+      onInteract: () => Survey.collect('vessek_sky'),
+    });
+
+    // The seed book, hung on the tanker's north wall behind the last grow table.
+    const BOOK = { x: 2, y: 1.4, z: L.faces(L.ROOMS.tanker).z0 + 0.06 };
+    // Two covers with the page block between them, turned a little on its nail, and a paper label.
+    const cover = new THREE.MeshStandardMaterial({ color: 0x6b5238, roughness: 0.85 });
+    const pages = new THREE.MeshStandardMaterial({ color: 0xd8d0b8, roughness: 0.95 });
+    const book = new THREE.Group();
+    book.position.set(BOOK.x, BOOK.y, BOOK.z);
+    book.rotation.z = -0.07;
+    const leaf = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      book.add(m);
+    };
+    leaf(new THREE.BoxGeometry(0.34, 0.44, 0.012), cover, 0, 0, 0);
+    leaf(new THREE.BoxGeometry(0.31, 0.41, 0.046), pages, 0.008, 0, 0.029);
+    leaf(new THREE.BoxGeometry(0.34, 0.44, 0.012), cover, 0, 0, 0.058);
+    const label = document.createElement('canvas');
+    label.width = 256;
+    label.height = 96;
+    const lc = label.getContext('2d')!;
+    lc.fillStyle = '#d8d0b8';
+    lc.fillRect(0, 0, 256, 96);
+    lc.fillStyle = 'rgba(40, 34, 26, 0.9)';
+    lc.font = '700 54px Rajdhani, sans-serif';
+    lc.textAlign = 'center';
+    lc.textBaseline = 'middle';
+    lc.fillText('SEEDS', 128, 52);
+    const labelTex = new THREE.CanvasTexture(label);
+    labelTex.colorSpace = THREE.SRGBColorSpace;
+    leaf(new THREE.PlaneGeometry(0.2, 0.075), new THREE.MeshStandardMaterial({ map: labelTex, roughness: 0.95 }), 0, 0.08, 0.0645);
+    this.scene.add(book);
+    this.interaction.register({
+      object: anchor(BOOK.x, BOOK.y, BOOK.z + 0.05),
+      label: 'Read the book on the nail',
+      range: 2.2,
+      onInteract: () => Survey.collect('vessek_seeds'),
     });
   }
 
@@ -848,6 +979,8 @@ export class VessekScene implements GameScene {
       box(-3.9, 10.2, -2.9, 11.0, 0.8),
       box(-7.1, -10.9, -4.5, -8.8, 1.1),
       box(4.8, -11.5, 5.6, -10.3, 0.9),
+      // The scope's stand at the east port.
+      box(6.7, 1.75, 7.3, 2.25, 1.5),
     ];
   }
 
@@ -1041,7 +1174,7 @@ export class VessekScene implements GameScene {
     UIManager.showChapterCard({
       eyebrow: 'Level 3 complete',
       title: 'The Anchorage holds',
-      lines: ['Three hundred people kept their harvest.', deal ? deals[deal] : 'Varro gave the alloy freely, and you kept your core.', '+3 conduit alloy for the Wren’s comms.'],
+      lines: ['Three hundred people kept their harvest.', deal ? deals[deal] : 'Varro gave the alloy freely, and you kept your core.', '+3 conduit alloy for the Wren’s comms.', `${Survey.line('vessek')}.`],
     });
   }
 

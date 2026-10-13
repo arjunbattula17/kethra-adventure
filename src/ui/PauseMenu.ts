@@ -8,6 +8,8 @@ import { TitleScreen } from './TitleScreen';
 interface PauseOptions {
   /** Whether pausing makes sense right now (not on the title, not mid-cinematic). */
   canPause: () => boolean;
+  /** What the survey has found where the player is, or null where there is none (a cinematic). */
+  survey: () => string | null;
   /** Whether "Restart level" applies (the player is inside a level, not the Wren's hub). */
   canRestart: () => boolean;
   restartLevel: () => void;
@@ -47,6 +49,13 @@ export const PauseMenu = {
     panel.id = 'pause-panel';
     panel.innerHTML = `<h2>Paused</h2><div class="pause-objective"></div><div class="pause-actions"></div><div class="panel-foot"><span class="keycap">Esc</span> resume</div>`;
     (panel.querySelector('.pause-objective') as HTMLElement).textContent = gameState.data.objective;
+    const survey = opts.survey();
+    if (survey) {
+      const line = document.createElement('div');
+      line.className = 'pause-survey num';
+      line.textContent = survey;
+      (panel.querySelector('.pause-objective') as HTMLElement).after(line);
+    }
     const actions = panel.querySelector('.pause-actions') as HTMLElement;
     const add = (label: string, cls: string, run: () => void) => {
       const b = document.createElement('button');

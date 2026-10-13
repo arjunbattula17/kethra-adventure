@@ -163,7 +163,8 @@ export const STRINGS = {
   'map.legend.belt': 'Asteroid belt',
   'map.label.wren': 'WREN',
   'map.label.star': 'STAR',
-  'map.survey.title': 'Survey',
+  // The chart's list of places. "Survey" is kept for the count of optional finds (src/journal/Survey.ts).
+  'map.survey.title': 'Sites',
   'map.survey.objective': 'Objective',
   'map.poi.unexplored': 'Unexplored site',
   'map.scale': '10 m',
@@ -183,9 +184,17 @@ export const STRINGS = {
   'title.tagline': 'Your ship went dark past the edge of the charts. Wake it up.',
   'title.continue': 'Continue',
   'title.newGame': 'New game',
+  'title.chapters': 'Chapters',
   'title.controls': 'Controls',
   'title.settings': 'Settings',
   'title.closeHint': 'Esc to close',
+  // The chapter list (src/ui/ChapterSelect.ts).
+  'chapters.note': 'Start at any level. Each one stands on its own.',
+  'chapters.note.replace': 'Start at any level. Starting one replaces your saved journey.',
+  'chapters.from.start': 'From the beginning',
+  'chapters.from.own': 'From your own arrival',
+  'chapters.from.standIn': 'With a first playthrough’s skills',
+  'chapters.confirm': 'Press again to replace your saved journey',
   'toast.continue': 'Continuing your saved journey.',
   'toast.saveUnreadable': 'Your saved journey could not be read. Starting a new one.',
 
@@ -212,7 +221,7 @@ export const STRINGS = {
   'toast.scanner.resolved': 'Deep Scanner online. A ring of ships resolves at 95 Mkm.',
   // Back aboard after MG1: the one thing to do next, and what's there if the player wants it.
   'objective.exploreKethra': 'Explore Kethra: set course at the navigation console.',
-  'objective.exploreKethra.note': 'Optional: read the travel logs, or check the damage at the repair station.',
+  'objective.exploreKethra.note': 'Optional: the travel logs, the repair station, and whatever the crew left lying around.',
   'objective.afterScanner': 'The scanner found a ring of ships near Vessek. Someone out there still has power.',
 
   // Painted signage aboard the Wren.
@@ -237,6 +246,13 @@ export function t(key: StringKey, vars?: Record<string, string>): string {
 /** Words in a string, for timing on-screen text by reading pace. */
 export function wordCount(text: string): number {
   return text.trim().split(/\s+/).length;
+}
+
+/** The start of a text for a one-line summary, cut at a word and marked as cut. */
+export function excerpt(text: string, max = 80): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 1))}…`;
 }
 
 /** A string with `{name}` placeholders filled in, e.g. format('map.data.flightValue', { days: 6, margin: 2 }). */

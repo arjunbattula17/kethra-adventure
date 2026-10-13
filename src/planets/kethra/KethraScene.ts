@@ -15,6 +15,8 @@ import { DialogueSystem } from '../../dialogue/DialogueSystem';
 import { WARDEN_DIALOGUE, ARCHIVIST_DIALOGUE } from './kethraDialogue';
 import { KETHRA_LORE_ENTRIES } from './kethraLore';
 import { ShipLibrary } from '../../journal/shipLibrary';
+import { Survey } from '../../journal/Survey';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { applyPbr } from '../../core/TextureLibrary';
 import { KitBatcher, kitInstanceBox, jitter, groveRandom, resetGroveRandom } from './kit';
@@ -32,9 +34,9 @@ import { buildCanopyCeiling } from './canopyCeiling';
 import type { CanopyCeiling } from './canopyCeiling';
 import { makePoolWater } from './water';
 import type { PoolWater, ShoreShape } from './water';
-import { addHeartCrystals, buildBanks, buildMist, buildMoss, buildRuins, buildTrees, treeBankSpots, LANDMARK_TREE, UNDERSTORY_TREES } from './dressing';
+import { addHeartCrystals, buildBanks, buildMist, buildMoss, buildRuins, buildTrees, stoneGeometry, treeBankSpots, LANDMARK_TREE, STEPPING_STONES, UNDERSTORY_TREES } from './dressing';
 import type { Mist, MothPerch } from './dressing';
-import { t } from '../../content/strings';
+import { t, excerpt } from '../../content/strings';
 
 /** Where the skiff is parked on the landing terrace, beside the arrival point. */
 const SKIFF_AT = { x: 3, z: 19.6 };
@@ -55,6 +57,7 @@ const WATER_Y = -0.9;
 const TERRACE_SHORES: ShoreShape[] = [
   { x: 0, z: 16, hx: 5, hz: 5 },
   { x: 0, z: 2, hx: 8, hz: 8 },
+  { x: 0, z: 10.5, hx: 1.5, hz: 1.1 },
   { x: -7, z: 10, hx: 2, hz: 4 },
   { x: 7, z: 10, hx: 2, hz: 4 },
   { x: -16, z: -2, hx: 5, hz: 4.5 },
@@ -65,6 +68,20 @@ const TERRACE_SHORES: ShoreShape[] = [
   { x: -20.3, z: -6.5, hx: 1.5, hz: 3 },
   { x: H.CENTER.x, z: H.CENTER.z, hx: H.RADIUS + 1.4 },
 ];
+
+/** Where a player arrives, and where a fall into the pool puts them back. */
+const SPAWN = new THREE.Vector3(0, 2, 18);
+/**
+ * The east terrace's north strip, the stepping stones off it and the islet they lead to. A fall
+ * from here wades back to the terrace's edge, facing the first stone, instead of the whole way to
+ * the landing.
+ */
+const atStepStones = (p: THREE.Vector3) => p.x > 14 && p.z > 1.2;
+const STONES_RESPAWN = new THREE.Vector3(16.9, 2.2, 1.0);
+const STONES_YAW = Math.PI;
+
+/** The objective once the Heart is awake, on the day it wakes and on any later visit. */
+const OBJECTIVE_AWAKE = 'The Heart is awake. Look around, or take the skiff back to the Wren.';
 
 /** Yields to the event loop so a frame can render between builders. */
 const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -410,6 +427,7 @@ export class KethraScene implements GameScene {
   private mist: Mist | null = null;
   /** Where the resting moths sit: filled in by the builders that own those surfaces. */
   private perches: MothPerch[] = [];
+  private atStones = false;
   /** Out-of-reach dressing, kept out of the collider pass. */
   private scenery: THREE.Object3D[] = [];
   /** The landmark and understory trees: not drawn from inside the chamber, whose wall hides them. */
@@ -460,6 +478,7 @@ export class KethraScene implements GameScene {
       () => this.buildShrineAndValve(),
       () => this.buildHeartChamber(),
       () => this.buildReturnPad(),
+      () => this.buildFinds(),
       () => this.buildAtmosphere(),
       () => this.buildLighting(),
     ];
@@ -475,12 +494,13 @@ export class KethraScene implements GameScene {
     this.scene.add(this.player.rig);
     this.player.setFloorTargets(this.floorMeshes);
     this.player.setColliders(await this.colliders());
-    this.player.teleport(new THREE.Vector3(0, 2, 18), 0);
+    this.player.teleport(SPAWN, 0);
     // Terrace edges are unguarded and there is no way back up from the water, so a fall respawns
     // the player. The reset height is just above the water so they never visibly sink into it.
-    this.player.setRespawn(new THREE.Vector3(0, 2, 18), 0);
+    this.player.setRespawn(SPAWN, 0);
     this.player.fallResetY = WATER_Y + 0.3;
-    this.player.onFellOut = () => UIManager.toast('You slip into the dark water and wade back to the landing terrace.');
+    this.player.onFellOut = () =>
+      UIManager.toast(this.atStones ? 'You slip off the stone and wade back to the terrace.' : 'You slip into the dark water and wade back to the landing terrace.');
     this.player.onFootstep = () => AudioSystem.playFootstep('organic');
     this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
     this.stopMusic = AudioSystem.startMusic('kethra');
@@ -513,7 +533,7 @@ export class KethraScene implements GameScene {
       this.heart.setAwake(true);
     } else wake.reset();
 
-    gameState.setObjective('Explore Kethra. Speak with the Aiveth and find the true light-sequence.');
+    gameState.setObjective(gameState.hasFlag('kethra_mechanism_solved') ? OBJECTIVE_AWAKE : 'Explore Kethra. Speak with the Aiveth and find the true light-sequence.');
   }
 
   private buildGround(): void {
@@ -552,6 +572,11 @@ export class KethraScene implements GameScene {
     const rampB = makeTerrace(4, 8, 7, -0.1, 10);
     rampB.rotation.x = -0.12;
     const eastTerrace = makeTerrace(10, 9, 16, 0.6, -2);
+    // The landing's walking surface stops at z = 11.3 and the plaza's starts at 9.7, with the pool
+    // between: walking straight from the spawn at the plaza fell in every time, and the two side
+    // ramps are out of sight behind the player's shoulders. This span is the direct way across. It
+    // sits 2 mm low so its faces share no plane with the two slabs it overlaps.
+    const causeway = makeTerrace(3, 2.2, 0, -0.002, 10.5);
 
     // Connecting ramps. Without these, the plaza, the side terraces and the Heart's chamber are
     // separate islands with nothing between them: the side terraces sit 3 units away across empty
@@ -584,7 +609,7 @@ export class KethraScene implements GameScene {
       new THREE.Vector3(-20.6, 0, -4.65),
     ];
 
-    for (const t of [landing, plaza, rampA, westTerrace, rampB, eastTerrace, westRamp, eastRamp, chamberRamp]) {
+    for (const t of [landing, plaza, causeway, rampA, westTerrace, rampB, eastTerrace, westRamp, eastRamp, chamberRamp]) {
       this.scene.add(t);
       this.floorMeshes.push(t);
     }
@@ -651,7 +676,7 @@ export class KethraScene implements GameScene {
       this.scene.add(this.mist.mesh);
     }
     const [ruins, landmark, small] = await Promise.all([
-      low ? buildRuins(WATER_Y, [], 6) : buildRuins(WATER_Y, this.perches),
+      low ? buildRuins(WATER_Y, [], 6, STEPPING_STONES) : buildRuins(WATER_Y, this.perches, undefined, STEPPING_STONES),
       buildTrees('jacaranda', LANDMARK_TREE, WATER_Y, low ? 0.5 : 1),
       understory.length ? buildTrees('tree_small', understory, WATER_Y, 1) : null,
       low ? addHeartCrystals(this.heart.root, 2) : addHeartCrystals(this.heart.root),
@@ -686,7 +711,8 @@ export class KethraScene implements GameScene {
       object: this.warden.group,
       label: 'Speak with the Warden',
       range: 2.6,
-      onInteract: () => DialogueSystem.start(WARDEN_DIALOGUE, () => {
+      // Once met, she picks up at her topics instead of challenging a stranger again.
+      onInteract: () => DialogueSystem.start({ ...WARDEN_DIALOGUE, startNode: gameState.hasFlag('kethra_warden_met') ? 'warden_topics' : WARDEN_DIALOGUE.startNode }, () => {
         this.warden?.setGlow(gameState.hasFlag('kethra_warden_trust_1') || gameState.hasFlag('kethra_warden_valve_thanks') ? 1 : 0.45);
       }),
     });
@@ -762,14 +788,14 @@ export class KethraScene implements GameScene {
           // pillar could buy every archaeology-gated dialogue option in the grove.
           const firstRead = !gameState.hasFlag(flagId);
           gameState.setFlag(flagId);
-          if (entry && !firstRead) {
-            UIManager.toast(`Already recorded: ${entry.title}`);
-          } else if (entry) {
+          if (!entry) return;
+          if (firstRead) {
             gameState.unlockLog(entry.id);
-            gameState.addClue({ id: entry.id, title: entry.title, summary: entry.body.slice(0, 80), source: 'Kethra inscription' });
+            gameState.addClue({ id: entry.id, title: entry.title, summary: excerpt(entry.body), source: 'Kethra inscription' });
             gameState.addAttributeXp('archaeology', 1);
-            UIManager.toast(`Inscription recorded: ${entry.title}`);
           }
+          // The Rite's order is in these words, and the journal that files them is back on the Wren.
+          UIManager.showDocument(entry.title, entry.body);
         },
       });
     });
@@ -831,11 +857,11 @@ export class KethraScene implements GameScene {
       label: 'Examine the Grove Shrine',
       range: 2.2,
       onInteract: () => {
-        if (shrineEntry) {
-          gameState.unlockLog(shrineEntry.id);
-          gameState.addClue({ id: shrineEntry.id, title: shrineEntry.title, summary: shrineEntry.body.slice(0, 80), source: 'Kethra shrine record' });
-          UIManager.toast(`Grove record recovered: ${shrineEntry.title}`);
-        }
+        if (!shrineEntry) return;
+        gameState.setFlag('kethra_shrine_read');
+        gameState.unlockLog(shrineEntry.id);
+        gameState.addClue({ id: shrineEntry.id, title: shrineEntry.title, summary: excerpt(shrineEntry.body), source: 'Kethra shrine record' });
+        UIManager.showDocument(shrineEntry.title, shrineEntry.body);
       },
     });
   }
@@ -894,15 +920,14 @@ export class KethraScene implements GameScene {
         // The flag is what the navigation map's survey checks for this site; it was never set, so
         // the carving stayed "unexplored" on the map forever. It also gates the insight reward to
         // the first read (it used to grant insight on every press).
-        if (kindlingEntry && gameState.hasFlag('kethra_kindling_record')) {
-          UIManager.toast(`Already deciphered: ${kindlingEntry.title}`);
-        } else if (kindlingEntry) {
+        if (!kindlingEntry) return;
+        if (!gameState.hasFlag('kethra_kindling_record')) {
           gameState.setFlag('kethra_kindling_record');
           gameState.unlockLog(kindlingEntry.id);
-          gameState.addClue({ id: kindlingEntry.id, title: kindlingEntry.title, summary: kindlingEntry.body.slice(0, 80), source: 'Deep chamber carving' });
+          gameState.addClue({ id: kindlingEntry.id, title: kindlingEntry.title, summary: excerpt(kindlingEntry.body), source: 'Deep chamber carving' });
           gameState.addAttributeXp('insight', 1);
-          UIManager.toast(`Carving deciphered: ${kindlingEntry.title}`);
         }
+        UIManager.showDocument(kindlingEntry.title, kindlingEntry.body);
       },
     });
   }
@@ -961,15 +986,71 @@ export class KethraScene implements GameScene {
       this.hush.finish();
       AudioSystem.playLevelEnd();
       UIManager.toast('The Cistern Heart wakes. Water and light flow back up the terraces.', 'learn');
+      gameState.setObjective(OBJECTIVE_AWAKE);
       UIManager.showChapterCard({
         eyebrow: 'Level 2 complete',
         title: 'The Heart wakes',
-        lines: ['Light and water climb the terraces again.', '+3 resonant crystal: enough to repair the Wren’s navigation and Deep Scanner.'],
+        lines: ['Light and water climb the terraces again.', '+3 resonant crystal: enough to repair the Wren’s navigation and Deep Scanner.', `${Survey.line('kethra')}.`],
       });
     };
     this.fx.after(LENGTH, finish);
     this.wakeSkip = new HoldToSkip({ onSkip: finish });
     this.wakeSkip.show();
+  }
+
+  /**
+   * The survey's two finds that are places (src/content/discoveries.ts): Oshel's grove on the slab
+   * at the landmark tree's foot, out over the stepping stones, and the Wickmoth's empty perch on the
+   * far arch once it has settled on the Heart.
+   */
+  private buildFinds(): void {
+    // What is stood on: each stone's own solid, undrawn. The ruins mesh draws them.
+    const unseen = new THREE.MeshBasicMaterial({ visible: false });
+    for (const stone of STEPPING_STONES) {
+      const floor = new THREE.Mesh(stoneGeometry(stone, WATER_Y), unseen);
+      this.scene.add(floor);
+      this.floorMeshes.push(floor);
+    }
+
+    // A child's lantern on a crook at the slab's edge nearest the trunk, and a sleeping mat rolled
+    // beside it. The lantern is dark until the wake reaches it.
+    const [sx, sz, top] = STEPPING_STONES[STEPPING_STONES.length - 1];
+    const site = new THREE.Group();
+    site.position.set(sx + 0.75, top, sz + 0.1);
+    const crook = new THREE.CylinderGeometry(0.022, 0.034, 1.5, 5);
+    crook.rotateZ(0.1);
+    crook.translate(0, 0.75, 0);
+    const roll = new THREE.CylinderGeometry(0.11, 0.11, 0.8, 8);
+    roll.rotateZ(Math.PI / 2);
+    roll.rotateY(0.6);
+    roll.translate(-0.55, 0.11, 0.1);
+    const kept = new THREE.Mesh(mergeGeometries([crook, roll], false)!, new THREE.MeshStandardMaterial({ color: 0x4d4636, roughness: 1 }));
+    crook.dispose();
+    roll.dispose();
+    const glass = new THREE.MeshStandardMaterial({ color: 0x1c2a26, roughness: 0.5 });
+    addWake(glass, WAKE_GREEN.clone().multiplyScalar(1.6), 0.6);
+    const lantern = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), glass);
+    lantern.position.set(-0.16, 1.36, 0);
+    site.add(kept, lantern);
+    this.scene.add(site);
+    this.scenery.push(site);
+    this.interaction.register({
+      object: site,
+      label: 'Look at the child’s lantern',
+      range: 2.6,
+      onInteract: () => Survey.collect('kethra_oshel'),
+    });
+
+    const perch = new THREE.Object3D();
+    perch.position.set(H.PERCHES.arch.at.x, H.PERCHES.arch.at.y, H.PERCHES.arch.at.z);
+    this.scene.add(perch);
+    this.interaction.register({
+      object: perch,
+      label: 'Look up at the empty perch',
+      range: 6.5,
+      enabled: () => gameState.hasFlag('kethra_mechanism_solved'),
+      onInteract: () => Survey.collect('kethra_perch'),
+    });
   }
 
   /** The skiff parked on the landing terrace; interacting with it returns the player to the ship. */
@@ -1230,6 +1311,12 @@ export class KethraScene implements GameScene {
     if (shadows && !this.shadowsOn) this.repaintMoon();
     this.shadowsOn = shadows;
     this.player.update(dt);
+    const atStones = atStepStones(this.player.rig.position);
+    if (atStones !== this.atStones) {
+      this.atStones = atStones;
+      if (atStones) this.player.setRespawn(STONES_RESPAWN, STONES_YAW);
+      else this.player.setRespawn(SPAWN, 0);
+    }
     // No prompts and no E while a cutscene (the wake, a gust) has the player disabled.
     if (this.player.enabled) this.interaction.update(this.camera);
     else this.interaction.release();

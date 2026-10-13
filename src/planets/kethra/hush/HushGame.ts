@@ -238,6 +238,8 @@ export class HushGame {
     this.unregister?.();
     this.unregister = null;
     this.host.player.speedLimit = Infinity;
+    // enter() replaced the HUD's objective with the chamber's; outside again, the saved one stands.
+    UIManager.setObjective(gameState.data.objective, gameState.data.objectiveNote);
   }
 
   private reach(i: number): void {
@@ -262,6 +264,7 @@ export class HushGame {
     if (this.gusting || (this.phase !== 'cross' && this.phase !== 'rite')) return;
     this.gusting = true;
     this.gusts++;
+    gameState.setFlag('kethra_moth_caught');
     const player = this.host.player;
     const from = player.rig.position.clone();
     const post = H.POSTS[this.lastPost].at;
@@ -356,6 +359,8 @@ export class HushGame {
   private win(): void {
     if (this.phase === 'won' || this.phase === 'done') return;
     this.phase = 'won';
+    // For the ending's summary: said only of a crossing this flag saw, not assumed of an older save.
+    if (!gameState.hasFlag('kethra_moth_caught')) gameState.setFlag('kethra_hush_unseen');
     gameState.setFlag('kethra_mechanism_solved');
     gameState.addResource('resonant_crystal', 3);
     gameState.addAttributeXp('archaeology', 2);

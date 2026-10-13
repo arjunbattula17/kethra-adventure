@@ -142,6 +142,9 @@ if (ONLY === 'mg1') { await browser.close(); process.exit(failures() ? 1 : 0); }
   const line1 = await page.textContent('#dialogue-text');
   await press(page, 'Escape');
   await page.waitForTimeout(600);
+  // Once met, the Warden opens on her topics instead of her greeting. This check compares the same
+  // option clicked once and twice, so the second conversation has to open where the first did.
+  await D(page, () => { const flags = window.__DEBUG__.gameState.data.flags; const i = flags.indexOf('kethra_warden_met'); if (i >= 0) flags.splice(i, 1); });
   await press(page, 'KeyE');
   await page.waitForSelector('.dialogue-option', { timeout: 10000 });
   await page.locator('.dialogue-option').first().dblclick();

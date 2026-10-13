@@ -99,6 +99,16 @@ class JournalSystemImpl {
     this.render();
   }
 
+  /** Replaces a corrupted log's text with a whole copy of it (the spare buffer in Carrow's locker). */
+  restoreLog(id: string, body: string): void {
+    const log = gameState.data.journalLogs.find((l) => l.id === id);
+    if (!log || !log.corrupted) return;
+    log.body = body;
+    log.corrupted = false;
+    // The same event a newly unlocked log raises, which is what saves.
+    bus.emit('log:unlocked', log);
+  }
+
   open(view: 'logs' | 'evidence' = 'logs'): void {
     this.view = view;
     this.selectedLogId = gameState.data.journalLogs.find((l) => l.unlocked)?.id ?? null;

@@ -960,6 +960,7 @@ button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; backgroun
 #pause-panel .pause-actions { display: grid; gap: 8px; margin-top: 14px; }
 #pause-panel .btn { justify-content: flex-start; }
 #pause-panel .pause-objective { margin-top: 4px; font-size: calc(14px * var(--text-scale)); color: var(--ink-dim); }
+#pause-panel .pause-survey { margin-top: 6px; font-size: calc(13px * var(--text-scale)); color: var(--grove); }
 
 /* Reduced motion: no transitions beyond short fades, no idle animation, no transform motion. */
 body.reduced-motion .title-planet { animation: none; }
@@ -1323,14 +1324,25 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
   transition: opacity 600ms var(--ease-decelerate);
 }
 .credits-roll.visible { opacity: 1; }
-.credits-inner { width: min(640px, 94vw); max-height: calc(100vh - 32px); overflow-y: auto; text-align: center; }
+.credits-inner { width: min(680px, 94vw); max-height: calc(100vh - 32px); overflow-y: auto; text-align: center; }
 .credits-inner .eyebrow { justify-content: center; color: var(--accent); }
 .credits-inner .chapter-title { margin-bottom: 14px; }
-.credits-lede { font-size: calc(18px * var(--text-scale)); line-height: 1.55; color: var(--ink); margin: 0 0 22px; }
+.credits-lede { font-size: calc(18px * var(--text-scale)); line-height: 1.55; color: var(--ink); margin: 0 0 18px; }
 .credits-list { border-top: 1px solid var(--line); padding-top: 16px; }
 .credits-list p { margin: 0 0 10px; font-size: calc(14px * var(--text-scale)); line-height: 1.5; color: var(--ink-dim); }
 .credits-list p:first-child { color: var(--ink); font-weight: 700; }
-.credits-actions { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
+/* With the summary above them the credits are taller than a 720 px window: the buttons stay at
+   the bottom of the panel and the rest scrolls under them. */
+.credits-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 22px 0 6px;
+  background: linear-gradient(to top, var(--void) 62%, transparent);
+}
 
 /* Character sheet */
 .character-panel { width: min(560px, 94vw); }
@@ -1664,3 +1676,52 @@ body.reduced-motion .intercept-panel .intercept-launch { animation: none; }
 body.conducting .hud-left,
 body.conducting #status-bar,
 body.conducting #toast-stack { opacity: 0; transition: opacity var(--dur-small) var(--ease-accelerate); }
+
+/* The ending's summary (src/ui/JourneySummary.ts): three figures, the six skills, the survey by
+   world, the choices made. Sea-green marks what was learned; amber stays for what can be pressed. */
+.summary { margin: 0 0 22px; text-align: left; }
+.summary-figures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.summary-figure { background: var(--hull); padding: 14px 12px 12px; text-align: center; }
+.summary-figure .eyebrow { justify-content: center; margin-top: 4px; }
+.summary-value { font-family: var(--font-display); font-weight: 700; line-height: 1; }
+.summary-number { font-size: calc(40px * var(--text-scale)); color: var(--ink); }
+.summary-of { font-size: calc(16px * var(--text-scale)); color: var(--ink-dim); }
+.summary-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 18px; margin-top: 14px; }
+.summary-stat { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 2px; border-bottom: 1px solid var(--line); font-size: calc(14px * var(--text-scale)); color: var(--ink-dim); }
+.summary-stat-value { font-family: var(--font-display); font-weight: 700; font-size: calc(20px * var(--text-scale)); color: var(--ink); }
+.summary-worlds { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin-top: 12px; font-size: calc(13px * var(--text-scale)); color: var(--grove); }
+.summary-choices { margin-top: 14px; padding-left: 12px; border-left: 2px solid var(--line); }
+.summary-choice { margin: 0 0 6px; font-size: calc(14px * var(--text-scale)); line-height: 1.5; color: var(--ink); }
+.summary-choice:last-child { margin-bottom: 0; }
+@media (max-width: 560px) {
+  .summary-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* The chapter list (src/ui/ChapterSelect.ts). */
+.chapter-select { width: min(560px, 92vw); }
+.chapter-list { display: grid; gap: 8px; }
+.chapter-row {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-control);
+  cursor: pointer;
+  transition: border-color var(--dur-micro) var(--ease-decelerate), background var(--dur-micro) var(--ease-decelerate);
+}
+.chapter-row:hover { border-color: var(--accent); background: var(--surface-hover); }
+.chapter-row:active { transform: scale(0.99); }
+.chapter-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chapter-row.armed { border-color: var(--warn); }
+.chapter-number { font-family: var(--font-display); font-weight: 700; font-size: calc(34px * var(--text-scale)); line-height: 1; text-align: center; color: var(--accent); }
+.chapter-body { display: grid; gap: 2px; }
+.chapter-name { font-family: var(--font-display); font-weight: 700; font-size: calc(20px * var(--text-scale)); line-height: 1.15; }
+.chapter-desc { font-size: calc(14px * var(--text-scale)); color: var(--ink-dim); line-height: 1.4; }
+.chapter-from { font-size: calc(12px * var(--text-scale)); color: var(--grove); }
+.chapter-row.armed .chapter-from { color: var(--warn); }

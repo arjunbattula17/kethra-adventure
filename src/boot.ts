@@ -21,6 +21,8 @@ import { mulberry32 } from './core/rng';
 import { motion } from './motion';
 import { activeMiniGame } from './debug/hooks';
 import { InputManager } from './core/InputManager';
+import { DISCOVERIES } from './content/discoveries';
+import { Survey } from './journal/Survey';
 
 
 const params = new URLSearchParams(location.search);
@@ -100,6 +102,11 @@ const flow = new GameFlow(engine);
 InputManager.mouseLookWanted = () => engine.getCurrentScene()?.mouseLook !== false;
 PauseMenu.init({
   canPause: () => !document.body.classList.contains('title-open') && !document.body.classList.contains('ending-open') && !UIManager.isCinematic() && !!engine.getCurrentScene(),
+  // Aboard the Wren the finds are offered once the course is plotted, so the line waits for that too.
+  survey: () => {
+    if (flow.state === 'wren') return gameState.hasFlag('galaxy_revealed') ? `${Survey.line('wren')} aboard the Wren` : null;
+    return flow.state === 'kethra' || flow.state === 'vessek' ? `${Survey.line(flow.state)} here` : null;
+  },
   canRestart: () => flow.canRestartLevel(),
   restartLevel: () => void flow.restartLevel(),
   quitToTitle: (evenIfUnsaved) => {
@@ -140,5 +147,5 @@ document.addEventListener('visibilitychange', () => AudioSystem.setSuspended(doc
 window.addEventListener('blur', () => PauseMenu.request());
 
 // A read-only probe for the test tools (tools/*.mjs). The interactive harness only loads with ?debug.
-(window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'], motion, miniGame: activeMiniGame };
+(window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'], motion, miniGame: activeMiniGame, survey: DISCOVERIES };
 if (params.has('debug')) void import('./debug/DebugHarness').then(({ startDebugHarness }) => startDebugHarness(engine, flow));

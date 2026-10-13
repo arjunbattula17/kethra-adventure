@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { deinterleaveGeometry, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { loadColour } from '../../core/TextureLibrary';
 import { loadProp } from './props';
 import { tintByLuminance } from './grove';
@@ -70,14 +70,70 @@ const STONE = new THREE.Color(0x66736e);
 const MOTH = new THREE.Color(0xcfe8dc);
 const UP = new THREE.Vector3(0, 1, 0);
 
+/** A stone standing in the pool, as [x, z, top y, radius of its top, sides]. */
+export type Stone = [number, number, number, number, number];
+
+/**
+ * The way out to the landmark tree: three stones stepping down from the east terrace's north edge
+ * (z = 2.2, top 0.98) to a slab in the crook between the tree's two low boughs. They pass north of
+ * the boulder on the terrace's corner, whose collision box reaches z = 4.26.
+ *
+ * Every gap takes the same jump: about 1.2 m of water between tops 1.5 m across. A walking jump
+ * carries 2.1 m (src/content/tuning.ts), so taking off anywhere in the last 0.8 m of one stone
+ * lands on the next. A first gap short enough to stride was tried and was a trap: the same jump
+ * from its edge overshot the stone. A sprinting jump (3.7 m) clears a stone altogether.
+ */
+export const STEPPING_STONES: Stone[] = [
+  [16.9, 4.2, 0.82, 0.75, 8],
+  [19.26, 5.41, 0.66, 0.75, 7],
+  [21.62, 6.62, 0.5, 0.75, 8],
+  [24.3, 8.0, 0.36, 1.2, 8],
+];
+
+/** How far a stone's foot spreads past its top. */
+const STONE_FLARE = 1.3;
+
+/**
+ * A stone's solid, from its flat top down past the waterline: what is drawn and what is stood on.
+ * A chamfer runs round under the top, the sides flare toward the foot, and each corner sits in or
+ * out by up to 9%, the same at every height, so no two stones are the same polygon.
+ */
+export function stoneGeometry([x, z, top, radius, sides]: Stone, waterY: number): THREE.BufferGeometry {
+  const bottom = waterY - 0.6;
+  const height = top - bottom;
+  const g = new THREE.CylinderGeometry(radius, radius * STONE_FLARE, height, sides, 2);
+  const pos = g.getAttribute('position');
+  const midRadius = (radius * (1 + STONE_FLARE)) / 2;
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i);
+    const pz = pos.getZ(i);
+    if (Math.hypot(px, pz) < 1e-4) continue;
+    const corner = (Math.round((Math.atan2(pz, px) / (Math.PI * 2)) * sides) + sides) % sides;
+    const hash = Math.sin((corner + 1) * 12.9898 + x * 78.233 + z * 37.719) * 43758.5453;
+    const uneven = 0.91 + 0.18 * (hash - Math.floor(hash));
+    // The cylinder's middle ring becomes the chamfer's lower edge, just under the top.
+    const shoulder = Math.abs(pos.getY(i)) < 1e-4;
+    const k = (shoulder ? (radius * 1.12) / midRadius : 1) * uneven;
+    pos.setXYZ(i, px * k, shoulder ? height / 2 - 0.14 : pos.getY(i), pz * k);
+  }
+  g.rotateY((x * 1.7 + z) % Math.PI);
+  g.translate(x, (top + bottom) / 2, z);
+  return g;
+}
+
 /**
  * Every column, each with its own height, turn and lean, and the moths at rest on `perches`: small
  * pale moths drawn to the glyph lights, still as the stone. Both models are flat-shaded and carry
- * their colour per vertex, so they merge into one mesh, one material and one draw call.
+ * their colour per vertex, so they merge into one mesh, one material and one draw call. `stones`
+ * join the same mesh, cut down to the column's two attributes (position and colour).
  */
-export async function buildRuins(waterY: number, perches: MothPerch[], count = COLUMNS.length): Promise<{ mesh: THREE.Mesh; shores: ShoreShape[] }> {
+export async function buildRuins(waterY: number, perches: MothPerch[], count = COLUMNS.length, stones: Stone[] = []): Promise<{ mesh: THREE.Mesh; shores: ShoreShape[] }> {
   const columns = COLUMNS.slice(0, count);
   const [[column], [moth]] = await Promise.all([loadProp('column'), perches.length ? loadProp('moth') : [null]]);
+  // Both files store position and colour interleaved, which loads as attributes that will not merge
+  // with the plain ones the stones are built from.
+  deinterleaveGeometry(column.geometry);
+  if (moth) deinterleaveGeometry(moth.geometry);
   const parts: THREE.BufferGeometry[] = [];
   for (const [x, z, stretch, yaw, lean] of columns) {
     const g = column.geometry.clone();
@@ -103,6 +159,24 @@ export async function buildRuins(waterY: number, perches: MothPerch[], count = C
     }
     moth.geometry.dispose();
   }
+  for (const stone of stones) {
+    const g = stoneGeometry(stone, waterY);
+    g.deleteAttribute('normal');
+    g.deleteAttribute('uv');
+    // A trodden top with a little moss in it, a paler chamfer, and dark where the water has been.
+    const pos = g.getAttribute('position');
+    const col = new Float32Array(pos.count * 3);
+    const top = stone[2];
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      // Worn darker where feet land, mossier toward the rim.
+      if (y > top - 0.01) col.set(Math.hypot(pos.getX(i) - stone[0], pos.getZ(i) - stone[1]) < 0.01 ? [0.72, 0.8, 0.74] : [0.94, 1.1, 0.9], i * 3);
+      else if (y > top - 0.2) col.set([1.08, 1.1, 1.06], i * 3);
+      else col.fill(0.45 + 0.4 * THREE.MathUtils.smoothstep(y, waterY, waterY + 0.4), i * 3, i * 3 + 3);
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    parts.push(g);
+  }
   const merged = mergeGeometries(parts, false)!;
   for (const g of parts) g.dispose();
   column.geometry.dispose();
@@ -116,7 +190,7 @@ export async function buildRuins(waterY: number, perches: MothPerch[], count = C
   mesh.name = 'ruins';
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  return { mesh, shores: columns.map(([x, z]) => ({ x, z, hx: 1.1 })) };
+  return { mesh, shores: [...columns.map(([x, z]) => ({ x, z, hx: 1.1 })), ...stones.map(([x, z, , radius]) => ({ x, z, hx: radius * STONE_FLARE + 0.2 }))] };
 }
 
 // --- Loam banks --------------------------------------------------------------------------------
