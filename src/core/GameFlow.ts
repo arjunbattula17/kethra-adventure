@@ -207,7 +207,9 @@ export class GameFlow {
   async startAt(planetId: 'kethra' | 'vessek'): Promise<void> {
     if (this.state !== 'boot') return;
     this.engine.start();
-    await this.go(planetId, () => this.enterPlanet(planetId), true);
+    // A level that fails to load has no ship behind it to stay on, as a failed trip does: boot the
+    // Wren, which carries on from the chapter's state like any saved journey.
+    if (!(await this.go(planetId, () => this.enterPlanet(planetId), true))) await this.start();
   }
 
   /**

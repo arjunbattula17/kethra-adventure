@@ -116,6 +116,18 @@ check('the ending was recorded before leaving', await page.evaluate(() => JSON.p
 check('the hash is cleared', (await page.evaluate(() => location.hash)) === '');
 
 check('no page or console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+
+// ------------------------------------------------------------------ a chapter whose level cannot be fetched
+// Last, because the refused request is itself a console error. A chapter boots with no ship behind
+// it, so a level that fails to load has to end up somewhere playable.
+console.log('\n— a chapter that cannot load its level');
+await page.route('**/assets/VessekScene-*.js', (route) => route.abort());
+await page.goto(`${BASE}?chapter=vessek&tier=low&seed=7`, { waitUntil: 'domcontentloaded' });
+const landed = await waitScene('ShipInteriorScene').then(() => true, () => false);
+d = landed ? await state() : null;
+check('it lands aboard the Wren with the chapter’s progress, not on a black screen', landed && (await page.evaluate(() => window.__DEBUG__.flow.state)) === 'wren' && d.flags.includes('kethra_mechanism_solved') && d.planetsUnlocked.includes('vessek'));
+await page.unroute('**/assets/VessekScene-*.js');
+
 await browser.close();
 console.log(failed ? `\n${failed} check(s) failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

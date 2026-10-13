@@ -133,9 +133,11 @@ for (const [i, key] of ['Digit1', 'Digit2', 'Digit3'].entries()) {
   await whenLooking(true);
   await page.keyboard.press(key);
   const ok = await until((n) => { const s = window.__DEBUG__.engine.getCurrentScene().hush.state(); return s.step > n || s.phase === 'won' || s.phase === 'done'; }, 3000, i);
-  // The breath sends the moth a step closer, and the game counts no breath while it is in flight
-  // ("Let it settle first"). Reading its perch at once, and breathing again at once, raced that
-  // flight: wait for it to arrive, as a player is told to.
+  // HushGame.update tells the moth where to perch and only then resolves a pending breath, so for
+  // one frame after a breath counts the step is ahead of the moth: still perched, on its old perch.
+  // Read in that frame, `perch` was the old one and the next breath went in at once, inside the
+  // 1.2 s the game leaves between breaths (BREATH_COOLDOWN), where it is dropped. Wait for the moth
+  // to settle a step closer, which is what the check is about and what "Let it settle first" asks.
   const closer = i < 2 ? await until((perch) => { const s = window.__DEBUG__.engine.getCurrentScene().hush.state(); return s.perch === perch && s.mode === 'perched'; }, 15000, ['vane', 'rim'][i]) : true;
   const s = await hush();
   check(`breath ${i + 1} held while it looked away${i < 2 ? ', and it comes a step closer' : ''}`, ok && closer, `step ${s.step}, perch ${s.perch}`);

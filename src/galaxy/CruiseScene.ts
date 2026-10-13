@@ -49,6 +49,13 @@ const BEAT = {
 /** Time in seconds when the ship reaches its berth at Vessek. */
 const DOCKED = BEAT.handoff + 1.2;
 
+/**
+ * In transit the sun laps the hull once a day, up to this many laps. The sequence was tuned at
+ * Kethra's six days; at the Anchorage's eleven it lapped in under a second and the hull strobed
+ * from lit to dark. The day counter still counts every day.
+ */
+const SUN_LAPS_MAX = 6;
+
 /** Ship speed keyframes as [time in s, units per second], linearly interpolated. At Kethra the ship
  * keeps moving for the skiff drop; at Vessek it stops at the berth. */
 const SPEED: Record<CruiseOptions['destination'], [number, number][]> = {
@@ -300,8 +307,9 @@ export class CruiseScene implements GameScene {
     this.engineLight.intensity = 26 * drive;
 
     // During transit the sun rotates around the hull once per in-game day.
-    const dayProgress = smooth(BEAT.transit + 0.5, BEAT.reveal - 1, time) * this.opts.days;
-    const sunAngle = dayProgress * Math.PI * 2;
+    const transit = smooth(BEAT.transit + 0.5, BEAT.reveal - 1, time);
+    const dayProgress = transit * this.opts.days;
+    const sunAngle = transit * Math.min(this.opts.days, SUN_LAPS_MAX) * Math.PI * 2;
     const sunDir = _sunDir.copy(SUN_DIR).applyAxisAngle(_x, sunAngle);
     this.sun.group.position.copy(S).addScaledVector(sunDir, 3000);
     this.sun.light.position.copy(this.sun.group.position);

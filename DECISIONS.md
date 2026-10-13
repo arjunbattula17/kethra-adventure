@@ -252,3 +252,14 @@ filter `CHAPTERS` in `ChapterSelect.open()` by `Chapters.hasOwn`.
 **Not built:** the live 3D title with a match cut into the intro (DESIGN §1). The title is still the
 DOM screen. It changes the boot path, the game's least-tested and most timing-sensitive code, and
 wants a cold-cache check on real hardware; it is the first item in docs/REPORT.md's next steps.
+
+### D-28 · FIX · The cruise's sun laps the hull at most six times — *Done 2026-10-13, reversible (one constant)*
+Found auditing the previous pass. In transit the sun circles the hull once per day of the trip. The
+trip to the Anchorage used to borrow Kethra's six days; flying it at the chart's eleven (the fix in
+d5bffe9) put eleven laps into the same ten seconds, so the hull went from lit to dark and back about
+once a second. The laps are now capped at six, the count the sequence was tuned and looked at with
+(`SUN_LAPS_MAX`, src/galaxy/CruiseScene.ts). The day counter and ORION's line still say eleven.
+- **What this gives up:** on a trip longer than six days the sun no longer turns exactly once a day.
+  The counter is what tells the player the days; the sun is the mood.
+- **Kethra's trip is unchanged** (six days, six laps).
+- **To undo:** raise `SUN_LAPS_MAX`, or lengthen the transit beat for long trips instead.

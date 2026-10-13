@@ -134,6 +134,15 @@ if (ONLY === 'mg1') { await browser.close(); process.exit(failures() ? 1 : 0); }
   await page.waitForTimeout(3000);
   await teleport(page, -3, 0.38, 4.6, 0);
   await page.waitForTimeout(500);
+  // The Warden's first conversation opens on her greeting; once past it she has met you, and every
+  // later one opens on her topics. The comparison needs two conversations that open on the same
+  // line, so it is made there: get past the greeting, then click the first topic once, then twice.
+  await press(page, 'KeyE');
+  await page.waitForSelector('.dialogue-option', { timeout: 10000 });
+  await page.locator('.dialogue-option').first().click();
+  await page.waitForTimeout(700);
+  await press(page, 'Escape');
+  await page.waitForTimeout(600);
   await press(page, 'KeyE');
   await page.waitForSelector('.dialogue-option', { timeout: 10000 });
   const line0 = await page.textContent('#dialogue-text');
@@ -142,15 +151,13 @@ if (ONLY === 'mg1') { await browser.close(); process.exit(failures() ? 1 : 0); }
   const line1 = await page.textContent('#dialogue-text');
   await press(page, 'Escape');
   await page.waitForTimeout(600);
-  // Once met, the Warden opens on her topics instead of her greeting. This check compares the same
-  // option clicked once and twice, so the second conversation has to open where the first did.
-  await D(page, () => { const flags = window.__DEBUG__.gameState.data.flags; const i = flags.indexOf('kethra_warden_met'); if (i >= 0) flags.splice(i, 1); });
   await press(page, 'KeyE');
   await page.waitForSelector('.dialogue-option', { timeout: 10000 });
+  const lineOpen = await page.textContent('#dialogue-text');
   await page.locator('.dialogue-option').first().dblclick();
   await page.waitForTimeout(700);
   const lineDbl = await page.textContent('#dialogue-text');
-  check('BUG-026: a double-click on an option advances one line, like a single click', lineDbl === line1, `single: "${line1?.slice(0, 50)}" / double: "${lineDbl?.slice(0, 50)}" (start "${line0?.slice(0, 30)}")`);
+  check('BUG-026: a double-click on an option advances one line, like a single click', lineOpen === line0 && line1 !== line0 && lineDbl === line1, `single: "${line1?.slice(0, 50)}" / double: "${lineDbl?.slice(0, 50)}" (start "${line0?.slice(0, 30)}" / "${lineOpen?.slice(0, 30)}")`);
   await press(page, 'Escape');
   await page.waitForTimeout(500);
   const t0 = await D(page, () => window.__DEBUG__.motion.gameTime);

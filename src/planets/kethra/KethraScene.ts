@@ -465,6 +465,8 @@ export class KethraScene implements GameScene {
     if (gameState.data.journalLogs.length > 0 && !gameState.data.journalLogs.some((l) => l.id === KETHRA_LORE_ENTRIES[0]?.id)) {
       gameState.data.journalLogs.push(...KETHRA_LORE_ENTRIES.map((l) => ({ ...l })));
     }
+    // The shrine's survey flag is newer than its record: a save that already holds the record has read it.
+    if (gameState.data.journalLogs.some((l) => l.id === 'kethra_ritual_record' && l.unlocked)) gameState.setFlag('kethra_shrine_read');
     // Standing under a forest that makes its own light is the moment the concept means something.
     ShipLibrary.award(['lib_biolum']);
 
