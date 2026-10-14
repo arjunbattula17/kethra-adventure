@@ -116,6 +116,11 @@ export class GameFlow {
 
   state: FlowState = 'boot';
   private busy = false;
+  /**
+   * How the last transition that did not complete ended: 'handled' when its body put the player
+   * back somewhere playable (HandledFailure), 'shown' when go() put up the failure screen instead.
+   */
+  private lastFailure: 'handled' | 'shown' | null = null;
   /** Waits run on the game clock, so they pause with the game. */
   private fx = new MotionScope('game');
 
@@ -156,6 +161,7 @@ export class GameFlow {
       return false;
     }
     this.busy = true;
+    this.lastFailure = null;
     try {
       await body();
       this.state = to;
@@ -164,8 +170,10 @@ export class GameFlow {
       if (err instanceof HandledFailure) {
         // The body has already restored the player and shown an error; the state is unchanged.
         console.warn(`[flow] ${this.state} → ${to} did not complete`, err);
+        this.lastFailure = 'handled';
         return false;
       }
+      this.lastFailure = 'shown';
       // Anything else stopped a scene change partway, usually behind the black cover: a scene that
       // couldn't build (a file that failed every retry), or a GPU that went away. Say so plainly and
       // offer a reload rather than leaving a black screen.
@@ -272,9 +280,11 @@ export class GameFlow {
   async startAt(planetId: 'kethra' | 'vessek'): Promise<void> {
     if (this.state !== 'boot') return;
     this.engine.start();
-    // A level that fails to load has no ship behind it to stay on, as a failed trip does: boot the
-    // Wren, which carries on from the chapter's state like any saved journey.
-    if (!(await this.go(planetId, () => this.enterPlanet(planetId), true))) await this.start();
+    // A level whose code fails to download has no ship behind it to stay on, as a failed trip does:
+    // boot the Wren, which carries on from the chapter's state like any saved journey. A level that
+    // fails while it builds is on the failure screen instead, and nothing is started behind it: the
+    // screen and its reload stay the only thing to see and use.
+    if (!(await this.go(planetId, () => this.enterPlanet(planetId), true)) && this.lastFailure === 'handled') await this.start();
   }
 
   /**
@@ -698,7 +708,7 @@ export class GameFlow {
       // Reported where it is awaited, below.
       levelReady?.catch(() => {});
       // The cruise holds its last shot until this settles, so a failed build must still settle it:
-      // rejected, the hold never ended. The failure is thrown once the cruise hands back (see go()).
+      // rejected, the hold never ended. The failure is thrown once the cruise hands back (the catch below).
       let arrivalFailure: unknown = null;
       cruise.prepareArrival = () =>
         startArrival().catch((err: unknown) => {
@@ -719,6 +729,18 @@ export class GameFlow {
       // aboard a fresh Wren with the same message as a failed start, so the player can try again;
       // that is a failure the body has already handled, as go() understands it.
       console.warn(`[flow] the trip to ${planetId} failed`, err);
+      // The trip's scenes that never reached the screen would stay in memory for the rest of the
+      // session; the one on screen goes when abortTrip replaces it. A scene that failed partway
+      // through its build may not dispose cleanly, which must not stop the player getting back.
+      const onScreen = this.engine.getCurrentScene();
+      for (const scene of [cruise, canopy, level]) {
+        if (!scene || scene === onScreen) continue;
+        try {
+          scene.dispose();
+        } catch (disposeErr) {
+          console.warn('[flow] a scene from the failed trip did not dispose cleanly', disposeErr);
+        }
+      }
       await this.abortTrip();
       throw new HandledFailure(`the trip to ${planetId} failed`);
     }

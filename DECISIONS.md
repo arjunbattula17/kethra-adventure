@@ -417,3 +417,40 @@ Chromebook graphics start on Performance; the start-up benchmark re-measures aft
 can lower the render resolution before the first frame; and on Performance a scene that averages
 under ~45 fps is held at a steady 30 fps (judged per scene). Choosing a tier by hand turns all of it
 off, as before.
+
+### D-34 · Team decision · A failed trip ends back aboard the Wren — *Chosen by the team 2026-10-14; validated on integration/A-validation*
+When the remote's fifteen commits were merged (D-32), the two sides had tested opposite behaviour for
+one failure: a level file that never loads after the departure. The remote ended the trip on the
+"Something didn't load" screen with a reload; this branch (BUG-008) put the player back aboard. The
+team chose **back aboard**: a fresh Wren, the player in control, "Navigation data unavailable. Check
+your connection and try again.", and the trip can be flown again once the file loads.
+- **What changed to hold to it.**
+  - `GameFlow.cruiseTo` catches a failed trip, frees the trip's scenes that never reached the screen
+    (the remote's design reloaded, so it never needed to), and puts the player back aboard.
+  - A **chapter start** whose level fails while it builds now stays on the failure screen with
+    nothing started behind it. Before, the Wren booted underneath and covered it. A chapter whose
+    level *code* fails to download still lands aboard the Wren with the chapter's progress, as
+    before. (`go()` records whether a failure was handled; only a handled one falls back.)
+- **Tests.** Check 4 of the remote's `tools/test-load-failure.mjs` expected the failure screen. It
+  now expects the recovery above and a successful retry. `stress_tests/s09-failures.mjs` (BUG-008) is
+  kept as the regression test for the same thing. `tools/test-ending.mjs` gains the chapter case;
+  with the old fallback it fails, as it should.
+- **To reverse:** candidate `candidate/merge-B-failure-screen` holds the other choice.
+
+### D-35 · FIX · Jumping works again — *Found and fixed 2026-10-14*
+Found validating the merge, when the stepping-stone test passed on one build and failed on another.
+A frame-by-frame trace showed that **every jump was cancelled on its first airborne frame**. The
+floor snap that walks the player up and down steps also caught a player who was rising, if the floor
+was within 1.45 m: at 60 fps a jump's first frame is 0.1 m up, so the player was put straight back
+down. Measured on this branch, the merged branch and the remote alike: 0.095 m, held or tapped. It
+only worked below about 22 fps, which is likely why nobody noticed. The code is the same as the first
+commit's (2026-08-22).
+- **The fix:** the snap only applies while not rising (`PlayerController.update`). A standing jump
+  now peaks at 0.95 m on Kethra and 0.90 m aboard the Wren, against the 1 m every layout was designed
+  for (tuning.ts, "a jump apex of ... 1 m").
+- **What it changes for a player:** Space jumps. The stepping stones are crossed by jumping, as
+  designed, instead of by sliding down their flared sides, which is what had made that test pass.
+- **Not checked by a person yet:** places a working jump now reaches that it didn't before (the top
+  of furniture, a shortcut). The layout tests assume the 1 m jump and pass. Both collision checks
+  pass with the same counts as before (the Wren 1,757 of 1,757 cells, Kethra 11 targets), but they
+  model walking, not jumping, so they do not look for what a jump newly reaches.

@@ -282,7 +282,10 @@ export class PlayerController {
       const stepDiff = floorY - this.rig.position.y;
       if (stepDiff > MAX_STEP_UP && !this.onGround) {
         // wall too tall to step onto: keep falling, don't snap
-      } else if (Math.abs(stepDiff) <= MAX_STEP_UP + 1 || this.velocityY <= 0) {
+      } else if (this.velocityY <= 0) {
+        // Not while rising. This used to snap within 1.45 m whatever the speed, so a jump's first
+        // airborne frame (0.1 m up at 60 fps) was put straight back on the floor: every jump stopped at
+        // 0.1 m on any machine faster than ~22 fps, where the layouts assume a 1 m apex (tuning.ts).
         if (this.rig.position.y <= floorY + 0.05 || stepDiff <= MAX_STEP_UP) {
           resolved.y = floorY;
           this.onGround = this.rig.position.y - floorY < 0.15 || stepDiff >= -0.2;

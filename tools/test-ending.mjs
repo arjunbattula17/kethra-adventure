@@ -121,6 +121,9 @@ check('no page or console errors', errors.length === 0, errors.slice(0, 3).join(
 // The build ships with chapters open, which the list above showed. Gated, a chapter is offered only
 // once reached, which the store of arrivals records: it is emptied for the check and put back after.
 console.log('\n— chapters, gated');
+// On the title the engine, and with it this probe, is made a moment after the title is up (boot.ts,
+// ensureEngine), so wait for it rather than reading it the instant the page has loaded.
+await page.waitForFunction(() => !!window.__DEBUG__?.chapters, null, { timeout: 30000, polling: 100 });
 const gate = await page.evaluate(() => {
   const { chapters } = window.__DEBUG__;
   const kept = localStorage.getItem('kethra_chapters_v1');
@@ -147,6 +150,34 @@ const landed = await waitScene('ShipInteriorScene').then(() => true, () => false
 d = landed ? await state() : null;
 check('it lands aboard the Wren with the chapter’s progress, not on a black screen', landed && (await page.evaluate(() => window.__DEBUG__.flow.state)) === 'wren' && d.flags.includes('kethra_mechanism_solved') && d.planetsUnlocked.includes('vessek'));
 await page.unroute('**/assets/VessekScene-*.js');
+
+// ------------------------------------------------------------------ a chapter whose level fails while it builds
+// Its code arrives but one of its models never does, so the level cannot finish building. That is the
+// failure screen with its reload, and nothing may start behind it: no Wren booted underneath, nothing
+// to pause, still the same a while later.
+console.log('\n— a chapter whose level fails while it builds');
+await page.route('**/CommonTree_1.gltf', (route) => route.abort('connectionfailed'));
+await page.goto(`${BASE}?chapter=kethra&tier=low&seed=7`, { waitUntil: 'domcontentloaded' });
+const failedShown = await page
+  .waitForFunction(() => {
+    const el = document.querySelector('.loading-indicator.visible');
+    return !!el && /didn’t load/.test(el.textContent ?? '') && !!el.querySelector('button') && !window.__DEBUG__?.flow.isTransitioning();
+  }, null, { timeout: 180000, polling: 250 })
+  .then(() => true, () => false);
+const alone = async () => page.evaluate(() => ({
+  scene: window.__DEBUG__.engine.getCurrentScene()?.kind ?? null,
+  flow: window.__DEBUG__.flow.state,
+  busy: window.__DEBUG__.flow.isTransitioning(),
+  failureScreen: !!document.querySelector('.loading-indicator.visible button'),
+  focused: document.activeElement?.closest('.loading-indicator') !== null,
+}));
+const first = await alone();
+await page.waitForTimeout(8000);
+const later = await alone();
+const sole = (s) => s.failureScreen && s.focused && s.scene !== 'ShipInteriorScene' && s.flow !== 'wren' && !s.busy;
+check('the failure screen is up with its reload, and the Wren is not started behind it', failedShown && sole(first), JSON.stringify(first));
+check('eight seconds on, it is still the only thing on screen', sole(later), JSON.stringify(later));
+await page.unroute('**/CommonTree_1.gltf');
 
 await browser.close();
 console.log(failed ? `\n${failed} check(s) failed` : '\nall passed');
