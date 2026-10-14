@@ -257,6 +257,48 @@ function rectsOf(grid: Uint8Array, nx: number, nz: number, ox: number, oz: numbe
  * blocking the next run at corners and tees.
  */
 export function ductShell(): Box[] {
+  if (!shell) {
+    const steps = ductShellSteps();
+    while (!steps.next().done);
+  }
+  return shell!;
+}
+
+/**
+ * ductShell, computed a step at a time with `between` awaited after each step (a level's walls in one
+ * direction, its floors and roofs): the whole raster is ~180 ms on an Intel UHD laptop, and the
+ * Anchorage builds while the docking cruise plays.
+ */
+export async function prepareDuctShell(between: () => Promise<void> | void): Promise<void> {
+  if (shell) return;
+  const steps = ductShellSteps();
+  while (!steps.next().done) await between();
+}
+
+/** ductShell's boxes, computed once: they depend only on the layout. */
+let shell: Box[] | null = null;
+
+/**
+ * Marks the cells whose centres lie inside `r`. Only the cells around `r` are tested (with the same
+ * test as every other): testing every cell of the grid against every rectangle was ~120 ms of the
+ * Anchorage's build on an Intel UHD laptop.
+ */
+function fill(grid: Uint8Array, r: Rect, nx: number, nz: number, ox: number, oz: number): void {
+  const i0 = Math.max(0, Math.floor((r.x0 - ox) / RES) - 1);
+  const i1 = Math.min(nx - 1, Math.ceil((r.x1 - ox) / RES) + 1);
+  const k0 = Math.max(0, Math.floor((r.z0 - oz) / RES) - 1);
+  const k1 = Math.min(nz - 1, Math.ceil((r.z1 - oz) / RES) + 1);
+  for (let k = k0; k <= k1; k++) {
+    const z = oz + (k + 0.5) * RES;
+    if (!(z > r.z0 && z < r.z1)) continue;
+    for (let i = i0; i <= i1; i++) {
+      const x = ox + (i + 0.5) * RES;
+      if (x > r.x0 && x < r.x1) grid[k * nx + i] = 1;
+    }
+  }
+}
+
+function* ductShellSteps(): Generator<void, void, void> {
   const out: Box[] = [];
   const t = DUCT_WALL;
   const h = DUCT_WIDTH / 2;
@@ -270,18 +312,12 @@ export function ductShell(): Box[] {
     const nz = Math.ceil((Math.max(...rects.map((r) => r.z1)) - oz) / RES) + 2;
     const inside = new Uint8Array(nx * nz);
     const inShaft = new Uint8Array(nx * nz);
-    for (let k = 0; k < nz; k++) {
-      for (let i = 0; i < nx; i++) {
-        const x = ox + (i + 0.5) * RES;
-        const z = oz + (k + 0.5) * RES;
-        const hit = (r: Rect) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1;
-        if (rects.some(hit)) inside[k * nx + i] = 1;
-        if (shafts.some(hit)) inShaft[k * nx + i] = 1;
-      }
-    }
+    for (const r of rects) fill(inside, r, nx, nz, ox, oz);
+    for (const r of shafts) fill(inShaft, r, nx, nz, ox, oz);
     // Walls: one along each edge between an inside cell and an outside one, merged into runs.
     const cell = (i: number, k: number) => i >= 0 && k >= 0 && i < nx && k < nz && inside[k * nx + i] === 1;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      yield;
       // Edges facing +x or -x run along z; edges facing +z or -z run along x.
       const alongZ = dx !== 0;
       const outer = alongZ ? nx : nz;
@@ -313,6 +349,7 @@ export function ductShell(): Box[] {
         }
       }
     }
+    yield;
     // Floors and roofs, open over the shafts where the levels join.
     const floorGrid = new Uint8Array(nx * nz);
     const roofGrid = new Uint8Array(nx * nz);
@@ -332,7 +369,7 @@ export function ductShell(): Box[] {
     out.push({ min: v(s.x0 - t, y0, s.z0), max: v(s.x0, y1, s.z1), kind: 'shaft' });
     out.push({ min: v(s.x1, y0, s.z0), max: v(s.x1 + t, y1, s.z1), kind: 'shaft' });
   }
-  return out;
+  shell = out;
 }
 
 /** Where a bay's opening is, on the room's inner face. */

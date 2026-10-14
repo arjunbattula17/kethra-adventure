@@ -19,11 +19,49 @@ import type { GameScene } from './Engine';
 import { motion, MotionScope, ease } from '../motion';
 import { chartTrip } from '../galaxy/planetData';
 import { Chapters, CHAPTERS } from './chapters';
+import { mark, timedAsync } from './perfMarks';
+import { BackgroundPrep } from './BackgroundPrep';
+import { PACE } from './prepare';
 
 /** The levels a player travels to, with the card that names each one on arrival. */
 const LEVELS: Record<string, { number: number; title: string; line: string }> = Object.fromEntries(
   CHAPTERS.filter((c) => c.id !== 'wren').map((c) => [c.id, c]),
 );
+
+/**
+ * Longest the intro's opening shot holds for the Wren's build (IntroScene.holdOpening). On an Intel UHD
+ * laptop the build takes ~2 s once its files have arrived; on a slow connection the intro starts
+ * anyway, and the rest of the build shows as the odd dropped frame rather than a longer wait.
+ */
+const SHIP_BUILD_HOLD_MS = 4000;
+
+/** A scene's preparation stages, each with its share of the loading bar and what the bar says. */
+const STAGES = {
+  build: { from: 0, to: 0.35, what: '' },
+  compile: { from: 0.35, to: 0.75, what: 'Preparing materials' },
+  upload: { from: 0.75, to: 0.88, what: 'Loading textures onto the graphics card' },
+  draw: { from: 0.88, to: 1, what: 'Warming up the graphics card' },
+} as const;
+type Stage = keyof typeof STAGES;
+
+/**
+ * Loading-bar progress through a scene's preparation: each stage's real progress on its share of the
+ * bar, which runs from `from` to `to`; `building` names the first stage ("Waking the Wren").
+ */
+function stagedProgress(building: string, from = 0.05, to = 0.97): (fraction: number, stage: Stage) => void {
+  return (fraction, stage) => {
+    const s = STAGES[stage];
+    UIManager.setLoadingProgress(from + (to - from) * (s.from + (s.to - s.from) * fraction), stage === 'build' ? building : s.what);
+  };
+}
+const shipLoadingProgress = stagedProgress('Waking the Wren');
+
+/**
+ * A transition that failed after putting the player back where they were, with a message (a level's
+ * code that wouldn't download). Any other failure leaves the player mid-transition, often on a black
+ * cover, and go() shows the load-failure screen instead.
+ */
+class HandledFailure extends Error {}
 
 /**
  * Scene-level states of a playthrough. One transition runs at a time, and only along EDGES, so a
@@ -68,8 +106,8 @@ export class GameFlow {
   private shipScene: ShipInteriorScene | null = null;
   /** Live only during the opening. Public so the harnesses in tools/ can drive it through __DEBUG__. */
   tutorial: TutorialSequence | null = null;
-  /** Interior scene being prepared behind the intro cinematic; consumed at the handover. */
-  private pendingShip: Promise<ShipInteriorScene> | null = null;
+  /** The Wren, preparing itself behind the intro cinematic; consumed at the handover. */
+  private shipPrep: BackgroundPrep<ShipInteriorScene> | null = null;
   /** The markers pointing at the navigation console between MG1 and the first departure. */
   private consoleGuide: ConsoleGuide | null = null;
 
@@ -123,8 +161,16 @@ export class GameFlow {
       this.state = to;
       return true;
     } catch (err) {
-      // A failed body has already restored the player and shown an error; the state is unchanged.
-      console.warn(`[flow] ${this.state} → ${to} did not complete`, err);
+      if (err instanceof HandledFailure) {
+        // The body has already restored the player and shown an error; the state is unchanged.
+        console.warn(`[flow] ${this.state} → ${to} did not complete`, err);
+        return false;
+      }
+      // Anything else stopped a scene change partway, usually behind the black cover: a scene that
+      // couldn't build (a file that failed every retry), or a GPU that went away. Say so plainly and
+      // offer a reload rather than leaving a black screen.
+      console.error(`[flow] ${this.state} → ${to} failed`, err);
+      UIManager.showLoadFailure();
       return false;
     } finally {
       this.busy = false;
@@ -160,6 +206,24 @@ export class GameFlow {
 
   // ------------------------------------------------------------------ boot
 
+  /**
+   * While the title screen waits for a click: start the downloads the next scene needs, whichever
+   * button it is (the Wren follows New game and Continue alike; the intro only New game). Only
+   * fetching, parsing and off-thread decoding: nothing here draws, compiles or paints, so the title
+   * stays responsive. Asset prep that does (building the room) waits for the click.
+   */
+  prefetchWhileTitleWaits(likely: 'continue' | 'newGame'): void {
+    // One after the other, in the order the likely click needs them: on a slow connection, fetching
+    // both at once delayed the intro's first frame by the Wren's downloads (5.9 s at 10 Mbps).
+    const intro = () => import('../galaxy/IntroScene').then((m) => m.preloadIntro());
+    const ship = () => ShipInteriorScene.preload();
+    const [first, second] = likely === 'continue' ? [ship, intro] : [intro, ship];
+    void first()
+      .catch(() => {})
+      .then(second)
+      .catch(() => {});
+  }
+
   async start(): Promise<void> {
     if (this.state !== 'boot') return;
     const params = new URLSearchParams(location.search);
@@ -173,8 +237,9 @@ export class GameFlow {
       markOpeningSeen();
       await this.go('wren', async () => {
         this.shipScene = new ShipInteriorScene();
-        await this.engine.setScene(() => this.shipScene!);
+        await this.engine.setScene(() => this.shipScene!, { onProgress: shipLoadingProgress });
         this.engine.start();
+        mark('ship:playable');
       });
       void this.finishReturnToShip();
       return;
@@ -186,7 +251,7 @@ export class GameFlow {
     if (params.has('skipTutorial') || midReveal) {
       await this.go('reveal', async () => {
         this.shipScene = new ShipInteriorScene();
-        await this.engine.setScene(() => this.shipScene!);
+        await this.engine.setScene(() => this.shipScene!, { onProgress: shipLoadingProgress });
         this.engine.start();
         await this.enterReveal();
       });
@@ -226,51 +291,47 @@ export class GameFlow {
     }
     const intro = new IntroScene();
     intro.onDone = () => void this.go('wren', () => this.beginTutorialOnShip());
-    await this.engine.setScene(() => intro);
-    // Build, compile AND first-draw the interior before the intro's clock starts, under the
-    // loading overlay. It used to build while the intro played, to overlap the wait; but on a
-    // cold shader cache its ~93 programs stalled the GPU for ~11 s, freezing the intro on its
-    // opening frame (measured with tools/intro-check.mjs), and the first-draw stall still landed
-    // at the handover. Same total wait, now all of it where the loading UI says so; the intro then
-    // plays uninterrupted and hands over to an interior that's ready to draw.
-    UIManager.showLoading();
-    UIManager.setLoadingProgress(0.1, 'Waking the Wren');
-    void UIManager.fadeToBlack(); // keeps the pre-warm frame from showing through the overlay
-    try {
-      const scene = new ShipInteriorScene();
-      await this.engine.prepareScene(scene);
-      UIManager.setLoadingProgress(0.85, 'Warming up the graphics card');
-      this.engine.prewarmScene(scene);
-      UIManager.setLoadingProgress(0.95, 'Checking what this computer can draw');
-      // If the tier drops, the ship's shaders change: draw it once more under the cover.
-      const before = this.engine.getQualityTier();
-      const after = this.engine.benchmarkScene(scene);
-      if (after !== before) {
-        scene.adaptToTier(after);
-        this.engine.prewarmScene(scene);
-      }
-      UIManager.setLoadingProgress(1, '');
-      this.pendingShip = Promise.resolve(scene);
-    } catch {
-      // A kit fetch failed: leave the ship to beginTutorialOnShip's direct build, which surfaces
-      // its own failure the same way the pre-preload boot did.
-      this.pendingShip = null;
-    }
+    // The intro goes up first: one hull, two starfields and a handful of programs, about a second
+    // behind the loading bar. The Wren then prepares itself while the intro plays. Its build (geometry
+    // and painted textures, in pieces of up to ~200 ms) runs while the opening shot holds still
+    // (IntroScene.holdOpening); its GPU work (programs, uploads, first draws) is paced to stay inside
+    // the intro's frames (prepare.ts). The last time this overlapped the intro, all of the Wren's
+    // programs were compiled at once and froze it for ~11 s; that is what the pacing prevents
+    // (docs/PERF_LOG.md, 2026-09-28). Whatever is left when the intro ends finishes behind the
+    // handover's loading bar.
+    void UIManager.fadeToBlack();
+    await this.engine.setScene(() => intro, { onProgress: stagedProgress('Starting the engines') });
+    // The hold is in place before the first frame: the build starts only once the reveal below has
+    // finished (its wipe is animated on the page's own thread), and the clock must not start first.
+    let buildDone!: () => void;
+    intro.holdOpening(new Promise<void>((resolve) => (buildDone = resolve)), SHIP_BUILD_HOLD_MS);
     this.engine.start();
-    UIManager.hideLoading();
+    mark('intro:uncovered');
     await UIManager.fadeFromBlack();
+    const prep = new BackgroundPrep(this.engine, new ShipInteriorScene(), PACE.playing);
+    this.shipPrep = prep;
+    void prep.built.then(buildDone);
     return true;
   }
 
   /** The intro-to-interior handover: build the ship behind a fade, then start the tutorial. */
   private async beginTutorialOnShip(): Promise<void> {
-    const prepared = this.pendingShip;
-    this.pendingShip = null;
+    const prep = this.shipPrep;
+    this.shipPrep = null;
     await UIManager.fadeToBlack();
     let scene: ShipInteriorScene | null = null;
-    if (prepared) {
+    if (prep) {
+      if (!prep.finished) {
+        // Skipped early, or a slow machine: finish at full pace, with the bar picking up where the
+        // preparation has got to.
+        UIManager.showLoading();
+        prep.pacer.pace = PACE.loading;
+        prep.onProgress = shipLoadingProgress;
+        shipLoadingProgress(prep.fraction, prep.stage);
+      }
       try {
-        scene = await prepared;
+        scene = await prep.done;
+        await this.fitShipToMachine(scene);
       } catch {
         // Preparation failed (a kit fetch died mid-intro) — fall through to the direct build,
         // which surfaces its own failure the same way the pre-preload boot did.
@@ -278,12 +339,30 @@ export class GameFlow {
       }
     }
     this.shipScene = scene ?? new ShipInteriorScene();
-    await this.engine.setScene(() => this.shipScene!, { prepared: scene !== null });
+    await this.engine.setScene(() => this.shipScene!, { prepared: scene !== null, onProgress: shipLoadingProgress });
     this.engine.start();
     await UIManager.fadeFromBlack();
+    mark('ship:playable');
     this.tutorial = new TutorialSequence(this.shipScene, hasSeenOpening());
     this.tutorial.onComplete = () => void this.go('reveal', () => this.beginFirstGame());
     this.tutorial.start();
+  }
+
+  /**
+   * The start-up benchmark on the prepared Wren, behind the handover's cover: a few hidden frames
+   * decide whether this machine keeps the guessed tier. If the tier drops, the room's lights (and so
+   * every program) change, and the room is warmed again before it is shown.
+   */
+  private async fitShipToMachine(scene: ShipInteriorScene): Promise<void> {
+    const before = this.engine.getQualityTier();
+    const after = await timedAsync('ship:benchmark', () => this.engine.benchmarkScene(scene));
+    if (after !== before) {
+      scene.adaptToTier(after);
+      UIManager.showLoading();
+      await this.engine.warmScene(scene, { onProgress: shipLoadingProgress });
+    }
+    // Still under 30 fps on Performance: a lower render resolution, chosen before the first frame.
+    await timedAsync('ship:fitRenderScale', () => this.engine.fitRenderScale(scene));
   }
 
   // ------------------------------------------------------------------ the opening
@@ -414,7 +493,7 @@ export class GameFlow {
     }
     const reveal = new GalaxyRevealScene();
     reveal.onPlotted = (result) => void this.completeReveal(result);
-    await this.engine.setScene(() => reveal);
+    await this.engine.setScene(() => reveal, { onProgress: stagedProgress('Booting navigation') });
     await UIManager.fadeFromBlack();
   }
 
@@ -430,7 +509,7 @@ export class GameFlow {
     await UIManager.fadeToBlack();
     if (result) gameState.data.course = { points: result.course.flatMap((p) => [p.x, p.y, p.z]), days: result.days, cells: result.cells };
     this.shipScene = new ShipInteriorScene();
-    await this.engine.setScene(() => this.shipScene!);
+    await this.engine.setScene(() => this.shipScene!, { onProgress: shipLoadingProgress });
     this.poseSeated(this.shipScene);
     UIManager.setLookPromptEnabled(false);
     // MG1 replaced the HUD objective; restore the saved one.
@@ -587,15 +666,17 @@ export class GameFlow {
       if (canopyModule) canopy = new canopyModule.CanopyScene();
     } catch {
       UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
-      throw new Error(`level ${planetId} failed to load`);
+      throw new HandledFailure(`level ${planetId} failed to load`);
     }
     // Kethra's trip is the one the player plotted in MG1. Any other flies what the chart quotes: it
     // used to borrow Kethra's six days, so ORION announced six for a trip the map gives as 10.4.
     const course = gameState.data.course;
     const trip = planetId === 'kethra' && course ? course : chartTrip(planetId);
     const cruise = new CruiseScene({ destination: planetId === 'vessek' ? 'vessek' : 'kethra', days: trip.days, cells: trip.cells });
-    const cruiseReady = this.engine.prepareScene(cruise);
-    // Awaited after the departure; marked handled now so an early failure isn't reported as uncaught.
+    // Prepared while the ship is still on screen (First light, the departure): paced to stay inside
+    // its frames, as the Wren is behind the intro.
+    const cruiseReady = this.engine.prepareScene(cruise, { pacer: this.engine.newPacer(PACE.playing) });
+    // A failure is reported by the await below, once First light has played.
     cruiseReady.catch(() => {});
     try {
       if (ship) await (gameState.hasFlag('first_light') ? this.departure(ship) : this.firstLight(ship));
@@ -603,23 +684,43 @@ export class GameFlow {
       gameState.setFlag('left_wren');
       await this.engine.setScene(() => cruise, { prepared: true, quiet: true });
       this.shipScene = null;
-      cruise.prepareArrival = () => this.engine.prepareScene(canopy ?? level);
-      await new Promise<void>((resolve, reject) => {
-        cruise.onArrive = resolve;
-        cruise.onArriveFailed = reject;
-      });
+      // What comes after the cruise prepares while it flies, paced to stay inside its frames: the
+      // canopy first (the cruise hands over to it), then the level. Started at the cruise's last shot
+      // instead, Kethra's build held MG2's final shot ~18 s and Vessek's held the docking title ~24-29 s
+      // on an Intel UHD laptop (docs/perf/journey-cold, base-0930). The cruise holds its last shot for
+      // whatever of the first is left; what's left of the level carries on under MG2.
+      const paced = () => ({ pacer: this.engine.newPacer(PACE.playing) });
+      let arrivalStarted: Promise<void> | null = null;
+      const startArrival = () => (arrivalStarted ??= this.engine.prepareScene(canopy ?? level, paced()));
+      // A failure is reported through prepareArrival, below.
+      startArrival().catch(() => {});
+      const levelReady = canopy ? startArrival().then(() => this.engine.prepareScene(level, paced())) : null;
+      // Reported where it is awaited, below.
+      levelReady?.catch(() => {});
+      // The cruise holds its last shot until this settles, so a failed build must still settle it:
+      // rejected, the hold never ended. The failure is thrown once the cruise hands back (see go()).
+      let arrivalFailure: unknown = null;
+      cruise.prepareArrival = () =>
+        startArrival().catch((err: unknown) => {
+          arrivalFailure = err ?? new Error('the arrival failed to prepare');
+        });
+      await new Promise<void>((resolve) => (cruise.onArrive = resolve));
+      if (arrivalFailure) throw arrivalFailure;
       if (canopy) {
         await this.engine.setScene(() => canopy, { prepared: true, quiet: true });
         await new Promise<void>((resolve) => (canopy.onComplete = resolve));
-        // Prepare the level after the canopy ends, so its slow first build stalls on the held final
-        // shot rather than mid-descent.
-        await this.engine.prepareScene(level);
+        // Usually done by now; otherwise the rest of the build finishes on MG2's held final shot.
+        await levelReady;
         gameState.setFlag('canopy_flown');
         gameState.addAttributeXp('traversal', 1);
       }
     } catch (err) {
+      // A trip that fails after the departure began (a file that failed every retry) ends back
+      // aboard a fresh Wren with the same message as a failed start, so the player can try again;
+      // that is a failure the body has already handled, as go() understands it.
+      console.warn(`[flow] the trip to ${planetId} failed`, err);
       await this.abortTrip();
-      throw err;
+      throw new HandledFailure(`the trip to ${planetId} failed`);
     }
     await UIManager.fadeToBlack();
     level.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
@@ -726,14 +827,13 @@ export class GameFlow {
       UIManager.hideLoading();
       await UIManager.fadeFromBlack();
       UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
-      throw new Error(`level ${planetId} failed to load`);
+      throw new HandledFailure(`level ${planetId} failed to load`);
     }
     scene.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
     // left_wren also hides the HUD key strip (UIManager.refreshStatusBar).
     gameState.setFlag('left_wren');
     this.levelSnapshot = { planetId, json: gameState.toJSON() };
-    UIManager.setLoadingProgress(0.45, `Building ${level.title}`);
-    await this.engine.setScene(() => scene);
+    await this.engine.setScene(() => scene, { onProgress: stagedProgress(`Building ${level.title}`, 0.2) });
     UIManager.setLoadingProgress(1, '');
     UIManager.hideLoading();
     AudioSystem.playLevelStart();
@@ -760,7 +860,7 @@ export class GameFlow {
     await UIManager.fadeToBlack();
     this.levelSnapshot = null;
     this.shipScene = new ShipInteriorScene();
-    await this.engine.setScene(() => this.shipScene!);
+    await this.engine.setScene(() => this.shipScene!, { onProgress: shipLoadingProgress });
     await UIManager.fadeFromBlack();
     gameState.setObjective(this.shipObjective());
     SaveSystem.save();
@@ -821,11 +921,11 @@ export class GameFlow {
       gameState.setFlag('ending_seen');
       await UIManager.fadeFromBlack();
       UIManager.toast('Transmission sent.', 'learn');
-      throw new Error('the ending failed to load');
+      throw new HandledFailure('the ending failed to load');
     }
     const ending = new EndingScene();
     ending.onDone = () => void this.go('wren', () => this.finishEnding());
-    await this.engine.setScene(() => ending);
+    await this.engine.setScene(() => ending, { onProgress: stagedProgress('Opening the channel') });
     await UIManager.fadeFromBlack();
   }
 
@@ -834,7 +934,7 @@ export class GameFlow {
     SaveSystem.save();
     await UIManager.fadeToBlack();
     this.shipScene = new ShipInteriorScene();
-    await this.engine.setScene(() => this.shipScene!);
+    await this.engine.setScene(() => this.shipScene!, { onProgress: shipLoadingProgress });
     await UIManager.fadeFromBlack();
     gameState.setObjective(this.shipObjective());
   }

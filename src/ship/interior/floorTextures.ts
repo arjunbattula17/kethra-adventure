@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
 
 import { mulberry32, hashStr } from '../../core/rng';
+import { centralNormals } from '../../core/pixelOps';
 
 
 /**
@@ -23,7 +25,7 @@ function makeCanvas(
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  draw(canvas.getContext('2d')!, size);
+  draw(canvas.getContext('2d', PAINT_CONTEXT)!, size);
   canvasCache.set(key, canvas);
   return canvas;
 }
@@ -32,7 +34,7 @@ function scratchCanvas(size: number, draw: (c: CanvasRenderingContext2D, s: numb
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  draw(canvas.getContext('2d')!, size);
+  draw(canvas.getContext('2d', PAINT_CONTEXT)!, size);
   return canvas;
 }
 
@@ -83,25 +85,13 @@ function speckle(c: CanvasRenderingContext2D, size: number, count: number, dark:
  */
 function normalFromHeight(height: HTMLCanvasElement, strength: number): HTMLCanvasElement {
   const s = height.width;
-  const src = height.getContext('2d')!.getImageData(0, 0, s, s).data;
+  const src = height.getContext('2d', PAINT_CONTEXT)!.getImageData(0, 0, s, s).data;
   const out = document.createElement('canvas');
   out.width = s;
   out.height = s;
-  const octx = out.getContext('2d')!;
+  const octx = out.getContext('2d', PAINT_CONTEXT)!;
   const img = octx.createImageData(s, s);
-  const h = (x: number, y: number) => src[((((y % s) + s) % s) * s + (((x % s) + s) % s)) * 4] / 255;
-  for (let y = 0; y < s; y++) {
-    for (let x = 0; x < s; x++) {
-      const dx = (h(x + 1, y) - h(x - 1, y)) * strength;
-      const dy = (h(x, y + 1) - h(x, y - 1)) * strength;
-      const len = Math.hypot(dx, dy, 1);
-      const i = (y * s + x) * 4;
-      img.data[i] = ((-dx / len) * 0.5 + 0.5) * 255;
-      img.data[i + 1] = ((dy / len) * 0.5 + 0.5) * 255;
-      img.data[i + 2] = (1 / len) * 0.5 * 255 + 127.5;
-      img.data[i + 3] = 255;
-    }
-  }
+  centralNormals(src, s, s, strength, img.data);
   octx.putImageData(img, 0, 0);
   return out;
 }

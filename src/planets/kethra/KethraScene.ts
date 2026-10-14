@@ -18,7 +18,7 @@ import { ShipLibrary } from '../../journal/shipLibrary';
 import { Survey } from '../../journal/Survey';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { AudioSystem } from '../../audio/AudioSystem';
-import { applyPbr } from '../../core/TextureLibrary';
+import { applyPbr, pbrTexturesReady } from '../../core/TextureLibrary';
 import { KitBatcher, kitInstanceBox, jitter, groveRandom, resetGroveRandom } from './kit';
 import { buildKethraColliders } from './collision';
 import { Figure } from '../../characters/Figure';
@@ -446,6 +446,9 @@ export class KethraScene implements GameScene {
   private unsub: Array<() => void> = [];
   private stopAmbient: (() => void) | null = null;
   private stopMusic: (() => void) | null = null;
+  /** Held rather than looked up by name each frame: getObjectByName walks the whole scene graph. */
+  private motes: THREE.Points | null = null;
+  private eye = new THREE.Vector3();
 
   constructor() {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 2, 18));
@@ -456,7 +459,6 @@ export class KethraScene implements GameScene {
     await displayFontsReady();
     // Same grove every visit: see resetGroveRandom in kit.ts for why the scatter is seeded.
     resetGroveRandom();
-    UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x0b1220);
     this.scene.fog = new THREE.FogExp2(0x0b1220, 0.015);
     this.scene.environment = getSharedEnvironment();
@@ -490,7 +492,9 @@ export class KethraScene implements GameScene {
     }
 
     const fillers = generateFillerTrees();
-    await Promise.all([this.buildFoliage(fillers), this.buildGroundCover(), this.buildClutter(), this.buildDressing(fillers)]);
+    // The terraces' rock and metal maps (applyPbr, above) with the kit, so they are in hand for the
+    // engine's warm-up frame behind the loading cover.
+    await Promise.all([this.buildFoliage(fillers), this.buildGroundCover(), this.buildClutter(), this.buildDressing(fillers), pbrTexturesReady()]);
     await nextTask();
 
     this.scene.add(this.player.rig);
@@ -504,8 +508,6 @@ export class KethraScene implements GameScene {
     this.player.onFellOut = () =>
       UIManager.toast(this.atStones ? 'You slip off the stone and wade back to the terrace.' : 'You slip into the dark water and wade back to the landing terrace.');
     this.player.onFootstep = () => AudioSystem.playFootstep('organic');
-    this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
-    this.stopMusic = AudioSystem.startMusic('kethra');
     this.player.onLand = (s) => AudioSystem.playLand(s);
 
     this.interaction.onPromptChange = (label) => UIManager.setPrompt(label);
@@ -534,7 +536,16 @@ export class KethraScene implements GameScene {
       wake.done();
       this.heart.setAwake(true);
     } else wake.reset();
+  }
 
+  /**
+   * Arrival: the grove's sound, the look prompt and the objective. Here rather than in init, which
+   * runs while the cruise is still on screen (GameFlow.cruiseTo prepares the level during it).
+   */
+  onEnter(): void {
+    UIManager.setLookPromptEnabled(true);
+    this.stopAmbient = AudioSystem.startAmbient(96, 0.03);
+    this.stopMusic = AudioSystem.startMusic('kethra');
     gameState.setObjective(gameState.hasFlag('kethra_mechanism_solved') ? OBJECTIVE_AWAKE : 'Explore Kethra. Speak with the Aiveth and find the true light-sequence.');
   }
 
@@ -1204,6 +1215,7 @@ export class KethraScene implements GameScene {
     const motes = new THREE.Points(geo, mat);
     motes.name = 'motes';
     this.scene.add(motes);
+    this.motes = motes;
 
     // Layered haze walls beyond the far terraces, for depth cueing on top of the exponential
     // fog: near layer tinted toward the canopy's bioluminescent teal, far layer toward the
@@ -1322,7 +1334,7 @@ export class KethraScene implements GameScene {
     // No prompts and no E while a cutscene (the wake, a gust) has the player disabled.
     if (this.player.enabled) this.interaction.update(this.camera);
     else this.interaction.release();
-    const eye = this.player.getWorldPosition();
+    const eye = this.player.camera.getWorldPosition(this.eye);
     this.warden?.update(dt, elapsed, eye);
     this.archivist?.update(dt, elapsed, eye);
 
@@ -1347,8 +1359,7 @@ export class KethraScene implements GameScene {
     this.canopy.update(motion.ambientTime);
     this.pool.update(motion.ambientTime);
     this.mist?.update(motion.ambientTime);
-    const motes = this.scene.getObjectByName('motes') as THREE.Points | undefined;
-    if (motes) motes.rotation.y += ambientDt * 0.01;
+    if (this.motes) this.motes.rotation.y += ambientDt * 0.01;
   }
 
   onResize(width: number, height: number): void {

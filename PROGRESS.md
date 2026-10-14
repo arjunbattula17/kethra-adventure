@@ -3,6 +3,34 @@
 Newest session first. Each entry: what changed (with its DECISIONS bucket), what was verified,
 and what's next.
 
+## 2026-09-27: performance on a real Intel UHD laptop
+**Changed** (D-25; details and numbers in docs/PERF_LOG.md and docs/PERF_REPORT.md)
+- **UPGRADE: lighting cost.** Point and spot lights skip pixels they can't reach (image unchanged).
+- **UPGRADE: Balanced tier.** FXAA replaces 4× MSAA; the canvas has no multisample buffer of its own.
+- **Fix: first-look freezes.** Every scene is drawn whole behind the loading cover, and scenes wait
+  for their images; the galaxy reveal's 2.6–5.5 s freeze and the Anchorage's 1.6 s are gone.
+- **UPGRADE: draw calls.** Instanced pieces and interaction targets now merge; opaque objects are
+  drawn grouped by shader; static meshes stop recomputing their matrices; the grade runs inside the
+  output pass.
+- **UPGRADE: Kethra's shadows** are painted once, like the other levels.
+- **UPGRADE: Auto.** Intel UHD/HD and ARM graphics start on Performance; the benchmark re-measures
+  after stepping down and can lower render resolution; a steady 30 fps per scene where 60 can't hold.
+- **Fix: per-frame waste.** Allocation-free aiming, floor checks, footsteps and cinematics; Kethra's
+  per-frame scene search; the title planet's constant repaint.
+- **ADD: `tools/perf-frames.mjs`**, frame/CPU/GPU time per scene and tier on the machine's real GPU.
+
+**Verified**
+- Build clean. Smoke 6/6. Tutorial flow 36/36. Kethra flow, Vessek flow (through the ending) and
+  resilience 8/8 all pass; save checks pass. Run on installed Chrome on the test laptop.
+- Image diffs: Performance identical to before (0.03/255 against a 0.02/255 noise floor); Balanced
+  within 1.6/255 (anti-aliasing); the title screen matches.
+- On the test laptop, Auto with vsync: Kethra, Vessek and the reveal hold 60 fps; the Wren holds 30.
+
+**Next three backlog items**
+1. B-29: real Safari and a real Chromebook (the school laptop itself).
+2. B-28: a texture atlas for the Wren's remaining single-texture props (processor time).
+3. B-7: stats solve a puzzle on level 1 too.
+
 ## 2026-09-25 (second session): three briefs
 **Changed**
 - **ADD: level 3, Vessek Anchorage** (D-4): Varro and Dace, the rehearsal pulse, the breaker

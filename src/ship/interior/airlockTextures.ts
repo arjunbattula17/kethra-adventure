@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
 
 // Procedural canvas textures for the aft airlock. Kept local to the airlock module so the
 // palette can be pinned to the art brief's cool-steel / bone-white values rather than
@@ -37,7 +38,7 @@ function canvas2d(w: number, h: number): [HTMLCanvasElement, CanvasRenderingCont
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
-  return [c, c.getContext('2d')!];
+  return [c, c.getContext('2d', PAINT_CONTEXT)!];
 }
 
 /** Vertical wash streaks — the grime that runs down every surface in the reference. */

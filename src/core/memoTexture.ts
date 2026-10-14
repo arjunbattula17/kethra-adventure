@@ -13,6 +13,8 @@ import * as THREE from 'three';
  * repaint) must not come through here: every clone would show the same frame.
  */
 const painted = new Map<string, object>();
+/** Keys clearMemoTextures leaves alone (memoTextureSet's `keep`). */
+const kept = new Set<string>();
 
 function cloneTexture<T extends THREE.Texture>(tex: T): T {
   const copy = tex.clone() as T;
@@ -31,13 +33,17 @@ export function memoTexture<T extends THREE.Texture>(key: string, paint: () => T
   return cloneTexture(tex);
 }
 
-/** The same, for a builder that returns several maps painted together (albedo, normal, ORM). */
-export function memoTextureSet<T extends object>(key: string, paint: () => T): T {
+/**
+ * The same, for a builder that returns several maps painted together (albedo, normal, ORM). `keep`
+ * survives clearMemoTextures, for a set more than one scene paints with.
+ */
+export function memoTextureSet<T extends object>(key: string, paint: () => T, keep = false): T {
   let set = painted.get(key) as T | undefined;
   if (!set) {
     set = paint();
     painted.set(key, set);
   }
+  if (keep) kept.add(key);
   const copy = {} as Record<string, unknown>;
   for (const [name, value] of Object.entries(set)) {
     copy[name] = (value as THREE.Texture)?.isTexture ? cloneTexture(value as THREE.Texture) : value;
@@ -47,5 +53,5 @@ export function memoTextureSet<T extends object>(key: string, paint: () => T): T
 
 /** Drops the painted canvases so a torn-down scene doesn't keep them alive in memory. */
 export function clearMemoTextures(): void {
-  painted.clear();
+  for (const key of painted.keys()) if (!kept.has(key)) painted.delete(key);
 }

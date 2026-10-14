@@ -2,11 +2,11 @@
 // pauses the engine, renders exactly one frame by hand and screenshots it, so animation phase
 // can't differ between runs. Diff two output folders with tools/compare-renders.mjs.
 //
-//   node tools/capture-views.mjs <baseUrl> <outDir> [scene=ship|kethra|intro]
+//   node tools/capture-views.mjs <baseUrl> <outDir> [scene=ship|kethra|intro] [extra query, e.g. tier=low]
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
-const [BASE = 'http://localhost:5173/kethra-adventure/', OUT = 'renders/views', SCENE = 'ship'] = process.argv.slice(2);
+const [BASE = 'http://localhost:5173/kethra-adventure/', OUT = 'renders/views', SCENE = 'ship', EXTRA = ''] = process.argv.slice(2);
 mkdirSync(OUT, { recursive: true });
 
 // [name, camera position, look-at target]
@@ -36,7 +36,9 @@ const browser = await chromium.launch({
   args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-const query = SCENE === 'kethra' ? '?skipIntro=1&unlockKethra=1&newGame=1&tier=high' : SCENE === 'intro' ? '?newGame=1&tier=high' : '?skipIntro=1&newGame=1&tier=high';
+const params = new URLSearchParams(SCENE === 'kethra' ? 'skipIntro=1&unlockKethra=1&newGame=1&tier=high' : SCENE === 'intro' ? 'newGame=1&tier=high' : 'skipIntro=1&newGame=1&tier=high');
+for (const [k, v] of new URLSearchParams(EXTRA)) params.set(k, v);
+const query = `?${params}`;
 const kind = { ship: 'ShipInteriorScene', kethra: 'KethraScene', intro: 'IntroScene' }[SCENE];
 await page.goto(BASE + query, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => !!window.__DEBUG__?.engine.getCurrentScene(), undefined, { timeout: 240000, polling: 250 });

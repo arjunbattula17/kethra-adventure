@@ -7,7 +7,9 @@ import { chromium } from 'playwright';
 
 const baseUrl = process.env.BASE_URL || 'http://localhost:5180/kethra-adventure/';
 const KEY = 'kethra_save_v1';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader'] });
+const browser = await chromium.launch({
+  // PW_CHANNEL=chrome runs the installed Chrome instead of Playwright's bundled browser.
+  channel: process.env.PW_CHANNEL || undefined, args: ['--use-gl=angle', '--enable-unsafe-swiftshader'] });
 let fails = 0;
 
 async function boot(seed) {

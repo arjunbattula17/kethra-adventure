@@ -16,16 +16,17 @@ import type { StringKey } from '../content/strings';
 import { PLANETS } from './planetData';
 import { buildShipHull } from './shipHull';
 import type { ShipHull } from './shipHull';
-import { buildPlanetInstance, type PlanetInstance } from './planetShader';
+import { buildPlanetInstance, planetTexturesReady, type PlanetInstance } from './planetShader';
 import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
-import { buildSun } from './sun';
+import { buildSun, sunMapReady } from './sun';
 import type { Sun } from './sun';
 import { buildCanopyLights, buildCloudLayer, buildPassingRocks, buildPlume, buildShockRing, Streaks } from './cruise/pieces';
 import { buildSkiff } from './skiff';
 import type { Skiff } from './skiff';
 import { buildAnchorage } from '../planets/vessek/anchorage';
 import type { Anchorage } from '../planets/vessek/anchorage';
+import type { Pacer } from '../core/prepare';
 
 export interface CruiseOptions {
   destination: 'kethra' | 'vessek';
@@ -110,6 +111,8 @@ export class CruiseScene implements GameScene {
   private sky!: SpaceSky;
   private sun!: Sun;
   private hull!: ShipHull;
+  /** Kethra's arrival only; see updateEntry. */
+  private readonly fog = new THREE.FogExp2(0x0a211b, 0);
   private plumes: ReturnType<typeof buildPlume>[] = [];
   private rings: ReturnType<typeof buildShockRing>[] = [];
   private planet!: PlanetInstance;
@@ -141,7 +144,7 @@ export class CruiseScene implements GameScene {
     this.speeds = SPEED[opts.destination];
   }
 
-  async init(): Promise<void> {
+  async init(pacer?: Pacer): Promise<void> {
     this.scene.background = new THREE.Color(0x02030a);
     this.scene.environment = getSharedEnvironment();
     this.scene.environmentIntensity = 0.25;
@@ -186,8 +189,12 @@ export class CruiseScene implements GameScene {
     const def = PLANETS.find((p) => p.id === this.opts.destination)!;
     this.planet = buildPlanetInstance({ ...def, radius: 170 }, new THREE.Vector3(1e5, 0, 0), this.sun.group.position, this.camera);
     this.scene.add(this.planet.group);
+    // The sun's and the planet's maps in hand before the cruise is prepared, rather than decoded and
+    // uploaded in a frame of it.
+    await Promise.all([planetTexturesReady(), sunMapReady()]);
 
     if (this.opts.destination === 'kethra') {
+      this.scene.fog = this.fog;
       this.skiff = buildSkiff();
       this.skiff.group.visible = false;
       this.scene.add(this.skiff.group);
@@ -198,7 +205,7 @@ export class CruiseScene implements GameScene {
       this.canopy.visible = false;
       this.scene.add(this.canopy);
     } else {
-      this.anchorage = await buildAnchorage();
+      this.anchorage = await buildAnchorage(pacer);
       this.berth.set(distanceAt(DOCKED + 1, this.speeds), 0, 0);
       this.anchorage.group.position.copy(this.berth);
       this.scene.add(this.anchorage.group);
@@ -358,11 +365,17 @@ export class CruiseScene implements GameScene {
     if (!this.skiff || !this.clouds || !this.canopy) return;
     const inAir = time >= BEAT.entry + 2;
     this.sky.group.visible = !inAir;
-    this.hull.group.visible = !inAir;
+    // The hull's meshes hide but its engine light stays, dark: every lit program is compiled for a
+    // fixed number of lights, and fog is always on (at no density until the skiff is in the air), for
+    // the same reason. Both used to change here, so the skiff, the clouds and the canopy lights needed
+    // programs the preparation hadn't made: ~370 ms of freezes as the skiff dropped in on an Intel UHD
+    // laptop.
+    for (const part of this.hull.group.children) if (part !== this.engineLight) part.visible = !inAir;
+    if (inAir) this.engineLight.intensity = 0;
     this.sun.group.visible = !inAir;
     this.clouds.group.visible = inAir;
     this.canopy.visible = inAir;
-    this.scene.fog = inAir ? _fog : null;
+    this.fog.density = inAir ? FOG_DENSITY : 0;
     this.scene.background = inAir ? _night : _space;
     // The skiff separates from the hull, then descends through the cloud layer.
     this.skiff.group.visible = time >= BEAT.entry - 0.2;
@@ -467,7 +480,8 @@ const _behind = new THREE.Vector3();
 const _planetOffset = new THREE.Vector3(520, -40, 30);
 const _space = new THREE.Color(0x02030a);
 const _night = new THREE.Color(0x061612);
-const _fog = new THREE.FogExp2(0x0a211b, 0.0035);
+/** The haze under Kethra's cloud layer. */
+const FOG_DENSITY = 0.0035;
 // The docking shot, relative to the berth.
 const _dockCamFrom = new THREE.Vector3(-48, 5, 9);
 const _dockCamTo = new THREE.Vector3(-16, 4.4, 7.5);

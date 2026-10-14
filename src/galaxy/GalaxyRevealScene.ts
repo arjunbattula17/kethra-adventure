@@ -11,10 +11,10 @@ import { gameState } from '../core/GameState';
 import { t } from '../content/strings';
 import { PLANETS } from './planetData';
 import { buildShipHull } from './shipHull';
-import { buildPlanetInstance, type PlanetInstance } from './planetShader';
+import { buildPlanetInstance, planetTexturesReady, type PlanetInstance } from './planetShader';
 import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
-import { buildSun } from './sun';
+import { buildSun, sunMapReady } from './sun';
 import type { Sun } from './sun';
 import { GRADES } from '../core/GradeGlowPass';
 import * as sim from './intercept/sim';
@@ -61,6 +61,7 @@ export class GalaxyRevealScene implements GameScene {
   private drift!: ReturnType<typeof buildDrift>;
   private buoy!: ReturnType<typeof buildBuoy>;
   private shell!: THREE.Mesh;
+  private kethraOrbit!: THREE.Object3D;
   private readonly reveal: Reveal = { uOrigin: { value: toV3(sim.WREN_START) }, uRadius: { value: 0 } };
   /** Objects that scale in as the ping shell reaches them; `at` is their distance from the ship. */
   private resolving: { obj: THREE.Object3D; at: number; scale: number }[] = [];
@@ -110,7 +111,8 @@ export class GalaxyRevealScene implements GameScene {
     // The instrument's fixed lines, resolved by the ping: the ecliptic grid and every orbit.
     const lineMat = revealHairline(this.reveal);
     this.scene.add(eclipticGrid(80, lineMat));
-    this.scene.add(orbitLoop(sim.KETHRA, INK.grove, 0.35, lineMat));
+    this.kethraOrbit = orbitLoop(sim.KETHRA, INK.grove, 0.35, lineMat);
+    this.scene.add(this.kethraOrbit);
 
     for (const def of PLANETS) {
       const isKethra = def.id === 'kethra';
@@ -125,6 +127,9 @@ export class GalaxyRevealScene implements GameScene {
       planet.group.scale.setScalar(0.001);
     }
     for (const r of this.resolving) r.obj.scale.setScalar(0.001);
+    // The sun's and the planets' maps in hand before the warm-up frame: arriving later, each was
+    // decoded and uploaded in a frame of the cinematic.
+    await Promise.all([planetTexturesReady(), sunMapReady()]);
 
     // Ping shell: an additive sphere, brightest at its silhouette rim.
     this.shell = new THREE.Mesh(
@@ -241,6 +246,7 @@ export class GalaxyRevealScene implements GameScene {
       camera: this.camera,
       wren: this.ship,
       kethra: this.kethra.group,
+      kethraOrbit: this.kethraOrbit,
       surface: engine?.renderer.domElement ?? document.body,
       stats: { insight: a.insight },
     });

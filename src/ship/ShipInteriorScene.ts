@@ -10,26 +10,31 @@ import { disposeSceneTextures, downscaleCanvasTextures } from '../core/disposeSc
 import { clearMemoTextures } from '../core/memoTexture';
 import { getActiveEngine } from '../core/EngineRegistry';
 import { getSharedEnvironment } from '../core/Environment';
+import { loadPbr, pbrTexturesReady } from '../core/TextureLibrary';
 import { AudioSystem } from '../audio/AudioSystem';
 import type { InteriorCtx, StatusLight } from './interior/ctx';
 import { ROOM_W, ROOM_D } from './interior/ctx';
 import { buildFloor } from './interior/floor';
-import { buildWalls } from './interior/walls';
+import { buildWalls, WALL_KIT_PIECES } from './interior/walls';
 import { buildCeiling } from './interior/ceiling';
 import { buildStarfieldWindow } from './interior/starfieldWindow';
-import { buildAirlock } from './interior/airlock';
+import { buildAirlock, AIRLOCK_KIT_PIECES } from './interior/airlock';
 import { buildConsole } from './interior/console';
 import { buildSuspendedDisplay } from './interior/suspendedDisplay';
 import { buildDetailProps } from './interior/props';
 import { buildLighting } from './interior/lighting';
 import { buildWrenFinds } from './interior/finds';
 import { batchStaticGeometry } from './interior/batchStaticGeometry';
+import { preloadKit } from './interior/kit';
 import { mulberry32 } from '../core/rng';
 import { buildInteriorColliders } from './interior/collision';
 import { gameState } from '../core/GameState';
 import { ShipPower, powerStageFor } from './interior/power';
 import { buildThrottle } from './interior/throttle';
 import type { Throttle } from './interior/throttle';
+import { timed, timedAsync } from '../core/perfMarks';
+import type { Pacer } from '../core/prepare';
+import { TutorialBeacon } from '../tutorial/TutorialBeacon';
 
 const _ledColour = new THREE.Color();
 
@@ -60,6 +65,8 @@ export class ShipInteriorScene implements GameScene {
   // intensity, which the depth map doesn't see. If a shadow-casting mesh or light ever starts
   // moving, either drop this flag or arm renderer.shadowMap.needsUpdate from its animation tick.
   readonly staticShadows = true;
+  /** The first room of a session prepares behind the intro (or a loading bar): see GameScene.quickLights. */
+  readonly quickLights = true;
   /**
    * Per-frame hook for a director that lives outside the scene — currently the opening tutorial,
    * which has to poll movement and the player's position but is owned by GameFlow, not by the room.
@@ -106,6 +113,16 @@ export class ShipInteriorScene implements GameScene {
     this.player = new PlayerController(this.camera, new THREE.Vector3(0, 1.7, 4));
   }
 
+  /**
+   * Starts the room's downloads before it is built: the kit pieces (fetched, parsed, their textures
+   * decoded off the page's thread, all into kit.ts's cache) and the window frame's photo maps. Called
+   * while the title screen waits, so the build that follows a click doesn't wait on the network.
+   */
+  static preload(): Promise<unknown> {
+    loadPbr('metal_plate_02');
+    return Promise.all([preloadKit([...WALL_KIT_PIECES, ...AIRLOCK_KIT_PIECES]), pbrTexturesReady()]);
+  }
+
   private buildContext(): InteriorCtx {
     return {
       scene: this.scene,
@@ -128,7 +145,7 @@ export class ShipInteriorScene implements GameScene {
     };
   }
 
-  async init(): Promise<void> {
+  async init(pacer?: Pacer): Promise<void> {
     // Wait for the display fonts: canvas textures drawn before they load bake in the fallback font.
     await displayFontsReady();
     UIManager.setLookPromptEnabled(true);
@@ -141,15 +158,28 @@ export class ShipInteriorScene implements GameScene {
     this.scene.fog = new THREE.FogExp2(0x05070c, 0.045);
 
     const ctx = this.buildContext();
-    buildFloor(ctx);
-    buildCeiling(ctx);
-    buildStarfieldWindow(ctx);
-    buildConsole(ctx);
-    this.deskChart = ctx.deskChart;
-    this.throttle = buildThrottle(ctx);
-    buildSuspendedDisplay(ctx);
-    buildLighting(ctx);
-    buildWrenFinds(ctx);
+    // Each builder is 80-220 ms of painting and geometry on an Intel UHD laptop; a frame gets through
+    // between them when this runs behind the intro (GameFlow.bootIntro).
+    const pieces: [string, () => void][] = [
+      ['ship:floor', () => buildFloor(ctx)],
+      ['ship:ceiling', () => buildCeiling(ctx)],
+      ['ship:starfieldWindow', () => buildStarfieldWindow(ctx)],
+      [
+        'ship:console',
+        () => {
+          buildConsole(ctx);
+          this.deskChart = ctx.deskChart;
+          this.throttle = buildThrottle(ctx);
+        },
+      ],
+      ['ship:suspendedDisplay', () => buildSuspendedDisplay(ctx)],
+      ['ship:lighting', () => buildLighting(ctx)],
+      ['ship:finds', () => buildWrenFinds(ctx)],
+    ];
+    for (const [name, build] of pieces) {
+      timed(name, build);
+      await pacer?.tick();
+    }
     // buildWalls/buildAirlock/buildDetailProps each load real glTF kit pieces asynchronously and
     // add their own independent geometry — nothing else here reads what they produce, so they run
     // concurrently. batchStaticGeometry's merge pass below is documented (see its own header
@@ -159,16 +189,42 @@ export class ShipInteriorScene implements GameScene {
     // geometry — the whole airlock, both side walls, and every detail prop — streaming in afterward
     // as unbatched, unmerged individual draw calls, with each piece's load/parse/GPU-upload landing
     // as a hitch on whatever frame happened to be running when it resolved.
-    await Promise.all([buildWalls(ctx), buildAirlock(ctx), buildDetailProps(ctx)]);
+    // pbrTexturesReady: the window frame's metal maps (applyPbr in starfieldWindow.ts), in hand before
+    // the engine's warm-up frame rather than landing mid-play.
+    await Promise.all([
+      timedAsync('ship:walls', () => buildWalls(ctx)),
+      timedAsync('ship:airlock', () => buildAirlock(ctx)),
+      timedAsync('ship:props', () => buildDetailProps(ctx)),
+      timedAsync('ship:pbrTextures', () => pbrTexturesReady()),
+    ]);
     for (const light of this.consoleGlow) light.intensity = 1.5;
     for (const mat of this.floorLedMats) mat.emissiveIntensity = 0.9;
+    await pacer?.tick();
     // Read colliders off the props *before* batching: the merge pass collapses every mesh sharing a
     // material into one geometry, so afterwards a per-mesh bounding box would span the whole room.
-    const propColliders = buildInteriorColliders(ctx);
+    const propColliders = timed('ship:colliders', () => buildInteriorColliders(ctx));
     this.instanceStatusLights();
-    batchStaticGeometry(ctx);
+    // In one piece (~230 ms on an Intel UHD laptop): the room builds while the intro's opening shot
+    // holds still, or behind the loading screen, and yielding here cost those waits ~300 ms more.
+    await timedAsync('ship:batch', () => batchStaticGeometry(ctx));
+    await pacer?.tick();
+    // Every mesh outside ctx.noMerge is static by that set's own contract (ctx.ts): nothing moves it
+    // after the build. Compose each one's local matrix once instead of on every frame; three.js
+    // otherwise rebuilds all of them per frame, 3% of the main thread in a profile of this room
+    // (docs/PERF_LOG.md, 2026-09-27). A parent that moves still carries its children along.
+    this.scene.traverse((o) => {
+      if (!(o as THREE.Mesh).isMesh || this.noMerge.has(o)) return;
+      o.updateMatrix();
+      o.matrixAutoUpdate = false;
+    });
 
     this.scene.add(this.player.rig);
+    // A hidden set of the markers the tutorial and the console guide put up once the room is on
+    // screen. The preparation compiles hidden meshes' programs too, so the real markers reuse these
+    // instead of compiling two programs in the frame they first appear (~130 ms on an Intel UHD
+    // laptop). Added after the batching, like the real ones, and kept hidden for the room's life so
+    // its programs stay compiled.
+    new TutorialBeacon(this.scene, 'prewarm-beacon');
 
     this.player.setFloorTargets(this.floorMeshes);
     // roomColliders() stays as the hand-authored backstop for the hull and the two pieces of
@@ -194,7 +250,7 @@ export class ShipInteriorScene implements GameScene {
     // remaining texture population. Runs before the scene's first render, so full-size canvases
     // are never uploaded. (Module-cached canvases stay halved for the rest of the session if the
     // player later switches tiers by hand — same trade the kit cache makes, minus its refetch.)
-    if (getActiveEngine()?.getQualityTier() === 'low') downscaleCanvasTextures(this.scene, 1024);
+    if (getActiveEngine()?.getQualityTier() === 'low') timed('ship:downscaleCanvases', () => downscaleCanvasTextures(this.scene, 1024));
 
     this.applyLightBudget(getActiveEngine()?.getQualityTier() === 'low' ? 8 : POINT_LIGHT_BUDGET);
     // Apply the power stage from save flags (power.ts): emergency until navigation is restored.

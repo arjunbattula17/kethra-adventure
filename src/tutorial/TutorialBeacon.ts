@@ -74,11 +74,11 @@ export class TutorialBeacon {
   private beamMat: THREE.MeshBasicMaterial;
   private bracketMat = bracketMaterial();
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, name = 'tutorial-beacon') {
     this.scene = scene;
     // Named so a harness (and a scene-graph dump) can assert they are gone once the tutorial ends.
-    this.pillar.name = 'tutorial-beacon-pillar';
-    this.bracket.name = 'tutorial-beacon-bracket';
+    this.pillar.name = `${name}-pillar`;
+    this.bracket.name = `${name}-bracket`;
     this.beamMat = glowMaterial(0.34, this.beamTexture);
 
     this.ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.64, 56), this.ringMat);

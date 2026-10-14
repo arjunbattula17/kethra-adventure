@@ -313,6 +313,14 @@ function quad(w: number, h: number, at: THREE.Vector3, normal: THREE.Vector3, up
 
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * What a scene about to build the hull can fetch ahead: the hull is made in code, so only its
+ * stencil face. The panel textures are painted on the page's thread and stay with the build.
+ */
+export function preloadShipHull(): Promise<unknown> {
+  return displayFontsReady();
+}
+
 export async function buildShipHull(opts: HullOptions = {}): Promise<ShipHull> {
   // Stencils are drawn in Rajdhani; drawing before the font loads bakes in the fallback font.
   await displayFontsReady();

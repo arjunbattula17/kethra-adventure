@@ -398,3 +398,22 @@ had. The two part at `ca4e4b2` (2026-09-29).
   branch's tests play, so expect test work too. That is a day of careful work on someone else's
   code and a choice between ways of doing it, so it was not started without the team's word.
 - **Not done, on purpose:** no merge, no rebase, no push, no force.
+
+### D-33 · UPGRADE · Performance pass measured on a real Intel UHD laptop — *Done 2026-09-27, reversible*
+*Numbered D-25 where it was written, on the remote branch: the commits, docs/PERF_REPORT.md and
+docs/PERF_CHANGELOG_FOR_TEAM.md call it that. This branch had already used D-25 for the Kethra
+dressing, so it took the next free number when the two were merged (2026-10-14).*
+Measured on an i5-1035G1 laptop with Intel UHD graphics, the class of machine the game has to run
+on (docs/PERF_REPORT.md, "2026-09-27"). Most changes leave the picture identical (image diff at the
+noise floor); two change it slightly and are the team's to reverse:
+- **Balanced uses FXAA instead of 4x MSAA.** Multisampling was 36% of a Balanced frame on this GPU.
+  Edges and the smallest screen text are a touch softer (mean 1.6/255 per pixel). Quality keeps MSAA.
+  Revert: `Engine.samplesFor` and the `fxaaPass` line in `PostProcessing.setQuality`.
+- **Kethra paints its shadow map once** (as Vessek and the Wren already did). The two Aiveth's
+  shadows no longer follow their breathing and head turns, which the map could barely resolve.
+  Revert: remove `staticShadows` from `KethraScene`.
+Automatic behaviour that changed, all under Settings → Quality → Auto only: Intel UHD/HD and ARM
+Chromebook graphics start on Performance; the start-up benchmark re-measures after stepping down and
+can lower the render resolution before the first frame; and on Performance a scene that averages
+under ~45 fps is held at a steady 30 fps (judged per scene). Choosing a tier by hand turns all of it
+off, as before.

@@ -1,0 +1,1177 @@
+{
+ "label": "start-quick",
+ "base": "http://localhost:4190/kethra-adventure/",
+ "coldGpu": true,
+ "mbps": 0,
+ "skipAt": null,
+ "path": "new",
+ "runs": [
+  {
+   "run": 0,
+   "visit": 0,
+   "nonce": 290948,
+   "phases": {
+    "titleShownMs": 803,
+    "clickToIntroSceneMs": 2493,
+    "clickToIntroClockMs": 6808,
+    "introDoneToShipPlayableMs": 1277,
+    "clickToShipPlayableMs": 34106
+   },
+   "events": {
+    "boot:start": 746,
+    "title:shown": 803,
+    "title:newGame": 4628,
+    "intro:uncovered": 6643,
+    "intro:clock": 10968,
+    "intro:done": 36978,
+    "ship:playable": 38266,
+    "loading:hide": 69,
+    "tier:low": 1534,
+    "state:boot": 1534,
+    "scene:none": 1534,
+    "click:new game": 4160,
+    "loading:show": 4928,
+    "state:boot*": 4928,
+    "scene:intro": 6653,
+    "state:intro": 7656,
+    "state:intro*": 36989,
+    "scene:shipinterior": 37496,
+    "state:wren": 38284
+   },
+   "spans": {
+    "main:webglProbe": {
+     "at": 87,
+     "ms": 623
+    },
+    "boot:engine": {
+     "at": 1429,
+     "ms": 101
+    },
+    "engine:renderer": {
+     "at": 1431,
+     "ms": 79
+    },
+    "engine:postfx": {
+     "at": 1513,
+     "ms": 16
+    },
+    "engine:environment": {
+     "at": 1576,
+     "ms": 1783
+    },
+    "IntroScene:init": {
+     "at": 4632,
+     "ms": 263
+    },
+    "IntroScene:compile": {
+     "at": 4896,
+     "ms": 1378
+    },
+    "IntroScene:upload": {
+     "at": 6274,
+     "ms": 10
+    },
+    "IntroScene:firstDraw": {
+     "at": 6284,
+     "ms": 93
+    },
+    "IntroScene:warmup": {
+     "at": 6378,
+     "ms": 262
+    },
+    "ShipInteriorScene:init": {
+     "at": 7051,
+     "ms": 3629
+    },
+    "ship:floor": {
+     "at": 7052,
+     "ms": 155
+    },
+    "ship:ceiling": {
+     "at": 7372,
+     "ms": 125
+    },
+    "ship:starfieldWindow": {
+     "at": 7972,
+     "ms": 256
+    },
+    "ship:console": {
+     "at": 8393,
+     "ms": 291
+    },
+    "ship:suspendedDisplay": {
+     "at": 9063,
+     "ms": 115
+    },
+    "ship:lighting": {
+     "at": 9249,
+     "ms": 17
+    },
+    "ship:walls": {
+     "at": 9274,
+     "ms": 510
+    },
+    "ship:airlock": {
+     "at": 9275,
+     "ms": 509
+    },
+    "ship:props": {
+     "at": 9276,
+     "ms": 213
+    },
+    "ship:pbrTextures": {
+     "at": 9488,
+     "ms": 1
+    },
+    "ship:colliders": {
+     "at": 10174,
+     "ms": 17
+    },
+    "ship:batch": {
+     "at": 10224,
+     "ms": 419
+    },
+    "ship:downscaleCanvases": {
+     "at": 10673,
+     "ms": 4
+    },
+    "ShipInteriorScene:compile": {
+     "at": 10681,
+     "ms": 6965
+    },
+    "ShipInteriorScene:upload": {
+     "at": 17646,
+     "ms": 4710
+    },
+    "ShipInteriorScene:firstDraw": {
+     "at": 22356,
+     "ms": 833
+    },
+    "ship:benchmark": {
+     "at": 37309,
+     "ms": 79
+    },
+    "ship:fitRenderScale": {
+     "at": 37388,
+     "ms": 77
+    },
+    "ShipInteriorScene:warmup": {
+     "at": 37467,
+     "ms": 7
+    },
+    "ShipInteriorScene:upgradeLights": {
+     "at": 41489,
+     "ms": 17875
+    },
+    "upgradeQuickLights:compile": {
+     "at": 41490,
+     "ms": 15944
+    },
+    "upgradeQuickLights:firstDraw": {
+     "at": 57435,
+     "ms": 647
+    },
+    "renderer.compileAsync": {
+     "at": 1611,
+     "ms": 69
+    },
+    "engine.warmScene": {
+     "at": 4896,
+     "ms": 1482
+    },
+    "engine.prepareScene": {
+     "at": 4632,
+     "ms": 1745
+    },
+    "engine.setScene": {
+     "at": 4632,
+     "ms": 2010
+    },
+    "engine.benchmarkScene": {
+     "at": 37309,
+     "ms": 79
+    },
+    "engine.fitRenderScale": {
+     "at": 37388,
+     "ms": 77
+    }
+   },
+   "frames": {
+    "boot": {
+     "frames": 4,
+     "fps": 5.3,
+     "p50": 166.8,
+     "p95": 497.7,
+     "p99": 497.7,
+     "max": 497.7,
+     "over50": 3,
+     "over100": 2,
+     "over250": 1,
+     "over1000": 0
+    },
+    "titleIdle": {
+     "frames": 87,
+     "fps": 27.6,
+     "p50": 24.6,
+     "p95": 98.2,
+     "p99": 549.6,
+     "max": 549.6,
+     "over50": 7,
+     "over100": 2,
+     "over250": 1,
+     "over1000": 0
+    },
+    "loading": {
+     "frames": 89,
+     "fps": 12.7,
+     "p50": 48.3,
+     "p95": 344.3,
+     "p99": 668.5,
+     "max": 668.5,
+     "over50": 14,
+     "over100": 13,
+     "over250": 6,
+     "over1000": 0
+    },
+    "intro": {
+     "frames": 558,
+     "fps": 21.5,
+     "p50": 47.1,
+     "p95": 50,
+     "p99": 318.5,
+     "max": 379.5,
+     "over50": 25,
+     "over100": 8,
+     "over250": 8,
+     "over1000": 0
+    },
+    "handover": {
+     "frames": 13,
+     "fps": 10.2,
+     "p50": 48.8,
+     "p95": 465.6,
+     "p99": 465.6,
+     "max": 465.6,
+     "over50": 3,
+     "over100": 2,
+     "over250": 2,
+     "over1000": 0
+    },
+    "ship": {
+     "frames": 930,
+     "fps": 23.3,
+     "p50": 47.7,
+     "p95": 50,
+     "p99": 65.4,
+     "max": 467.5,
+     "over50": 37,
+     "over100": 1,
+     "over250": 1,
+     "over1000": 0
+    }
+   },
+   "longTasks": {
+    "boot": {
+     "count": 2,
+     "totalMs": 710,
+     "max": 636,
+     "top": [
+      636,
+      74
+     ]
+    },
+    "titleIdle": {
+     "count": 4,
+     "totalMs": 418,
+     "max": 211,
+     "top": [
+      211,
+      102,
+      53,
+      52
+     ]
+    },
+    "loading": {
+     "count": 10,
+     "totalMs": 2535,
+     "max": 510,
+     "top": [
+      510,
+      468,
+      291,
+      280,
+      266,
+      256,
+      161,
+      125
+     ]
+    },
+    "intro": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "handover": {
+     "count": 1,
+     "totalMs": 81,
+     "max": 81,
+     "top": [
+      81
+     ]
+    },
+    "ship": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    }
+   },
+   "bytes": {
+    "title": 0.46,
+    "intro": 5.37,
+    "total": 5.37
+   },
+   "stuck": null,
+   "allSpans": [
+    [
+     87,
+     623,
+     "main:webglProbe"
+    ],
+    [
+     1429,
+     101,
+     "boot:engine"
+    ],
+    [
+     1431,
+     79,
+     "engine:renderer"
+    ],
+    [
+     1513,
+     16,
+     "engine:postfx"
+    ],
+    [
+     1576,
+     1783,
+     "engine:environment"
+    ],
+    [
+     1587,
+     183,
+     "renderer.compileAsync"
+    ],
+    [
+     1609,
+     335,
+     "renderer.compileAsync"
+    ],
+    [
+     1610,
+     1260,
+     "renderer.compileAsync"
+    ],
+    [
+     1611,
+     69,
+     "renderer.compileAsync"
+    ],
+    [
+     4632,
+     263,
+     "IntroScene:init"
+    ],
+    [
+     4632,
+     1745,
+     "engine.prepareScene"
+    ],
+    [
+     4632,
+     2010,
+     "engine.setScene"
+    ],
+    [
+     4896,
+     1378,
+     "IntroScene:compile"
+    ],
+    [
+     4896,
+     1482,
+     "engine.warmScene"
+    ],
+    [
+     6274,
+     10,
+     "IntroScene:upload"
+    ],
+    [
+     6284,
+     93,
+     "IntroScene:firstDraw"
+    ],
+    [
+     6378,
+     262,
+     "IntroScene:warmup"
+    ],
+    [
+     7051,
+     3629,
+     "ShipInteriorScene:init"
+    ],
+    [
+     7051,
+     16139,
+     "engine.prepareScene"
+    ],
+    [
+     7052,
+     155,
+     "ship:floor"
+    ],
+    [
+     7372,
+     125,
+     "ship:ceiling"
+    ],
+    [
+     7972,
+     256,
+     "ship:starfieldWindow"
+    ],
+    [
+     8393,
+     291,
+     "ship:console"
+    ],
+    [
+     9063,
+     115,
+     "ship:suspendedDisplay"
+    ],
+    [
+     9249,
+     17,
+     "ship:lighting"
+    ],
+    [
+     9274,
+     510,
+     "ship:walls"
+    ],
+    [
+     9275,
+     509,
+     "ship:airlock"
+    ],
+    [
+     9276,
+     213,
+     "ship:props"
+    ],
+    [
+     9488,
+     1,
+     "ship:pbrTextures"
+    ],
+    [
+     10174,
+     17,
+     "ship:colliders"
+    ],
+    [
+     10224,
+     419,
+     "ship:batch"
+    ],
+    [
+     10673,
+     4,
+     "ship:downscaleCanvases"
+    ],
+    [
+     10681,
+     6965,
+     "ShipInteriorScene:compile"
+    ],
+    [
+     10681,
+     12509,
+     "engine.warmScene"
+    ],
+    [
+     17646,
+     4710,
+     "ShipInteriorScene:upload"
+    ],
+    [
+     22356,
+     833,
+     "ShipInteriorScene:firstDraw"
+    ],
+    [
+     37309,
+     79,
+     "ship:benchmark"
+    ],
+    [
+     37309,
+     79,
+     "engine.benchmarkScene"
+    ],
+    [
+     37388,
+     77,
+     "ship:fitRenderScale"
+    ],
+    [
+     37388,
+     77,
+     "engine.fitRenderScale"
+    ],
+    [
+     37464,
+     11,
+     "engine.setScene"
+    ],
+    [
+     37467,
+     7,
+     "ShipInteriorScene:warmup"
+    ],
+    [
+     41489,
+     17875,
+     "ShipInteriorScene:upgradeLights"
+    ],
+    [
+     41490,
+     15944,
+     "upgradeQuickLights:compile"
+    ],
+    [
+     57435,
+     647,
+     "upgradeQuickLights:firstDraw"
+    ]
+   ],
+   "timeline": [
+    [
+     69,
+     "loading:hide"
+    ],
+    [
+     803,
+     "title:shown"
+    ],
+    [
+     1534,
+     "tier:low"
+    ],
+    [
+     1534,
+     "state:boot"
+    ],
+    [
+     1534,
+     "scene:none"
+    ],
+    [
+     4160,
+     "click:new game"
+    ],
+    [
+     4928,
+     "loading:show"
+    ],
+    [
+     4928,
+     "state:boot*"
+    ],
+    [
+     6653,
+     "loading:hide"
+    ],
+    [
+     6653,
+     "scene:intro"
+    ],
+    [
+     7656,
+     "state:intro"
+    ],
+    [
+     10992,
+     "intro:clock"
+    ],
+    [
+     36989,
+     "state:intro*"
+    ],
+    [
+     37496,
+     "scene:shipinterior"
+    ],
+    [
+     38284,
+     "state:wren"
+    ],
+    [
+     38284,
+     "ship:playable"
+    ]
+   ],
+   "paint": {
+    "first-paint": 732,
+    "first-contentful-paint": 1396
+   },
+   "tier": "low",
+   "benchmarkMs": 6,
+   "programs": 80,
+   "textures": 217,
+   "geometries": 301,
+   "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "gl": {
+    "links": [
+     1600,
+     1606,
+     1608,
+     1610,
+     1611,
+     1612,
+     4955,
+     4956,
+     4958,
+     5265,
+     5270,
+     5274,
+     5740,
+     5744,
+     5790,
+     6201,
+     6383,
+     6451,
+     6512,
+     6575,
+     10723,
+     10781,
+     10787,
+     11457,
+     11506,
+     11556,
+     12135,
+     12236,
+     12417,
+     12467,
+     12515,
+     12554,
+     12606,
+     12782,
+     12872,
+     12944,
+     13274,
+     13323,
+     13448,
+     13718,
+     14104,
+     14148,
+     14193,
+     14291,
+     14343,
+     14481,
+     14842,
+     14976,
+     15031,
+     15222,
+     15324,
+     15532,
+     16065,
+     16166,
+     16214,
+     16265,
+     16753,
+     16799,
+     16838,
+     41499,
+     41546,
+     41590,
+     43622,
+     43688,
+     43750,
+     45269,
+     45538,
+     45660,
+     47049,
+     47367,
+     47495,
+     48965,
+     49277,
+     49453,
+     50862,
+     51258,
+     51348,
+     52855,
+     53246,
+     53602,
+     54501,
+     55435,
+     55962
+    ],
+    "waits": [
+     [
+      6383,
+      65
+     ],
+     [
+      6451,
+      59
+     ],
+     [
+      6513,
+      60
+     ],
+     [
+      6575,
+      65
+     ]
+    ]
+   },
+   "heapMaxMB": 80,
+   "heapEndMB": 27.2,
+   "gaps": [
+    [
+     213,
+     167
+    ],
+    [
+     711,
+     498
+    ],
+    [
+     801,
+     71
+    ],
+    [
+     1393,
+     550
+    ],
+    [
+     1540,
+     98
+    ],
+    [
+     1688,
+     74
+    ],
+    [
+     1956,
+     99
+    ],
+    [
+     2126,
+     98
+    ],
+    [
+     2274,
+     148
+    ],
+    [
+     3085,
+     73
+    ],
+    [
+     4168,
+     213
+    ],
+    [
+     4256,
+     70
+    ],
+    [
+     4902,
+     267
+    ],
+    [
+     5065,
+     114
+    ],
+    [
+     6642,
+     238
+    ],
+    [
+     7189,
+     142
+    ],
+    [
+     7360,
+     171
+    ],
+    [
+     7958,
+     598
+    ],
+    [
+     8378,
+     380
+    ],
+    [
+     8722,
+     344
+    ],
+    [
+     9049,
+     161
+    ],
+    [
+     9250,
+     162
+    ],
+    [
+     9968,
+     669
+    ],
+    [
+     10634,
+     414
+    ],
+    [
+     11646,
+     50
+    ],
+    [
+     16017,
+     319
+    ],
+    [
+     16109,
+     50
+    ],
+    [
+     16702,
+     50
+    ],
+    [
+     17548,
+     293
+    ],
+    [
+     17788,
+     51
+    ],
+    [
+     17888,
+     50
+    ],
+    [
+     18678,
+     50
+    ],
+    [
+     18769,
+     50
+    ],
+    [
+     19668,
+     50
+    ],
+    [
+     21006,
+     50
+    ],
+    [
+     21419,
+     50
+    ],
+    [
+     21724,
+     305
+    ],
+    [
+     23846,
+     51
+    ],
+    [
+     26464,
+     50
+    ],
+    [
+     27545,
+     50
+    ],
+    [
+     29114,
+     322
+    ],
+    [
+     30713,
+     380
+    ],
+    [
+     32540,
+     50
+    ],
+    [
+     32945,
+     330
+    ],
+    [
+     33317,
+     50
+    ],
+    [
+     34550,
+     347
+    ],
+    [
+     34988,
+     51
+    ],
+    [
+     35264,
+     50
+    ],
+    [
+     35614,
+     350
+    ],
+    [
+     37437,
+     90
+    ],
+    [
+     37788,
+     310
+    ],
+    [
+     38254,
+     466
+    ],
+    [
+     38641,
+     67
+    ],
+    [
+     38766,
+     50
+    ],
+    [
+     39894,
+     65
+    ],
+    [
+     40370,
+     50
+    ],
+    [
+     42713,
+     65
+    ],
+    [
+     43212,
+     69
+    ],
+    [
+     43386,
+     51
+    ],
+    [
+     45568,
+     50
+    ],
+    [
+     47077,
+     73
+    ],
+    [
+     47281,
+     73
+    ],
+    [
+     47608,
+     50
+    ],
+    [
+     47907,
+     89
+    ],
+    [
+     48734,
+     69
+    ],
+    [
+     49242,
+     65
+    ],
+    [
+     49356,
+     66
+    ],
+    [
+     49710,
+     59
+    ],
+    [
+     50254,
+     50
+    ],
+    [
+     50504,
+     50
+    ],
+    [
+     51769,
+     51
+    ],
+    [
+     53176,
+     59
+    ],
+    [
+     53763,
+     50
+    ],
+    [
+     55680,
+     52
+    ],
+    [
+     56656,
+     50
+    ],
+    [
+     59247,
+     50
+    ],
+    [
+     60194,
+     50
+    ],
+    [
+     60368,
+     50
+    ],
+    [
+     62628,
+     50
+    ],
+    [
+     62729,
+     51
+    ],
+    [
+     64057,
+     51
+    ],
+    [
+     67702,
+     51
+    ],
+    [
+     70310,
+     50
+    ],
+    [
+     70360,
+     50
+    ],
+    [
+     70707,
+     51
+    ],
+    [
+     72598,
+     50
+    ],
+    [
+     74047,
+     50
+    ],
+    [
+     76025,
+     468
+    ],
+    [
+     77963,
+     50
+    ]
+   ],
+   "long": [
+    [
+     77,
+     636
+    ],
+    [
+     729,
+     74
+    ],
+    [
+     1428,
+     102
+    ],
+    [
+     1799,
+     52
+    ],
+    [
+     2170,
+     53
+    ],
+    [
+     3946,
+     211
+    ],
+    [
+     4630,
+     266
+    ],
+    [
+     6363,
+     280
+    ],
+    [
+     7048,
+     161
+    ],
+    [
+     7371,
+     125
+    ],
+    [
+     7972,
+     256
+    ],
+    [
+     8393,
+     291
+    ],
+    [
+     8684,
+     63
+    ],
+    [
+     9063,
+     115
+    ],
+    [
+     9274,
+     510
+    ],
+    [
+     10174,
+     468
+    ],
+    [
+     37351,
+     81
+    ]
+   ],
+   "errors": []
+  }
+ ]
+}

@@ -1,0 +1,390 @@
+{
+ "label": "prog3",
+ "base": "http://localhost:4173/kethra-adventure/",
+ "coldGpu": false,
+ "mbps": 0,
+ "skipAt": null,
+ "path": "new",
+ "runs": [
+  {
+   "run": 0,
+   "visit": 0,
+   "nonce": 0,
+   "phases": {
+    "titleShownMs": 1383,
+    "titleSeenByHarnessMs": 1797,
+    "clickToIntroUncoveredMs": 14387,
+    "clickToIntroClockMs": 15082,
+    "introDoneToShipPlayableMs": 673,
+    "clickToShipPlayableMs": 39841
+   },
+   "marks": {
+    "boot:start": 321,
+    "title:shown": 1383,
+    "title:newGame": 5547,
+    "intro:uncovered": 19934,
+    "intro:clock": 20629,
+    "intro:done": 44715,
+    "ship:playable": 45388
+   },
+   "spans": {
+    "boot:engine": {
+     "at": 334,
+     "ms": 1010
+    },
+    "engine:environment": {
+     "at": 351,
+     "ms": 870
+    },
+    "engine:postfx": {
+     "at": 1337,
+     "ms": 7
+    },
+    "IntroScene:init": {
+     "at": 5559,
+     "ms": 136
+    },
+    "IntroScene:compile": {
+     "at": 5695,
+     "ms": 312
+    },
+    "IntroScene:upload": {
+     "at": 6007,
+     "ms": 2
+    },
+    "IntroScene:firstDraw": {
+     "at": 6009,
+     "ms": 142
+    },
+    "IntroScene:warmup": {
+     "at": 6151,
+     "ms": 46
+    },
+    "ShipInteriorScene:init": {
+     "at": 6200,
+     "ms": 3257
+    },
+    "ship:floor": {
+     "at": 6200,
+     "ms": 341
+    },
+    "ship:ceiling": {
+     "at": 6541,
+     "ms": 261
+    },
+    "ship:starfieldWindow": {
+     "at": 6802,
+     "ms": 306
+    },
+    "ship:console": {
+     "at": 7108,
+     "ms": 280
+    },
+    "ship:suspendedDisplay": {
+     "at": 7388,
+     "ms": 131
+    },
+    "ship:lighting": {
+     "at": 7519,
+     "ms": 6
+    },
+    "ship:walls": {
+     "at": 7525,
+     "ms": 1792
+    },
+    "ship:airlock": {
+     "at": 7528,
+     "ms": 1789
+    },
+    "ship:props": {
+     "at": 7530,
+     "ms": 179
+    },
+    "ship:pbrTextures": {
+     "at": 7709,
+     "ms": 42
+    },
+    "ship:colliders": {
+     "at": 9316,
+     "ms": 10
+    },
+    "ship:batch": {
+     "at": 9327,
+     "ms": 123
+    },
+    "ship:downscaleCanvases": {
+     "at": 9454,
+     "ms": 3
+    },
+    "ShipInteriorScene:compile": {
+     "at": 9457,
+     "ms": 8389
+    },
+    "ShipInteriorScene:upload": {
+     "at": 17846,
+     "ms": 1191
+    },
+    "ShipInteriorScene:firstDraw": {
+     "at": 19037,
+     "ms": 518
+    },
+    "ShipInteriorScene:prewarm": {
+     "at": 19555,
+     "ms": 19
+    },
+    "ship:benchmark": {
+     "at": 19574,
+     "ms": 93
+    },
+    "ship:fitRenderScale": {
+     "at": 19666,
+     "ms": 268
+    },
+    "ShipInteriorScene:warmup": {
+     "at": 45002,
+     "ms": 14
+    }
+   },
+   "frames": {
+    "boot": {
+     "frames": 11,
+     "fps": 6.3,
+     "p50": 17.8,
+     "p95": 1065.5,
+     "p99": 1065.5,
+     "max": 1065.5,
+     "over50": 3,
+     "over100": 3,
+     "over250": 2
+    },
+    "titleIdle": {
+     "frames": 170,
+     "fps": 56.5,
+     "p50": 17.5,
+     "p95": 18.5,
+     "p99": 19,
+     "max": 19.5,
+     "over50": 0,
+     "over100": 0,
+     "over250": 0
+    },
+    "loading": {
+     "frames": 602,
+     "fps": 41.9,
+     "p50": 17.8,
+     "p95": 18.5,
+     "p99": 52.5,
+     "max": 1635,
+     "over50": 7,
+     "over100": 5,
+     "over250": 4
+    },
+    "introSettle": {
+     "frames": 28,
+     "fps": 39.6,
+     "p50": 17.5,
+     "p95": 52.9,
+     "p99": 124.7,
+     "max": 124.7,
+     "over50": 3,
+     "over100": 1,
+     "over250": 0
+    },
+    "intro": {
+     "frames": 1358,
+     "fps": 56.4,
+     "p50": 17.5,
+     "p95": 18.5,
+     "p99": 18.9,
+     "max": 19.4,
+     "over50": 0,
+     "over100": 0,
+     "over250": 0
+    },
+    "handover": {
+     "frames": 33,
+     "fps": 49.9,
+     "p50": 18,
+     "p95": 36.1,
+     "p99": 36.6,
+     "max": 36.6,
+     "over50": 0,
+     "over100": 0,
+     "over250": 0
+    },
+    "ship": {
+     "frames": 214,
+     "fps": 42.9,
+     "p50": 18.1,
+     "p95": 36.3,
+     "p99": 36.8,
+     "max": 37.3,
+     "over50": 0,
+     "over100": 0,
+     "over250": 0
+    }
+   },
+   "longTasks": {
+    "boot": {
+     "count": 2,
+     "totalMs": 1267,
+     "max": 1072,
+     "top": [
+      1072,
+      195
+     ]
+    },
+    "titleIdle": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "loading": {
+     "count": 4,
+     "totalMs": 3310,
+     "max": 1613,
+     "top": [
+      1613,
+      1253,
+      384,
+      60
+     ]
+    },
+    "introSettle": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "intro": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "handover": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    },
+    "ship": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    }
+   },
+   "bytes": {
+    "title": 0.52,
+    "intro": 9.58,
+    "total": 9.58
+   },
+   "paint": {
+    "first-paint": 264,
+    "first-contentful-paint": 1756
+   },
+   "nav": {
+    "responseEnd": 10.5,
+    "dcl": 247.89999999850988,
+    "load": 252
+   },
+   "tier": "low",
+   "benchmarkMs": 9.6,
+   "programs": 42,
+   "textures": 257,
+   "geometries": 400,
+   "heapMB": 35.2,
+   "gaps": [
+    [
+     244,
+     206
+    ],
+    [
+     1380,
+     1066
+    ],
+    [
+     1752,
+     355
+    ],
+    [
+     5082,
+     196
+    ],
+    [
+     5669,
+     72
+    ],
+    [
+     7748,
+     1635
+    ],
+    [
+     7888,
+     123
+    ],
+    [
+     8190,
+     285
+    ],
+    [
+     9444,
+     1236
+    ],
+    [
+     18576,
+     53
+    ],
+    [
+     19921,
+     353
+    ],
+    [
+     20134,
+     125
+    ],
+    [
+     20221,
+     52
+    ],
+    [
+     20274,
+     53
+    ]
+   ],
+   "long": [
+    [
+     54,
+     195
+    ],
+    [
+     311,
+     1072
+    ],
+    [
+     4883,
+     205
+    ],
+    [
+     6096,
+     1613
+    ],
+    [
+     8203,
+     1253
+    ],
+    [
+     11102,
+     60
+    ],
+    [
+     19550,
+     384
+    ]
+   ],
+   "errors": []
+  }
+ ]
+}

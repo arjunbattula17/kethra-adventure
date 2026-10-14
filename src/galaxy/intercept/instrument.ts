@@ -4,8 +4,9 @@ import type { Orbit, Vec } from './sim';
 import { orbitAt } from './sim';
 
 /**
- * Drawing helpers for the navigation instrument: 1 px hairlines, screen-sized dots and DOM labels.
- * Everything is additive and writes no depth, so it draws as an overlay on the scene.
+ * Drawing helpers for the navigation instrument: 1 px hairlines and screen-sized dots. Everything is
+ * additive and writes no depth, so it draws as an overlay on the scene. The chart the player
+ * interacts with is ./overlay.
  */
 
 export const INK = {
@@ -223,53 +224,4 @@ export function orbitLoop(orbit: Orbit, color: number, brightness: number, mater
   }
   lines.commit();
   return lines.object;
-}
-
-/**
- * A pool of DOM text labels pinned to world points and repositioned from the camera each frame.
- * DOM text keeps the UI font crisp at any size; the pool avoids creating elements per frame.
- */
-export class Labels {
-  readonly root: HTMLDivElement;
-  private pool: HTMLDivElement[] = [];
-  private used = 0;
-  private readonly v = new THREE.Vector3();
-
-  constructor() {
-    this.root = document.createElement('div');
-    this.root.className = 'intercept-labels';
-  }
-
-  begin(): void {
-    this.used = 0;
-  }
-
-  add(world: THREE.Vector3, text: string, cls: string, camera: THREE.Camera): void {
-    const p = this.v.copy(world).project(camera);
-    if (p.z > 1 || p.z < -1) return;
-    const el = this.pool[this.used] ?? this.make();
-    this.used++;
-    if (el.textContent !== text) el.textContent = text;
-    if (el.dataset.cls !== cls) {
-      el.className = `intercept-label ${cls}`;
-      el.dataset.cls = cls;
-    }
-    el.style.transform = `translate(${((p.x + 1) / 2) * window.innerWidth}px, ${((1 - p.y) / 2) * window.innerHeight}px)`;
-    el.style.display = '';
-  }
-
-  end(): void {
-    for (let i = this.used; i < this.pool.length; i++) this.pool[i].style.display = 'none';
-  }
-
-  private make(): HTMLDivElement {
-    const el = document.createElement('div');
-    this.root.appendChild(el);
-    this.pool.push(el);
-    return el;
-  }
-
-  dispose(): void {
-    this.root.remove();
-  }
 }

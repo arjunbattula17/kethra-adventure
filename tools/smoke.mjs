@@ -22,6 +22,8 @@ const CASES = [
 ];
 
 const browser = await chromium.launch({
+  // PW_CHANNEL=chrome runs the installed Chrome instead of Playwright's bundled browser.
+  channel: process.env.PW_CHANNEL || undefined,
   // GL + anti-throttling flags: see docs/learnings.md (headless rAF throttling).
   args: ['--use-gl=angle', '--enable-unsafe-swiftshader', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
 });

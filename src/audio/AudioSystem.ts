@@ -34,6 +34,28 @@ function getCtx(): AudioContext | null {
   return ctx;
 }
 
+/**
+ * A footstep's 50 ms burst of decaying noise. It used to be generated fresh on every step: a new
+ * buffer and a few thousand random samples, three times a second, all garbage for the collector a
+ * moment later. Four takes made once and played in turn sound the same (the burst is filtered and
+ * shorter than the ear can compare) and allocate nothing while walking.
+ */
+const footstepTakes: AudioBuffer[] = [];
+let footstepTake = 0;
+function footstepNoise(c: AudioContext): AudioBuffer {
+  if (footstepTakes.length === 0) {
+    const size = Math.floor(c.sampleRate * 0.05);
+    for (let t = 0; t < 4; t++) {
+      const buffer = c.createBuffer(1, size, c.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < size; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / size);
+      footstepTakes.push(buffer);
+    }
+  }
+  footstepTake = (footstepTake + 1) % footstepTakes.length;
+  return footstepTakes[footstepTake];
+}
+
 function unlockOnGesture(): void {
   if (unlocked) return;
   const c = getCtx();
@@ -227,14 +249,8 @@ export const AudioSystem = {
   playFootstep(surface: 'metal' | 'organic' = 'metal'): void {
     const c = getCtx();
     if (!c || !sfxBus) return;
-    const bufferSize = Math.floor(c.sampleRate * 0.05);
-    const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
-    }
     const noise = c.createBufferSource();
-    noise.buffer = buffer;
+    noise.buffer = footstepNoise(c);
     const filter = c.createBiquadFilter();
     filter.type = surface === 'metal' ? 'highpass' : 'lowpass';
     filter.frequency.value = surface === 'metal' ? 900 : 400;

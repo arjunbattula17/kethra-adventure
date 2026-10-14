@@ -88,10 +88,14 @@ DECISIONS.md.
 - **B-26** Verify the live link from a clean device the week before and again on submission day.
 
 ## Added 2026-09-25
-- **B-28 · The Wren at 30 fps on a slow CPU**
+- **B-28 · The Wren at 30 fps on a slow CPU** *(2026-09-27: on a real Intel UHD laptop the Wren now
+  holds a steady 30 on Auto and averages ~200 draw calls on Performance, from ~350; D-25)*
   *Done when:* the ship interior holds 30 fps under 6x CPU throttle at the Performance tier (now
   ~23; docs/PERF_AUDIT.md). Route: pack the room's ~350 generated prop textures into a few atlas
-  pages so batchStaticGeometry can merge them (target under 250 draw calls, now ~650).
+  pages so batchStaticGeometry can merge them (target under 250 draw calls, now ~650). Facing the
+  console, what remains unmerged is ~130 props with their own textures and ~80 transparent overlays.
+  The GPU cost left in that view is per-pixel lighting, which an atlas would not reduce; an atlas
+  would still cut processor time on a slower CPU.
 - **B-29 · Real Safari and a real Chromebook**
   *Done when:* docs/TESTING_ON_A_REAL_CHROMEBOOK.md has been run on a school Chromebook and on a
   Mac with Safari, results in PROGRESS.md. The WebKit test build stops showing the 3D view when

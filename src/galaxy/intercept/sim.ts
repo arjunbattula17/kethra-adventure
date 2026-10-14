@@ -69,6 +69,13 @@ export function orbitAt(o: Orbit, day: number): Vec {
 /** Kethra: the first orbit past the belt, inclined, so the course climbs as it goes. */
 export const KETHRA: Orbit = { radius: 60, inclination: (14 * Math.PI) / 180, node: 0.812, phase: -0.282, rate: 0.072 };
 
+/** The unit normal of an orbit's plane (which passes through the sun). */
+export function orbitNormal(o: Orbit): Vec {
+  const a = orbitAt({ ...o, rate: 0 }, 0);
+  const b = orbitAt({ ...o, phase: o.phase + Math.PI / 2, rate: 0 }, 0);
+  return norm(v(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x));
+}
+
 /** A belt clump. The belt is scenery now: the transfer passes over the dust the first scan found. */
 export interface Clump {
   c: Vec;
@@ -136,6 +143,24 @@ export function meetings(): Meeting[] {
 export function matches(m: Meeting): boolean {
   return Math.abs(m.wrenDays - m.day) < MATCH_TOLERANCE;
 }
+
+/** How long the Wren takes from the buoy to `at`, in days: d = v·t. */
+export function arrivalDays(at: Vec): number {
+  return dist(at, TRANSFER_START) / SPEED;
+}
+
+/**
+ * The arrival day the chart shows: rounded to whole days so both numbers the player compares are
+ * integers. Every marker is 4.7 to 7 days out, so this is 5 to 7 anywhere on the path; only
+ * day 6 matches its marker.
+ */
+export function arrivalDay(days: number): number {
+  return Math.round(days);
+}
+
+/** How far the course's free end may be dragged from the buoy, in Mkm. */
+export const MIN_REACH = 3;
+export const MAX_REACH = 80;
 
 /**
  * For a burn from `from` on `fromDay` (days since the hop began), the direction that meets Kethra

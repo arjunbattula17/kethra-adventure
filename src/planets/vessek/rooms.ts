@@ -69,9 +69,11 @@ function bayPlacement(room: L.Room, wall: L.Bay['wall'], at: number): { pos: [nu
   return { pos: [at, 0, room.z1 - 2], yaw: Math.PI / 2 };
 }
 
+/** The kit pieces the rooms are built from. */
+export const ROOM_KIT_PIECES = ['Platform_Simple', 'Platform_DarkPlates', 'Platform_Metal', 'WallAstra_Straight', 'TopAstra_Straight', 'WallAstra_Corner_Square_Inner', 'TopCables_Corner_Square_Inner', 'Door_Frame_Square'];
+
 export async function buildRooms(scene: THREE.Scene, mats: { wall: THREE.MeshStandardMaterial; ceiling: THREE.Material }): Promise<Rooms> {
-  const pieces = ['Platform_Simple', 'Platform_DarkPlates', 'Platform_Metal', 'WallAstra_Straight', 'TopAstra_Straight', 'WallAstra_Corner_Square_Inner', 'TopCables_Corner_Square_Inner', 'Door_Frame_Square'];
-  await preloadKit(pieces);
+  await preloadKit(ROOM_KIT_PIECES);
   const jobs: Promise<THREE.Object3D>[] = [];
   const place = (name: string, pos: [number, number, number], yaw = 0) => jobs.push(placeKitPiece(scene, name, pos, yaw).then(groundKitPiece));
 

@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { PAINT_CONTEXT } from '../../core/paintCanvas';
 import { memoTexture } from '../../core/memoTexture';
+import { centralNormalsFromBytes } from '../../core/pixelOps';
 
 // Procedural canvases owned by the forward viewport bay: the space seen through the glass, the
 // glass surface itself, the localised corrosion under the sill, and the small lit inserts
@@ -21,7 +23,7 @@ function surface(w: number, h: number): CanvasRenderingContext2D {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  return canvas.getContext('2d')!;
+  return canvas.getContext('2d', PAINT_CONTEXT)!;
 }
 
 function finish(c: CanvasRenderingContext2D, repeatX = false): THREE.CanvasTexture {
@@ -66,23 +68,7 @@ function normalFromHeight(h: CanvasRenderingContext2D, strength: number): THREE.
   const src = h.getImageData(0, 0, w, ht).data;
   const out = surface(w, ht);
   const img = out.createImageData(w, ht);
-  const d = img.data;
-  const at = (x: number, y: number): number =>
-    src[((((y % ht) + ht) % ht) * w + (((x % w) + w) % w)) * 4];
-  for (let y = 0; y < ht; y++) {
-    for (let x = 0; x < w; x++) {
-      const dx = ((at(x + 1, y) - at(x - 1, y)) / 255) * strength;
-      const dy = ((at(x, y + 1) - at(x, y - 1)) / 255) * strength;
-      const nx = -dx;
-      const ny = dy;
-      const len = Math.hypot(nx, ny, 1);
-      const i = (y * w + x) * 4;
-      d[i] = ((nx / len) * 0.5 + 0.5) * 255;
-      d[i + 1] = ((ny / len) * 0.5 + 0.5) * 255;
-      d[i + 2] = (1 / len) * 0.5 * 255 + 127.5;
-      d[i + 3] = 255;
-    }
-  }
+  centralNormalsFromBytes(src, w, ht, strength, img.data);
   out.putImageData(img, 0, 0);
   return finishData(out);
 }

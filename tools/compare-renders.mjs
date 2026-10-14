@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 const [a, b] = process.argv.slice(2);
 const files = readdirSync(a).filter((f) => f.endsWith('.png') && readdirSync(b).includes(f));
-const browser = await chromium.launch();
+const browser = await chromium.launch({ channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 64, height: 64 } });
 await page.goto('about:blank');
 

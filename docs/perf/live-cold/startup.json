@@ -1,0 +1,505 @@
+{
+ "label": "live-cold",
+ "base": "http://localhost:4190/kethra-adventure/",
+ "coldGpu": true,
+ "mbps": 0,
+ "skipAt": null,
+ "path": "new",
+ "runs": [
+  {
+   "run": 0,
+   "visit": 0,
+   "nonce": 115363,
+   "phases": {
+    "titleShownMs": 1608,
+    "clickToIntroSceneMs": 4944,
+    "clickToIntroClockMs": 56563,
+    "introDoneToShipPlayableMs": 914,
+    "clickToShipPlayableMs": 81611
+   },
+   "events": {
+    "loading:hide": 60,
+    "title:shown": 1608,
+    "state:boot": 1617,
+    "scene:none": 1617,
+    "click:new game": 4722,
+    "state:boot*": 5200,
+    "loading:show": 5420,
+    "scene:intro": 9666,
+    "state:intro": 60933,
+    "intro:clock": 61285,
+    "state:intro*": 85419,
+    "scene:ship": 85910,
+    "state:wren": 86333,
+    "ship:playable": 86333,
+    "scene-init-start": 5208,
+    "scene-init-end": 5368,
+    "scene-compile-end": 5983,
+    "scene-warmup-start": 5985
+   },
+   "spans": {
+    "scene:init": {
+     "at": 5208,
+     "ms": 160
+    },
+    "scene:compile": {
+     "at": 5368,
+     "ms": 616
+    },
+    "scene:warmup": {
+     "at": 5985,
+     "ms": 1901
+    }
+   },
+   "frames": {
+    "boot": {
+     "frames": 10,
+     "fps": 6.4,
+     "p50": 16.9,
+     "p95": 1281.8,
+     "p99": 1281.8,
+     "max": 1281.8,
+     "over50": 3,
+     "over100": 1,
+     "over250": 1,
+     "over1000": 1
+    },
+    "titleIdle": {
+     "frames": 148,
+     "fps": 47.5,
+     "p50": 16.7,
+     "p95": 33.3,
+     "p99": 100.3,
+     "max": 399.5,
+     "over50": 3,
+     "over100": 2,
+     "over250": 1,
+     "over1000": 0
+    },
+    "loading": {
+     "frames": 221,
+     "fps": 3.9,
+     "p50": 16.7,
+     "p95": 66.6,
+     "p99": 3646.1,
+     "max": 31630.4,
+     "over50": 14,
+     "over100": 10,
+     "over250": 6,
+     "over1000": 4
+    },
+    "intro": {
+     "frames": 1123,
+     "fps": 46.6,
+     "p50": 16.7,
+     "p95": 33.8,
+     "p99": 50.3,
+     "max": 132.7,
+     "over50": 14,
+     "over100": 3,
+     "over250": 0,
+     "over1000": 0
+    },
+    "handover": {
+     "frames": 29,
+     "fps": 32.3,
+     "p50": 16.7,
+     "p95": 99.8,
+     "p99": 199.3,
+     "max": 199.3,
+     "over50": 2,
+     "over100": 1,
+     "over250": 0,
+     "over1000": 0
+    },
+    "ship": {
+     "frames": 140,
+     "fps": 27.8,
+     "p50": 33.3,
+     "p95": 50.2,
+     "p99": 66.6,
+     "max": 66.6,
+     "over50": 7,
+     "over100": 0,
+     "over250": 0,
+     "over1000": 0
+    }
+   },
+   "longTasks": {
+    "boot": {
+     "count": 2,
+     "totalMs": 1409,
+     "max": 1298,
+     "top": [
+      1298,
+      111
+     ]
+    },
+    "titleIdle": {
+     "count": 1,
+     "totalMs": 75,
+     "max": 75,
+     "top": [
+      75
+     ]
+    },
+    "loading": {
+     "count": 8,
+     "totalMs": 40420,
+     "max": 31642,
+     "top": [
+      31642,
+      3636,
+      1838,
+      1540,
+      749,
+      728,
+      193,
+      94
+     ]
+    },
+    "intro": {
+     "count": 3,
+     "totalMs": 239,
+     "max": 90,
+     "top": [
+      90,
+      84,
+      65
+     ]
+    },
+    "handover": {
+     "count": 1,
+     "totalMs": 184,
+     "max": 184,
+     "top": [
+      184
+     ]
+    },
+    "ship": {
+     "count": 0,
+     "totalMs": 0,
+     "max": 0,
+     "top": []
+    }
+   },
+   "bytes": {
+    "title": 0.45,
+    "intro": 5.36,
+    "total": 5.36
+   },
+   "stuck": null,
+   "timeline": [
+    [
+     60,
+     "loading:hide"
+    ],
+    [
+     1608,
+     "title:shown"
+    ],
+    [
+     1617,
+     "state:boot"
+    ],
+    [
+     1617,
+     "scene:none"
+    ],
+    [
+     4722,
+     "click:new game"
+    ],
+    [
+     5200,
+     "state:boot*"
+    ],
+    [
+     5420,
+     "loading:show"
+    ],
+    [
+     9666,
+     "scene:intro"
+    ],
+    [
+     59951,
+     "loading:hide"
+    ],
+    [
+     60933,
+     "state:intro"
+    ],
+    [
+     61285,
+     "intro:clock"
+    ],
+    [
+     85419,
+     "state:intro*"
+    ],
+    [
+     85910,
+     "scene:ship"
+    ],
+    [
+     86333,
+     "state:wren"
+    ],
+    [
+     86333,
+     "ship:playable"
+    ]
+   ],
+   "paint": {
+    "first-paint": 256,
+    "first-contentful-paint": 2068
+   },
+   "tier": "low",
+   "benchmarkMs": 9.7,
+   "programs": 106,
+   "textures": 208,
+   "geometries": 284,
+   "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "heapMaxMB": 46.6,
+   "heapEndMB": 27.1,
+   "gaps": [
+    [
+     120,
+     81
+    ],
+    [
+     187,
+     67
+    ],
+    [
+     1601,
+     1282
+    ],
+    [
+     2051,
+     400
+    ],
+    [
+     2417,
+     50
+    ],
+    [
+     3200,
+     100
+    ],
+    [
+     4815,
+     67
+    ],
+    [
+     5414,
+     200
+    ],
+    [
+     5614,
+     183
+    ],
+    [
+     5697,
+     67
+    ],
+    [
+     9643,
+     3646
+    ],
+    [
+     9826,
+     150
+    ],
+    [
+     10974,
+     1032
+    ],
+    [
+     11890,
+     916
+    ],
+    [
+     25924,
+     14034
+    ],
+    [
+     26007,
+     67
+    ],
+    [
+     59935,
+     31630
+    ],
+    [
+     60185,
+     200
+    ],
+    [
+     60251,
+     66
+    ],
+    [
+     60900,
+     649
+    ],
+    [
+     61401,
+     67
+    ],
+    [
+     61982,
+     83
+    ],
+    [
+     62981,
+     132
+    ],
+    [
+     63698,
+     51
+    ],
+    [
+     68193,
+     117
+    ],
+    [
+     68292,
+     50
+    ],
+    [
+     68359,
+     50
+    ],
+    [
+     68409,
+     50
+    ],
+    [
+     68609,
+     67
+    ],
+    [
+     68808,
+     50
+    ],
+    [
+     68941,
+     133
+    ],
+    [
+     71971,
+     83
+    ],
+    [
+     72054,
+     66
+    ],
+    [
+     77565,
+     67
+    ],
+    [
+     85922,
+     199
+    ],
+    [
+     86205,
+     100
+    ],
+    [
+     86888,
+     50
+    ],
+    [
+     87554,
+     50
+    ],
+    [
+     88619,
+     67
+    ],
+    [
+     90500,
+     66
+    ],
+    [
+     90600,
+     67
+    ],
+    [
+     90733,
+     67
+    ],
+    [
+     90966,
+     66
+    ]
+   ],
+   "long": [
+    [
+     79,
+     111
+    ],
+    [
+     310,
+     1298
+    ],
+    [
+     2354,
+     75
+    ],
+    [
+     5207,
+     193
+    ],
+    [
+     5983,
+     3636
+    ],
+    [
+     10011,
+     1838
+    ],
+    [
+     14618,
+     94
+    ],
+    [
+     16734,
+     728
+    ],
+    [
+     19582,
+     1540
+    ],
+    [
+     22743,
+     749
+    ],
+    [
+     28304,
+     31642
+    ],
+    [
+     68086,
+     84
+    ],
+    [
+     71895,
+     90
+    ],
+    [
+     77506,
+     65
+    ],
+    [
+     85725,
+     184
+    ]
+   ],
+   "errors": []
+  }
+ ]
+}

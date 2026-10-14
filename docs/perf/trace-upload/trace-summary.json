@@ -1,0 +1,808 @@
+{
+ "label": "trace-upload",
+ "windowMs": 1065,
+ "threads": [
+  {
+   "thread": "GPU Process / CrGpuMain",
+   "busyMs": 1063,
+   "top": [
+    [
+     "RunTask",
+     1063
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     1062
+    ],
+    [
+     "Scheduler::RunTask",
+     1059
+    ],
+    [
+     "GpuChannel::ExecuteDeferredRequest",
+     1054
+    ],
+    [
+     "GPUTask",
+     1054
+    ],
+    [
+     "CommandBuffer::Flush",
+     1051
+    ],
+    [
+     "CommandBufferStub::OnAsyncFlush",
+     1051
+    ],
+    [
+     "CommandBufferService:PutChanged",
+     1050
+    ],
+    [
+     "WebGL",
+     1047
+    ],
+    [
+     "RendererRasterWorker",
+     5
+    ],
+    [
+     "RasterDecoderImpl::DoEndRasterCHROMIUM",
+     3
+    ],
+    [
+     "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush",
+     3
+    ],
+    [
+     "SkiaOutputSurfaceImplOnGpu::FinishPaintRenderPass",
+     2
+    ],
+    [
+     "SkiaOutputSurfaceImplOnGpu::SwapBuffers",
+     2
+    ]
+   ]
+  },
+  {
+   "thread": "GPU Process / GpuVSyncThread",
+   "busyMs": 1052,
+   "top": [
+    [
+     "RunTask",
+     1052
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     1051
+    ],
+    [
+     "WaitForVSync Sleep",
+     1045
+    ],
+    [
+     "WinVSyncProvider::GetVSyncIntervalIfAvailable",
+     4
+    ]
+   ]
+  },
+  {
+   "thread": "Renderer / CrRendererMain",
+   "busyMs": 1023,
+   "top": [
+    [
+     "RunTask",
+     1019
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     1019
+    ],
+    [
+     "TimerFire",
+     1008
+    ],
+    [
+     "RunMicrotasks",
+     1008
+    ],
+    [
+     "CommandBufferProxyImpl::WaitForToken",
+     946
+    ],
+    [
+     "Decode Image",
+     12
+    ],
+    [
+     "ProxyMain::BeginMainFrame",
+     10
+    ],
+    [
+     "CommandBufferProxyImpl::OrderingBarrier",
+     2
+    ],
+    [
+     "Layout",
+     2
+    ],
+    [
+     "CommandBufferHelper::Flush",
+     2
+    ],
+    [
+     "CommandBufferProxyImpl::Flush",
+     1
+    ],
+    [
+     "UpdateLayoutTree",
+     1
+    ],
+    [
+     "GLES2Implementation::GetFloatv",
+     1
+    ],
+    [
+     "ImplementationBase::WaitForCmd",
+     1
+    ]
+   ]
+  },
+  {
+   "thread": "Renderer / Compositor",
+   "busyMs": 11,
+   "top": [
+    [
+     "RunTask",
+     9
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     8
+    ],
+    [
+     "Graphics.Pipeline",
+     4
+    ],
+    [
+     "ProxyImpl::ReadyToCommit",
+     3
+    ],
+    [
+     "IOHandler::OnIOCompleted",
+     3
+    ],
+    [
+     "ProxyImpl::ScheduledActionDraw",
+     3
+    ],
+    [
+     "MainFrame.Draw",
+     3
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     2
+    ],
+    [
+     "Receive mojo message",
+     2
+    ],
+    [
+     "LayerTreeHostImpl::CommitComplete",
+     2
+    ],
+    [
+     "ExternalBeginFrameSource::OnBeginFrame",
+     1
+    ],
+    [
+     "auto cc::LayerTreeHostImpl::PrepareTiles()::(lambda)::operator()()::(lambda)::operator()(uint32_t) const",
+     1
+    ],
+    [
+     "Scheduler::BeginFrame",
+     1
+    ],
+    [
+     "auto cc::TileManager::PrepareTiles(const GlobalStateThatImpactsTilePriority &)::(lambda)::operator()()::(lambda)::operator()(uint32_t) const",
+     1
+    ]
+   ]
+  },
+  {
+   "thread": "GPU Process / VizCompositorThread",
+   "busyMs": 6,
+   "top": [
+    [
+     "RunTask",
+     6
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     5
+    ],
+    [
+     "Graphics.Pipeline",
+     4
+    ],
+    [
+     "DisplayScheduler::OnBeginFrameDeadline",
+     2
+    ],
+    [
+     "DisplayScheduler::DrawAndSwap",
+     2
+    ],
+    [
+     "Display::DrawAndSwap",
+     2
+    ],
+    [
+     "ExternalBeginFrameSource::OnBeginFrame",
+     1
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     1
+    ],
+    [
+     "DirectRenderer::DrawFrame",
+     1
+    ],
+    [
+     "Receive mojo message",
+     1
+    ],
+    [
+     "DisplayScheduler::BeginFrame",
+     1
+    ],
+    [
+     "DirectRenderer::DrawRenderPass",
+     1
+    ],
+    [
+     "Surface::CommitFrame",
+     0
+    ],
+    [
+     "DisplayScheduler::ScheduleBeginFrameDeadline",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Renderer / ThreadPoolForegroundWorker",
+   "busyMs": 5,
+   "top": [
+    [
+     "ThreadPool_RunTask",
+     5
+    ],
+    [
+     "TaskGraphRunner::RunTask",
+     1
+    ],
+    [
+     "RasterizerTaskImpl::RunOnWorkerThread",
+     1
+    ],
+    [
+     "RasterTask",
+     1
+    ],
+    [
+     "GpuRasterBuffer::Playback",
+     1
+    ],
+    [
+     "RasterImplementation::RasterCHROMIUM",
+     1
+    ],
+    [
+     "TaskSetFinishedTaskImpl::RunOnWorkerThread",
+     0
+    ],
+    [
+     "CommandBufferProxyImpl::OrderingBarrier",
+     0
+    ],
+    [
+     "CommandBuffer::OrderingBarrier",
+     0
+    ],
+    [
+     "DidFinishRunningAllTilesTask::RunOnWorkerThread",
+     0
+    ],
+    [
+     "cc::TaskGraphWorkQueue::ScheduleTasks",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "GPU Process / Chrome_ChildIOThread",
+   "busyMs": 4,
+   "top": [
+    [
+     "IOHandler::OnIOCompleted",
+     4
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     2
+    ],
+    [
+     "Receive mojo message",
+     2
+    ],
+    [
+     "GpuChannelMessageFilter::FlushDeferredRequests",
+     1
+    ],
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "Scheduler::ScheduleTask",
+     0
+    ],
+    [
+     "SyncToken::Wait",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Renderer / Chrome_ChildIOThread",
+   "busyMs": 3,
+   "top": [
+    [
+     "RunTask",
+     2
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     1
+    ],
+    [
+     "IOHandler::OnIOCompleted",
+     1
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo reply",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: tracing.mojom.TracingService / tracing.CrUtilityMain",
+   "busyMs": 2,
+   "top": [
+    [
+     "RunTask",
+     2
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     1
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     1
+    ],
+    [
+     "Receive mojo message",
+     1
+    ]
+   ]
+  },
+  {
+   "thread": "Renderer / ThreadPoolForegroundWorker",
+   "busyMs": 1,
+   "top": [
+    [
+     "ThreadPool_RunTask",
+     1
+    ]
+   ]
+  },
+  {
+   "thread": "Browser / Chrome_IOThread",
+   "busyMs": 1,
+   "top": [
+    [
+     "IOHandler::OnIOCompleted",
+     1
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ],
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: audio.mojom.AudioService / audio.CrUtilityMain",
+   "busyMs": 1,
+   "top": [
+    [
+     "RunTask",
+     1
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Browser / CrBrowserMain",
+   "busyMs": 1,
+   "top": [
+    [
+     "RunTask",
+     1
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ],
+    [
+     "UkmRecorderImpl::NotifyObserversWithNewEntry",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Browser / ThreadPoolServiceThread",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Browser / ThreadPoolForegroundWorker",
+   "busyMs": 0,
+   "top": [
+    [
+     "ThreadPool_RunTask",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: tracing.mojom.TracingService / Chrome_ChildIOThread",
+   "busyMs": 0,
+   "top": [
+    [
+     "IOHandler::OnIOCompleted",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Browser / PerfettoTrace",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ],
+    [
+     "Receive mojo reply",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Renderer / PerfettoTrace",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ],
+    [
+     "Receive mojo reply",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: tracing.mojom.TracingService / PerfettoTrace",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ],
+    [
+     "Receive mojo reply",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: network.mojom.NetworkService / Chrome_ChildIOThread",
+   "busyMs": 0,
+   "top": [
+    [
+     "IOHandler::OnIOCompleted",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: storage.mojom.StorageService / Chrome_ChildIOThread",
+   "busyMs": 0,
+   "top": [
+    [
+     "IOHandler::OnIOCompleted",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: network.mojom.NetworkService / PerfettoTrace",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Renderer / Chrome_ChildIOThread",
+   "busyMs": 0,
+   "top": [
+    [
+     "IOHandler::OnIOCompleted",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: storage.mojom.StorageService / PerfettoTrace",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: audio.mojom.AudioService / Chrome_ChildIOThread",
+   "busyMs": 0,
+   "top": [
+    [
+     "IOHandler::OnIOCompleted",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "GPU Process / PerfettoTrace",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ],
+    [
+     "Receive mojo reply",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "WebUI Top Renderer / Chrome_ChildIOThread",
+   "busyMs": 0,
+   "top": [
+    [
+     "IOHandler::OnIOCompleted",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Renderer / PerfettoTrace",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ],
+    [
+     "Receive mojo reply",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "WebUI Top Renderer / PerfettoTrace",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "Service: audio.mojom.AudioService / PerfettoTrace",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "SimpleWatcher::OnHandleReady",
+     0
+    ],
+    [
+     "Receive mojo message",
+     0
+    ]
+   ]
+  },
+  {
+   "thread": "WebUI Top Renderer / CrRendererMain",
+   "busyMs": 0,
+   "top": [
+    [
+     "RunTask",
+     0
+    ],
+    [
+     "ThreadControllerImpl::RunTask",
+     0
+    ],
+    [
+     "BlinkScheduler_PerformMicrotaskCheckpoint",
+     0
+    ]
+   ]
+  }
+ ]
+}

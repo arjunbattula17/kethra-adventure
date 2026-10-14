@@ -49,8 +49,10 @@ const HOSE_X = 2.95;
  * and wear the kit itself doesn't provide — alarm-orange trim jambs, a stencilled header placard,
  * a keypad panel with real map/roughness/normal response, and a hazard-striped threshold.
  */
+export const AIRLOCK_KIT_PIECES = ['Door_Frame_Square', 'Door_DarkMetal'];
+
 export async function buildAirlock(ctx: InteriorCtx): Promise<void> {
-  await preloadKit(['Door_Frame_Square', 'Door_DarkMetal']);
+  await preloadKit(AIRLOCK_KIT_PIECES);
 
   // Door_DarkMetal is one leaf of a pair: its geometry spans local x [-2.106, 0], so a single
   // placement fills exactly half the opening. At DOOR_YAW that half is x [0, 2.106] and the other

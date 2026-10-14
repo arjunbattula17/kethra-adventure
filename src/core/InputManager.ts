@@ -11,6 +11,12 @@ class InputManagerImpl {
   onUserUnlock: (() => void) | null = null;
   /** Whether the current scene aims with the captured mouse; boot wires it to the engine's scene. */
   mouseLookWanted: () => boolean = () => true;
+  /**
+   * Whether the game may capture the mouse (pointer lock) for looking around; a canvas click does
+   * so. Screens that use a visible cursor turn this off (the Intercept chart, where the player
+   * drags), since pointer lock freezes the cursor position.
+   */
+  captureAllowed = true;
 
   init(canvas: HTMLElement): void {
     this.lockedElement = canvas;
@@ -86,7 +92,7 @@ class InputManagerImpl {
 
   requestPointerLock(): void {
     // A captured mouse freezes the cursor that MG1 and MG2 steer by.
-    if (!this.mouseLookWanted()) return;
+    if (!this.captureAllowed || !this.mouseLookWanted()) return;
     // Browsers refuse a request that follows too closely on the last (a panel closed, reopened and
     // closed again). The pointerlockerror event that goes with the refusal is what tells the player
     // to click (UIManager); the promise only needs to not go unhandled.
