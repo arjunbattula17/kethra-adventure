@@ -1,4 +1,4 @@
-import{Bt as e,D as t,H as n,It as r,L as i,Lt as a,Rt as o,S as s,St as c,Tt as l,X as u,Z as d,b as f,bt as p,ft as m,jt as h,mt as g,n as _,r as v,rt as y,tt as b,ut as x,vt as S,x as C,xt as w,z as T}from"./three-CZsmadtC.js";import{n as E,t as D}from"./perfMarks-B6nwIo-H.js";import{t as O}from"./motion-BRH2S8mw.js";import{d as k,h as A,i as j,u as M}from"./boot-CvWv89y1.js";import{n as N,r as P,t as F}from"./planetShader-Czew4SI0.js";import{t as I}from"./spaceSky-DRgb4xMT.js";var L=`
+import{Bt as e,D as t,H as n,It as r,L as i,Lt as a,Rt as o,S as s,St as c,Tt as l,X as u,Z as d,b as f,bt as p,ft as m,jt as h,mt as g,n as _,r as v,rt as y,tt as b,ut as x,vt as S,x as C,xt as w,z as T}from"./three-CZsmadtC.js";import{n as E,t as D}from"./perfMarks-B6nwIo-H.js";import{t as O}from"./motion-BL9icHyK.js";import{d as k,h as A,i as j,u as M}from"./boot-CrjFB6LJ.js";import{n as N,r as P,t as F}from"./planetShader-Czew4SI0.js";import{t as I}from"./spaceSky-IZNUZymD.js";var L=`
   varying vec2 vUv;
   void main() {
     vUv = uv;
