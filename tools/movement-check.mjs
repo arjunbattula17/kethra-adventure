@@ -9,16 +9,17 @@ const scene = process.argv.includes('ship') ? 'ship' : 'kethra';
 const baseUrl = process.env.BASE_URL || 'http://localhost:5180/kethra-adventure/';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
-await page.goto(`${baseUrl}?skipIntro=1&newGame=1&unlockKethra=1`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+// ?jump=kethra goes straight to the grove; the old travel shortcut (emitting galaxy:travel_to) no
+// longer leaves the Wren, so the Kethra run timed out before measuring anything.
+await page.goto(`${baseUrl}?skipIntro=1&newGame=1&unlockKethra=1${scene === 'kethra' ? '&jump=kethra' : ''}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 90000 });
 await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene?.(), undefined, { timeout: 90000 });
-if (scene === 'kethra') await page.evaluate(() => window.__DEBUG__.bus.emit('galaxy:travel_to', 'kethra'));
 const cls = scene === 'kethra' ? 'KethraScene' : 'ShipInteriorScene';
 try {
   await page.waitForFunction((c) => {
     const s = window.__DEBUG__.engine.getCurrentScene?.();
-    return !!(s && s.player && (s.kind ?? s.constructor.name) === c);
-  }, cls, { timeout: 90000 });
+    return !!(s && s.player && (s.kind ?? s.constructor.name) === c && !window.__DEBUG__.flow.isTransitioning());
+  }, cls, { timeout: 240000 });
 } catch {
   // Say what actually loaded rather than just timing out. This used to be a silent wait whenever
   // the identity check failed — which it did for every production build, because constructor.name

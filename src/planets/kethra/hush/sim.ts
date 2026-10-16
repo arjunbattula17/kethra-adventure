@@ -50,7 +50,7 @@ export const TUNNEL_Z = [-15, -23.8] as const;
 /** The tunnels' roof bottom and top: above a standing player's head (1.8 m), so no crouch is
  * needed. */
 export const ROOF = [FLOOR_Y + 1.95, FLOOR_Y + 2.4] as const;
-/** Under a crouched eye (1.1) and over a crouched lantern (0.65): low cover you can see over. */
+/** Under a crouched eye (1.0) and over a crouched lantern (0.65): low cover you can see over. */
 export const MOUND_HEIGHT = 0.82;
 
 /** The door's angle on the ring (x = cos, z = sin, about CENTER): north. */

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { placeKitPiece, preloadKit } from '../../ship/interior/kit';
 import { groundKitPiece } from '../../ship/interior/walls';
 import { applyPbr } from '../../core/TextureLibrary';
+import { PLAYER } from '../../content/tuning';
 import * as L from './layout';
 
 /**
@@ -161,6 +162,23 @@ export async function buildRooms(scene: THREE.Scene, mats: { wall: THREE.MeshSta
       floors.push(m);
       noMerge.add(m);
     } else colliders.push(new THREE.Box3(new THREE.Vector3(k.min.x, k.min.y, k.min.z), new THREE.Vector3(k.max.x, k.max.y, k.max.z)));
+  }
+  // An unseen lip at each drop vent, almost a body's radius out into the room at the duct floor's
+  // height. The duct floor stops at the wall's face, so without it a player stepping out starts to
+  // fall with half their body over the wall under the vent, and lands wedged against it. Short of a
+  // full radius, so on the lip the wall over the vent leaves no room to stand or jump: from the edge
+  // of a full-radius lip a jump puts the head through the room's ceiling.
+  for (const d of L.DUCTS) {
+    for (const mouth of d.mouths) {
+      if (!mouth.drop) continue;
+      const p = L.bayPoint(mouth.bay);
+      const h = L.DUCT_WIDTH / 2;
+      const r = PLAYER.PLAYER_RADIUS - 0.02;
+      const wall = mouth.bay.wall;
+      const [x0, x1] = wall === 'west' ? [p.x, p.x + r] : wall === 'east' ? [p.x - r, p.x] : [p.x - h, p.x + h];
+      const [z0, z1] = wall === 'north' ? [p.z, p.z + r] : wall === 'south' ? [p.z - r, p.z] : [p.z - h, p.z + h];
+      floorSlab(x0, z0, x1, z1, mouth.y);
+    }
   }
   const ladders: THREE.Box3[] = [];
   const rungMat = new THREE.MeshStandardMaterial({ color: 0xb08a3a, roughness: 0.45, metalness: 0.8 });

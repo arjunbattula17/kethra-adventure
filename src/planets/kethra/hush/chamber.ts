@@ -212,14 +212,22 @@ export function buildChamber(): Chamber {
   }
 
   // --- The root tunnels: a woven roof on root arches, walled in ---
+  // Each arch is flattened and lifted so that over all the floor a player can stand on (out to
+  // 0.8 m from the tunnel's middle: the outer wall's face, less a body's radius) its underside is
+  // in the roof, and its crown stays under the roof's top; it shows where it meets the walls. Any
+  // lower and it reaches head height, and a walk down the tunnel passes the camera through it.
+  const reach = 0.8;
   for (const k of blocks.filter((b) => b.kind === 'roof')) {
     bark.add(box(k.hx * 2, k.y1 - k.y0, k.hz * 2, 1.5), place(k.x, (k.y0 + k.y1) / 2, k.z, k.yaw));
     const n = Math.round((k.hz * 2) / 1.1);
     for (let i = 0; i <= n; i++) {
       const z = k.z - k.hz + (i / n) * k.hz * 2;
       const big = i === 0 || i === n;
-      const arc = new THREE.TorusGeometry(1.22, big ? 0.24 : 0.15, 6, 12, Math.PI);
-      bark.add(arc, place(k.x, F + 0.72, z, 0, 1, 1, 1, 0, 0));
+      const tube = big ? 0.24 : 0.15;
+      const arc = new THREE.TorusGeometry(1.22, tube, 6, 12, Math.PI);
+      const under = Math.sqrt((1.22 - tube) ** 2 - reach ** 2);
+      const sy = (0.95 * (k.y1 - k.y0)) / (1.22 + tube - under);
+      bark.add(arc, place(k.x, k.y0 + 0.01 - sy * under, z, 0, 1, sy, 1, 0, 0));
     }
   }
   for (const k of blocks.filter((b) => b.kind === 'tunnel')) {

@@ -182,6 +182,10 @@ Measured numbers cite their files; the rest is description.
     floor snap caught the player on the jump's second frame and set them back down. Overhead
     colliders (duct roofs, root tunnels) stop the head, and anything that blocks walking still
     blocks mid-jump, so a jump can't carry you into an object.
+  - Nothing to walk through and nowhere to get stuck (D-28): Vessek's drop vents no longer trap
+    you, nothing can hold you inside a collider, the camera stays clear of Kethra's root-tunnel
+    arches, and the Wren's high fixtures, Vessek's people and its furniture are solid. Crouching
+    lowers the view 10 cm more, and doors wait for you to step through.
   - Coyote time (a jump still works 0.1 s after you step off a ledge) and a jump buffer (a press
     0.12 s early still counts).
   - A landing dip with a thud, and a slight lean when strafing (`src/player/PlayerController.ts`,

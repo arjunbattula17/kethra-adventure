@@ -42,6 +42,47 @@ Kethra, for replacing art one asset at a time (no files changed).
 - Why Space did nothing before (the stair-following floor snap pulled the player back down) and
   why a jump now can't carry you inside an object (colliders block from the take-off height).
 
+**Later the same session — asked for by the team:** fix the bugs found, "like going through
+walls", then commit and push without waiting for review.
+
+**What the AI generated or changed**
+- `tools/wall-sweep.mjs` (new): walks, sprints and jumps the real player into every wall in the
+  three walkable places and checks the body and camera against every visible triangle, then tries
+  to walk or jump back from anywhere walking can't reach.
+- `src/player/PlayerController.ts`: a move out of a collider the player is already inside is
+  always allowed; the crouched eye 10 cm lower; no jump without room to stand; a public
+  `overlaps()` for doors.
+- Vessek: a lip at each drop vent (`rooms.ts`), grow-table tops as floors, stool and reset-panel
+  colliders (`dressing.ts`), colliders for Varro, Dace, the crate, the barrel and the whole pipe
+  holder, and the keypad door waiting for the player (`VessekScene.ts`).
+- Kethra: the root-tunnel arches lifted into the roof (`hush/chamber.ts`).
+- The Wren: wall-fixture colliders up to the top of a jump (`ship/interior/collision.ts`), and the
+  console's grime decals moved onto the desk (`console.ts`).
+- `tools/collision-check.mjs` and `movement-check.mjs` reach Kethra again; `test-controls.mjs` has
+  nine more checks. DECISIONS D-28, CHANGELOG_FOR_TEAM, EXPLAIN_TO_TEAM, README.
+
+**What the AI found**
+- Both of Vessek's drop vents trapped the player on the live build: walking out at crawl speed,
+  they landed against the wall under the vent (or inside the grow table under Dace's) and no key
+  moved them, measured with real key presses.
+- Walking either root tunnel on the live build put the camera within 0.5 cm of the arches.
+- The flow tests had never reached either problem: they teleport past the ducts' far ends.
+
+**Mistakes the AI made and caught this session**
+- Its first vent lip was a full body's radius deep; standing at its edge there was room to jump,
+  and the jump put the head through the room's ceiling. The sweep caught it; the lip is now 2 cm
+  short of a radius, so the wall above the vent always leaves no headroom there.
+- Its first grow-table floors were a body's radius wider than the tables, which let a jump from the
+  floor land on air at a table's corner. They now match the tables exactly.
+- The sweep's first runs used the old crouched eye height and started players in crouch-only
+  spots without the crouch a real player would be in, reporting overlaps that couldn't happen in
+  play. Both were fixed before any result was used.
+
+**What the team must be able to explain**
+- Why nothing can trap the player now (moves out of a collider are always allowed, doors wait).
+- Why the drop vents needed a lip (the fall began with half the body still over the wall below).
+- Why the crouched view moved down (the eye was above the top of the crouched body).
+
 ---
 
 ## Session 2026-09-25 (Claude Code, model Claude Opus 5.5)

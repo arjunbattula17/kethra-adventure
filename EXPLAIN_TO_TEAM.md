@@ -88,6 +88,10 @@ without errors), `test-tutorial-flow.mjs` (36 checks through the opening), `intr
   before every commit.
 - *"Why test with a browser instead of unit tests?"* Most bugs here are visual or timing bugs,
   and only the real renderer shows them.
+- *"How do you know you can't walk through walls?"* `wall-sweep.mjs` drives the real player into
+  every wall it can reach, walking, sprinting and jumping, and checks the body and the camera
+  against every visible triangle. It found Vessek's drop vents trapping the player and the camera
+  passing through the root-tunnel arches on Kethra (D-28).
 - *"What can't you test?"* Other browsers and real Chromebooks, until we run them by hand
   (BACKLOG B-5).
 

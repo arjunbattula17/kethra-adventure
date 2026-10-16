@@ -22,6 +22,18 @@ const {
   STEP_OVER, GRAVITY, JUMP_SPEED, MOUSE_SENSITIVITY, MAX_STEP_UP,
   COYOTE_TIME, JUMP_BUFFER, LAND_DIP, LAND_RECOVER, TURN_SPEED,
 } = PLAYER;
+// Crouching lowers the eye as far as it lowers the top of the capsule, so the eye stays 0.1 m under
+// the top either way. A smaller drop leaves a crouched eye above the capsule, and a roof that stops
+// the capsule then cuts through the camera.
+const CROUCH_DROP = PLAYER_HEIGHT - CROUCH_HEIGHT;
+
+/** How far the capsule centred at (x, z) reaches into `box` in plan view; above 0 means they overlap. */
+function depthInto(box: THREE.Box3, x: number, z: number): number {
+  const dx = x - THREE.MathUtils.clamp(x, box.min.x, box.max.x);
+  const dz = z - THREE.MathUtils.clamp(z, box.min.z, box.max.z);
+  if (dx !== 0 || dz !== 0) return PLAYER_RADIUS - Math.sqrt(dx * dx + dz * dz);
+  return PLAYER_RADIUS + Math.min(x - box.min.x, box.max.x - x, z - box.min.z, box.max.z - z);
+}
 
 // Scratch vectors for update(): it runs every frame, so it allocates nothing.
 const _up = new THREE.Vector3(0, 1, 0);
@@ -31,6 +43,7 @@ const _moveDir = new THREE.Vector3();
 const _desired = new THREE.Vector3();
 const _rayOrigin = new THREE.Vector3();
 const _down = new THREE.Vector3(0, -1, 0);
+const _moveFrom = new THREE.Vector3();
 
 export class PlayerController {
   rig = new THREE.Object3D();
@@ -115,14 +128,6 @@ export class PlayerController {
   }
 
   /**
-   * Whether the player capsule standing with its feet at `feetY` would overlap a collider at
-   * (x, z). The vertical test decides whether an obstacle is stepped over, walked under, or
-   * blocking: the old version compared the *feet* against the box instead of the whole capsule, so
-   * anything whose base sat above ankle height — a wall shelf, a bench top, a mounted panel —
-   * never blocked at all. It also allocated a Vector3 per box per test, which the scene's
-   * geometry-derived colliders make far too expensive.
-   */
-  /**
    * Whether the floor at (x, z) is too far above the player's feet to step onto. Without this the
    * player can scale any wall that has a walkable surface on top: update() snaps a grounded player
    * to whatever floor the downward ray finds, and since velocityY is zeroed on every grounded frame
@@ -135,16 +140,45 @@ export class PlayerController {
     return floorY !== null && floorY - feetY > MAX_STEP_UP;
   }
 
-  private blockedAt(x: number, z: number, feetY: number, height = this.crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT, stepFromY = feetY): boolean {
+  /**
+   * The top of the player above the feet. Crouching shrinks the capsule at once, but the view eases
+   * down over about a fifth of a second; until it is down, the top follows the eye, or a crouch
+   * under a low roof (or in mid-jump) carries the camera into the roof.
+   */
+  private headHeight(): number {
+    return Math.max(this.crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT, PLAYER_HEIGHT - CROUCH_DROP * this.crouchAmount);
+  }
+
+  /**
+   * Whether the player capsule standing with its feet at `feetY` would overlap a collider at
+   * (x, z). The vertical test decides whether an obstacle is stepped over, walked under, or
+   * blocking: the old version compared the *feet* against the box instead of the whole capsule, so
+   * anything whose base sat above ankle height — a wall shelf, a bench top, a mounted panel —
+   * never blocked at all. It also allocated a Vector3 per box per test, which the scene's
+   * geometry-derived colliders make far too expensive.
+   *
+   * `from` is where a move starts. A collider the player is already inside there only blocks a move
+   * that goes no further out of it: a closing door or a fall can leave the player overlapping a
+   * box, and every nearby spot overlaps it too, so nothing else would get them out.
+   */
+  private blockedAt(x: number, z: number, feetY: number, height = this.headHeight(), stepFromY = feetY, from: THREE.Vector3 | null = null): boolean {
     const headY = feetY + height;
     const stepY = stepFromY + STEP_OVER;
     for (const { box } of this.colliders) {
       if (box.max.y <= stepY || box.min.y >= headY) continue;
       const dx = x - THREE.MathUtils.clamp(x, box.min.x, box.max.x);
       const dz = z - THREE.MathUtils.clamp(z, box.min.z, box.max.z);
-      if (dx * dx + dz * dz < PLAYER_RADIUS * PLAYER_RADIUS) return true;
+      if (dx * dx + dz * dz >= PLAYER_RADIUS * PLAYER_RADIUS) continue;
+      if (from && depthInto(box, x, z) < depthInto(box, from.x, from.z)) continue;
+      return true;
     }
     return false;
+  }
+
+  /** Whether the player's capsule, where it stands now, overlaps `box`. A door checks before it shuts. */
+  overlaps(box: THREE.Box3): boolean {
+    const p = this.rig.position;
+    return !box.isEmpty() && box.max.y > p.y && box.min.y < p.y + this.headHeight() && depthInto(box, p.x, p.z) > 0;
   }
 
   /** The lowest collider underside at or above `headY` over the player's footprint at (x, z), or null. */
@@ -165,8 +199,8 @@ export class PlayerController {
     const stepFrom = this.jumping ? Math.min(from.y, this.jumpFromY) : from.y;
     // Resolved one axis at a time so a blocked direction slides along the obstacle instead of
     // stopping dead.
-    if (this.blockedAt(result.x, from.z, from.y, undefined, stepFrom) || this.stepTooHigh(result.x, from.z, from.y)) result.x = from.x;
-    if (this.blockedAt(result.x, result.z, from.y, undefined, stepFrom) || this.stepTooHigh(result.x, result.z, from.y)) result.z = from.z;
+    if (this.blockedAt(result.x, from.z, from.y, undefined, stepFrom, from) || this.stepTooHigh(result.x, from.z, from.y)) result.x = from.x;
+    if (this.blockedAt(result.x, result.z, from.y, undefined, stepFrom, _moveFrom.set(result.x, from.y, from.z)) || this.stepTooHigh(result.x, result.z, from.y)) result.z = from.z;
     return result;
   }
 
@@ -223,7 +257,8 @@ export class PlayerController {
 
     // Force a crouch while there is no headroom to stand (a duct roof, or a ladder top into one).
     const pos = this.rig.position;
-    this.crouching = held('crouch') || this.blockedAt(pos.x, pos.z, pos.y, PLAYER_HEIGHT);
+    const noHeadroom = this.blockedAt(pos.x, pos.z, pos.y, PLAYER_HEIGHT);
+    this.crouching = held('crouch') || noHeadroom;
     const sprinting = held('sprint') && !this.crouching;
     const targetSpeed = Math.min(this.speedLimit, this.crouching ? CROUCH_SPEED : sprinting ? SPRINT_SPEED : WALK_SPEED);
 
@@ -260,7 +295,7 @@ export class PlayerController {
       this.jumping = false;
       this.moveState.speed = 0;
       this.crouchAmount = damp(this.crouchAmount, this.crouching ? 1 : 0, 14, dt);
-      this.camera.position.set(0, EYE_HEIGHT - EYE_HEIGHT * 0.35 * this.crouchAmount, 0);
+      this.camera.position.set(0, EYE_HEIGHT - CROUCH_DROP * this.crouchAmount, 0);
       this.camera.rotation.z = 0;
       return;
     }
@@ -290,8 +325,10 @@ export class PlayerController {
     // leaving a ledge still counts (coyote time). Jump height and distance are unchanged.
     this.sinceGrounded = this.onGround ? 0 : this.sinceGrounded + dt;
     this.jumpBufferedFor = pressed('jump') ? JUMP_BUFFER : Math.max(0, this.jumpBufferedFor - dt);
-    // Not on a ladder: over the shaft, a jump from the top rung would come down past it.
-    if (this.jumpBufferedFor > 0 && !ladder && (this.onGround || this.sinceGrounded < COYOTE_TIME) && this.velocityY <= 0) {
+    // Not on a ladder: over the shaft, a jump from the top rung would come down past it. Not without
+    // room to stand either (a duct, under a shelf): the head is at the roof already, and small
+    // fittings hanging under it have no colliders to keep the camera out.
+    if (this.jumpBufferedFor > 0 && !ladder && !noHeadroom && (this.onGround || this.sinceGrounded < COYOTE_TIME) && this.velocityY <= 0) {
       this.velocityY = JUMP_SPEED;
       this.onGround = false;
       this.jumping = true;
@@ -306,7 +343,7 @@ export class PlayerController {
       resolved.y = this.rig.position.y + this.velocityY * dt;
       if (this.velocityY > 0) {
         // Rising: the head stops at the underside of anything overhead (a duct roof, a root tunnel).
-        const height = this.crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT;
+        const height = this.headHeight();
         const roof = this.roofAbove(resolved.x, resolved.z, this.rig.position.y + height);
         if (roof !== null && resolved.y + height > roof) {
           resolved.y = Math.max(this.rig.position.y, roof - height);
@@ -369,7 +406,7 @@ export class PlayerController {
       this.cameraShakeTrauma = Math.max(0, this.cameraShakeTrauma - dt * 1.6);
     }
 
-    this.camera.position.set(bobX + shakeX, EYE_HEIGHT + bobY + shakeY - this.landDip * amount - EYE_HEIGHT * 0.35 * this.crouchAmount, 0);
+    this.camera.position.set(bobX + shakeX, EYE_HEIGHT + bobY + shakeY - this.landDip * amount - CROUCH_DROP * this.crouchAmount, 0);
     this.camera.rotation.z = this.lean;
   }
 

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { InteriorCtx } from './ctx';
+import { PLAYER } from '../../content/tuning';
 
 /**
  * Derives player colliders from the interior's own geometry.
@@ -13,11 +14,13 @@ import type { InteriorCtx } from './ctx';
  * material, at which point a single "collider" would span every prop sharing that material.
  */
 
-// Mirrors PlayerController: shorter than STEP_OVER is walked over, higher than HEAD_ROOM is walked
-// under. STEP_OVER sits slightly above the controller's own threshold so a prop can never end up
-// with a collider the controller then decides to ignore.
+// Mirrors PlayerController: shorter than STEP_OVER is walked over, higher than HEAD_ROOM is out of
+// reach. STEP_OVER sits slightly above the controller's own threshold so a prop can never end up
+// with a collider the controller then decides to ignore. HEAD_ROOM is the top of the head at a
+// jump's apex off the deck (1.8 m capsule + 1 m jump), plus 0.1 m: anything a jump can reach
+// needs a collider, or the head and camera go into it.
 const STEP_OVER = 0.3;
-const HEAD_ROOM = 2.1;
+const HEAD_ROOM = PLAYER.PLAYER_HEIGHT + PLAYER.JUMP_SPEED ** 2 / (2 * -PLAYER.GRAVITY) + 0.1;
 
 // An axis-aligned box is only a fair stand-in for a mesh that roughly fills it. Two shapes here
 // badly break that: the kit's square inner corner pieces are L-shaped and 4.77 m on a side, so

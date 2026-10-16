@@ -205,3 +205,29 @@ team can reverse:
   the corners; both were taken out.
 The backdrop can be switched off entirely by not calling `TitleScreen.startBackdrop` in `boot.ts`:
 the menu then runs over its CSS starfield, as it does on any machine where the 3D fails to build.
+
+### D-28 · UPGRADE · Nothing to walk through, nowhere to get stuck — *Done 2026-10-04*
+`tools/wall-sweep.mjs` drives the real player into every wall it can reach in the Wren, on Kethra
+and on Vessek (walking, sprinting and jumping, at 60 fps and at the engine's 10 fps floor) and
+checks the body and the camera against every visible triangle. What it found, now fixed:
+- **Vessek's drop vents trapped the player** (live build). Crawling out of either one left them
+  wedged against the wall under the vent, or inside the grow table under Dace's vent, and no key
+  moved them; the tanker is reached that way during the crisis. Each drop vent has an unseen lip,
+  so the fall starts clear of the wall, and the grow tables' tops are floors to land on.
+- **Nothing can hold the player inside a collider any more.** Whatever leaves them overlapping one
+  (a door, a fall), a move that takes them out of it is always allowed. The junction's keypad door
+  also waits while someone stands in it instead of shutting on them.
+- **The camera went through the root-tunnel arches** in the Heart's chamber: they hung at head
+  height, and walking a tunnel passed through each one. They're lifted into the roof and show as
+  braces where they meet the walls; the tunnels' size and the Wickmoth's sight lines are unchanged.
+- **The Wren's wall fixtures above 2.1 m had no collision**, which a jump reached; colliders now
+  cover everything up to the top of a jump.
+- **Crouched, the eye sat above the top of the body**, so a crouched jump under a duct roof put
+  the camera in the roof. The crouched view is 10 cm lower (1.0 m, still above the stealth mounds'
+  0.82 m), and there's no jumping where there's no room to stand.
+- **Vessek pieces with no collision:** Varro and Dace, the crate and barrel by the desk, the
+  4 m pipe holder (only its middle 0.8 m was solid), the school stools and the junction's reset
+  panel.
+- **Two grime decals on the Wren's console** still sat where the old, smaller room had its desk,
+  and hung in the air 1.2 m in front of it.
+Covered by `tools/test-controls.mjs` (22 checks) and the sweep.
