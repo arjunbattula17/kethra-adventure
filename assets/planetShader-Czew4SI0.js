@@ -1,4 +1,4 @@
-import{$ as e,Dt as t,L as n,Nt as r,T as i,et as a,gt as o,ht as s,mt as c,vt as l,w as u,xt as d}from"./three-UYgi6TLI.js";var f=`
+import{D as e,E as t,Rt as n,St as r,Tt as i,bt as a,it as o,jt as s,rt as c,vt as l,yt as u,z as d}from"./three-CZsmadtC.js";var f=`
 varying vec3 vNormalW;
 varying vec3 vPosW;
 varying vec2 vUv;
@@ -26,6 +26,7 @@ uniform vec3 uAtmoColor;
 uniform float uCloudAmount;
 uniform float uCloudOffset;
 uniform float uAtmoStrength;
+uniform float uFade;
 
 void main() {
   vec3 n = normalize(vNormalW);
@@ -60,8 +61,8 @@ void main() {
   float limb = pow(rim, 4.0) * uAtmoStrength;
   color += uAtmoColor * limb * (0.25 + 0.75 * day);
 
-  gl_FragColor = vec4(color, 1.0);
+  gl_FragColor = vec4(color * uFade, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
-`,m=new t,h=new Map,g=[];function _(){return Promise.all(g).then(()=>void 0)}function v(e,t){let n=`/kethra-adventure/textures/planets/${e}`,r=h.get(n);if(!r){let e;g.push(new Promise(t=>e=t)),r=m.load(n,()=>e(),void 0,()=>e()),r.colorSpace=t?o:``,r.wrapS=c,r.wrapT=u,r.anisotropy=8,h.set(n,r)}return r}function y(e,t,n){let i=new s(e,t,n,1),a=i.attributes.position,o=i.attributes.uv,c=new r;for(let n=0;n<a.count;n++)c.fromBufferAttribute(a,n),o.setXY(n,(c.length()-e)/(t-e),.5);return o.needsUpdate=!0,i}var b={kethra:.55,isilthe:.35};function x(t,r,o,s){let c=new n;c.position.copy(r);let u=o.clone().sub(r).normalize(),m=new i(t.color).lerp(new i(12573183),.5),h=b[t.id]??0,g={uDayMap:{value:v(`${t.id}_day.jpg`,!0)},uNightMap:{value:v(`${t.id}_night.jpg`,!0)},uCloudMap:{value:v(`clouds.jpg`,!1)},uSunDir:{value:u},uCameraPos:{value:s.position.clone()},uAtmoColor:{value:m},uCloudAmount:{value:h},uCloudOffset:{value:0},uAtmoStrength:{value:h>0?1.5:.9}},_=new e(new d(t.radius,48,32),new l({vertexShader:f,fragmentShader:p,uniforms:g}));c.add(_);let x=null;return t.hasRing&&(x=new e(y(t.radius*1.4,t.radius*2.3,96),new a({map:v(`${t.id}_ring.png`,!0),transparent:!0,side:2,depthWrite:!1})),x.rotation.x=Math.PI/2-.34,x.rotation.y=.2,c.add(x)),{group:c,update(e){g.uCameraPos.value.copy(s.position),u.copy(o).sub(c.position).normalize(),g.uCloudOffset.value=e*.004}}}export{_ as n,x as t};
+`,m=new s,h=new Map,g=[];function _(){return Promise.all(g).then(()=>void 0)}function v(e,n){let r=`/kethra-adventure/textures/planets/${e}`,i=h.get(r);if(!i){let e;g.push(new Promise(t=>e=t)),i=m.load(r,()=>e(),void 0,()=>e()),i.colorSpace=n?a:``,i.wrapS=l,i.wrapT=t,i.anisotropy=8,h.set(r,i)}return i}function y(e,t,r){let i=new u(e,t,r,1),a=i.attributes.position,o=i.attributes.uv,s=new n;for(let n=0;n<a.count;n++)s.fromBufferAttribute(a,n),o.setXY(n,(s.length()-e)/(t-e),.5);return o.needsUpdate=!0,i}var b={kethra:.55,isilthe:.35};function x(t,n,a,s){let l=new d;l.position.copy(n);let u=a.clone().sub(n).normalize(),m=new e(t.color).lerp(new e(12573183),.5),h=b[t.id]??0,g={uDayMap:{value:v(`${t.id}_day.jpg`,!0)},uNightMap:{value:v(`${t.id}_night.jpg`,!0)},uCloudMap:{value:v(`clouds.jpg`,!1)},uSunDir:{value:u},uCameraPos:{value:s.position.clone()},uAtmoColor:{value:m},uCloudAmount:{value:h},uCloudOffset:{value:0},uAtmoStrength:{value:h>0?1.5:.9},uFade:{value:1}},_=new c(new i(t.radius,48,32),new r({vertexShader:f,fragmentShader:p,uniforms:g}));l.add(_);let x=null;return t.hasRing&&(x=new c(y(t.radius*1.4,t.radius*2.3,96),new o({map:v(`${t.id}_ring.png`,!0),transparent:!0,side:2,depthWrite:!1})),x.rotation.x=Math.PI/2-.34,x.rotation.y=.2,l.add(x)),{group:l,update(e){g.uCameraPos.value.copy(s.position),u.copy(a).sub(l.position).normalize(),g.uCloudOffset.value=e*.004},setFade(e){g.uFade.value=e,x&&(x.material.opacity=e)}}}export{v as n,_ as r,x as t};
