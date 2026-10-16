@@ -175,3 +175,22 @@ Chromebook graphics start on Performance; the start-up benchmark re-measures aft
 can lower the render resolution before the first frame; and on Performance a scene that averages
 under ~45 fps is held at a steady 30 fps (judged per scene). Choosing a tier by hand turns all of it
 off, as before.
+
+### D-26 · UPGRADE · A cinematic title screen with a live 3D backdrop — *Done 2026-10-16, reversible*
+The title is now sunrise over Kethra's limb, rendered live behind the menu, with a new wordmark,
+glowing console-strip buttons and a ~2.5 s opening (src/galaxy/title/TITLE_DESIGN.md). Choices the
+team can reverse:
+- **The title has its own palette.** Deep-space blues with cyan marking what can be picked, instead
+  of the game's amber and sea-green; Controls and Settings take it while the title is up. Revert: the
+  token block at the top of the Title screen section of `src/style.css` and the
+  `body.title-open .panel-overlay` rule.
+- **Continue is shown disabled, with the reason, when there is no usable save** (it used to be
+  hidden), so the menu always has the same four rows. Revert: skip the `add('title.continue', …)`
+  call in `TitleScreen.show` when `opts.hasSave` is false.
+- **The title is just the kicker, the wordmark and the buttons** (2026-10-16, at the user's request):
+  the tagline ("Your ship went dark past the edge of the charts. Wake it up.") is no longer shown, the
+  kicker reads "Deep-space exploration" (was "A deep-space survey"; `title.kicker`), and there is no
+  ship in the backdrop and no frame labels. A first version had the Wren flying in and lore labels in
+  the corners; both were taken out.
+The backdrop can be switched off entirely by not calling `TitleScreen.startBackdrop` in `boot.ts`:
+the menu then runs over its CSS starfield, as it does on any machine where the 3D fails to build.

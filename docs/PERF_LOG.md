@@ -93,3 +93,25 @@ afternoon), so decisions on frame cost used interleaved A/B in one page.
 | Where the Wren's frame goes (A/B) | The Wren, Performance | — | environment map 16–28%, 85% resolution −24%, point lights 9–17%, spots −7%, directional fills −7%, fog 1%, glow 0% | The frame is per-pixel lighting |
 | Governor: 85% resolution before the steady-30 cap, on the bottom tier | The Wren on Auto, vsync on | steady 30 | ~45–56 fps after the lighting upgrade; Vessek 55–60; Kethra's heaviest views still end at a steady 30 | **Kept** |
 | Hidden prewarm copy of the tutorial markers in the Wren | First appearance of the markers | 2 programs compiled on screen (~130 ms) | compiled with the room | **Kept** |
+
+## 2026-10-16: the cinematic title screen
+
+Same Intel UHD laptop (i5-1035G1), installed Chrome through ANGLE D3D11, 1366×768, a fresh browser
+profile per run, on battery. `tools/title-bench.mjs`: title buttons, the backdrop's first frame,
+every frame interval from 3 s after the buttons for 8–10 s, long tasks, then one click. Baseline is
+the build before (30fbd3c, a CSS-only title). "A/B" rows alternate the two builds run by run; the
+laptop drifts too much between batches to compare them otherwise (`docs/perf/baseline-title`,
+`title-v1`, `title-v3`, `title-final`, `*-continue`).
+
+| Change | Measure | Before | After | Result |
+|---|---|---|---|---|
+| 3D backdrop behind the title (first version) | backdrop first frame; longest task; frames > 50 ms | — | 6.05 s; 1.84 s; 6 | Not good enough: the two noise bakes compiled synchronously (Direct3D: 0.5 s and 1.9 s frozen) |
+| Bakes compiled in the background (`compileAsync`), drawn in strips, loop bounds as uniforms, both bakes in parallel, title maps fetched when the menu shows | backdrop first frame; longest task | 6.05 s; 1.84 s | 3.94 s; 447 ms | **Kept** |
+| Sine-free hashes in the bake shaders | the nebula | visible blocks (sin() of large arguments under ANGLE/D3D) | smooth | **Kept** |
+| Menu opening: opacity and translate only during start-up; no animated blur, stroke draw-on or SVG rotation; ornamental loops start after 3.6–4.5 s; static starfield | engine creation (`boot:engine`), A/B | 340–560 ms (baseline CSS title: 53–68 ms) | 28–307 ms, typically ~150 ms | **Kept.** The rest is the menu's own fade overlapping the engine's creation |
+| Hull lights matched to IntroScene's rig, so the title compiles the intro's hull programs | New game → intro on screen, A/B ×3 | 2.28 s median (2.28–3.18) | 1.78 s median (1.73–1.94) | Kept until the ship was taken out of the title (row below) |
+| (measurement) Continue → the Wren playable, A/B ×3 | | 11.0 s median | 11.3 s median | Within run-to-run noise |
+| (measurement) Title frame pacing once settled | median / p95 frame | 16.7 / 17.0 ms | 16.7 / 17.1–17.4 ms (Performance and Balanced, 1366×768 and 1920×1080) | 60 fps. Quality (4× MSAA, bloom) ~30 fps on this GPU, as in the rest of the game; Auto picks Performance here |
+| (measurement) Start-up window | frames > 50 ms; JS heap | 0; 7.8 MB | 2–4 (backdrop warm-up, ship warm-up); 15–16 MB | The menu stays responsive (longest task 236–339 ms). The heap is the backdrop's, freed on leaving |
+| The ship taken out of the title (the user's call); no lights, no environment map; rocks with craters, normal-mapped lichen_rock and rims; buttons with static glow filters; frame labels and tagline removed | backdrop first frame; engine creation; New game → intro (A/B ×3); steady frame | 3.94 s; ~150 ms; 1.78 s; 16.7 / 17.1 ms | 2.59–2.85 s; 43–55 ms (baseline 35–46); 1.90 s median (baseline 1.94 in the same batch); 16.6 / 16.8–17.0 ms, no frame over 20 ms | **Kept.** New game is back to the baseline's speed (no hull programs to share). Start-up window: longest task 167–192 ms (baseline 169–198), 1–3 frames over 50 ms, heap 13 MB (baseline 7.8) |
+| (measurement) First contentful paint | | 0.9–1.2 s | 1.1–3.3 s | A metric artefact: the menu's text starts at opacity 0 and fades in on the compositor, which Chrome doesn't count until the next main-thread paint. Screenshots show the wordmark at 0.5 s and the whole menu at 1.1 s, as before |

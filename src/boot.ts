@@ -142,6 +142,7 @@ export function startGame(): void {
     document.body.classList.add('title-open');
     TitleScreen.show({
       hasSave: savedJourney === 'loaded',
+      saveState: savedJourney,
       onContinue: () => {
         mark('title:continue');
         document.body.classList.remove('title-open');
@@ -162,16 +163,19 @@ export function startGame(): void {
       },
     });
     mark('title:shown');
-    // While the title waits, each when the browser is idle: the engine, then the downloads the first
-    // scene needs (GameFlow.prefetchWhileTitleWaits), then the environment map (Engine.ensureEnvironment).
-    // None of them starts the game: only a click on the title does, and a click that comes first simply
-    // finds them still to do. The engine waits ~0.6 s: made at once, it spent ~0.4 s blocked on the GPU
-    // process, which is still setting up the WebGL context main.ts created (glContext.ts).
+    // While the title waits, each when the browser is idle: the engine and the title's 3D backdrop
+    // (TitleScreen.startBackdrop), then the downloads the first scene needs
+    // (GameFlow.prefetchWhileTitleWaits), then the environment map (Engine.ensureEnvironment), which the
+    // backdrop's ship also waits for. None of them starts the game: only a click on the title does, and
+    // a click that comes first simply finds them still to do. The engine waits ~0.6 s: made at once, it
+    // spent ~0.4 s blocked on the GPU process, which is still setting up the WebGL context main.ts
+    // created (glContext.ts).
     const whenIdle = (run: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(run, { timeout: 1500 }) : setTimeout(run, 300));
     setTimeout(
       () =>
         whenIdle(() => {
           ensureEngine();
+          void TitleScreen.startBackdrop(engine);
           whenIdle(() => {
             flow.prefetchWhileTitleWaits(savedJourney === 'loaded' ? 'continue' : 'newGame');
             whenIdle(() => void engine.ensureEnvironment());

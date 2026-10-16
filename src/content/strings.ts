@@ -190,13 +190,15 @@ export const STRINGS = {
   'map.vessek.region.junction': 'Aft junction',
 
   // Title screen. title.name is the game's working title (DECISIONS D-17): change it here.
-  'title.kicker': 'A deep-space survey',
+  'title.kicker': 'Deep-space exploration',
   'title.name': 'Kethra',
-  'title.tagline': 'Your ship went dark past the edge of the charts. Wake it up.',
   'title.continue': 'Continue',
   'title.newGame': 'New game',
   'title.controls': 'Controls',
   'title.settings': 'Settings',
+  'title.menuLabel': 'Main menu',
+  'title.noSave': 'No saved journey yet',
+  'title.saveUnreadable': 'The saved journey could not be read',
   'title.closeHint': 'Esc to close',
   'toast.continue': 'Continuing your saved journey.',
   'toast.saveUnreadable': 'Your saved journey could not be read. Starting a new one.',

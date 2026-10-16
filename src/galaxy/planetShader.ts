@@ -48,6 +48,7 @@ uniform vec3 uAtmoColor;
 uniform float uCloudAmount;
 uniform float uCloudOffset;
 uniform float uAtmoStrength;
+uniform float uFade;
 
 void main() {
   vec3 n = normalize(vNormalW);
@@ -82,7 +83,7 @@ void main() {
   float limb = pow(rim, 4.0) * uAtmoStrength;
   color += uAtmoColor * limb * (0.25 + 0.75 * day);
 
-  gl_FragColor = vec4(color, 1.0);
+  gl_FragColor = vec4(color * uFade, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
@@ -91,6 +92,8 @@ void main() {
 export interface PlanetInstance {
   group: THREE.Group;
   update(elapsed: number, dt: number): void;
+  /** Scales the planet's light from 0 (black) to 1, for a scene that fades its worlds in. */
+  setFade(k: number): void;
 }
 
 const textureLoader = new THREE.TextureLoader();
@@ -107,7 +110,8 @@ export function planetTexturesReady(): Promise<void> {
   return Promise.all(textureLoads).then(() => undefined);
 }
 
-function planetTexture(file: string, srgb: boolean): THREE.Texture {
+/** A planet map from public/textures/planets, shared (and awaited by planetTexturesReady) across scenes. */
+export function planetTexture(file: string, srgb: boolean): THREE.Texture {
   const url = `${import.meta.env.BASE_URL}textures/planets/${file}`;
   let texture = textureCache.get(url);
   if (!texture) {
@@ -172,6 +176,7 @@ export function buildPlanetInstance(
     uCloudAmount: { value: cloudAmount },
     uCloudOffset: { value: 0 },
     uAtmoStrength: { value: cloudAmount > 0 ? 1.5 : 0.9 },
+    uFade: { value: 1 },
   };
 
   const surface = new THREE.Mesh(
@@ -180,7 +185,7 @@ export function buildPlanetInstance(
   );
   group.add(surface);
 
-  let ring: THREE.Mesh | null = null;
+  let ring: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | null = null;
   if (def.hasRing) {
     ring = new THREE.Mesh(
       buildRingGeometry(def.radius * 1.4, def.radius * 2.3, 96),
@@ -206,6 +211,10 @@ export function buildPlanetInstance(
       // Clouds shear slowly against the surface underneath; the surface's own spin is applied by
       // the caller to the whole group.
       uniforms.uCloudOffset.value = elapsed * 0.004;
+    },
+    setFade(k) {
+      uniforms.uFade.value = k;
+      if (ring) ring.material.opacity = k;
     },
   };
 }

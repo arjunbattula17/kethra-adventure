@@ -246,6 +246,36 @@ export const AudioSystem = {
     this.playConfirm();
   },
 
+  /** Leaving the title for the game: the engines opening up (a rising band of noise over a low hum) and a rising fifth. */
+  playLaunch(): void {
+    const c = getCtx();
+    if (!c || !sfxBus) return;
+    const t0 = c.currentTime;
+    const length = Math.floor(c.sampleRate * 1.2);
+    const buffer = c.createBuffer(1, length, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource();
+    noise.buffer = buffer;
+    const band = c.createBiquadFilter();
+    band.type = 'bandpass';
+    band.Q.value = 1.1;
+    band.frequency.setValueAtTime(160, t0);
+    band.frequency.exponentialRampToValueAtTime(1700, t0 + 0.9);
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(0.045, t0 + 0.35);
+    gain.gain.exponentialRampToValueAtTime(0.0008, t0 + 1.15);
+    noise.connect(band);
+    band.connect(gain);
+    gain.connect(sfxBus);
+    noise.start(t0);
+    noise.stop(t0 + 1.2);
+    tone(110, 0, 1.0, { type: 'sine', vol: 0.06, attack: 0.2, lowpass: 400 });
+    glass(440, 0.05, 0.5, 0.05);
+    glass(659.25, 0.16, 0.6, 0.045);
+  },
+
   playFootstep(surface: 'metal' | 'organic' = 'metal'): void {
     const c = getCtx();
     if (!c || !sfxBus) return;

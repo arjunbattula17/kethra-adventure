@@ -102,6 +102,12 @@ export interface GameScene {
    * once (shaderPatches.ts, QUICK_LIGHTS; Engine.upgradeQuickLights). For a scene whose first
    * preparation someone waits on: the Wren, behind the intro or a loading bar. */
   quickLights?: boolean;
+  /** Opt out of waiting for the shared environment map before init. For a scene whose first frame
+   * draws nothing lit (the title backdrop, which brings its lit hull in later, see TitleScene). */
+  needsEnvironment?: boolean;
+  /** Opt out of the runtime quality governor. The title backdrop is drawn while nothing of the game
+   * is: a downgrade judged on it would follow the player into the Wren for the rest of the session. */
+  governed?: boolean;
 }
 
 export class Engine {
@@ -364,7 +370,7 @@ export class Engine {
    * setScene with `prepared: true` so it isn't initialized twice.
    */
   async prepareScene(scene: GameScene, opts: PrepareOptions = {}): Promise<void> {
-    await this.ensureEnvironment();
+    if (scene.needsEnvironment !== false) await this.ensureEnvironment();
     const pacer = opts.pacer ?? this.newPacer(PACE.loading);
     this.preparing++;
     this.inPreparation.add(scene);
@@ -808,7 +814,7 @@ export class Engine {
         // laptop busy behind the cover, and the Wren's first draws waited 21 s on it.
         if (!UIManager.isCovered()) {
           this.postFx.render();
-          this.recordFrameForQuality(realDt * 1000);
+          if (this.current.governed !== false) this.recordFrameForQuality(realDt * 1000);
         }
       }
       InputManager.endFrame();
