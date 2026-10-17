@@ -115,3 +115,24 @@ laptop drifts too much between batches to compare them otherwise (`docs/perf/bas
 | (measurement) Start-up window | frames > 50 ms; JS heap | 0; 7.8 MB | 2–4 (backdrop warm-up, ship warm-up); 15–16 MB | The menu stays responsive (longest task 236–339 ms). The heap is the backdrop's, freed on leaving |
 | The ship taken out of the title (the user's call); no lights, no environment map; rocks with craters, normal-mapped lichen_rock and rims; buttons with static glow filters; frame labels and tagline removed | backdrop first frame; engine creation; New game → intro (A/B ×3); steady frame | 3.94 s; ~150 ms; 1.78 s; 16.7 / 17.1 ms | 2.59–2.85 s; 43–55 ms (baseline 35–46); 1.90 s median (baseline 1.94 in the same batch); 16.6 / 16.8–17.0 ms, no frame over 20 ms | **Kept.** New game is back to the baseline's speed (no hull programs to share). Start-up window: longest task 167–192 ms (baseline 169–198), 1–3 frames over 50 ms, heap 13 MB (baseline 7.8) |
 | (measurement) First contentful paint | | 0.9–1.2 s | 1.1–3.3 s | A metric artefact: the menu's text starts at opacity 0 and fades in on the compositor, which Chrome doesn't count until the next main-thread paint. Screenshots show the wordmark at 0.5 s and the whole menu at 1.1 s, as before |
+
+## 2026-10-16, second pass: the title with a ship, and how it arrives
+
+Same laptop and method (cold profile per run, 1366×768, on battery, Auto picks Performance). Baseline
+is the live build (9a0fb90, served from `dist`); the branch adds the cruiser, a moon and a third bake.
+`tools/title-bench.mjs` rows alternate live and branch run by run (`docs/perf/title-ship/`). The
+"arrival" rows count frames over 34 ms from the backdrop's first frame (the 1.2 s dissolve, then
+10 s), from a per-frame probe with the engine's own marks.
+
+| Change | Measure | Before | After | Result |
+|---|---|---|---|---|
+| The backdrop complete from its first frame, one 0.9 s dissolve from the menu's stand-in sky (was eight staggered fades over 2.5 s); the menu in as one piece (was kicker, wordmark, orbit, then buttons by ~1.3 s) | whole menu on screen; ornamental loops | buttons ~1-2 s after load; light sweep, comet and flare loops | menu shows from ~0.4 s, fully in by 0.77-0.91 s; nothing loops | **Kept** |
+| Order of what runs while the title waits: environment map after the backdrop is on screen (was alongside it) | the title's bakes; backdrop first frame (A/B ×2) | 0.85-1.0 s; 2.85-3.30 s | 0.42-0.44 s; 2.29-2.43 s | Kept, with the next row |
+| ...and the prefetch (the Wren's models and textures) moved after the backdrop too | slow frames in the dissolve | | 5-9 of up to 150 ms (prefetch alone: 5-6; environment map alone: 0-1) | **Not kept**: the arrival stuttered, which reads as lag |
+| Prefetch alongside the backdrop's preparation, environment map after it (the final order) | backdrop first frame; slow frames in the dissolve; in the 10 s after | 2.37-2.62 s with neither running | 2.65-2.93 s; 0-1; 1 (100-133 ms, the environment map's last render step) | **Kept** |
+| (measurement) Final branch vs live, A/B ×3 | backdrop first frame | 3.00 s median (2.80-3.66) | 2.99 s median (2.51-3.39) | Same, with more in the scene |
+| (measurement) | title frames once settled: median fps, p95, share over 20 ms | 59.9-60.2; 17.0-17.1 ms; 0.7-2.7 % | 59.9-60.2; 17.1-17.4 ms; 0.2-0.7 % | Same |
+| (measurement) | New game → intro on screen | 2.60 s median (2.57-2.97) | 2.56 s median (2.55-2.85) | Same |
+| (measurement) Continue → the Wren playable, A/B ×1 | | 8.8 s | 8.1 s | Within run-to-run noise |
+| (measurement) JS heap on the title | | 11-14 MB | 13.5-17.5 MB | The ship's geometry and the moon; freed on leaving |
+| (measurement) Scene size | | | ship hull 13.4k triangles, plumes and glows one 88-triangle draw, 19 rocks 5.7k triangles in one draw; 25 programs with the post chain | |

@@ -1,0 +1,42 @@
+{
+  "label": "title-ship/live-1",
+  "base": "http://localhost:4196/kethra-adventure/",
+  "path": "new",
+  "viewport": [
+    1366,
+    768
+  ],
+  "idle": 10,
+  "summary": {
+    "fcpMs": 1044,
+    "buttonsMs": 333.5,
+    "backdropMs": 2998.1,
+    "fpsMedian": 59.9,
+    "p95Ms": 17.1,
+    "over20": 0.7,
+    "over50": 0,
+    "longTaskMs": 393,
+    "longestTaskMs": 206,
+    "heapMb": 11.7,
+    "clickToSceneMs": 2566.9
+  },
+  "results": [
+    {
+      "run": 0,
+      "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "fcpMs": 1044,
+      "buttonsMs": 333.5,
+      "backdropMs": 2998.1,
+      "idleFrames": 452,
+      "fpsMedian": 59.9,
+      "p95Ms": 17.1,
+      "over20": 0.7,
+      "over50": 0,
+      "longTaskMs": 393,
+      "longestTaskMs": 206,
+      "heapMb": 11.7,
+      "errors": [],
+      "clickToSceneMs": 2566.9
+    }
+  ]
+}

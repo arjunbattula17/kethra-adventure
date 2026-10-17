@@ -15,13 +15,10 @@ import type { TitleScene } from '../galaxy/title/TitleScene';
  * clickable at once while nothing 3D has loaded, and the first click on it is what unlocks audio
  * (browsers block sound until the page gets a gesture).
  *
- * Behind it, once the engine exists (boot.ts), runs the 3D backdrop (galaxy/title/TitleScene.ts):
- * sunrise over Kethra's limb, inside the belt. Until its first frame the menu shows a starfield of its
- * own, so a slow machine sees a calm night sky, never a blank. The menu's opening (kicker, wordmark,
- * then each button) plays on its own clock from the moment the page shows; a key or a click finishes
- * it at once, and nothing in it blocks input. The menu's ornamental loops (the wordmark's light sweep,
- * the orbit's comet, light running along the selected button) wait for `ts-live`, set once the
- * backdrop has settled, so they never repaint while the engine is starting.
+ * Behind it, once the engine exists (boot.ts), runs the 3D backdrop (galaxy/title/TitleScene.ts): a
+ * survey cruiser over Kethra at sunrise, inside the belt. Until its first frame the menu shows a night
+ * sky of its own; the backdrop arrives complete and that sky dissolves into it, once. The menu itself
+ * fades in as one piece the moment the page shows, and nothing on it loops or waits on a timer.
  *
  * Continue / New game / Controls / Settings. Continue is shown but disabled when there is no save to
  * go back to, with the reason under it. Controls opens in the shared panel system and prints
@@ -40,7 +37,7 @@ interface TitleOptions {
 }
 
 /** The wordmark, drawn on a 776 x 100 grid: wide geometric capitals, the A as an open lambda. One path,
- * nonzero fill (the R's counter winds the other way), so it can also serve as a clip path. */
+ * nonzero fill (the R's counter winds the other way). */
 const WORDMARK =
   'M0 0H22V100H0Z M22 40L80 0H116L22 64Z M46 47.7L70 31.4L118 100H84Z ' +
   'M142 0H238V20H164V40H226V59H164V80H238V100H142Z ' +
@@ -50,7 +47,7 @@ const WORDMARK =
   'M650 100L702 0H724L776 100H750L713 26L676 100Z';
 
 const ICONS: Record<'continue' | 'newGame' | 'controls' | 'settings' | 'chevron', string> = {
-  continue: '<path d="M8 5.2v13.6L18.8 12z" fill="currentColor"/>',
+  continue: '<path d="M7 4.6v14.8L19.2 12z" fill="currentColor"/>',
   newGame:
     '<path d="M7.6 8h8.8a4.4 4.4 0 0 1 4.2 3.1l1.1 3.8a2.5 2.5 0 0 1-4.3 2.3L15.6 15H8.4l-1.8 2.2a2.5 2.5 0 0 1-4.3-2.3l1.1-3.8A4.4 4.4 0 0 1 7.6 8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' +
     '<path d="M7.6 10.4v3.2M6 12h3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="15.6" cy="11" r="1" fill="currentColor"/><circle cx="17.6" cy="13" r="1" fill="currentColor"/>',
@@ -67,14 +64,20 @@ function icon(name: keyof typeof ICONS, cls: string): string {
   return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name]}</svg>`;
 }
 
-/** The kicker's emblem: a compass star in a ring. */
-const EMBLEM = `<svg class="ts-emblem" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15.5" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.8"/><path d="M24 3l2.6 18.4L45 24l-18.4 2.6L24 45l-2.6-18.4L3 24l18.4-2.6z" fill="currentColor"/></svg>`;
+/** The kicker's emblem: a compass star in a ring, its north point running out through the ring. */
+const EMBLEM = `<svg class="ts-emblem" viewBox="0 0 48 64" aria-hidden="true"><path d="M24 2v14M24 48v14" stroke="currentColor" stroke-width="1.2" opacity="0.7"/><circle cx="24" cy="32" r="15.5" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.8"/><path d="M24 13l2.4 16.6L43 32l-16.6 2.4L24 51l-2.4-16.6L5 32l16.6-2.4z" fill="currentColor"/></svg>`;
+
+/** Corner furniture (decorative): a bracket line over the top right, a scope in a bracket at the bottom left, a rule under the bottom right. */
+const HUD_TOP = `<svg class="ts-hud-line" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true"><path d="M0 19H22L40 1H400" fill="none" stroke="currentColor" stroke-width="1"/></svg>`;
+const HUD_SCOPE = `<svg class="ts-hud-scope" viewBox="0 0 72 72" aria-hidden="true"><circle cx="36" cy="36" r="31" fill="none" stroke="currentColor" stroke-width="1" opacity="0.55"/><circle cx="36" cy="36" r="20" fill="none" stroke="currentColor" stroke-width="1" opacity="0.4"/><path d="M58 22A26 26 0 0 1 58 50" fill="none" stroke="currentColor" stroke-width="2" opacity="0.9"/><path d="M36 36H64" stroke="currentColor" stroke-width="1" opacity="0.5"/><circle cx="36" cy="36" r="3.4" fill="currentColor"/><circle cx="52" cy="36" r="1.6" fill="currentColor"/></svg>`;
+const HUD_BRACKET = `<svg class="ts-hud-bracket" viewBox="0 0 300 100" preserveAspectRatio="none" aria-hidden="true"><path d="M30 2H170M2 30V72L16 86H120M200 98H300" fill="none" stroke="currentColor" stroke-width="1"/></svg>`;
+const HUD_RULE = `<svg class="ts-hud-line" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true"><path d="M0 19H360L378 1H400" fill="none" stroke="currentColor" stroke-width="1"/></svg>`;
+const SPARK = `<svg class="ts-spark" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0l1.3 6.7L16 8l-6.7 1.3L8 16l-1.3-6.7L0 8l6.7-1.3z" fill="currentColor"/></svg>`;
 
 let root: HTMLDivElement | null = null;
 let scene: TitleScene | null = null;
 let backdropStarted = false;
 let leaving = false;
-let revealDone = false;
 let stopMusic: (() => void) | null = null;
 let buttons: HTMLButtonElement[] = [];
 let selected: HTMLButtonElement | null = null;
@@ -86,7 +89,6 @@ function listen<K extends keyof WindowEventMap>(target: Window, type: K, fn: (e:
 }
 
 function wordmark(): string {
-  // Two copies: the lit letters, and a clipped band of light that sweeps across them now and then.
   return `
     <svg class="ts-wordmark" viewBox="0 0 776 100" aria-hidden="true" focusable="false">
       <defs>
@@ -96,32 +98,24 @@ function wordmark(): string {
           <stop offset="0.53" stop-color="#bcd3e4"/>
           <stop offset="1" stop-color="#deedf9"/>
         </linearGradient>
-        <linearGradient id="ts-sweep-grad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stop-color="#ddf6ff" stop-opacity="0"/>
-          <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.95"/>
-          <stop offset="1" stop-color="#ddf6ff" stop-opacity="0"/>
-        </linearGradient>
-        <clipPath id="ts-letters"><path d="${WORDMARK}"/></clipPath>
       </defs>
       <path class="ts-glyphs" d="${WORDMARK}" fill="url(#ts-metal)"/>
-      <g clip-path="url(#ts-letters)"><rect class="ts-sweep" x="-200" y="-20" width="150" height="140" fill="url(#ts-sweep-grad)" transform="skewX(-18)"/></g>
     </svg>`;
 }
 
 function orbit(): { back: string; front: string } {
   // Coordinates shared with the wordmark (776 x 100): the ring is tilted, passes behind the letters on
-  // its far side and in front of them on its near side, where a point of light travels it.
+  // its far side and in front of them on its near side, and a star of light sits at the A's foot.
   const arc = (sweep: 0 | 1) => `M-86 50A474 66 0 0 ${sweep} 862 50`;
   return {
     back: `<svg class="ts-orbit ts-orbit-back" viewBox="-110 -70 996 240" aria-hidden="true"><g transform="rotate(-8 388 50)"><path d="${arc(1)}" class="ts-orbit-line"/></g></svg>`,
-    front: `<svg class="ts-orbit ts-orbit-front" viewBox="-110 -70 996 240" aria-hidden="true"><defs><linearGradient id="ts-orbit-grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#35bfff" stop-opacity="0"/><stop offset="0.35" stop-color="#35bfff" stop-opacity="0.55"/><stop offset="1" stop-color="#ddf6ff" stop-opacity="0.95"/></linearGradient></defs><g transform="rotate(-8 388 50)"><path d="${arc(0)}" class="ts-orbit-line"/><path d="${arc(0)}" class="ts-comet ts-comet-wide" pathLength="1000"/><path d="${arc(0)}" class="ts-comet" pathLength="1000"/></g><g transform="translate(774 98)"><g class="ts-flare"><circle r="7" class="ts-flare-halo"/><path d="M0-16L1.6-1.6L16 0L1.6 1.6L0 16L-1.6 1.6L-16 0L-1.6-1.6Z"/></g></g></svg>`,
+    front: `<svg class="ts-orbit ts-orbit-front" viewBox="-110 -70 996 240" aria-hidden="true"><defs><linearGradient id="ts-orbit-grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#35bfff" stop-opacity="0"/><stop offset="0.35" stop-color="#35bfff" stop-opacity="0.55"/><stop offset="1" stop-color="#ddf6ff" stop-opacity="0.95"/></linearGradient></defs><g transform="rotate(-8 388 50)"><path d="${arc(0)}" class="ts-orbit-line"/></g><g transform="translate(774 98)"><g class="ts-flare"><circle r="7" class="ts-flare-halo"/><path d="M0-16L1.6-1.6L16 0L1.6 1.6L0 16L-1.6 1.6L-16 0L-1.6-1.6Z"/></g></g></svg>`,
   };
 }
 
 export const TitleScreen = {
   show(opts: TitleOptions): void {
     leaving = false;
-    revealDone = false;
     const el = document.createElement('div');
     root = el;
     el.className = 'title-screen';
@@ -130,12 +124,29 @@ export const TitleScreen = {
       <div class="ts-fallback" aria-hidden="true"><div class="title-stars"></div><div class="title-stars far"></div></div>
       <div class="ts-scrim" aria-hidden="true"></div>
       <main class="ts-column">
-        <div class="ts-kicker ts-reveal">${EMBLEM}<span></span></div>
-        <h1 class="ts-title ts-reveal"><span class="visually-hidden"></span>${rings.back}${wordmark()}${rings.front}</h1>
+        <div class="ts-kicker">${EMBLEM}<span></span></div>
+        <h1 class="ts-title"><span class="visually-hidden"></span>${rings.back}${wordmark()}${rings.front}</h1>
+        <p class="ts-tagline"></p>
         <nav class="ts-menu title-menu"></nav>
-      </main>`;
+      </main>
+      <div class="ts-hud" aria-hidden="true">
+        <div class="ts-hud-track">${HUD_TOP}<span class="ts-hud-words"></span></div>
+        <div class="ts-hud-place">${HUD_BRACKET}${HUD_SCOPE}<span class="ts-hud-place-text"><b></b><span></span></span></div>
+        <div class="ts-hud-end"><span class="ts-hud-end-text"></span>${SPARK}${HUD_RULE}</div>
+      </div>`;
     el.querySelector('.ts-kicker span')!.textContent = t('title.kicker');
     el.querySelector('.ts-title .visually-hidden')!.textContent = t('title.name');
+    el.querySelector('.ts-tagline')!.textContent = t('title.tagline');
+    const words = el.querySelector('.ts-hud-words')!;
+    t('title.hudTrack')
+      .split('//')
+      .forEach((w, i) => {
+        if (i) words.appendChild(Object.assign(document.createElement('i'), { textContent: '//' }));
+        words.appendChild(Object.assign(document.createElement('span'), { textContent: w.trim() }));
+      });
+    el.querySelector('.ts-hud-place-text b')!.textContent = t('title.hudPlace');
+    el.querySelector('.ts-hud-place-text span')!.textContent = t('title.hudPlaceSub');
+    el.querySelector('.ts-hud-end-text')!.textContent = t('title.hudEnd');
 
     const menu = el.querySelector('.ts-menu')!;
     menu.setAttribute('aria-label', t('title.menuLabel'));
@@ -145,13 +156,10 @@ export const TitleScreen = {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'title-btn';
-      b.style.setProperty('--i', String(buttons.length));
-      // Frame (hairline, glass fill, lit fill, top highlight, two runs of light, a sheen), the icon in its
-      // socket, the label, three signal ticks and the chevron, and the glowing caps at both points.
+      // Frame (hairline, glass fill, the lit fill when selected), the icon, the label, the chevron.
       b.innerHTML =
-        '<span class="tb-frame" aria-hidden="true"><span class="tb-fill"></span><span class="tb-lit"></span><span class="tb-shine"></span><span class="tb-flow"></span><span class="tb-flow tb-flow-low"></span><span class="tb-sheen"></span></span>' +
-        `<span class="tb-socket" aria-hidden="true">${icon(iconName, 'tb-icon')}</span><span class="tb-text"><span class="tb-label"></span></span>` +
-        `<span class="tb-ticks" aria-hidden="true"><i></i><i></i><i></i></span>${icon('chevron', 'tb-chevron')}<span class="tb-cap tb-cap-l" aria-hidden="true"></span><span class="tb-cap tb-cap-r" aria-hidden="true"></span>`;
+        '<span class="tb-frame" aria-hidden="true"><span class="tb-fill"></span><span class="tb-lit"></span></span>' +
+        `${icon(iconName, 'tb-icon')}<span class="tb-text"><span class="tb-label"></span></span>${icon('chevron', 'tb-chevron')}`;
       b.querySelector('.tb-label')!.textContent = t(key);
       if (disabledNote) {
         b.disabled = true;
@@ -195,23 +203,11 @@ export const TitleScreen = {
     select(first, true);
     first.focus({ preventScroll: true });
 
-    // The opening ends on its own once the last element is in (~2 s), or at once on a key or click.
-    window.setTimeout(() => (revealDone = true), 2600);
-    // The loops start once the backdrop has settled (startBackdrop), or after 6 s without one.
-    window.setTimeout(goLive, 6000);
-    const skip = () => {
-      if (revealDone) return;
-      revealDone = true;
-      root?.classList.add('ts-skip');
-      scene?.skipReveal();
-    };
     listen(window, 'pointerdown', () => {
-      skip();
       // Audio unlocks on this same gesture (AudioSystem.init); the title's bed starts with it.
       startTitleMusic();
     });
     listen(window, 'keydown', (e) => {
-      skip();
       startTitleMusic();
       if (PanelManager.isOpen || leaving) return;
       const step = e.code === 'ArrowDown' || e.code === 'KeyS' ? 1 : e.code === 'ArrowUp' || e.code === 'KeyW' ? -1 : 0;
@@ -224,15 +220,12 @@ export const TitleScreen = {
         (e.code === 'Home' ? enabled[0] : enabled[enabled.length - 1])?.focus({ preventScroll: true });
       }
     });
-    listen(window, 'pointermove', (e) => {
-      scene?.setPointer((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
-    });
   },
 
   /**
    * Starts the 3D backdrop, once the engine exists (boot.ts calls this from its idle start-up). It is
    * prepared in the background at the playing pace, then made the engine's scene; a click that comes
-   * first simply finds it not there yet, and it is dropped.
+   * first simply finds it not there yet, and it is dropped. Resolves once it is on screen (or given up).
    */
   async startBackdrop(engine: Engine): Promise<void> {
     if (!root || leaving || backdropStarted) return;
@@ -251,15 +244,13 @@ export const TitleScreen = {
         next.dispose();
         return;
       }
-      next.onFirstFrame = () => {
-        root?.classList.add('backdrop-live');
-        window.setTimeout(goLive, 1500);
-      };
+      // Its first frame is complete: the stand-in sky dissolves into it (CSS, .backdrop-live).
+      next.onFirstFrame = () => root?.classList.add('backdrop-live');
       await engine.setScene(() => next, { prepared: true, quiet: true });
       engine.start();
       scene = next;
     } catch (err) {
-      // The menu works the same without it, over its own starfield.
+      // The menu works the same without it, over its own night sky.
       console.warn('[title] the 3D backdrop is unavailable', err);
     }
   },
@@ -332,7 +323,6 @@ function select(b: HTMLButtonElement, quiet = false): void {
   selected?.classList.remove('is-selected');
   selected = b;
   b.classList.add('is-selected');
-  if (!quiet) scene?.nudge();
   if (!quiet) AudioSystem.playHover();
 }
 
@@ -356,10 +346,6 @@ function returnFocusOnClose(b: HTMLButtonElement): void {
     else restoreFocus(b);
   };
   window.setTimeout(poll, 150);
-}
-
-function goLive(): void {
-  root?.classList.add('ts-live');
 }
 
 function startTitleMusic(): void {

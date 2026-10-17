@@ -1,7 +1,8 @@
-// The title screen, end to end: the menu and its four buttons, the 3D backdrop behind it, keyboard and
-// mouse selection, Controls and Settings (and focus coming back), a quality change made from the
-// title, New game into the intro, Continue into the Wren, an unreadable save, reduced motion, a key
-// during the opening, and a click that comes before the backdrop is ready.
+// The title screen, end to end: the menu and its four buttons, the 3D backdrop behind it (ship, moon,
+// rocks, a turning planet), keyboard and mouse selection, Controls and Settings (and focus coming
+// back), a quality change made from the title, New game into the intro, Continue into the Wren, an
+// unreadable save, reduced motion, the menu working before the backdrop arrives, and a click that
+// comes before the backdrop is ready.
 //
 //   npx vite preview --port 4190 --strictPort   (in another terminal)
 //   node tools/test-title.mjs [baseUrl]
@@ -47,12 +48,22 @@ async function makeSave() {
   check('four buttons in order', b.map((x) => x.label).join('|') === 'Continue|New game|Controls|Settings', b.map((x) => x.label).join('|'));
   check('Continue is shown disabled without a save, with the reason', b[0].disabled && /No saved journey/.test(await page.textContent('.title-btn')));
   check('New game starts selected and focused', b[1].selected && b[1].focused);
-  check('the kicker reads Deep-space exploration', (await page.textContent('.ts-kicker')).trim() === 'Deep-space exploration');
-  check('no tagline or frame labels', !(await page.$('.ts-tagline, .ts-hud, .ts-chrome')));
+  check('the kicker reads A deep-space survey', (await page.textContent('.ts-kicker')).trim() === 'A deep-space survey');
+  check('the tagline is shown', /went dark past the edge of the charts\.\s*Wake it up\./.test(await page.textContent('.ts-tagline')));
+  check('the corner labels are shown, hidden from screen readers', /Exploration/.test(await page.textContent('.ts-hud')) && (await page.getAttribute('.ts-hud', 'aria-hidden')) === 'true');
   check('the title has an accessible name', (await page.getByRole('heading', { level: 1 }).textContent()).trim() === 'Kethra');
   check('the 3D backdrop comes up behind the menu', await backdropLive(page));
   check('the game has not started (flow still at boot)', (await page.evaluate(() => window.__DEBUG__.flow.state)) === 'boot');
-  check('the ornamental loops start once the backdrop has settled', await page.waitForFunction(() => document.querySelector('.title-screen.ts-live'), null, { timeout: 15000 }).then(() => true, () => false));
+  check('the backdrop has the ship, the moon and the rocks', await page.evaluate(() => ['title-ship', 'title-moon', 'title-asteroids', 'title-hero-surface'].every((n) => window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName(n))));
+  const spin = await page.evaluate(async () => {
+    const surface = window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName('title-hero-surface');
+    const a = surface.rotation.y;
+    await new Promise((r) => setTimeout(r, 1000));
+    return surface.rotation.y - a;
+  });
+  check('Kethra turns on its own', Math.abs(spin) > 0.004 && Math.abs(spin) < 0.02, `${spin.toFixed(4)} rad in 1 s`);
+  const loops = await page.evaluate(() => document.getAnimations().filter((a) => a.effect?.target?.closest?.('.title-screen') && a.effect.getComputedTiming().iterations === Infinity).length);
+  check('nothing on the menu loops', loops === 0, `${loops} looping`);
 
   await page.keyboard.press('ArrowDown');
   check('ArrowDown selects Controls', (await selectedLabel(page)) === 'Controls');
@@ -117,15 +128,25 @@ async function makeSave() {
   await context.close();
 }
 
-// 4. Reduced motion, and a key during the opening.
+// 4. Reduced motion; and the menu, up and working before the backdrop arrives.
 {
   const { page, context, errors } = await open({ reducedMotion: true });
   check('reduced motion: the backdrop still comes up', await backdropLive(page));
-  check('reduced motion: no comet runs', (await page.$eval('.ts-comet', (e) => getComputedStyle(e).animationName)) === 'none');
+  const still = await page.evaluate(async () => {
+    const cam = window.__DEBUG__.engine.getCurrentScene().camera;
+    const a = cam.position.clone();
+    await new Promise((r) => setTimeout(r, 800));
+    return a.length() < 1e-6 && cam.position.length() < 1e-6;
+  });
+  check('reduced motion: the camera holds still', still);
   await context.close();
   const second = await open();
-  await second.page.keyboard.press('Space');
-  check('a key during the opening finishes it', await second.page.evaluate(() => document.querySelector('.title-screen').classList.contains('ts-skip')));
+  const early = await second.page.evaluate(() => ({ at: performance.now(), backdrop: !!document.querySelector('.title-screen.backdrop-live') }));
+  await second.page.waitForFunction(() => getComputedStyle(document.querySelector('.ts-column')).opacity === '1', null, { timeout: 3000 }).catch(() => {});
+  const shownAt = await second.page.evaluate(() => performance.now());
+  check('the whole menu is up within 1.5 s of loading', shownAt < 1500, `${Math.round(shownAt)} ms`);
+  await second.page.keyboard.press('ArrowDown');
+  check('the menu answers keys before the backdrop arrives', !early.backdrop && (await selectedLabel(second.page)) === 'Controls');
   check('no errors on the page', errors.length === 0 && second.errors.length === 0, [...errors, ...second.errors].slice(0, 3).join(' | '));
   await second.context.close();
 }

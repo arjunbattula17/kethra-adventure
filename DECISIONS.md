@@ -188,9 +188,10 @@ them down inside it. Floors up to 1.45 m above the take-off become reachable by 
 nothing on the critical path depends on. Covered by `tools/test-controls.mjs`.
 
 ### D-27 · UPGRADE · A cinematic title screen with a live 3D backdrop — *Done 2026-10-16, reversible*
-The title is now sunrise over Kethra's limb, rendered live behind the menu, with a new wordmark,
-glowing console-strip buttons and a ~2.5 s opening (src/galaxy/title/TITLE_DESIGN.md). Choices the
-team can reverse:
+The title is now a survey cruiser on blue engines over Kethra's day side at sunrise, rendered live
+behind the menu, with a new wordmark and glowing hexagonal buttons; the menu is up at once and the
+backdrop arrives complete, in one dissolve (src/galaxy/title/TITLE_DESIGN.md). Choices the team can
+reverse:
 - **The title has its own palette.** Deep-space blues with cyan marking what can be picked, instead
   of the game's amber and sea-green; Controls and Settings take it while the title is up. Revert: the
   token block at the top of the Title screen section of `src/style.css` and the
@@ -198,11 +199,18 @@ team can reverse:
 - **Continue is shown disabled, with the reason, when there is no usable save** (it used to be
   hidden), so the menu always has the same four rows. Revert: skip the `add('title.continue', …)`
   call in `TitleScreen.show` when `opts.hasSave` is false.
-- **The title is just the kicker, the wordmark and the buttons** (2026-10-16, at the user's request):
-  the tagline ("Your ship went dark past the edge of the charts. Wake it up.") is no longer shown, the
-  kicker reads "Deep-space exploration" (was "A deep-space survey"; `title.kicker`), and there is no
-  ship in the backdrop and no frame labels. A first version had the Wren flying in and lore labels in
-  the corners; both were taken out.
+- **A ship, the tagline and corner labels, after a new reference** (2026-10-16, second pass, at the
+  user's request; an earlier pass that day had taken all three out). The ship is a new model built
+  for the title to match the reference (`titleShip.ts`), not the Wren hull the intro flies, so the
+  two ships differ. The kicker reads "A deep-space survey" and the tagline "Your ship went dark past
+  the edge of the charts. Wake it up." (`title.kicker`, `title.tagline`). The corner labels are
+  decoration in the game's own terms ("Beyond the Kessic Drift / Uncharted system" where the
+  reference had a made-up station and sector; `title.hud*`). Revert: drop `buildTitleShip` from
+  `TitleScene.init`; empty `.ts-tagline`; remove the `.ts-hud` block from `TitleScreen.show`.
+- **The world keeps its own time.** Nothing in the backdrop follows the pointer or the menu (the
+  camera used to lean toward the pointer and the sunrise to swell on each selection), nothing on the
+  menu loops, and there is no staged opening: the menu fades in as one piece and the backdrop arrives
+  whole. Reduced motion holds the camera still and stops the meteors.
 The backdrop can be switched off entirely by not calling `TitleScreen.startBackdrop` in `boot.ts`:
 the menu then runs over its CSS starfield, as it does on any machine where the 3D fails to build.
 

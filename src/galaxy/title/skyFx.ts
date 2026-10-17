@@ -284,7 +284,7 @@ export function buildSkyFx(o: SkyFxOptions): SkyFx {
   group.add(meteor);
   const rand = mulberry32(0x3e7e0);
   let meteorsOn = true;
-  let nextMeteor = 6 + rand() * 6;
+  let nextMeteor = 10 + rand() * 8;
   let meteorT = -1;
   const meteorStart = new THREE.Vector2();
 
@@ -348,17 +348,17 @@ export function buildSkyFx(o: SkyFxOptions): SkyFx {
       projected.copy(sunWorld).project(camera);
       sunNdc.set(projected.x, projected.y);
       coreDepth.value = Math.min(projected.z, 0.99999);
-      // Meteors: one every 9-20 s, each crossing in ~0.7 s.
+      // Meteors: one every 14-30 s, each crossing in ~0.7 s, faint: rare enough to be a find.
       if (meteorT >= 0) {
         meteorT += dt;
         const life = meteorT / 0.7;
         if (life >= 1) {
           meteorT = -1;
           meteor.visible = false;
-          nextMeteor = 9 + rand() * 11;
+          nextMeteor = 14 + rand() * 16;
         } else {
           meteorU.uHead.value.copy(meteorU.uDir.value).multiplyScalar(life * 0.5).add(meteorStart);
-          meteorU.uIntensity.value = Math.sin(Math.PI * life) * 0.9;
+          meteorU.uIntensity.value = Math.sin(Math.PI * life) * 0.7;
         }
       } else if (meteorsOn && (nextMeteor -= dt) <= 0) {
         const [x0, y0, x1, y1] = o.meteorArea;

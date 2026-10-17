@@ -1147,21 +1147,21 @@ body.tutorial-active .look-prompt { padding-bottom: 250px; }
 /* Title screen (TitleScreen.ts): the menu over the 3D backdrop (src/galaxy/title/TitleScene.ts). Sits
    under #ui-root (z 10) so the Controls / Settings panels open above it; the HUD is hidden while it's
    up. It keeps the game's type and takes the backdrop's deep-space blues: cyan marks what can be
-   picked, the way amber does in play. Everything that moves in the first seconds is opacity, translate
-   or scale, which the compositor runs without repainting: an animated blur, a stroke being drawn or an
-   SVG part turning repaints every frame, and that kept the GPU process busy enough to stall the engine's
-   creation behind it (40 ms became 500 ms on an Intel UHD laptop). The ornamental loops (light sweep,
-   comet, flare, light along the selected button) wait for ts-live, once the backdrop has settled. */
+   picked, the way amber does in play. The menu fades in as one piece the moment the page shows, by
+   opacity and translate only (an animated blur or a stroke being drawn repaints every frame, and that
+   stalled the engine's creation behind it on an Intel UHD laptop: 40 ms became 500 ms), and nothing on
+   it loops. Its stand-in sky dissolves into the backdrop once, on the backdrop's first frame. */
 body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
 .title-screen {
   --ts-cyan: #35bfff;
   --ts-ice: #ddf6ff;
   --ts-ink: #f0f6fc;
   --ts-ink-dim: #a5b7c9;
+  --ts-line: rgba(110, 190, 240, 0.45);
   --ts-pad: clamp(22px, 7.4vw, 150px);
-  --ts-title-h: clamp(36px, min(8.6vh, 9.6vw), 106px);
-  --ts-btn-w: clamp(250px, 28vw, 500px);
-  --ts-btn-h: clamp(42px, 6.4vh, 68px);
+  --ts-title-h: clamp(34px, min(8vh, 9.4vw), 100px);
+  --ts-btn-w: clamp(250px, 28vw, 470px);
+  --ts-btn-h: clamp(40px, 6vh, 64px);
   --ts-out: 0.42s cubic-bezier(0.55, 0, 1, 0.45);
   position: fixed;
   inset: 0;
@@ -1172,17 +1172,21 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
 }
 /* Leaving: the menu slides out while the backdrop pushes in and goes to black (TitleScene.leave). */
 .title-screen.leaving .ts-column { opacity: 0; transform: translateX(-16px); transition: opacity var(--ts-out), transform var(--ts-out); }
+.title-screen.leaving .ts-hud,
 .title-screen.leaving .ts-scrim { opacity: 0; transition: opacity var(--ts-out); }
 /* No backdrop yet: the whole screen fades, as it always did. */
 .title-screen.leaving:not(.backdrop-live) { opacity: 0; }
 .title-screen.leaving * { pointer-events: none; }
 
-/* The stand-in sky until the 3D backdrop draws its first frame, then it fades away under it. */
+/* The stand-in sky until the 3D backdrop draws its first frame: deep space, a few stars, and a glow low
+   on the right where Kethra will be. The backdrop arrives complete and this dissolves into it, once. */
 .ts-fallback {
   position: absolute;
   inset: 0;
-  background: radial-gradient(120% 90% at 76% 64%, #0b1727 0%, #070e1a 45%, #050912 100%);
-  transition: opacity 1.4s ease;
+  background:
+    radial-gradient(70% 80% at 96% 104%, rgba(34, 92, 96, 0.42), rgba(16, 46, 66, 0.2) 55%, rgba(5, 9, 18, 0) 80%),
+    radial-gradient(120% 90% at 76% 64%, #0b1727 0%, #070e1a 45%, #050912 100%);
+  transition: opacity 0.9s cubic-bezier(0.33, 0, 0.2, 1);
 }
 .title-screen.backdrop-live .ts-fallback { opacity: 0; }
 .title-stars,
@@ -1211,10 +1215,11 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(5, 9, 18, 0.72) 0%, rgba(5, 9, 18, 0.46) calc(var(--ts-pad) + var(--ts-btn-w) * 0.75), rgba(5, 9, 18, 0) calc(var(--ts-pad) + var(--ts-btn-w) * 1.5)),
-    linear-gradient(0deg, rgba(5, 9, 18, 0.5) 0%, rgba(5, 9, 18, 0) 24%);
+    linear-gradient(90deg, rgba(5, 9, 18, 0.66) 0%, rgba(5, 9, 18, 0.4) calc(var(--ts-pad) + var(--ts-btn-w) * 0.75), rgba(5, 9, 18, 0) calc(var(--ts-pad) + var(--ts-btn-w) * 1.5)),
+    linear-gradient(0deg, rgba(5, 9, 18, 0.45) 0%, rgba(5, 9, 18, 0) 22%);
 }
 
+/* The menu column. It comes in as one piece; `backwards` fill so the leaving fade above still applies. */
 .ts-column {
   position: absolute;
   left: var(--ts-pad);
@@ -1224,25 +1229,24 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 6vh 0 12vh;
-  transition: opacity var(--ts-out), transform var(--ts-out);
+  padding: 6vh 0 10vh;
+  animation: ts-in 0.45s 0.05s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .ts-kicker {
   display: flex;
   align-items: center;
-  gap: 1em;
+  gap: 1.1em;
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: calc(clamp(11px, 1.75vh, 19px) * var(--text-scale));
-  letter-spacing: 0.46em;
+  font-weight: 500;
+  font-size: calc(clamp(11px, 1.7vh, 18px) * var(--text-scale));
+  letter-spacing: 0.5em;
   text-transform: uppercase;
-  color: rgba(221, 246, 255, 0.88);
-  animation: ts-rise 0.9s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+  color: rgba(221, 246, 255, 0.86);
 }
 .ts-emblem {
-  width: 2.7em;
-  height: 2.7em;
+  width: 2.1em;
+  height: 2.8em;
   flex-shrink: 0;
   color: var(--ts-ice);
   filter: drop-shadow(0 0 5px rgba(53, 191, 255, 0.75));
@@ -1254,11 +1258,9 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   height: var(--ts-title-h);
   width: calc(var(--ts-title-h) * 7.76);
   max-width: 100%;
-  margin: calc(var(--ts-title-h) * 0.3) 0 calc(var(--ts-title-h) * 0.85);
+  margin: calc(var(--ts-title-h) * 0.32) 0 calc(var(--ts-title-h) * 0.62);
   font-size: 1px;
   line-height: 0;
-  transform-origin: left center;
-  animation: ts-title-in 1.2s 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .ts-wordmark {
   position: absolute;
@@ -1280,64 +1282,63 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   pointer-events: none;
 }
 .ts-orbit-back { z-index: 0; }
-.ts-orbit-back .ts-orbit-line { opacity: 0.5; }
 .ts-orbit-front { z-index: 2; }
 .ts-orbit-line {
   fill: none;
   stroke: url(#ts-orbit-grad);
   stroke-width: 1.7;
 }
-.ts-orbit { animation: ts-fade 1.4s 0.6s ease-out both; }
-.ts-orbit-back .ts-orbit-line { stroke: rgba(53, 191, 255, 0.6); stroke-width: 1.2; }
-.ts-comet {
-  fill: none;
-  stroke: var(--ts-ice);
-  stroke-width: 2.6;
-  stroke-linecap: round;
-  stroke-dasharray: 40 1000;
-  stroke-dashoffset: 60;
-  opacity: 0;
-}
-.ts-comet-wide { stroke: var(--ts-cyan); stroke-width: 8; stroke-dasharray: 90 1000; }
+.ts-orbit-back .ts-orbit-line { stroke: rgba(53, 191, 255, 0.6); stroke-width: 1.2; opacity: 0.5; }
 .ts-flare { fill: #fff; filter: drop-shadow(0 0 3px var(--ts-ice)) drop-shadow(0 0 9px rgba(53, 191, 255, 0.9)); }
 .ts-flare-halo { fill: rgba(53, 191, 255, 0.35); }
 
-/* Menu buttons: a console strip. A hairline hexagon, brightest toward its two points, round a glass
-   fill with faint scanlines; a highlight along the top; the icon in a diamond socket; three signal
-   ticks. Selected (mouse and keyboard are one state, TitleScreen.select): the edge blazes cyan, a cap
-   lights beyond each point, the fill lights from the left, light runs along the top and bottom edges,
-   a sheen crosses once, the label and ticks glow, and the strip steps right with its chevron. */
-.ts-menu { display: grid; gap: clamp(10px, 1.7vh, 20px); width: var(--ts-btn-w); max-width: 100%; }
+.ts-tagline {
+  margin: 0 0 calc(var(--ts-title-h) * 0.62);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: calc(clamp(13px, 2vh, 21px) * var(--text-scale));
+  line-height: 1.55;
+  letter-spacing: 0.12em;
+  white-space: pre-line;
+  color: rgba(226, 238, 248, 0.88);
+  text-shadow: 0 1px 10px rgba(5, 9, 18, 0.95);
+}
+
+/* Menu buttons: a hairline hexagon round a glass fill, an icon, the label. Selected (mouse and
+   keyboard are one state, TitleScreen.select): the edge turns bright cyan and glows, the fill lights
+   from the left, the strip steps right and its chevron shows. Every change takes under 0.2 s, and
+   none of it delays the pick. */
+.ts-menu { display: grid; gap: clamp(9px, 1.5vh, 16px); width: var(--ts-btn-w); max-width: 100%; }
 .title-btn {
-  --cut: calc(var(--ts-btn-h) * 0.3);
+  --cut: calc(var(--ts-btn-h) * 0.32);
   --hex: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% 50%, calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 50%);
   --hex-in: polygon(calc(var(--cut) - 0.4px) 0, calc(100% - var(--cut) + 0.4px) 0, 100% 50%, calc(100% - var(--cut) + 0.4px) 100%, calc(var(--cut) - 0.4px) 100%, 0 50%);
   position: relative;
   display: flex;
   align-items: center;
-  gap: calc(var(--ts-btn-h) * 0.26);
+  gap: calc(var(--ts-btn-h) * 0.4);
   height: var(--ts-btn-h);
-  padding: 0 calc(var(--ts-btn-h) * 0.5) 0 calc(var(--ts-btn-h) * 0.46);
+  padding: 0 calc(var(--ts-btn-h) * 0.5) 0 calc(var(--ts-btn-h) * 0.62);
   border: 0;
   background: none;
   color: var(--ts-ink);
   cursor: pointer;
   text-align: left;
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: calc(clamp(14px, 2.05vh, 22px) * var(--text-scale));
-  letter-spacing: 0.16em;
+  font-weight: 600;
+  font-size: calc(clamp(14px, 2vh, 21px) * var(--text-scale));
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   outline: none;
-  filter: drop-shadow(0 0 6px rgba(53, 191, 255, 0.16));
-  transition: transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.26s ease, color 0.2s ease;
-  animation: ts-btn-in 0.6s calc(1s + var(--i, 0) * 0.09s) cubic-bezier(0.22, 1, 0.36, 1) both;
+  filter: drop-shadow(0 0 5px rgba(53, 191, 255, 0.14));
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.18s ease, color 0.15s ease;
 }
 .tb-frame {
   position: absolute;
   inset: 0;
   clip-path: var(--hex);
-  background: linear-gradient(90deg, rgba(130, 214, 255, 0.8) 0%, rgba(78, 168, 228, 0.42) 14%, rgba(78, 168, 228, 0.26) 50%, rgba(78, 168, 228, 0.42) 86%, rgba(130, 214, 255, 0.8) 100%);
+  background: linear-gradient(90deg, rgba(130, 210, 255, 0.62) 0%, rgba(84, 164, 222, 0.4) 18%, rgba(84, 164, 222, 0.32) 50%, rgba(84, 164, 222, 0.4) 82%, rgba(130, 210, 255, 0.62) 100%);
+  transition: background-color 0.15s ease;
 }
 .tb-fill,
 .tb-lit {
@@ -1345,198 +1346,140 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   inset: 1px;
   clip-path: var(--hex-in);
 }
-.tb-fill {
-  background:
-    repeating-linear-gradient(0deg, rgba(160, 220, 255, 0.04) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, rgba(24, 56, 92, 0.5), rgba(6, 16, 30, 0) 55%),
-    linear-gradient(90deg, rgba(9, 22, 40, 0.9), rgba(8, 21, 38, 0.64) 55%, rgba(8, 21, 38, 0.48));
-}
+.tb-fill { background: linear-gradient(180deg, rgba(22, 50, 84, 0.42), rgba(6, 16, 30, 0) 60%), linear-gradient(90deg, rgba(8, 20, 38, 0.86), rgba(8, 20, 38, 0.64) 60%, rgba(8, 20, 38, 0.5)); }
 .tb-lit {
   background:
-    radial-gradient(90% 150% at 9% 50%, rgba(90, 205, 255, 0.6), rgba(53, 191, 255, 0) 62%),
-    linear-gradient(180deg, rgba(221, 246, 255, 0.2), rgba(221, 246, 255, 0) 46%),
-    linear-gradient(90deg, rgba(24, 110, 190, 0.82), rgba(16, 70, 135, 0.56) 55%, rgba(10, 36, 72, 0.46));
+    radial-gradient(80% 140% at 10% 50%, rgba(90, 200, 255, 0.5), rgba(53, 191, 255, 0) 62%),
+    linear-gradient(180deg, rgba(221, 246, 255, 0.16), rgba(221, 246, 255, 0) 48%),
+    linear-gradient(90deg, rgba(22, 104, 188, 0.86), rgba(14, 66, 132, 0.66) 58%, rgba(10, 40, 84, 0.58));
   opacity: 0;
-  transition: opacity 0.22s ease;
+  transition: opacity 0.15s ease;
 }
-/* The top edge's highlight, as if lit from above. */
-.tb-shine {
-  position: absolute;
-  top: 1px;
-  left: var(--cut);
-  right: var(--cut);
-  height: 1px;
-  background: linear-gradient(90deg, rgba(221, 246, 255, 0), rgba(221, 246, 255, 0.6) 22%, rgba(221, 246, 255, 0.18) 72%, rgba(221, 246, 255, 0));
-  opacity: 0.5;
-  transition: opacity 0.22s ease;
-}
-/* Light running along the top and bottom edges of the selected strip (translate only: no repaint). */
-.tb-flow {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 26%;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(223, 247, 255, 0), #dff7ff 72%, rgba(223, 247, 255, 0));
-  opacity: 0;
-  translate: -110% 0;
-}
-.tb-flow-low { top: auto; bottom: 0; }
-.tb-sheen {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 38%;
-  background: linear-gradient(100deg, transparent, rgba(221, 246, 255, 0.28), transparent);
-  translate: -120% 0;
-}
-.tb-socket,
+.tb-icon,
 .tb-text,
-.tb-ticks,
 .tb-chevron { position: relative; }
-/* The icon sits in a small diamond, like a console's indicator. */
-.tb-socket {
-  display: grid;
-  place-items: center;
-  width: calc(var(--ts-btn-h) * 0.62);
-  height: calc(var(--ts-btn-h) * 0.62);
-  flex-shrink: 0;
-}
-.tb-socket::before {
-  content: '';
-  position: absolute;
-  inset: 16%;
-  border: 1px solid rgba(110, 200, 250, 0.45);
-  background: rgba(53, 191, 255, 0.06);
-  transform: rotate(45deg);
-  transition: border-color 0.22s ease, background-color 0.22s ease, box-shadow 0.22s ease;
-}
 .tb-icon {
-  position: relative;
-  width: calc(var(--ts-btn-h) * 0.34);
-  height: calc(var(--ts-btn-h) * 0.34);
-  color: #9fd8f7;
-  transition: color 0.2s ease, filter 0.2s ease;
+  width: calc(var(--ts-btn-h) * 0.42);
+  height: calc(var(--ts-btn-h) * 0.42);
+  flex-shrink: 0;
+  color: #a9dcf8;
+  transition: color 0.15s ease, filter 0.15s ease;
 }
 .tb-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
-.tb-label { line-height: 1; padding-top: 0.08em; transition: text-shadow 0.22s ease; }
+.tb-label { line-height: 1; padding-top: 0.08em; transition: text-shadow 0.15s ease; }
 .tb-note {
   font-family: var(--font-body);
   font-weight: 400;
-  font-size: 0.56em;
+  font-size: 0.58em;
   line-height: 1.2;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: none;
   color: var(--ts-ink-dim);
 }
-.tb-ticks { display: flex; gap: 3px; }
-.tb-ticks i {
-  width: 3px;
-  height: calc(var(--ts-btn-h) * 0.26);
-  background: rgba(110, 190, 240, 0.28);
-  transform: skewX(-20deg);
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
-}
 .tb-chevron {
-  width: calc(var(--ts-btn-h) * 0.32);
-  height: calc(var(--ts-btn-h) * 0.32);
+  width: calc(var(--ts-btn-h) * 0.34);
+  height: calc(var(--ts-btn-h) * 0.34);
   flex-shrink: 0;
   color: var(--ts-ice);
   opacity: 0;
-  transform: translateX(-8px);
-  transition: opacity 0.2s ease, transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform: translateX(-6px);
+  transition: opacity 0.15s ease, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-/* Caps beyond each point: a lit chevron either side of the selected strip. */
-.tb-cap {
-  position: absolute;
-  top: 50%;
-  width: calc(var(--ts-btn-h) * 0.2);
-  height: calc(var(--ts-btn-h) * 0.2);
-  margin-top: calc(var(--ts-btn-h) * -0.1);
-  border: solid #8fe0ff;
-  border-width: 2px 0 0 2px;
-  box-shadow: -1px -1px 6px rgba(53, 191, 255, 0.8);
-  opacity: 0;
-  transition: opacity 0.2s ease, translate 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.tb-cap-l { left: calc(var(--ts-btn-h) * -0.3); transform: rotate(-45deg); translate: 6px 0; }
-.tb-cap-r { right: calc(var(--ts-btn-h) * -0.3); transform: rotate(135deg); translate: -6px 0; }
 
 .title-btn.is-selected {
-  transform: translateX(calc(var(--ts-btn-h) * 0.1));
-  filter: drop-shadow(0 0 3px rgba(150, 225, 255, 0.7)) drop-shadow(0 0 calc(var(--ts-btn-h) * 0.32) rgba(53, 191, 255, 0.5));
+  transform: translateX(calc(var(--ts-btn-h) * 0.08));
+  filter: drop-shadow(0 0 2px rgba(150, 225, 255, 0.7)) drop-shadow(0 0 calc(var(--ts-btn-h) * 0.3) rgba(53, 191, 255, 0.45));
 }
-.title-btn.is-selected .tb-frame { background: linear-gradient(90deg, #e6f9ff 0%, #5fd0ff 16%, #35bfff 50%, #5fd0ff 84%, #e6f9ff 100%); }
-.title-btn.is-selected .tb-lit,
-.title-btn.is-selected .tb-shine { opacity: 1; }
-.title-btn.is-selected .tb-sheen { animation: tb-sheen 0.8s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
-.title-btn.is-selected .tb-socket::before { border-color: #9fe6ff; background: rgba(53, 191, 255, 0.24); box-shadow: 0 0 12px rgba(53, 191, 255, 0.7), inset 0 0 8px rgba(53, 191, 255, 0.45); }
+.title-btn.is-selected .tb-frame { background: linear-gradient(90deg, #e2f7ff 0%, #4ec8ff 18%, #35bfff 50%, #4ec8ff 82%, #e2f7ff 100%); }
+.title-btn.is-selected .tb-lit { opacity: 1; }
 .title-btn.is-selected .tb-icon { color: #fff; filter: drop-shadow(0 0 4px rgba(120, 215, 255, 0.95)); }
-.title-btn.is-selected .tb-label { text-shadow: 0 0 12px rgba(110, 210, 255, 0.85), 0 0 2px rgba(255, 255, 255, 0.55); }
-.title-btn.is-selected .tb-ticks i { background: #74d8ff; box-shadow: 0 0 6px rgba(53, 191, 255, 0.95); }
-.title-btn.is-selected .tb-ticks i:nth-child(2) { transition-delay: 0.06s; }
-.title-btn.is-selected .tb-ticks i:nth-child(3) { transition-delay: 0.12s; }
+.title-btn.is-selected .tb-label { text-shadow: 0 0 10px rgba(110, 210, 255, 0.8), 0 0 2px rgba(255, 255, 255, 0.5); }
 .title-btn.is-selected .tb-chevron { opacity: 1; transform: none; }
-.title-btn.is-selected .tb-cap { opacity: 1; translate: 0 0; }
-.title-screen.ts-live .title-btn.is-selected .tb-flow { opacity: 1; animation: tb-flow 2.6s linear infinite; }
-.title-screen.ts-live .title-btn.is-selected .tb-flow-low { animation-direction: reverse; animation-delay: -1.3s; }
-.title-btn:focus-visible .tb-frame { background: linear-gradient(90deg, #ffffff 0%, #a6eaff 16%, #7fdcff 50%, #a6eaff 84%, #ffffff 100%); }
-.title-btn:active:not(:disabled) { transform: translateX(calc(var(--ts-btn-h) * 0.1)) scale(0.985); transition-duration: 0.08s; }
-.title-btn.is-pressed .tb-lit { animation: tb-press 0.35s ease-out; }
+.title-btn:focus-visible .tb-frame { background: linear-gradient(90deg, #ffffff 0%, #a6eaff 18%, #7fdcff 50%, #a6eaff 82%, #ffffff 100%); }
+.title-btn:active:not(:disabled) { transform: translateX(calc(var(--ts-btn-h) * 0.08)) scale(0.985); transition-duration: 0.06s; }
+.title-btn.is-pressed .tb-lit { animation: tb-press 0.3s ease-out; }
 .title-btn:disabled { cursor: default; color: rgba(240, 246, 252, 0.42); filter: none; }
 .title-btn:disabled .tb-frame { background: rgba(140, 165, 190, 0.22); }
 .title-btn:disabled .tb-fill { background: rgba(8, 21, 38, 0.5); }
-.title-btn:disabled .tb-shine { opacity: 0.15; }
-.title-btn:disabled .tb-socket::before { border-color: rgba(140, 165, 190, 0.25); background: none; }
 .title-btn:disabled .tb-icon { color: rgba(165, 183, 201, 0.45); }
-.title-btn:disabled .tb-ticks i { background: rgba(140, 165, 190, 0.16); }
 
-/* A key or a click during the opening finishes it at once (TitleScreen's skip). */
-.title-screen.ts-skip .ts-reveal,
-.title-screen.ts-skip .title-btn,
-.title-screen.ts-skip .ts-orbit { animation-delay: 0s !important; animation-duration: 0.2s !important; }
+/* Corner furniture, decorative only: a line of genre words top right, where we are bottom left, a
+   sign-off bottom right. Small, dim, and gone on screens too small to keep them clear of the menu. */
+.ts-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: rgba(176, 222, 250, 0.68);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: calc(clamp(9px, 1.3vh, 13px) * var(--text-scale));
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  text-shadow: 0 0 6px rgba(5, 9, 18, 0.95), 0 1px 2px rgba(5, 9, 18, 0.9);
+  animation: ts-fade 0.45s 0.05s ease-out backwards;
+}
+.ts-hud-line { display: block; color: var(--ts-line); overflow: visible; }
+.ts-hud-track {
+  position: absolute;
+  top: clamp(18px, 4.6vh, 48px);
+  right: clamp(18px, 3.4vw, 64px);
+  display: flex;
+  align-items: flex-end;
+  gap: 1.4em;
+}
+.ts-hud-track .ts-hud-line { width: clamp(60px, 9vw, 180px); height: 1.7em; margin-bottom: 0.25em; }
+.ts-hud-words { display: flex; gap: 1.3em; padding-bottom: 0.15em; }
+.ts-hud-words i { font-style: normal; letter-spacing: 0.05em; opacity: 0.55; }
+.ts-hud-place {
+  position: absolute;
+  left: clamp(18px, 2.6vw, 48px);
+  bottom: clamp(18px, 4vh, 44px);
+  display: flex;
+  align-items: center;
+  gap: 1.3em;
+  padding: 1.3em 3em 1.3em 1.6em;
+}
+.ts-hud-bracket { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--ts-line); }
+.ts-hud-scope { width: 4.4em; height: 4.4em; color: rgba(150, 214, 250, 0.82); }
+.ts-hud-place-text { display: flex; flex-direction: column; gap: 0.55em; white-space: nowrap; }
+.ts-hud-place-text b { font-weight: 600; letter-spacing: 0.2em; color: rgba(214, 238, 252, 0.84); }
+.ts-hud-place-text span { opacity: 0.6; }
+.ts-hud-end {
+  position: absolute;
+  right: clamp(18px, 3.4vw, 64px);
+  bottom: clamp(26px, 5.4vh, 58px);
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+}
+.ts-hud-end .ts-hud-line { position: absolute; right: -1.2em; top: 100%; width: calc(100% + 8em); height: 1.6em; margin-top: 0.5em; }
+.ts-spark { width: 1.3em; height: 1.3em; color: #cfeeff; filter: drop-shadow(0 0 4px rgba(53, 191, 255, 0.8)); }
 
-/* The ornamental loops wait for ts-live (TitleScreen.goLive): while the engine starts they would only
-   repaint and slow it. */
-.title-screen.ts-live .ts-sweep { animation: ts-sweep 9s 0.4s cubic-bezier(0.45, 0, 0.25, 1) infinite; }
-.title-screen.ts-live .ts-comet { animation: ts-comet 7s 0.8s cubic-bezier(0.45, 0.05, 0.35, 1) infinite; }
-.title-screen.ts-live .ts-comet-wide { animation-name: ts-comet-wide; }
-.title-screen.ts-live .ts-flare { animation: ts-flare 7s 0.8s ease-in-out infinite; }
-
-/* Reduced motion: short fades only; nothing travels, nothing loops. */
-body.reduced-motion .title-screen .ts-reveal,
-body.reduced-motion .title-screen .title-btn,
-body.reduced-motion .title-screen .ts-orbit { animation-duration: 0.3s !important; animation-delay: 0s !important; }
-body.reduced-motion .title-screen .ts-comet,
-body.reduced-motion .title-screen .ts-sweep,
-body.reduced-motion .title-screen .ts-flare,
-body.reduced-motion .title-screen .tb-flow,
-body.reduced-motion .title-screen .tb-sheen { animation: none !important; }
-body.reduced-motion .title-screen .ts-comet,
-body.reduced-motion .title-screen .tb-flow { opacity: 0 !important; }
+/* Reduced motion (Settings or the OS): the menu simply appears. */
+body.reduced-motion .title-screen .ts-column,
+body.reduced-motion .title-screen .ts-hud { animation-duration: 0.2s; animation-delay: 0s; }
 @media (prefers-reduced-motion: reduce) {
-  .title-screen .ts-comet, .title-screen .ts-sweep, .title-screen .ts-flare, .title-screen .tb-flow { animation: none !important; }
+  .title-screen .ts-column, .title-screen .ts-hud { animation-duration: 0.2s; animation-delay: 0s; }
 }
 
+/* Squarer windows turn the camera to keep the ship and the planet (TitleScene.frame), which brings the
+   bright limb in behind the wordmark and the tagline: a deeper shade keeps them legible. */
+@media (max-aspect-ratio: 3/2) {
+  .ts-scrim { background: linear-gradient(90deg, rgba(5, 9, 18, 0.74) 0%, rgba(5, 9, 18, 0.56) calc(var(--ts-pad) + var(--ts-btn-w) * 1.1), rgba(5, 9, 18, 0) calc(var(--ts-pad) + var(--ts-btn-w) * 2)), linear-gradient(0deg, rgba(5, 9, 18, 0.45) 0%, rgba(5, 9, 18, 0) 22%); }
+}
 @media (max-width: 760px) {
   .ts-kicker { letter-spacing: 0.3em; white-space: nowrap; }
+  .ts-tagline { letter-spacing: 0.06em; }
   .ts-scrim { background: linear-gradient(90deg, rgba(5, 9, 18, 0.8), rgba(5, 9, 18, 0.35)), linear-gradient(0deg, rgba(5, 9, 18, 0.5), rgba(5, 9, 18, 0) 30%); }
+  .ts-hud { display: none; }
 }
-@media (max-height: 560px) {
-  .ts-column { padding: 3vh 0 6vh; }
+@media (max-height: 620px) {
+  .ts-column { padding: 3vh 0 5vh; }
+  .ts-hud-place, .ts-hud-end { display: none; }
 }
 
-@keyframes ts-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes ts-rise { from { opacity: 0; translate: 0 0.7em; } to { opacity: 1; translate: 0 0; } }
-@keyframes ts-title-in { from { opacity: 0; translate: calc(var(--ts-title-h) * -0.18) 0; } to { opacity: 1; translate: 0 0; } }
-@keyframes ts-btn-in { from { opacity: 0; translate: calc(var(--ts-btn-h) * -0.45) 0; } to { opacity: 1; translate: 0 0; } }
-@keyframes ts-sweep { 0% { translate: 0 0; } 15% { translate: 1180px 0; } 100% { translate: 1180px 0; } }
-@keyframes ts-comet { 0% { stroke-dashoffset: 60; opacity: 0; } 5% { opacity: 1; } 34% { opacity: 1; } 40% { stroke-dashoffset: -1000; opacity: 0; } 100% { stroke-dashoffset: -1000; opacity: 0; } }
-@keyframes ts-comet-wide { 0% { stroke-dashoffset: 110; opacity: 0; } 5% { opacity: 0.28; } 34% { opacity: 0.28; } 40% { stroke-dashoffset: -1000; opacity: 0; } 100% { stroke-dashoffset: -1000; opacity: 0; } }
-@keyframes ts-flare { 0%, 32% { scale: 0.55; opacity: 0.55; } 39% { scale: 1.3; opacity: 1; } 55% { scale: 0.8; opacity: 0.75; } 100% { scale: 0.55; opacity: 0.55; } }
-@keyframes tb-sheen { from { translate: -120% 0; } to { translate: 320% 0; } }
-@keyframes tb-flow { from { translate: -110% 0; } to { translate: 390% 0; } }
+@keyframes ts-in { from { opacity: 0; translate: 0 10px; } }
+@keyframes ts-fade { from { opacity: 0; } }
 @keyframes tb-press { 0% { filter: brightness(2); } 100% { filter: brightness(1); } }
 
 /* The panels the title opens (Controls, Settings) take its palette while it's up. */

@@ -6,9 +6,10 @@ import * as THREE from 'three';
  *
  * From this close a 1024-wide map is ~100 texels across the screen, so the surface carries the
  * baked detail sheet (bake.ts) at three scales: relief that the sun lights as bumps (strongest along
- * the terminator), a palette of greens from lowland forest to pale terraces, small lakes in the lowest
- * ground that catch a sun glint, cloud edges, and cloud shadows cast toward the terminator. The night
- * side shows the canopy's own glow, which is the game's lore ("green, with a faint night-side glow").
+ * the terminator), coastlines drawn by the detail over the map's broad elevation (seas and lakes in the
+ * lowest fifth or so, with a sun glint), a palette of greens from coastal canopy to pale terraces,
+ * cloud edges, and cloud shadows cast toward the terminator. The night side shows the canopy's own
+ * glow, which is the game's lore ("green, with a faint night-side glow").
  *
  * The atmosphere is a second, slightly larger sphere drawn after the surface with an analytic
  * single-scattering estimate per pixel: the column of air along the view ray (Chapman's grazing
@@ -72,21 +73,34 @@ const SURFACE_FRAGMENT = /* glsl */ `
     // The map is read through a slight warp from the detail, so its texel grid never shows as edges.
     vec3 base = sampleWrapped(uDay, uv + (d1.gb - 0.5) * 0.0028, gx, gy).rgb;
 
-    float lum = sqrt(dot(base, vec3(0.299, 0.587, 0.114)));
-    float height = lum + (d1.r - 0.5) * 0.14 + (d2.r - 0.5) * 0.06 + (d3.r - 0.5) * 0.025;
-    // Open water only in the darkest lowlands, broken up by the relief.
-    float water = 1.0 - smoothstep(0.15, 0.175, height);
+    // Elevation: the map's own brightness (its uplands are bright; sqrt-luminance has its median near
+    // 0.3), read two mips softer through a stronger warp so its texel grid never shapes a coast, with
+    // the detail sheet's relief at three scales on top: the coastlines and ridges are the noise's,
+    // fractal and sharp from this close.
+    vec3 broad = sampleWrapped(uDay, uv + (d1.gb - 0.5) * 0.009, gx * 4.0, gy * 4.0).rgb;
+    float lum = sqrt(dot(broad, vec3(0.299, 0.587, 0.114)));
+    float elev = (lum - 0.3) * 9.0 + (d1.r - 0.5) * 2.6 + (d2.r - 0.5) * 1.2 + (d3.r - 0.5) * 0.5;
+    // Seas in the lowest fifth or so; the coast is anti-aliased by its own slope on screen.
+    const float SEA = -0.95;
+    float aa = max(fwidth(elev), 0.02);
+    float water = 1.0 - smoothstep(SEA - aa, SEA + aa, elev);
+    float shallow = smoothstep(SEA - 1.1, SEA, elev);
+    float above = max(elev - SEA, 0.0);
 
-    // Kethra's greens: the map's own colour, deepened in the lowlands and lifted on the uplands and
-    // terraces, so the canopy reads as varied forest from orbit rather than one wash.
-    vec3 palette = mix(vec3(0.018, 0.058, 0.03), vec3(0.04, 0.125, 0.035), smoothstep(0.18, 0.28, height));
-    palette = mix(palette, vec3(0.105, 0.16, 0.05), smoothstep(0.3, 0.42, height));
-    palette = mix(palette, vec3(0.16, 0.19, 0.11), smoothstep(0.62, 0.88, d1.g) * 0.45);
-    vec3 albedo = mix(base * 1.1, palette, 0.5) * (0.6 + 0.85 * d1.r) * (0.8 + 0.3 * d2.r + 0.2 * d3.a);
-    albedo = mix(albedo, vec3(0.010, 0.032, 0.04), water);
+    // Kethra's greens: dark canopy along the coasts, brighter forest inland, yellow-green plains where
+    // it is dry, olive uplands and pale terraces along the ridges.
+    float dry = smoothstep(0.42, 0.62, d1.b * 0.6 + d2.g * 0.4);
+    vec3 land = mix(vec3(0.014, 0.05, 0.02), vec3(0.03, 0.1, 0.03), smoothstep(0.0, 0.9, above));
+    land = mix(land, vec3(0.1, 0.14, 0.035), smoothstep(0.8, 1.8, above) * dry);
+    land = mix(land, vec3(0.1, 0.105, 0.055), smoothstep(1.8, 3.0, above));
+    land = mix(land, vec3(0.17, 0.18, 0.12), smoothstep(0.62, 0.9, d1.g) * smoothstep(1.0, 2.4, above) * 0.55);
+    vec3 albedo = mix(base * 0.9, land, 0.65) * (0.6 + 0.8 * d1.r) * (0.75 + 0.45 * d2.r + 0.25 * d3.a);
+    vec3 sea = mix(vec3(0.004, 0.016, 0.036), vec3(0.014, 0.07, 0.085), shallow * shallow);
+    albedo = mix(albedo, sea, water);
 
     // Bump from the detail height, in world space (derivative-based, no tangents needed).
-    float bump = (d1.r + 0.5 * d2.r + 0.4 * d1.g + 0.25 * d3.r) * (1.0 - water);
+    // Not cut at the coast: a step in the bump field would outline every shore in dark quads.
+    float bump = d1.r + 0.5 * d2.r + 0.4 * d1.g + 0.25 * d3.r;
     vec3 dpx = dFdx(vPosW);
     vec3 dpy = dFdy(vPosW);
     vec3 r1 = cross(dpy, nGeo);
@@ -108,8 +122,11 @@ const SURFACE_FRAGMENT = /* glsl */ `
     // The cloud sheet is 512 wide: from this close it gives where weather is, and the detail (and a
     // warp of the lookup) gives its edges.
     float cBase = sampleWrapped(uClouds, cuv + (cd.rg - 0.5) * 0.007, gx, gy).r;
-    float cover = cBase * 0.8 + (cd.b - 0.5) * 0.85 + (cd2.b - 0.5) * 0.38 + 0.05;
-    float cloud = smoothstep(0.48, 0.8, cover);
+    float cover = cBase * 0.75 + (cd.b - 0.5) * 1.0 + (cd2.b - 0.5) * 0.5 + 0.11;
+    // Toward the limb a cloud is seen edge-on through more air: its edges soften instead of drawing a
+    // hard white bar.
+    float edgeOn = 0.22 * (1.0 - smoothstep(0.04, 0.32, dot(nGeo, V)));
+    float cloud = smoothstep(0.5 - edgeOn, 0.7 + edgeOn, cover) * (1.0 - edgeOn * 1.5);
 
     float lambert = max(ndl, 0.0);
     vec3 ground = albedo * uSunColor * lambert * day * twilight * (1.0 - cloud * 0.4);
@@ -125,13 +142,14 @@ const SURFACE_FRAGMENT = /* glsl */ `
     vec2 sd = vec2(a22 * b1 - a12 * b2, a11 * b2 - a12 * b1) / max(a11 * a22 - a12 * a12, 1e-12);
     vec2 shift = gx * sd.x + gy * sd.y;
     float shadowBase = sampleWrapped(uClouds, cuv + shift + (cd.rg - 0.5) * 0.007, gx, gy).r;
-    float shade = smoothstep(0.48, 0.8, shadowBase * 0.8 + (cd.b - 0.5) * 0.85 + (cd2.b - 0.5) * 0.38 + 0.05);
+    float shade = smoothstep(0.5, 0.7, shadowBase * 0.75 + (cd.b - 0.5) * 1.0 + (cd2.b - 0.5) * 0.5 + 0.11);
     ground *= 1.0 - shade * (1.0 - cloud) * 0.6;
     // Sun glint on open water.
     vec3 H = normalize(uSunDir + V);
     float fres = 0.02 + 0.98 * pow(1.0 - max(dot(nGeo, V), 0.0), 5.0);
-    float glint = pow(max(dot(nGeo, H), 0.0), 900.0) * (0.6 + 2.0 * fres);
-    ground += uSunColor * twilight * glint * water * day * (1.0 - cloud) * 2.2;
+    float nh = max(dot(nGeo, H), 0.0);
+    float glint = (pow(nh, 900.0) * 2.2 + pow(nh, 90.0) * 0.12) * (0.6 + 2.0 * fres);
+    ground += uSunColor * twilight * glint * water * day * (1.0 - cloud);
 
     float cloudLight = max(ndlGeo + 0.08, 0.0);
     vec3 cloudColour = vec3(0.9, 0.94, 1.0) * uSunColor * (0.05 + cloudLight) * day * twilight * (0.8 + 0.25 * cd.b + 0.15 * cd2.b);
@@ -213,13 +231,24 @@ const ATMO_FRAGMENT = /* glsl */ `
   }
 `;
 
+/**
+ * Kethra's spin, radians a second: about a turn in 12 minutes, so the ground visibly moves within ten
+ * or twenty seconds without the planet looking like a toy. Negative: the ground runs back under the
+ * ship toward the camera, so the ship reads as flying forward over it. The clouds shear a little on
+ * top. Both run on elapsed time, so the rate is the same at any frame rate.
+ */
+const SPIN = -0.0085;
+const CLOUD_SHEAR = 0.00028;
+/** The turn the title opens on: the bright terraces in view. */
+const SPIN_START = 2.25;
+
 export interface HeroPlanet {
   group: THREE.Group;
   /** The rotating surface (spin about its own Y axis). */
   surface: THREE.Mesh;
   radius: number;
-  update(dt: number, elapsed: number): void;
-  /** 0..1 for the surface, 0..1 for the atmosphere, for the reveal. */
+  update(elapsed: number): void;
+  /** 0..1 for the surface, 0..1 for the atmosphere (the title shows both at full from its first frame). */
   setReveal(surface: number, atmosphere: number): void;
   dispose(): void;
 }
@@ -263,6 +292,7 @@ export function buildHeroPlanet(o: HeroPlanetOptions): HeroPlanet {
     new THREE.ShaderMaterial({ vertexShader: SURFACE_VERTEX, fragmentShader: SURFACE_FRAGMENT, uniforms: surfaceUniforms }),
   );
   surface.name = 'title-hero-surface';
+  surface.rotation.y = SPIN_START;
   // The axis leans, so features cross the view on a diagonal as it turns.
   const tilt = new THREE.Group();
   tilt.rotation.set(0.32, 0, -0.42);
@@ -279,7 +309,7 @@ export function buildHeroPlanet(o: HeroPlanetOptions): HeroPlanet {
     uSunColor: { value: new THREE.Color(1, 1, 1).multiplyScalar(1.15) },
     uBeta: { value: new THREE.Vector3(0.014, 0.042, 0.078) },
     uMie: { value: 1 },
-    uDiscHaze: { value: 0.5 },
+    uDiscHaze: { value: 0.4 },
     uFade: { value: 0 },
   };
   const atmosphere = new THREE.Mesh(
@@ -305,9 +335,9 @@ export function buildHeroPlanet(o: HeroPlanetOptions): HeroPlanet {
     group,
     surface,
     radius: o.radius,
-    update(dt, elapsed) {
-      surface.rotation.y += dt * 0.0011;
-      surfaceUniforms.uCloudShift.value = elapsed * 0.00022;
+    update(elapsed) {
+      surface.rotation.y = SPIN_START + elapsed * SPIN;
+      surfaceUniforms.uCloudShift.value = elapsed * CLOUD_SHEAR;
     },
     setReveal(s, a) {
       surfaceUniforms.uFade.value = s;
@@ -318,6 +348,71 @@ export function buildHeroPlanet(o: HeroPlanetOptions): HeroPlanet {
       (surface.material as THREE.Material).dispose();
       atmosphere.geometry.dispose();
       (atmosphere.material as THREE.Material).dispose();
+    },
+  };
+}
+
+const MOON_VERTEX = /* glsl */ `
+  varying vec3 vNormalW;
+  varying vec3 vLocalN;
+  void main() {
+    vNormalW = normalize(mat3(modelMatrix) * normal);
+    vLocalN = normal;
+    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+  }
+`;
+
+const MOON_FRAGMENT = /* glsl */ `
+  precision highp float;
+  uniform sampler2D uDetail;
+  uniform vec3 uLight;
+  uniform float uFade;
+  varying vec3 vNormalW;
+  varying vec3 vLocalN;
+  void main() {
+    vec3 n = normalize(vNormalW);
+    vec3 p = normalize(vLocalN);
+    // The detail sheet three ways over the sphere: dark maria from the broad height, bright ejecta from
+    // the ridges, grain from the fine channel.
+    vec3 w = pow(abs(p), vec3(3.0));
+    w /= w.x + w.y + w.z;
+    vec4 d = texture2D(uDetail, p.yz * 0.7 + 0.31) * w.x + texture2D(uDetail, p.xz * 0.7 + 0.57) * w.y + texture2D(uDetail, p.xy * 0.7 + 0.13) * w.z;
+    float albedo = 0.13 + 0.2 * smoothstep(0.3, 0.8, d.r) + 0.08 * d.g + 0.05 * d.a;
+    float ndl = dot(n, uLight);
+    float lit = smoothstep(-0.03, 0.2, ndl) * (0.3 + 0.7 * max(ndl, 0.0));
+    vec3 col = vec3(albedo) * vec3(1.0, 0.97, 0.93) * lit * 1.7;
+    // Kethra's light on the night side, very faint.
+    col += vec3(0.004, 0.009, 0.011) * (1.0 - lit);
+    gl_FragColor = vec4(col * uFade, 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }
+`;
+
+export interface Moon {
+  mesh: THREE.Mesh;
+  setFade(k: number): void;
+  dispose(): void;
+}
+
+/** A small grey moon off Kethra's limb, lit by the same light, its surface from the detail sheet. */
+export function buildMoon(o: { position: THREE.Vector3; radius: number; light: THREE.Vector3; detail: THREE.Texture }): Moon {
+  const fade = { value: 0 };
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(o.radius, 40, 20),
+    new THREE.ShaderMaterial({ vertexShader: MOON_VERTEX, fragmentShader: MOON_FRAGMENT, uniforms: { uDetail: { value: o.detail }, uLight: { value: o.light }, uFade: fade } }),
+  );
+  mesh.name = 'title-moon';
+  mesh.position.copy(o.position);
+  mesh.rotation.set(0.4, 1.2, 0.2);
+  return {
+    mesh,
+    setFade(k) {
+      fade.value = k;
+    },
+    dispose() {
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
     },
   };
 }

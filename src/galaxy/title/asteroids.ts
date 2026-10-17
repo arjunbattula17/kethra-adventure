@@ -6,9 +6,11 @@ import { mulberry32 } from '../../core/rng';
  * A few rocks of the belt Kethra orbits just outside (LORE.md, "The world"): big dark ones close to the
  * camera, a lit one low on the right, and debris scattered out toward the planet, for depth and parallax.
  *
- * Shapes: an icosphere pushed out by noise, cut by ridges, and pocked with craters (a bowl and a
- * raised rim each). Each vertex also records how far it sits below the rock's broad shape, which the
- * shader uses as cavity shading: craters and cracks go dark the way they would under a single sun.
+ * Shapes: an icosphere pushed out by noise, cut by ridges, sheared off along a few fracture planes
+ * (the flat broken faces that make a rock read as rock, not a potato), and pocked with craters (a
+ * bowl and a raised rim each). Each vertex also records how far it sits below the rock's broad shape,
+ * which the shader uses as cavity shading: craters and cracks go dark the way they would under a
+ * single sun.
  *
  * Surface: the game's own Poly Haven lichen_rock maps (public/textures/lichen_rock, also Kethra's
  * terrace stone), mapped three ways in each rock's own space so the detail turns with it, colour taken
@@ -17,8 +19,10 @@ import { mulberry32 } from '../../core/rng';
  * Light: the same sun as the planet, a bright rim where the seen sun is behind an edge, Kethra's green
  * bounce from below, and a faint cool fill from the bright sky in front of them.
  *
- * Every rock is merged into one mesh and turned on the GPU (each vertex carries its rock's centre, spin
- * axis and rate), so the field is one draw with no per-frame JavaScript.
+ * Every rock is merged into one mesh and moved on the GPU (each vertex carries its rock's centre, spin
+ * axis and rate), so the field is one draw with no per-frame JavaScript. Each rock tumbles about its
+ * own axis and drifts on its own slow loop (periods of one to three minutes, a few percent of its
+ * distance across), so nothing moves in step and nothing ever leaves or jumps back into the frame.
  */
 
 export interface RockSpec {
@@ -48,7 +52,10 @@ const VERTEX = /* glsl */ `
   }
   void main() {
     float a = aSpin.w * uTime + aSeed * 6.2832;
-    vec3 drift = vec3(sin(uTime * 0.041 + aSeed * 9.0), cos(uTime * 0.033 + aSeed * 5.0), sin(uTime * 0.027 + aSeed * 3.0)) * (0.04 + 0.06 * aSeed) * length(aCenter) * 0.02;
+    // Drift: three slow sines per rock, periods of ~1-3 minutes, sized by distance so near and far
+    // rocks move about as much on screen.
+    float k = 0.6 + 0.8 * fract(aSeed * 7.31);
+    vec3 drift = vec3(sin(uTime * 0.052 * k + aSeed * 9.0), sin(uTime * 0.037 * k + aSeed * 5.0) * 0.7, sin(uTime * 0.029 * k + aSeed * 3.0) * 0.8) * length(aCenter) * 0.022;
     vec3 world = aCenter + spin(position, aSpin.xyz, a) + drift;
     vPosW = world;
     vLocal = position;
@@ -178,6 +185,11 @@ function rockGeometry(detail: number, seed: number): THREE.BufferGeometry {
     size: 0.16 + rand() * 0.32,
     depth: 0.05 + rand() * 0.08,
   }));
+  // Fracture planes: each shears off whatever stands proud of it, leaving a broad flat face.
+  const cuts = Array.from({ length: 3 + Math.floor(rand() * 4) }, () => ({
+    n: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize(),
+    d: 0.62 + rand() * 0.22,
+  }));
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const cavity = new Float32Array(pos.count);
   const v = new THREE.Vector3();
@@ -191,7 +203,13 @@ function rockGeometry(detail: number, seed: number): THREE.BufferGeometry {
       if (d < 1) r -= c.depth * (1 - d * d);
       else if (d < 1.45) r += c.depth * 0.35 * (1 - Math.abs(d - 1.2) / 0.25) * (d < 1.2 ? (d - 1) / 0.2 : 1);
     }
+    // Cavity before the cuts: a broken face is open to the sun, not a hollow.
     cavity[i] = Math.min(1, Math.max(0, (broad - r) * 5));
+    for (const c of cuts) {
+      const along = v.dot(c.n);
+      // The cut face keeps a little grain of its own, so it reads as broken stone, not a machined flat.
+      if (along > 0.05) r = Math.min(r, (c.d + 0.025 * fbm(v.x * 6 + 3, v.y * 6, v.z * 6, 2)) / along);
+    }
     v.multiplyScalar(r).multiply(stretch);
     pos.setXYZ(i, v.x, v.y, v.z);
   }

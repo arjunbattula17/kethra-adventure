@@ -190,8 +190,14 @@ export const STRINGS = {
   'map.vessek.region.junction': 'Aft junction',
 
   // Title screen. title.name is the game's working title (DECISIONS D-17): change it here.
-  'title.kicker': 'Deep-space exploration',
+  'title.kicker': 'A deep-space survey',
   'title.name': 'Kethra',
+  'title.tagline': 'Your ship went dark past the edge of the charts.\nWake it up.',
+  // The title's corner labels: decoration, not readouts. The first is split on '//'.
+  'title.hudTrack': 'Exploration // Research // Survival',
+  'title.hudPlace': 'Beyond the Kessic Drift',
+  'title.hudPlaceSub': 'Uncharted system',
+  'title.hudEnd': 'The universe awaits',
   'title.continue': 'Continue',
   'title.newGame': 'New game',
   'title.controls': 'Controls',
