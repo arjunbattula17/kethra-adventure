@@ -1,0 +1,42 @@
+{
+  "label": "env-loop/bench-overhaul-after-4",
+  "base": "http://localhost:4231/kethra-adventure/",
+  "path": "new",
+  "viewport": [
+    1366,
+    768
+  ],
+  "idle": 8,
+  "summary": {
+    "fcpMs": 2288,
+    "buttonsMs": 481,
+    "backdropMs": 5333.4,
+    "fpsMedian": 59.9,
+    "p95Ms": 17.5,
+    "over20": 3.4,
+    "over50": 6,
+    "longTaskMs": 1923,
+    "longestTaskMs": 440,
+    "heapMb": 19.7,
+    "clickToSceneMs": 2876.4
+  },
+  "results": [
+    {
+      "run": 0,
+      "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "fcpMs": 2288,
+      "buttonsMs": 481,
+      "backdropMs": 5333.4,
+      "idleFrames": 350,
+      "fpsMedian": 59.9,
+      "p95Ms": 17.5,
+      "over20": 3.4,
+      "over50": 6,
+      "longTaskMs": 1923,
+      "longestTaskMs": 440,
+      "heapMb": 19.7,
+      "errors": [],
+      "clickToSceneMs": 2876.4
+    }
+  ]
+}

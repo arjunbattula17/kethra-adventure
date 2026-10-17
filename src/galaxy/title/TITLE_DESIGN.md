@@ -66,10 +66,14 @@ up in eight staggered fades over another 2.5 s (stars, nebula, planet, rocks, at
 glare with a swell, dust), while the menu's own opening brought its buttons in only after ~1-2 s.
 
 What runs while the title waits (boot.ts): the engine (~0.6 s after the menu shows), the backdrop's
-preparation and, alongside it, the downloads the game's first scene needs; the environment map only
-once the backdrop is on screen. Measured, both other orders were worse: the prefetch decoding models
-and textures with the backdrop on screen dropped 5-6 frames of 120-150 ms right through its arrival,
-and the environment map built alongside the backdrop held it back by up to two seconds.
+preparation and, alongside it, the downloads the game's first scene needs, then the environment map.
+All of it is done before the backdrop's first frame (the map 0.8-1.2 s before it), so nothing decodes
+or compiles with the backdrop on screen. Measured, the other orders were worse: the prefetch decoding
+models and textures with the backdrop on screen dropped 5-6 frames of 120-150 ms right through its
+arrival, and the environment map made once the backdrop was up put 1-3 frames over 50 ms on it in
+most runs. The map used to wait for the backdrop because, made alongside it, it doubled the
+backdrop's bakes; that was its GGX filter's unrolled compile, gone since 2026-10-17 (Environment.ts).
+Made alongside now, it costs the backdrop's first frame ~0.1-0.3 s (docs/PERF_LOG.md, 2026-10-17).
 
 ## Always moving, never busy
 Kethra turns about once in 12 minutes, so the ground visibly runs back under the ship within ten or
@@ -97,14 +101,14 @@ their panel closes; those panels take the title's palette while it is up.
 - Controls prints `src/content/controls.ts`; Settings is the game's one settings panel.
 - Test and capture flags (`?newGame`, `?skipIntro`, `?jump`…) skip the title as before.
 
-## Performance (Intel UHD i5-1035G1, cold profile; docs/PERF_LOG.md, 2026-10-16)
+## Performance (Intel UHD i5-1035G1, cold profile; docs/PERF_LOG.md, 2026-10-16 and 17)
 - Title frame pacing as before: ~60 fps on Performance and Balanced (median 16.7 ms, p95 ~17 ms).
   Quality (4× MSAA, full bloom) ~30 fps here, as in the rest of the game; Auto picks Performance.
 - Start-up: the menu shows from ~0.4 s and is fully in by ~0.8-0.9 s (the buttons used to arrive
   at ~1-2 s); the backdrop at a median of
-  ~3.0 s, as before, with a ship, a moon and a third bake added; its bakes take half as long now that
-  the environment map no longer shares the GPU with them. New game → intro and Continue → the Wren
-  unchanged.
+  ~3.0 s, as before, with a ship, a moon and a third bake added. The environment map is made alongside
+  its preparation and holds its first frame back ~0.1-0.3 s (see above). New game → intro and
+  Continue → the Wren unchanged.
 - The ship is one mesh (13.4k triangles) and one 88-triangle additive draw for its plumes and glows;
   its panel sheet is a 512² bake. The 19 rocks are one draw of 5.7k triangles.
 - Bakes: compiled with `compileAsync` and drawn in strips; loop bounds are uniforms so Direct3D keeps
@@ -112,8 +116,10 @@ their panel closes; those panels take the title's palette while it is up.
 - The title is not judged by the runtime quality governor (`GameScene.governed = false`).
 - Leaving disposes everything the title made (render targets, geometry, materials); shared maps are
   released by the engine.
-- Known: one frame of 100-133 ms about half a second after the dissolve, from the shared environment map
-  (Environment.ts, its last render step). The old title had it too, hidden in its staged fade.
+- The environment map's long frame just after the dissolve (83-383 ms, in every run) is gone: it was
+  the map's first GGX draw waiting on that filter's unrolled compile, and the loop bound is now a
+  uniform (Environment.ts, `keepSampleLoop`, 2026-10-17); the map is also done before the backdrop
+  shows.
 
 ## Testing
 `node tools/test-title.mjs <base>`: 39 checks (buttons, both save cases, keyboard and mouse, panels
