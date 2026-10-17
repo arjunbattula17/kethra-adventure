@@ -115,3 +115,25 @@ laptop drifts too much between batches to compare them otherwise (`docs/perf/bas
 | (measurement) Start-up window | frames > 50 ms; JS heap | 0; 7.8 MB | 2–4 (backdrop warm-up, ship warm-up); 15–16 MB | The menu stays responsive (longest task 236–339 ms). The heap is the backdrop's, freed on leaving |
 | The ship taken out of the title (the user's call); no lights, no environment map; rocks with craters, normal-mapped lichen_rock and rims; buttons with static glow filters; frame labels and tagline removed | backdrop first frame; engine creation; New game → intro (A/B ×3); steady frame | 3.94 s; ~150 ms; 1.78 s; 16.7 / 17.1 ms | 2.59–2.85 s; 43–55 ms (baseline 35–46); 1.90 s median (baseline 1.94 in the same batch); 16.6 / 16.8–17.0 ms, no frame over 20 ms | **Kept.** New game is back to the baseline's speed (no hull programs to share). Start-up window: longest task 167–192 ms (baseline 169–198), 1–3 frames over 50 ms, heap 13 MB (baseline 7.8) |
 | (measurement) First contentful paint | | 0.9–1.2 s | 1.1–3.3 s | A metric artefact: the menu's text starts at opacity 0 and fades in on the compositor, which Chrome doesn't count until the next main-thread paint. Screenshots show the wordmark at 0.5 s and the whole menu at 1.1 s, as before |
+
+## 2026-10-17: the environment map's frame on the title
+
+Same Intel UHD laptop (i5-1035G1), installed Chrome through ANGLE D3D11, 1366×768, headless, a fresh
+browser profile per run. Two boot orders: the live one (9a0fb90: the environment map is made while the
+backdrop prepares) and the title branch's (feat/title-reference-ship, 3d02d13: the map once the
+backdrop is on screen), built from this branch with only that change to boot.ts. `tools/env-map-frames.mjs`
+(new) counts every frame inside the `engine:environment` span, names the generator's step drawn
+last before each long one, times each step on the GPU, and hashes the finished map; builds alternate
+run by run (`docs/perf/env-loop/`).
+
+| Change | Measure | Before | After | Result |
+|---|---|---|---|---|
+| (measurement) The frame, title order | frames > 50 ms in the span | one of 83–217 ms in every run (8 of 8), right after the generator's first GGX draw (ggx level 1) | | A Chrome trace: one WebGL command-buffer flush holds the GPU process's main thread, which also draws the page, for 103 ms. That step is 20–34 ms of GPU time (timer queries), and a one-texel GGX draw ahead of the real steps took the whole stall onto itself (100 and 133 ms): a first-draw cost, not GPU load |
+| (measurement) Why | the GGX program, alone on a page: link; first draw right after the link reports done, 24–34 ms later, 10 frames later | 0.63–0.96 s; 135–254 ms, ~97 ms, 9–11 ms | | The filter's 256-sample loop has a constant bound and ANGLE gives the HLSL compiler no `[loop]`, so it is unrolled (64 samples: 0.22 s to link). The driver goes on compiling for up to ~0.25 s after `COMPLETION_STATUS_KHR`, and the generator's first GGX draw came 0.12–0.15 s after it |
+| The GGX loop bound read from a uniform (`Environment.ts`, keepSampleLoop) | link; first draw at any wait | 0.63–0.96 s; up to 254 ms | 0.08–0.18 s; 10–25 ms | **Kept** |
+| (measurement) The map | every value of the 768×1024 half-float map, read back as floats | | 0 of 3,145,728 differ (alone on a page); in the game, one hash in all 32 runs that read it back, both builds, both orders | Identical |
+| Same, title order, A/B ×8 (batches of 2, 3, 3) | frames > 50 ms in the span; slowest frame; the span | 26 (1–6 a run); 83–217 ms; 1.8–4.0 s | 0; 33–50 ms (two of 49.8–49.9 ms in the backdrop's first 0.3 s); 0.61–1.05 s | **Kept** |
+| Same, live order, A/B ×10 (batches of 3, 4, 3), with a build that makes no map on the title (×4) | frames > 50 ms from the menu to 10 s after the backdrop; the span; map done before the backdrop; backdrop first frame | 51 in 4 runs, 44 in 3; 1.9–3.6 s; 4 of 10; 3.96 s median | 55, 45; 0.97–1.51 s; 10 of 10; 3.77 s median (no map: 60 in 4 runs, 4.05 s) | **Kept.** Here the span overlaps the backdrop's preparation, whose own frames these are: as many without the map |
+| (measurement) `tools/title-bench.mjs`, A/B ×3, live order | New game → intro; idle p95; share over 20 ms; frames over 50 ms | 2.65 s median (2.61–2.67); 17.1–17.2 ms; 1.7–3.1 %; 4–6 | 2.64 s (2.53–2.76); 17.1–17.4 ms; 2.5–3.4 %; 5 | Same |
+| (measurement) Same, title order | | 3.01 s (2.71–3.12); 33.0–33.2 ms; 5.0–6.4 %; 8–10 | 2.63 s (2.57–2.83); 17.2–17.3 ms; 2.6–3.4 %; 4–5 | Better: the old build ran inside the idle window. Why New game was slower after it was not looked into |
+| (measurement) Tests | `tools/test-title.mjs`; `tools/smoke.mjs` | | all checks pass; 6 of 6 | |

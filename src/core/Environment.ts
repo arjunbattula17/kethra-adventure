@@ -78,6 +78,25 @@ async function renderInSteps(renderer: THREE.WebGLRenderer, pmrem: PmremInternal
 }
 
 /**
+ * Keeps the GGX filter's 256-sample loop a loop. Its bound is a constant, and the HLSL compiler ANGLE
+ * uses on Direct3D unrolls a loop like that: the program took 0.6-1 s to link, and the driver went on
+ * compiling it for up to ~0.25 s after the link reported done. The generator's first GGX draw comes
+ * in that time and waits on Chrome's GPU thread, which draws every frame of the page: one frame of
+ * 83-217 ms on the title (Intel UHD laptop, docs/PERF_LOG.md, 2026-10-17). Read from a uniform, the
+ * bound can't be unrolled: 0.1-0.2 s to link and 10-25 ms more at the first draw. Each sample is the
+ * same arithmetic in the same order, and the map came out the same to the bit. Left alone if
+ * three.js's shader text isn't as expected.
+ */
+function keepSampleLoop(material: THREE.Material | null | undefined): void {
+  const shader = material as THREE.ShaderMaterial | null | undefined;
+  const loop = 'for(uint i = 0u; i < uint(GGX_SAMPLES); i++)';
+  const anchor = 'uniform float mipInt;';
+  if (!shader?.isShaderMaterial || !shader.fragmentShader.includes(loop) || !shader.fragmentShader.includes(anchor)) return;
+  shader.uniforms.sampleCount = { value: Number(shader.defines.GGX_SAMPLES) };
+  shader.fragmentShader = shader.fragmentShader.replace(anchor, `${anchor}\nuniform int sampleCount;`).replace(loop, 'for(uint i = 0u; i < uint(sampleCount); i++)');
+}
+
+/**
  * The same environment map, with its shaders compiled off the page's thread first.
  *
  * On a first visit nearly all of the ~0.9-1.3 s the environment map takes is compiling its shaders
@@ -102,6 +121,7 @@ export function initSharedEnvironmentAsync(renderer: THREE.WebGLRenderer, target
     if (typeof internals._setSize === 'function' && typeof internals._allocateTargets === 'function') {
       internals._setSize(256);
       internals._allocateTargets().dispose();
+      keepSampleLoop(internals._ggxMaterial);
       for (const material of [internals._blurMaterial, internals._ggxMaterial]) {
         // Attributes as the generator's own meshes have them (_createPlanes): which ones a geometry
         // has is part of a program's key (hasPositionAttribute, hasNormalAttribute, ...).
