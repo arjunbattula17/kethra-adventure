@@ -95,11 +95,23 @@ without errors), `test-tutorial-flow.mjs` (36 checks through the opening), `intr
 - *"What can't you test?"* Other browsers and real Chromebooks, until we run them by hand
   (BACKLOG B-5).
 
-## Title screen (`src/ui/TitleScreen.ts`)
-**What:** the first screen: Continue / New Game / Controls / Settings (the credits roll at the ending). Plain HTML and
-CSS, so it appears instantly.
+## Title screen (`src/ui/TitleScreen.ts`, `src/galaxy/title/`)
+**What:** the first screen: Continue / New Game / Controls / Settings (the credits roll at the ending). The menu
+is plain HTML and CSS, so it appears instantly; behind it, a live 3D scene drawn by the game's own engine: a
+cruiser over Kethra at sunrise, Isilthe's rings, a moon, drifting rocks (`src/galaxy/title/TITLE_DESIGN.md`).
 **Why:** the rules require a controls screen reachable from a menu; the CC BY assets need visible
-credit; and browsers won't play sound until the player clicks something.
+credit; browsers won't play sound until the player clicks something; and the title is the first
+thing a judge sees.
+- *"Is the background a picture?"* No. It is rendered live every frame: the planet turns, the ship
+  flies and its engines flicker, the rocks tumble. Nothing in it is an image file except the game's
+  own planet and rock textures; the ship, the moon and the rocks are built in code.
+- *"How does the menu show instantly if there's 3D behind it?"* The menu goes up first, over a
+  stand-in night sky. The engine and the 3D scene get ready in the background (about two to three
+  seconds on a school laptop, about one on a gaming PC), and the finished scene fades in once.
+  Nothing waits on a timer.
+- *"Why is that ship different from the one in the intro?"* The title's cruiser was designed after a
+  reference image the team chose for the title; the intro flies the Wren model. A known difference
+  (DECISIONS D-27).
 - *"How does New Game work if there's a save?"* It reloads with `?newGame=1`, which clears the
   save, then removes that flag from the address bar so a later refresh continues instead of wiping
   progress.

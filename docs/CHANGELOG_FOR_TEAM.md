@@ -157,22 +157,28 @@ Measured numbers cite their files; the rest is description.
 
 ### The cinematic title screen
 - **What:**
-  - A live 3D backdrop behind the menu: sunrise over Kethra's limb, seen from inside the belt, with
-    Isilthe's rings over the horizon (`src/galaxy/title/`).
-  - Kethra up close from the game's own maps plus baked detail: sunlit relief, a palette of greens,
-    lakes that catch a glint, clouds with their shadows, the canopy's teal night glow, and a
-    scattering atmosphere that blazes where the sun clears the limb.
-  - Belt rocks with craters and the game's lichen_rock stone, rim-lit by the sun behind them.
-  - A new wordmark (one SVG path) with an orbit ring and a point of light travelling it, "Deep-space
-    exploration" above it, and four glowing console-strip buttons with icons, hover/focus/press/
-    disabled states and arrow-key navigation (`src/ui/TitleScreen.ts`, `src/style.css`).
-  - A ~2.5 s opening that any key or click finishes, a quiet synthesized music bed after the first
-    click, and a launch sound on the way into the game.
+  - A live 3D backdrop behind the menu (`src/galaxy/title/`), composed after a reference image the
+    team chose: a heavy survey cruiser on four blue engines flies over Kethra's day side at sunrise,
+    banked toward us, with Isilthe's rings over the horizon, a small moon off the limb and belt rocks
+    drifting past.
+  - The cruiser is built in code (`titleShip.ts`): an armoured hull, two engine nacelles, glowing
+    nozzles and exhaust plumes, plating generated on the graphics card. It is not the Wren model the
+    intro flies.
+  - Kethra up close from the game's own maps plus baked detail: coastlines, lakes and seas with a sun
+    glint, greens from forest to pale terraces, clouds with their shadows, and an atmosphere that
+    blazes where the sun clears the limb. It turns visibly: the ground runs back under the ship.
+  - Rocks with broken faces, each tumbling and drifting on its own; a rare shooting star.
+  - The menu: "A deep-space survey", the KETHRA wordmark with its orbit ring, the tagline "Your ship
+    went dark past the edge of the charts. Wake it up.", four hexagonal buttons with icons and
+    hover/focus/press/disabled states, arrow-key navigation, and three small corner labels
+    (`src/ui/TitleScreen.ts`, `src/style.css`).
+  - No waiting: the whole menu is up in under a second, and the 3D scene arrives complete and
+    dissolves in once (it used to build itself up piece by piece). Nothing reacts to the mouse.
 - **Why:** the title is the first ten seconds of a judge's three minutes, and it was a flat page.
 - **Rubric:** Overall Appeal; Creativity & Artisanship.
-- **Say:** "The title screen is a real-time scene, not a picture: that's our planet, Kethra, rendered
-  live with the same engine as the game. It's built so the menu is clickable in under half a second
-  and the game starts exactly as fast as it did before."
+- **Say:** "The title screen is a real-time scene, not a picture: that's our planet, Kethra, turning
+  under a ship we built in code, rendered live with the same engine as the game. The menu works in
+  under a second, and the game starts exactly as fast as it did before."
 
 ## Game feel
 

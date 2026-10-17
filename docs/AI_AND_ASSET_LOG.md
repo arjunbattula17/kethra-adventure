@@ -13,6 +13,36 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-16 to 17 (Claude Code, model Claude Opus 5.5)
+
+**Asked for by the team:** a cinematic title screen from a reference image; after seeing it, no
+ship, no tagline and no corner text. Later, a new reference image and a detailed brief: a ship like
+the reference's, a visibly turning planet, slowly drifting asteroids that don't react to the mouse,
+no awkward late pop-ins, nothing broken; then commit, merge into overhaul and master, and deploy.
+
+**What the AI generated or changed**
+- `src/galaxy/title/` (the 3D backdrop: planet, rocks, sky, effects) and `titleShip.ts` (the
+  cruiser, built in code); `src/ui/TitleScreen.ts` and the title CSS; the start-up order in
+  `src/boot.ts`; `tools/test-title.mjs` (39 checks); TITLE_DESIGN.md, DECISIONS D-27, PERF_LOG.
+
+**What the AI found**
+- The late pop-ins were timers, not slowness: the scene built itself up in eight staggered fades
+  after a 3-4 s wait. Measured, two real slowdowns: the environment map doubled the title's
+  preparation, and loading the Wren's assets with the scene on screen dropped 5-6 frames.
+
+**Mistakes the AI made and caught this session**
+- Its first ship was a long thin hull seen side-on; a side-by-side with the reference showed it.
+- It blamed blocky coastlines on the small planet map; zooming in showed a cut in the bump shading.
+- Moving the asset loading after the scene appeared made the arrival stutter; measured, reverted.
+- A script's line endings silently made a timing experiment run the same order six times; caught
+  because the numbers didn't move.
+
+**What the team must be able to explain**
+- Why the title no longer pops in (the scene is complete before it shows and fades in once), and
+  why the title's ship differs from the intro's Wren.
+
+---
+
 ## Session 2026-10-04 (Claude Code, model Claude Opus 5.5)
 
 **Asked for by the team:** A and D should move you left and right, not look; the mouse should be
