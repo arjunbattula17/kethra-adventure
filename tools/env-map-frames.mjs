@@ -8,7 +8,8 @@
 // Per run: the 'engine:environment' span and the backdrop's first frame ('title:backdrop'); every
 // requestAnimationFrame interval, counted over 34 and 50 ms inside the span, in the 10 s after the
 // backdrop's first frame, and over the whole wait (menu up to 10 s after the backdrop); each long frame
-// in the span with the generator's step drawn last before it (the cube, the blur, a GGX level) and
+// in the span with the generator's step drawn last before it (the cube, the blur, a GGX level), those
+// over 50 ms in the backdrop's first second (with when they ended, after its first frame), and
 // each step's GPU time (EXT_disjoint_timer_query_webgl2); long tasks; program queries that blocked;
 // and a hash of every texel of the finished map, read back as floats, to show two builds make the
 // same map. A build that doesn't make the map while the title waits reports only the whole wait.
@@ -140,6 +141,7 @@ async function run(v, round) {
     const [s, e] = d.env ?? [Infinity, Infinity];
     const inSpan = d.frames.filter((f) => f[0] > s && f[0] - f[1] < e);
     const after = d.frames.filter((f) => f[0] > d.backdrop && f[0] <= d.backdrop + AFTER * 1000);
+    const arrival = d.frames.filter((f) => f[0] > d.backdrop && f[0] - f[1] < d.backdrop + 1000);
     const wait = d.frames.filter((f) => f[0] > d.shown && f[0] <= d.backdrop + AFTER * 1000);
     // The generator's steps: the draws issued together, between two of its pauses.
     const steps = [];
@@ -164,6 +166,7 @@ async function run(v, round) {
       envOver34: over(inSpan, 34),
       envOver50: over(inSpan, 50),
       envMaxMs: r1(Math.max(0, ...inSpan.map((f) => f[1]))),
+      arrivalLongFrames: arrival.filter((f) => f[1] > 50).map((f) => [r1(f[1]), r1(f[0] - d.backdrop)]),
       afterOver34: over(after, 34),
       afterOver50: over(after, 50),
       waitOver34: over(wait, 34),
@@ -204,7 +207,7 @@ const summary = {};
 for (const v of variants) {
   const rs = results.filter((r) => r.build === v.name);
   const total = (k) => rs.reduce((a, r) => a + r[k], 0);
-  summary[v.name] = { runs: rs.length, maps: [...new Set(rs.map((r) => r.map))], envMsMedian: median(rs.map((r) => r.envMs)), envOver34: total('envOver34'), envOver50: total('envOver50'), afterOver50: total('afterOver50'), waitOver50: total('waitOver50'), waitOver100: total('waitOver100'), backdropMsMedian: median(rs.map((r) => r.backdropMs)) };
+  summary[v.name] = { runs: rs.length, maps: [...new Set(rs.map((r) => r.map))], envMsMedian: median(rs.map((r) => r.envMs)), envOver34: total('envOver34'), envOver50: total('envOver50'), arrivalOver50: rs.reduce((a, r) => a + r.arrivalLongFrames.length, 0), afterOver50: total('afterOver50'), waitOver50: total('waitOver50'), waitOver100: total('waitOver100'), backdropMsMedian: median(rs.map((r) => r.backdropMs)) };
   console.log(`${v.name} ${JSON.stringify(summary[v.name])}`);
 }
 writeFileSync(`${OUT}/env.json`, JSON.stringify({ label: LABEL, builds: variants, after: AFTER, summary, results }, null, 2));
