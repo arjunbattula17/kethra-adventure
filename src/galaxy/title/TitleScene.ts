@@ -99,19 +99,23 @@ const SHIP = {
  * passing its composed pose (SHIP) and never stopping.
  *
  * Speed along the path: v(t) = vDrift(t) + (vStart - vDrift) * exp(-t / tau), with vStart - vDrift =
- * distance / tau (40 units/s against a drift of 0.2: 200 times faster), and vDrift(t) = drift *
+ * distance / tau (~155 units/s against a drift of 0.2: over 700 times faster; it crosses the frame at
+ * ~55 units/s, a streak of a few frames, and is nearly stopped half a second later), and vDrift(t) = drift *
  * exp(-t / driftTau), so the drift outlasts any visit without carrying the ship off. Position is that
  * speed integrated (closed form). The path runs straight, then over its last `turnDistance` units arcs
  * into the composed heading; the nose is always along the path, and the ship banks into the arc. Its
  * plumes follow the boost and are out by the time it drifts.
  */
 const FLIGHT = {
-  /** Seconds after the backdrop's first frame before it sets off (it is out of frame until then). */
-  delay: 0.1,
+  /**
+   * Seconds after the backdrop's first frame before it sets off (it is out of frame until then): the
+   * page has faded in (TitleScreen.reveal) by the time it streaks across.
+   */
+  delay: 0.5,
   /** Units it travels on the boost, from its start to (nearly) the composed pose. The ship is ~12 long. */
   distance: 28,
-  /** Braking time constant, seconds: the boost falls by e every tau; in frame from ~0.8 s, settled by ~3.5 s. */
-  tau: 0.7,
+  /** Braking time constant, seconds: the boost falls by e every tau; in frame ~0.2 s after setting off, all but stopped by ~0.8 s. */
+  tau: 0.18,
   /**
    * Drift speed once the boost is spent (units/s), and the time constant it eases off over (s). Its drift
    * runs mostly away from the camera, so it has to be this fast to read on screen (~5-7 px/s at 1600 wide).
@@ -121,13 +125,13 @@ const FLIGHT = {
   /** Seconds after setting off at which it passes the composed pose: mid-way through a typical look at the title. */
   composedAt: 14,
   /** Its heading at the start, turned from the composed one about its up axis (degrees; + = toward the left of frame). */
-  turn: 12,
+  turn: 8,
   /** The arc into the composed heading: its length along the path, in units. */
   turnDistance: 22,
   /** Bank into the arc at the full turn, degrees. */
   bank: 9,
-  /** Plume strength per unit of boost (boost 1 at the start, falling as exp(-t / tau)); out below `thrustCut`: full until ~1.5 s, out by ~4 s, fading while the ship is in frame. */
-  thrustGain: 8,
+  /** Plume strength per unit of boost (boost 1 at the start, falling as exp(-t / tau)); out below `thrustCut`: full through the dash (~0.6 s), spooling down over the next ~0.7 s. */
+  thrustGain: 25,
   thrustCut: 0.02,
   /** How far beyond a rock's size its first place must be from the ship's way in. */
   clearance: 8,

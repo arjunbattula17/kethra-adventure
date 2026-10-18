@@ -16,7 +16,7 @@ Two layers, so the menu never waits for 3D:
 
 | Layer | Files | What it does |
 |---|---|---|
-| Menu (DOM, CSS) | `src/ui/TitleScreen.ts`, `src/style.css` (Title screen section) | Kicker, wordmark (one SVG path) with its orbit ring, tagline, four buttons, corner labels, input, audio. Up and clickable ~0.4 s after load, over a stand-in sky of its own. |
+| Menu (DOM, CSS) | `src/ui/TitleScreen.ts`, `src/style.css` (Title screen section) | Kicker, wordmark (one SVG path) with its orbit ring, tagline, four buttons, corner labels, input, audio. Held back (inert, drawn at 1/255 opacity) until the backdrop's first frame, then comes in with it. |
 | Backdrop (three.js scene) | `src/galaxy/title/` | Drawn by the engine like any scene, behind the menu; disposed by `Engine.setScene` when the player picks. |
 
 Backdrop modules:
@@ -55,12 +55,17 @@ Authored as screen fractions of a 16:9 frame and solved into world space at buil
   the menu, since the limb then lies behind the wordmark.
 
 ## Arrival: no staged opening
-The menu fades in as one piece the moment the page shows (0.45 s, opacity and translate only), with
-nothing on it on a timer: no stagger, no loops, no light sweeps. Until the backdrop's first frame the
-menu sits on a stand-in sky (deep blue, a few stars, a teal glow low on the right where Kethra will
-be); the backdrop is complete from its first frame (every part at full, nothing fading in one after
-another) and the stand-in dissolves into it once, over 0.9 s. On this laptop that happens ~2.5-3 s
-after load; on a desktop GPU ~1 s.
+Everything comes in together. Until the backdrop's first frame the page shows only a stand-in sky
+(deep blue, a few stars, a teal glow low on the right where Kethra will be); then, in one moment, the
+stand-in dissolves into the backdrop (0.6 s) and the menu fades in as one piece (0.45 s, opacity and
+translate only). Nothing on it is on a timer: no stagger, no loops, no light sweeps. The backdrop is
+complete from its first frame. On this laptop that happens ~2.2-2.5 s after load; on a desktop GPU
+~1 s. If the backdrop fails, or has not come within 9 s, the menu comes in over the stand-in alone.
+
+While it waits, the menu is drawn at 1/255 opacity (invisible) and inert, on GPU layers of its own
+that it keeps: its glows compile their blur shaders on first draw, and drawn first at the reveal they
+froze the fade for 0.6-0.8 s; a layer made for the fade and dropped after it repainted the menu, a
+0.2 s frame in the middle of the ship's entrance.
 
 What used to happen, and why it read as lag: the 3D arrived ~3-4.4 s after load and then built itself
 up in eight staggered fades over another 2.5 s (stars, nebula, planet, rocks, atmosphere, worlds,
@@ -78,12 +83,13 @@ Made alongside now, it costs the backdrop's first frame ~0.1-0.3 s (docs/PERF_LO
 
 ## Always moving, never busy
 Kethra turns about once in 12 minutes, so the ground visibly runs back under the ship within ten or
-twenty seconds; the clouds shear a little on top. The ship flies in once per page: from behind the
-camera off the right edge at 40 units/s, braking on exp(-t / 0.7 s) into frame within a second, plumes
-fading out by ~4 s, then drifting on toward the planet at 0.2 units/s (easing off over minutes) with a
+twenty seconds; the clouds shear a little on top. The ship flies in once per page, 0.5 s after the reveal: from
+behind the camera off the right edge at ~155 units/s, braking on exp(-t / 0.18 s), so it streaks across
+the frame (~55 units/s) and has all but stopped half a second later, plumes full through the dash and
+spooled down by ~1.3 s, then drifting on toward the planet at 0.2 units/s (easing off over minutes) with a
 slow heave; a later visit or reduced motion starts it drifting. Large rocks cross the frame in 26-60 s
-(~30-70 px/s at 1600 wide) and are dealt a new pass from the left once they leave; small rocks drift
-at 9-25 px/s in seeded random directions, nearer ones faster, and spin. Dust drifts past; the camera drifts
+(~30-70 px/s at 1600 wide) and are dealt a new pass from the left once they leave; small rocks (rounded
+pebbles: at a few pixels, cut and stretched shapes read as metal shards) drift at 9-25 px/s in seeded random directions, nearer ones faster, and spin. Dust drifts past; the camera drifts
 a little, showing the depth between rocks, ship and planet; a faint meteor every 14-30 s, away from
 the menu and the labels. Every motion runs on elapsed time, so its speed is the same at any frame
 rate. Nothing follows the pointer or answers the menu.

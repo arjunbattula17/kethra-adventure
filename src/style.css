@@ -1147,10 +1147,11 @@ body.tutorial-active .look-prompt { padding-bottom: 250px; }
 /* Title screen (TitleScreen.ts): the menu over the 3D backdrop (src/galaxy/title/TitleScene.ts). Sits
    under #ui-root (z 10) so the Controls / Settings panels open above it; the HUD is hidden while it's
    up. It keeps the game's type and takes the backdrop's deep-space blues: cyan marks what can be
-   picked, the way amber does in play. The menu fades in as one piece the moment the page shows, by
-   opacity and translate only (an animated blur or a stroke being drawn repaints every frame, and that
-   stalled the engine's creation behind it on an Intel UHD laptop: 40 ms became 500 ms), and nothing on
-   it loops. Its stand-in sky dissolves into the backdrop once, on the backdrop's first frame. */
+   picked, the way amber does in play. Until the backdrop's first frame only its dark stand-in sky
+   shows; then the menu fades in as one piece while that sky dissolves into the backdrop (.revealed),
+   by opacity and translate only (an animated blur or a stroke being drawn repaints every frame, and
+   that stalled the engine's creation behind it on an Intel UHD laptop: 40 ms became 500 ms). Nothing
+   on it loops. */
 body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
 .title-screen {
   --ts-cyan: #35bfff;
@@ -1188,7 +1189,19 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
     radial-gradient(120% 90% at 76% 64%, #0b1727 0%, #070e1a 45%, #050912 100%);
   transition: opacity 0.9s cubic-bezier(0.33, 0, 0.2, 1);
 }
-.title-screen.backdrop-live .ts-fallback { opacity: 0; }
+.title-screen.backdrop-live .ts-fallback { opacity: 0; transition-duration: 0.6s; }
+/* Held until it is revealed with the backdrop (TitleScreen.reveal); the entry animations start then.
+   It waits drawn at the least opacity that still draws (1/255, invisible), not hidden: its glows (drop-shadow and
+   text-shadow blurs) compile their GPU shaders on first draw, and made visible only with the backdrop
+   that compile was a 0.6-0.8 s frame at the start of the fade on Intel UHD. */
+.title-screen:not(.revealed) .ts-column,
+.title-screen:not(.revealed) .ts-hud,
+.title-screen:not(.revealed) .ts-scrim { opacity: 0.004; animation: none; }
+/* Kept on their own GPU layers for good: one made at the fade and dropped when it ends repaints the
+   menu, a 0.2 s frame mid-entrance. */
+.title-screen .ts-column,
+.title-screen .ts-hud,
+.title-screen .ts-scrim { will-change: opacity, transform; }
 .title-stars,
 .title-stars.far {
   position: absolute;

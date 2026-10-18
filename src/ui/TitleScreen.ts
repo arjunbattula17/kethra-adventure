@@ -11,14 +11,14 @@ import { motion } from '../motion';
 import type { TitleScene } from '../galaxy/title/TitleScene';
 
 /**
- * The title screen: the first thing a judge sees. The menu is plain DOM and CSS, so it is up and
- * clickable at once while nothing 3D has loaded, and the first click on it is what unlocks audio
- * (browsers block sound until the page gets a gesture).
+ * The title screen: the first thing a judge sees. The menu is plain DOM and CSS, and the first click
+ * on it is what unlocks audio (browsers block sound until the page gets a gesture).
  *
  * Behind it, once the engine exists (boot.ts), runs the 3D backdrop (galaxy/title/TitleScene.ts): a
- * survey cruiser over Kethra at sunrise, inside the belt. Until its first frame the menu shows a night
- * sky of its own; the backdrop arrives complete and that sky dissolves into it, once. The menu itself
- * fades in as one piece the moment the page shows, and nothing on it loops or waits on a timer.
+ * survey cruiser over Kethra at sunrise, inside the belt. The page shows only a dark sky of its own
+ * until the backdrop's first frame; then the menu and the backdrop come in together, in one fade
+ * (reveal). Should the backdrop fail, or not arrive within REVEAL_CAP_MS, the menu comes in over that
+ * sky alone. Nothing on the menu loops.
  *
  * Continue / New game / Controls / Settings. Continue is shown but disabled when there is no save to
  * go back to, with the reason under it. Controls opens in the shared panel system and prints
@@ -77,6 +77,11 @@ const SPARK = `<svg class="ts-spark" viewBox="0 0 16 16" aria-hidden="true"><pat
 let root: HTMLDivElement | null = null;
 let scene: TitleScene | null = null;
 let backdropStarted = false;
+let revealed = false;
+let revealCap = 0;
+
+/** The longest the page waits for the backdrop before showing the menu without it. */
+const REVEAL_CAP_MS = 9000;
 let leaving = false;
 let stopMusic: (() => void) | null = null;
 let buttons: HTMLButtonElement[] = [];
@@ -116,9 +121,12 @@ function orbit(): { back: string; front: string } {
 export const TitleScreen = {
   show(opts: TitleOptions): void {
     leaving = false;
+    revealed = false;
     const el = document.createElement('div');
     root = el;
     el.className = 'title-screen';
+    // Nothing on it can be reached until it is revealed with the backdrop.
+    el.inert = true;
     const rings = orbit();
     el.innerHTML = `
       <div class="ts-fallback" aria-hidden="true"><div class="title-stars"></div><div class="title-stars far"></div></div>
@@ -199,9 +207,8 @@ export const TitleScreen = {
     document.body.appendChild(el);
     // The backdrop's code and maps start downloading now; it is built once the engine exists.
     void import('../galaxy/title/TitleScene').then((m) => m.preloadTitle()).catch(() => {});
-    const first = buttons.find((b) => !b.disabled)!;
-    select(first, true);
-    first.focus({ preventScroll: true });
+    select(buttons.find((b) => !b.disabled)!, true);
+    revealCap = window.setTimeout(reveal, REVEAL_CAP_MS);
 
     listen(window, 'pointerdown', () => {
       // Audio unlocks on this same gesture (AudioSystem.init); the title's bed starts with it.
@@ -209,7 +216,7 @@ export const TitleScreen = {
     });
     listen(window, 'keydown', (e) => {
       startTitleMusic();
-      if (PanelManager.isOpen || leaving) return;
+      if (PanelManager.isOpen || leaving || !revealed) return;
       const step = e.code === 'ArrowDown' || e.code === 'KeyS' ? 1 : e.code === 'ArrowUp' || e.code === 'KeyW' ? -1 : 0;
       if (step) {
         e.preventDefault();
@@ -244,14 +251,18 @@ export const TitleScreen = {
         next.dispose();
         return;
       }
-      // Its first frame is complete: the stand-in sky dissolves into it (CSS, .backdrop-live).
-      next.onFirstFrame = () => root?.classList.add('backdrop-live');
+      // Its first frame is complete: the menu and the backdrop come in together (CSS, .backdrop-live).
+      next.onFirstFrame = () => {
+        root?.classList.add('backdrop-live');
+        reveal();
+      };
       await engine.setScene(() => next, { prepared: true, quiet: true });
       engine.start();
       scene = next;
     } catch (err) {
       // The menu works the same without it, over its own night sky.
       console.warn('[title] the 3D backdrop is unavailable', err);
+      reveal();
     }
   },
 
@@ -264,6 +275,7 @@ export const TitleScreen = {
     AudioSystem.playLaunch();
     stopMusic?.();
     stopMusic = null;
+    window.clearTimeout(revealCap);
     el.classList.add('leaving');
     for (const [target, type, fn] of listeners.splice(0)) target.removeEventListener(type, fn);
     const outro = new Promise<void>((resolve) => window.setTimeout(resolve, motion.reduced ? 300 : 560));
@@ -316,6 +328,16 @@ export const TitleScreen = {
     panel.appendChild(hint);
   },
 };
+
+/** Shows the menu (and lets it be used), with the backdrop when it has arrived; once. */
+function reveal(): void {
+  if (revealed || !root || leaving) return;
+  revealed = true;
+  window.clearTimeout(revealCap);
+  root.inert = false;
+  root.classList.add('revealed');
+  (selected ?? buttons.find((b) => !b.disabled))?.focus({ preventScroll: true });
+}
 
 /** Marks one menu item as the selected one (hover and keyboard focus are the same thing here). */
 function select(b: HTMLButtonElement, quiet = false): void {

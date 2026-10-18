@@ -1,8 +1,7 @@
 // The title screen, end to end: the menu and its four buttons, the 3D backdrop behind it (ship, moon,
 // rocks, a turning planet), keyboard and mouse selection, Controls and Settings (and focus coming
 // back), a quality change made from the title, New game into the intro, Continue into the Wren, an
-// unreadable save, reduced motion, the menu working before the backdrop arrives, and a click that
-// comes before the backdrop is ready.
+// unreadable save, reduced motion, and the menu held back until it can come in with the backdrop.
 //
 //   npx vite preview --port 4190 --strictPort   (in another terminal)
 //   node tools/test-title.mjs [baseUrl]
@@ -24,7 +23,7 @@ async function open({ save, reducedMotion = false } = {}) {
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   if (save !== undefined) await page.addInitScript((s) => localStorage.setItem('kethra_save_v1', s), save);
   await page.goto(BASE);
-  await page.waitForSelector('.title-btn', { timeout: 60000 });
+  await page.waitForSelector('.title-screen.revealed', { timeout: 60000 });
   return { page, context, errors };
 }
 const labels = (page) => page.$$eval('.title-btn', (bs) => bs.map((b) => ({ label: b.querySelector('.tb-label').textContent, disabled: b.disabled, selected: b.classList.contains('is-selected'), focused: document.activeElement === b })));
@@ -128,7 +127,7 @@ async function makeSave() {
   await context.close();
 }
 
-// 4. Reduced motion; and the menu, up and working before the backdrop arrives.
+// 4. Reduced motion; and the menu, held back until it comes in with the backdrop.
 {
   const { page, context, errors } = await open({ reducedMotion: true });
   check('reduced motion: the backdrop still comes up', await backdropLive(page));
@@ -140,26 +139,27 @@ async function makeSave() {
   });
   check('reduced motion: the camera holds still', still);
   await context.close();
-  const second = await open();
-  const early = await second.page.evaluate(() => ({ at: performance.now(), backdrop: !!document.querySelector('.title-screen.backdrop-live') }));
-  await second.page.waitForFunction(() => getComputedStyle(document.querySelector('.ts-column')).opacity === '1', null, { timeout: 3000 }).catch(() => {});
-  const shownAt = await second.page.evaluate(() => performance.now());
-  check('the whole menu is up within 1.5 s of loading', shownAt < 1500, `${Math.round(shownAt)} ms`);
-  await second.page.keyboard.press('ArrowDown');
-  check('the menu answers keys before the backdrop arrives', !early.backdrop && (await selectedLabel(second.page)) === 'Controls');
-  check('no errors on the page', errors.length === 0 && second.errors.length === 0, [...errors, ...second.errors].slice(0, 3).join(' | '));
-  await second.context.close();
-}
-
-// 5. A click before the backdrop is ready: the game starts anyway, and the backdrop is dropped.
-{
-  const { page, context, errors } = await open();
-  await page.getByRole('button', { name: 'New game' }).click();
-  const intro = await page.waitForFunction(() => performance.getEntriesByName('intro:uncovered').length > 0, null, { timeout: 120000 }).then(() => true, () => false);
-  await page.waitForTimeout(3000);
-  check('an early New game still plays the intro', intro && (await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene()?.kind)) === 'IntroScene');
-  check('no errors on the page', errors.length === 0, errors.slice(0, 3).join(' | '));
-  await context.close();
+  // Before the backdrop: only the dark sky, nothing on the menu visible or reachable.
+  const context2 = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+  const page2 = await context2.newPage();
+  const errors2 = [];
+  page2.on('pageerror', (e) => errors2.push(String(e)));
+  page2.on('console', (m) => m.type() === 'error' && errors2.push(m.text()));
+  await page2.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await page2.waitForSelector('.title-btn', { state: 'attached', timeout: 60000 });
+  const early = await page2.evaluate(() => ({ live: !!document.querySelector('.title-screen.backdrop-live'), shown: Number(getComputedStyle(document.querySelector('.ts-column')).opacity) > 0.01, inert: document.querySelector('.title-screen').inert }));
+  check('before the backdrop, the menu is held back and out of reach', !early.live && !early.shown && early.inert, JSON.stringify(early));
+  await page2.keyboard.press('ArrowDown');
+  // Both arrive in the same frame.
+  const together = await page2.waitForFunction(() => {
+    const el = document.querySelector('.title-screen');
+    return el.classList.contains('backdrop-live') ? el.classList.contains('revealed') : null;
+  }, null, { timeout: 60000, polling: 'raf' }).then((h) => h.jsonValue(), () => false);
+  const at = await page2.evaluate(() => Math.round(performance.now()));
+  check('the menu and the backdrop come in together', together, `at ${at} ms`);
+  check('a key pressed before then changed nothing; New game is selected and focused', (await selectedLabel(page2)) === 'New game' && (await labels(page2))[1].focused);
+  check('no errors on the page', errors.length === 0 && errors2.length === 0, [...errors, ...errors2].slice(0, 3).join(' | '));
+  await context2.close();
 }
 
 await browser.close();

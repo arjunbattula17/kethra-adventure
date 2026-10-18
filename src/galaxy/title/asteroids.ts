@@ -31,8 +31,11 @@ import { mulberry32 } from '../../core/rng';
  *   GPU, wrapping out of view.
  */
 
-/** Shape classes for the large pool. */
-export type RockShape = 'chunky' | 'elongated' | 'angular';
+/**
+ * Shape classes: chunky, elongated and angular for the large pool; pebble (rounded, gently lumpy, only
+ * a shallow facet or two) for the small debris, which at a few pixels would otherwise read as shards.
+ */
+export type RockShape = 'chunky' | 'elongated' | 'angular' | 'pebble';
 
 const SPIN_GLSL = /* glsl */ `
   vec3 spin(vec3 v, vec3 k, float a) {
@@ -216,16 +219,23 @@ function rockGeometry(detail: number, seed: number, shape: RockShape = 'chunky')
   geo.deleteAttribute('uv');
   geo.deleteAttribute('normal');
   geo = mergeVertices(geo);
+  const pebble = shape === 'pebble';
   const stretch =
     shape === 'elongated'
-      ? new THREE.Vector3(1.75 + rand() * 0.35, 0.5 + rand() * 0.15, 0.55 + rand() * 0.15)
+      ? new THREE.Vector3(1.5 + rand() * 0.25, 0.6 + rand() * 0.15, 0.65 + rand() * 0.15)
       : shape === 'angular'
         ? new THREE.Vector3(1.05, 0.75 + rand() * 0.2, 0.8 + rand() * 0.15)
-        : new THREE.Vector3(1.15, 0.55 + rand() * 0.3, 0.7 + rand() * 0.25);
-  // Angular rocks are cut harder: more planes, closer in, so broad flat faces dominate.
-  const cutCount = shape === 'angular' ? 6 + Math.floor(rand() * 3) : 3 + Math.floor(rand() * 4);
-  const cutDepth = shape === 'angular' ? 0.5 : 0.62;
-  const craters = Array.from({ length: 5 + Math.floor(rand() * 4) }, () => ({
+        : pebble
+          ? new THREE.Vector3(1.12, 0.8 + rand() * 0.15, 0.85 + rand() * 0.15)
+          : new THREE.Vector3(1.15, 0.6 + rand() * 0.25, 0.72 + rand() * 0.23);
+  // Angular rocks are cut harder: more planes, closer in, so broad flat faces dominate. Pebbles keep a
+  // shallow facet or two.
+  const cutCount = shape === 'angular' ? 5 + Math.floor(rand() * 3) : pebble ? 1 + Math.floor(rand() * 2) : 3 + Math.floor(rand() * 4);
+  const cutDepth = shape === 'angular' ? 0.56 : pebble ? 0.86 : 0.62;
+  // How lumpy the broad shape is, and how much ridging: pebbles are smooth.
+  const lump = pebble ? 0.25 : 0.7;
+  const ridging = pebble ? 0 : 0.07;
+  const craters = Array.from({ length: (pebble ? 2 : 5) + Math.floor(rand() * 4) }, () => ({
     dir: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize(),
     size: 0.16 + rand() * 0.32,
     depth: 0.05 + rand() * 0.08,
@@ -240,9 +250,9 @@ function rockGeometry(detail: number, seed: number, shape: RockShape = 'chunky')
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i).normalize();
-    const broad = 0.62 + 0.7 * fbm(v.x * 1.3 + 5, v.y * 1.3, v.z * 1.3, 4);
+    const broad = 0.97 - lump * 0.5 + lump * fbm(v.x * 1.3 + 5, v.y * 1.3, v.z * 1.3, 4);
     const ridge = 1 - Math.abs(fbm(v.x * 3.2 + 17, v.y * 3.2, v.z * 3.2, 4) * 2 - 1);
-    let r = broad + 0.1 * fbm(v.x * 4 + 11, v.y * 4, v.z * 4, 3) + 0.07 * ridge * ridge - 0.035;
+    let r = broad + (pebble ? 0.04 : 0.1) * fbm(v.x * 4 + 11, v.y * 4, v.z * 4, 3) + ridging * ridge * ridge - 0.035;
     for (const c of craters) {
       const d = v.distanceTo(c.dir) / c.size;
       if (d < 1) r -= c.depth * (1 - d * d);
@@ -522,7 +532,8 @@ export function buildDebris(o: DebrisOptions): Debris {
   const material = rockMaterial(DEBRIS_VERTEX, o, { uTime: time, uTan: { value: new THREE.Vector2(tanH, tanV) }, uWrap: wrap }, fade);
   const group = new THREE.Group();
   group.name = 'title-debris';
-  const shapes: RockShape[] = ['chunky', 'angular', 'elongated'];
+  // Three pebbles of different seeds: rounded at any size.
+  const shapes: RockShape[] = ['pebble', 'pebble', 'pebble'];
   const geos: THREE.BufferGeometry[] = [];
   let left = o.count;
   shapes.forEach((shape, s) => {
@@ -555,7 +566,7 @@ export function buildDebris(o: DebrisOptions): Debris {
     geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 1));
     geos.push(geo);
     const mesh = new THREE.Mesh(geo, material);
-    mesh.name = `title-debris-${shape}`;
+    mesh.name = `title-debris-${s}`;
     // Placed in the shader.
     mesh.frustumCulled = false;
     group.add(mesh);
