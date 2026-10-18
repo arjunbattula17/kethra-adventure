@@ -26,6 +26,17 @@ class PanelManagerImpl {
     this.overlay.className = 'panel-overlay interactive';
     this.content = document.createElement('div');
     this.overlay.appendChild(this.content);
+    // A click outside the panel (on the dimmed overlay around it) closes it, for every panel. Both the
+    // press and the release must land outside, so a drag that starts inside (selecting text, moving a
+    // slider) never closes it, and nor does the click that opened it.
+    let pressedOutside = false;
+    this.overlay.addEventListener('pointerdown', (e) => {
+      pressedOutside = this.isOpen && e.target === this.overlay;
+    });
+    this.overlay.addEventListener('click', (e) => {
+      if (pressedOutside && this.isOpen && e.target === this.overlay) this.close();
+      pressedOutside = false;
+    });
     document.addEventListener('keydown', (e) => {
       if (e.code !== 'Escape' || !this.isOpen) return;
       // Marked handled, so the pause menu doesn't take the same Esc as a request to open.

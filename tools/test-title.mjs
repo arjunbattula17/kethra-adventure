@@ -96,6 +96,22 @@ async function makeSave() {
   check('Esc closes Settings and focus returns to it', (await page.evaluate(() => document.activeElement?.querySelector?.('.tb-label')?.textContent)) === 'Settings');
   check('the backdrop draws again after the panel closes', await page.evaluate(() => window.__DEBUG__.engine.paused === false));
 
+  // Every panel closes on a click outside it, and only outside it.
+  await page.click('.title-btn:nth-child(4)');
+  await page.waitForSelector('#settings-panel', { timeout: 5000 }).catch(() => {});
+  const box = await page.$eval('#settings-panel', (p) => p.getBoundingClientRect().toJSON());
+  await page.mouse.click(box.x + box.width / 2, box.y + 12);
+  await page.waitForTimeout(400);
+  check('a click inside Settings leaves it open', !!(await page.$('.panel-overlay.visible #settings-panel')));
+  await page.mouse.click(8, 8);
+  await page.waitForTimeout(700);
+  check('a click outside Settings closes it', !(await page.$('.panel-overlay.visible')) && (await page.evaluate(() => window.__DEBUG__.engine.paused === false)));
+  await page.click('.title-btn:nth-child(3)');
+  await page.waitForSelector('.panel-overlay.visible .title-panel', { timeout: 5000 }).catch(() => {});
+  await page.mouse.click(1350, 760);
+  await page.waitForTimeout(700);
+  check('a click outside Controls closes it, and focus returns to it', !(await page.$('.panel-overlay.visible')) && (await page.evaluate(() => document.activeElement?.querySelector?.('.tb-label')?.textContent)) === 'Controls');
+
   await page.getByRole('button', { name: 'New game' }).click();
   await page.waitForFunction(() => !document.querySelector('.title-screen'), null, { timeout: 5000 }).catch(() => {});
   check('New game removes the title', !(await page.$('.title-screen')));
