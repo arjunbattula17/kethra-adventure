@@ -23,11 +23,11 @@ Backdrop modules:
 
 | File | Contents |
 |---|---|
-| `TitleScene.ts` | Composition (`COMPOSITION`, `SHIP`, `ROCKS`), camera, motion, the exit. |
+| `TitleScene.ts` | Composition (`COMPOSITION`, `SHIP`), the ship's way in (`FLIGHT`), the rock fields' tuning (`LARGE_ROCKS`, `DEBRIS`), camera, motion, the exit. |
 | `titleShip.ts` | The cruiser, built in code: lofted chamfered sections (keel hull, spine, bridge, stepped bow plates, two rounded nacelles with two engines each, booms past the engines, a ventral pod, greebles), one merged flat-shaded mesh. A panel sheet baked on the GPU (random plate splits, grooves, vents, raised blocks, bolt rows, lit ports), box-projected in ship space and read as bump. Shading: key from the sunrise's side (raised), the sun's rim, a cool fill from our side, Kethra's bounce, the engines' blue on the stern, reflections of an analytic sky. Engines: glowing throats, a camera-facing glow per bell, plumes as ribbons turned to the camera with streaks flowing out of the nozzle; plumes and glows are one additive draw. |
 | `heroPlanet.ts` | Kethra up close: the real day, night and cloud maps plus baked detail at three scales. Elevation from the map's brightness (read softened through a warp) plus the detail's relief, so coastlines are the noise's, fractal and sharp: seas in the lowest fifth or so, greens from coastal canopy to pale terraces, a sun glint and sheen on the water, clouds with their shadows (softened edge-on near the limb), the canopy's teal night glow. An analytic scattering atmosphere over it. Also the small moon (`buildMoon`). |
 | `titleSky.ts` | Galactic band and nebula baked once to a "sky card", three star layers. |
-| `asteroids.ts` | 19 belt rocks (noise, ridges, fracture planes for broken faces, craters, cavity shading, the lichen_rock maps mapped three ways, sun rims), one draw, turned and drifted on the GPU. |
+| `asteroids.ts` | Belt rocks (noise, ridges, fracture planes for broken faces, craters, cavity shading, the lichen_rock maps mapped three ways, sun rims) in chunky, elongated and angular shapes. A pool of 12 large rocks, one draw placed from per-rock uniforms that one controller moves and recycles; 90 small instanced rocks (60 on low) drifting and wrapping on the GPU. |
 | `skyFx.ts` | Sun core and lens rays, three faint ghosts, a rare meteor, near-field dust, the exit veil. |
 | `bake.ts` | One-off GPU bakes (detail noise sheet), compiled in the background and drawn in strips. |
 
@@ -48,7 +48,8 @@ Authored as screen fractions of a 16:9 frame and solved into world space at buil
   banks it about its own long axis. Its two engine pairs land where the reference has them.
 - Isilthe is half set behind the limb, turned half about the line of sight so its rings are seen from
   above, opened by about a third and rising a little to the right.
-- Rocks: a screen point, a distance and a size each, clear of the ship and its plumes.
+- Large rocks stream rightward along the bottom of the frame, their tops below `bandTop` (under the
+  menu and the plumes); their first layout keeps clear of the ship's way in.
 - Narrower windows turn the camera so the right of the picture (planet and ship) stays in frame;
   very narrow ones also widen the field of view (`frame()`). Squarer windows get a deeper shade behind
   the menu, since the limb then lies behind the wordmark.
@@ -73,9 +74,12 @@ and the environment map built alongside the backdrop held it back by up to two s
 
 ## Always moving, never busy
 Kethra turns about once in 12 minutes, so the ground visibly runs back under the ship within ten or
-twenty seconds; the clouds shear a little on top. The ship heaves and corrects its attitude on slow
-sines, its plumes flow and flicker slightly. Rocks tumble about their own axes and drift on their own
-one-to-three-minute loops (never leaving or re-entering the frame). Dust drifts past; the camera drifts
+twenty seconds; the clouds shear a little on top. The ship flies in once per page: from behind the
+camera off the right edge at 40 units/s, braking on exp(-t / 0.7 s) into frame within a second, plumes
+fading out by ~4 s, then drifting on toward the planet at 0.2 units/s (easing off over minutes) with a
+slow heave; a later visit or reduced motion starts it drifting. Large rocks cross the frame in 26-60 s
+(~30-70 px/s at 1600 wide) and are dealt a new pass from the left once they leave; small rocks drift
+at 9-25 px/s in seeded random directions, nearer ones faster, and spin. Dust drifts past; the camera drifts
 a little, showing the depth between rocks, ship and planet; a faint meteor every 14-30 s, away from
 the menu and the labels. Every motion runs on elapsed time, so its speed is the same at any frame
 rate. Nothing follows the pointer or answers the menu.
@@ -106,7 +110,8 @@ their panel closes; those panels take the title's palette while it is up.
   the environment map no longer shares the GPU with them. New game → intro and Continue → the Wren
   unchanged.
 - The ship is one mesh (13.4k triangles) and one 88-triangle additive draw for its plumes and glows;
-  its panel sheet is a 512² bake. The 19 rocks are one draw of 5.7k triangles.
+  its panel sheet is a 512² bake. The 12 large rocks are one draw; the small rocks three instanced
+  draws of 320 triangles each.
 - Bakes: compiled with `compileAsync` and drawn in strips; loop bounds are uniforms so Direct3D keeps
   them as loops. Hashes are sine-free (`sin()` of large arguments loses precision under ANGLE/D3D).
 - The title is not judged by the runtime quality governor (`GameScene.governed = false`).

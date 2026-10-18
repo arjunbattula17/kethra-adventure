@@ -38,6 +38,13 @@ const THROAT = 5;
 export const SHIP_NOSE_X = 5.6;
 export const SHIP_STERN_X = -5.4;
 
+/** Plume length at full thrust, in nozzle radii. */
+const PLUME_LENGTH = 30;
+/** The plume's length as thrust runs out, as a fraction of PLUME_LENGTH (its brightness goes to zero). */
+const PLUME_SHORT = 0.3;
+/** The bells' own glow (throats, the blue on the stern) with the engines off: hot metal, no exhaust. */
+const ENGINE_IDLE = 0.3;
+
 type YZ = [number, number];
 interface Section {
   x: number;
@@ -855,9 +862,10 @@ function buildPlumes(engines: EngineSpec[]): THREE.BufferGeometry {
 // ---------------------------------------------------------------------------------------------
 
 export interface TitleShip {
-  /** Placed by the composition (TitleScene); its child carries the ship's own drift. */
+  /** Placed and flown by TitleScene; its child carries the ship's own small station-keeping drift. */
   group: THREE.Group;
-  update(elapsed: number): void;
+  /** `thrust` 0..1: the plumes' strength and length; at 0 the plumes are out and the bells only glow. */
+  update(elapsed: number, thrust: number): void;
   setFade(k: number): void;
   dispose(): void;
 }
@@ -885,6 +893,8 @@ export async function buildTitleShip(renderer: THREE.WebGLRenderer, o: TitleShip
 
   const engineColor = new THREE.Color(0.1, 0.38, 1.0);
   const power = { value: 1 };
+  const plumePower = { value: 1 };
+  const plumeLength = { value: PLUME_LENGTH };
   const fade = { value: 0 };
   const starboard = engines.filter((e) => e.at.z > 0);
   const port = engines.filter((e) => e.at.z < 0);
@@ -918,6 +928,9 @@ export async function buildTitleShip(renderer: THREE.WebGLRenderer, o: TitleShip
     }),
   );
   hull.name = 'title-ship-hull';
+  // It flies in from behind the camera: keep it drawn while it is out of frame, so its first frame in
+  // view is not its first draw.
+  hull.frustumCulled = false;
 
   const time = { value: 0 };
   const plumes = new THREE.Mesh(
@@ -925,7 +938,7 @@ export async function buildTitleShip(renderer: THREE.WebGLRenderer, o: TitleShip
     new THREE.ShaderMaterial({
       vertexShader: PLUME_VERTEX,
       fragmentShader: PLUME_FRAGMENT,
-      uniforms: { uLength: { value: 30 }, uPower: power, uTime: time, uColor: { value: engineColor }, uFade: fade },
+      uniforms: { uLength: plumeLength, uPower: plumePower, uTime: time, uColor: { value: engineColor }, uFade: fade },
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -944,14 +957,18 @@ export async function buildTitleShip(renderer: THREE.WebGLRenderer, o: TitleShip
 
   return {
     group,
-    update(elapsed) {
+    update(elapsed, thrust) {
       // Cruising: a slow heave and the small corrections of a ship holding station, each on its own
-      // period so nothing repeats in step.
+      // period so nothing repeats in step. Held still while it is under thrust.
       const e = elapsed;
-      drift.position.set(Math.sin(e * 0.21) * 0.1, Math.sin(e * 0.29 + 1.1) * 0.07 + Math.sin(e * 0.11) * 0.05, Math.sin(e * 0.17 + 2.0) * 0.12);
-      drift.rotation.set(Math.sin(e * 0.19 + 0.4) * 0.022, Math.sin(e * 0.13 + 1.3) * 0.012, Math.sin(e * 0.23 + 2.2) * 0.01);
+      const hold = 1 - thrust;
+      drift.position.set(Math.sin(e * 0.21) * 0.1 * hold, (Math.sin(e * 0.29 + 1.1) * 0.07 + Math.sin(e * 0.11) * 0.05) * hold, Math.sin(e * 0.17 + 2.0) * 0.12 * hold);
+      drift.rotation.set(Math.sin(e * 0.19 + 0.4) * 0.022 * hold, Math.sin(e * 0.13 + 1.3) * 0.012 * hold, Math.sin(e * 0.23 + 2.2) * 0.01 * hold);
       time.value = elapsed;
-      power.value = 1 + 0.035 * Math.sin(e * 11.3) + 0.025 * Math.sin(e * 17.9 + 1.0);
+      const flicker = 1 + 0.035 * Math.sin(e * 11.3) + 0.025 * Math.sin(e * 17.9 + 1.0);
+      power.value = (ENGINE_IDLE + (1 - ENGINE_IDLE) * thrust) * flicker;
+      plumePower.value = thrust * flicker;
+      plumeLength.value = PLUME_LENGTH * (PLUME_SHORT + (1 - PLUME_SHORT) * thrust);
     },
     setFade(k) {
       fade.value = k;

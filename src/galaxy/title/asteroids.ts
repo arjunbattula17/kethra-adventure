@@ -3,8 +3,8 @@ import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferG
 import { mulberry32 } from '../../core/rng';
 
 /**
- * A few rocks of the belt Kethra orbits just outside (LORE.md, "The world"): big dark ones close to the
- * camera, a lit one low on the right, and debris scattered out toward the planet, for depth and parallax.
+ * Rocks of the belt Kethra orbits just outside (LORE.md, "The world"), streaming past along the bottom
+ * of the frame, with small debris drifting at every depth, for depth and parallax.
  *
  * Shapes: an icosphere pushed out by noise, cut by ridges, sheared off along a few fracture planes
  * (the flat broken faces that make a rock read as rock, not a potato), and pocked with craters (a
@@ -19,44 +19,81 @@ import { mulberry32 } from '../../core/rng';
  * Light: the same sun as the planet, a bright rim where the seen sun is behind an edge, Kethra's green
  * bounce from below, and a faint cool fill from the bright sky in front of them.
  *
- * Every rock is merged into one mesh and moved on the GPU (each vertex carries its rock's centre, spin
- * axis and rate), so the field is one draw with no per-frame JavaScript. Each rock tumbles about its
- * own axis and drifts on its own slow loop (periods of one to three minutes, a few percent of its
- * distance across), so nothing moves in step and nothing ever leaves or jumps back into the frame.
+ * Two fields, both drawn with the same surface shader:
+ *
+ * - Large rocks (buildAsteroids): a fixed pool of distinct rocks (chunky, elongated, angular), merged
+ *   into one mesh and placed on the GPU from per-rock uniforms (centre, spin) that one controller here
+ *   moves on the CPU. Each rock has its own distance, speed, slight sink or approach and spin; the
+ *   flow trends rightward along the bottom of the frame. A rock that has left the frame is dealt a fresh
+ *   pass and starts again just outside the left edge, so nothing appears in view.
+ * - Small debris (buildDebris): many cheap instanced rocks, each with a drift fixed at build (a seeded
+ *   random direction across the screen, nearer ones a little faster) and a spin; moved entirely on the
+ *   GPU, wrapping out of view.
  */
 
-export interface RockSpec {
-  /** World position of the rock's centre. */
-  at: THREE.Vector3;
-  radius: number;
-  /** Icosahedron subdivision: 5 for the big foreground rocks, 2 for distant debris. */
-  detail: number;
-}
+/** Shape classes for the large pool. */
+export type RockShape = 'chunky' | 'elongated' | 'angular';
 
-const VERTEX = /* glsl */ `
-  attribute vec3 aCenter;
-  attribute vec4 aSpin;
-  attribute float aSeed;
+const SPIN_GLSL = /* glsl */ `
+  vec3 spin(vec3 v, vec3 k, float a) {
+    float c = cos(a);
+    float s = sin(a);
+    return v * c + cross(k, v) * s + k * dot(k, v) * (1.0 - c);
+  }
+`;
+
+const VARYINGS = /* glsl */ `
   attribute float aCavity;
-  uniform float uTime;
   varying vec3 vPosW;
   varying vec3 vLocal;
   varying vec3 vLocalN;
   varying vec4 vSpin;
   varying float vSeed;
   varying float vCavity;
-  vec3 spin(vec3 v, vec3 k, float a) {
-    float c = cos(a);
-    float s = sin(a);
-    return v * c + cross(k, v) * s + k * dot(k, v) * (1.0 - c);
-  }
+`;
+
+/** Large rocks: each vertex knows its rock (aRock); the rock's centre and turn come from uniforms. */
+const LARGE_VERTEX = (count: number) => /* glsl */ `
+  attribute float aRock;
+  attribute float aSeed;
+  uniform vec3 uCenter[${count}];
+  uniform vec4 uSpin[${count}];
+  ${VARYINGS}
+  ${SPIN_GLSL}
   void main() {
+    int i = int(aRock + 0.5);
+    vec4 turn = uSpin[i];
+    vec3 world = uCenter[i] + spin(position, turn.xyz, turn.w);
+    vPosW = world;
+    vLocal = position;
+    vLocalN = normal;
+    vSpin = turn;
+    vSeed = aSeed;
+    vCavity = aCavity;
+    gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
+  }
+`;
+
+/**
+ * Small debris: each instance has a screen point, a distance and a size (aSlot), a drift across the
+ * screen (aDrift, in frame widths and heights per second) and a spin. Its screen point wraps inside
+ * uWrap (min u, min v, span u, span v), a box wider than the view, so it leaves and re-enters unseen.
+ */
+const DEBRIS_VERTEX = /* glsl */ `
+  attribute vec4 aSlot;
+  attribute vec2 aDrift;
+  attribute vec4 aSpin;
+  attribute float aSeed;
+  uniform float uTime;
+  uniform vec2 uTan;
+  uniform vec4 uWrap;
+  ${VARYINGS}
+  ${SPIN_GLSL}
+  void main() {
+    vec2 uv = uWrap.xy + mod(aSlot.xy + aDrift * uTime - uWrap.xy, uWrap.zw);
+    vec3 centre = normalize(vec3((2.0 * uv.x - 1.0) * uTan.x, (1.0 - 2.0 * uv.y) * uTan.y, -1.0)) * aSlot.z;
     float a = aSpin.w * uTime + aSeed * 6.2832;
-    // Drift: three slow sines per rock, periods of ~1-3 minutes, sized by distance so near and far
-    // rocks move about as much on screen.
-    float k = 0.6 + 0.8 * fract(aSeed * 7.31);
-    vec3 drift = vec3(sin(uTime * 0.052 * k + aSeed * 9.0), sin(uTime * 0.037 * k + aSeed * 5.0) * 0.7, sin(uTime * 0.029 * k + aSeed * 3.0) * 0.8) * length(aCenter) * 0.022;
-    vec3 world = aCenter + spin(position, aSpin.xyz, a) + drift;
+    vec3 world = centre + spin(position * aSlot.w, aSpin.xyz, a);
     vPosW = world;
     vLocal = position;
     vLocalN = normal;
@@ -172,23 +209,31 @@ function makeNoise(seed: number) {
  * One rock of unit-ish radius, with its cavity attribute: an icosphere pushed out by broad noise,
  * ridged noise for cracks and edges, and craters (a bowl and a raised rim).
  */
-function rockGeometry(detail: number, seed: number): THREE.BufferGeometry {
+function rockGeometry(detail: number, seed: number, shape: RockShape = 'chunky'): THREE.BufferGeometry {
   const fbm = makeNoise(seed);
   const rand = mulberry32(seed * 7 + 1);
   let geo: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, detail);
   geo.deleteAttribute('uv');
   geo.deleteAttribute('normal');
   geo = mergeVertices(geo);
-  const stretch = new THREE.Vector3(1.15, 0.55 + rand() * 0.3, 0.7 + rand() * 0.25);
+  const stretch =
+    shape === 'elongated'
+      ? new THREE.Vector3(1.75 + rand() * 0.35, 0.5 + rand() * 0.15, 0.55 + rand() * 0.15)
+      : shape === 'angular'
+        ? new THREE.Vector3(1.05, 0.75 + rand() * 0.2, 0.8 + rand() * 0.15)
+        : new THREE.Vector3(1.15, 0.55 + rand() * 0.3, 0.7 + rand() * 0.25);
+  // Angular rocks are cut harder: more planes, closer in, so broad flat faces dominate.
+  const cutCount = shape === 'angular' ? 6 + Math.floor(rand() * 3) : 3 + Math.floor(rand() * 4);
+  const cutDepth = shape === 'angular' ? 0.5 : 0.62;
   const craters = Array.from({ length: 5 + Math.floor(rand() * 4) }, () => ({
     dir: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize(),
     size: 0.16 + rand() * 0.32,
     depth: 0.05 + rand() * 0.08,
   }));
   // Fracture planes: each shears off whatever stands proud of it, leaving a broad flat face.
-  const cuts = Array.from({ length: 3 + Math.floor(rand() * 4) }, () => ({
+  const cuts = Array.from({ length: cutCount }, () => ({
     n: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize(),
-    d: 0.62 + rand() * 0.22,
+    d: cutDepth + rand() * 0.22,
   }));
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const cavity = new Float32Array(pos.count);
@@ -240,81 +285,293 @@ export function rockTextures(): { map: THREE.Texture; normal: THREE.Texture; rea
   return rockMaps;
 }
 
-export interface AsteroidField {
-  mesh: THREE.Mesh;
-  update(elapsed: number): void;
-  setFade(k: number): void;
-  dispose(): void;
-}
-
-export interface AsteroidOptions {
+/** The light both fields are shaded by. */
+export interface RockLight {
   /** Toward the light that shades everything. */
   sunDir: THREE.Vector3;
   /** Toward the sun as seen: the rims. */
   rimDir: THREE.Vector3;
   /** Toward the planet's lit face: its bounce. */
   bounceDir: THREE.Vector3;
-  seed?: number;
+}
+
+function rockMaterial(vertexShader: string, light: RockLight, extra: Record<string, THREE.IUniform>, fade: THREE.IUniform<number>): THREE.ShaderMaterial {
+  const maps = rockTextures();
+  return new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader: FRAGMENT,
+    uniforms: {
+      uRock: { value: maps.map },
+      uRockNormal: { value: maps.normal },
+      uSunDir: { value: light.sunDir },
+      uRimDir: { value: light.rimDir },
+      uSunColor: { value: new THREE.Color(1.0, 0.95, 0.88).multiplyScalar(1.7) },
+      uBounceDir: { value: light.bounceDir },
+      uBounceColor: { value: new THREE.Color(0x3f8a5a).multiplyScalar(0.4) },
+      uFade: fade,
+      ...extra,
+    },
+  });
+}
+
+/** Tangents of the half field of view the composition is authored on (16:9, camera at rest). */
+export interface FieldView {
+  tanH: number;
+  tanV: number;
+}
+
+const lerp = (r: [number, number], t: number) => r[0] + (r[1] - r[0]) * t;
+const TAU = Math.PI * 2;
+
+// ------------------------------------------------------------------ large rocks
+
+export interface LargeRockOptions extends RockLight {
+  /** The pool, biggest first (they pass nearest): radius, shape, icosahedron subdivision. */
+  pool: [number, RockShape, number][];
+  /** Distance of the first rock and of the last; the others spread between (log), overlapping a little. */
+  distance: [number, number];
+  /** No rock's top rises above this line of the frame (0 top, 1 bottom). */
+  bandTop: number;
+  /** How much lower than bandTop a rock's top may start, as a fraction of the frame's height. */
+  bandDepth: number;
+  /** Seconds a rock takes to cross the frame's width at its distance: [fastest, slowest]. */
+  crossing: [number, number];
+  /** Sink (down) and approach (toward the camera), as fractions of the rightward speed: [min, max]. */
+  sink: [number, number];
+  approach: [number, number];
+  /** Spin, radians per second for a rock of radius 1; smaller rocks turn faster (1/sqrt of radius). */
+  spin: [number, number];
+  /** Points the first layout keeps clear of (the ship's way in), by this much beyond a rock's size. */
+  avoid?: { points: THREE.Vector3[]; clearance: number };
+  view: FieldView;
+  seed: number;
   /** Awaited between big rocks: each takes tens of milliseconds to shape. */
   pace?: () => Promise<void>;
 }
 
-export async function buildAsteroids(specs: RockSpec[], o: AsteroidOptions): Promise<AsteroidField> {
-  const rand = mulberry32(o.seed ?? 0xa57e);
+export interface LargeRocks {
+  mesh: THREE.Mesh;
+  update(dt: number): void;
+  /** The window's horizontal and vertical half-view tangents, so passes start and end just outside it. */
+  setView(tanH: number, tanV: number): void;
+  setFade(k: number): void;
+  /** Where each rock is in the 16:9 frame (0..1 from the top left), its distance, and how many passes it has made. */
+  report(): { x: number; y: number; d: number; passes: number }[];
+  dispose(): void;
+}
+
+/** A rock nearer than this is dealt a new pass. */
+const NEAREST = 3;
+
+export async function buildAsteroids(o: LargeRockOptions): Promise<LargeRocks> {
+  const rand = mulberry32(o.seed);
+  const count = o.pool.length;
   const parts: THREE.BufferGeometry[] = [];
-  for (let i = 0; i < specs.length; i++) {
-    const spec = specs[i];
-    const rock = rockGeometry(spec.detail, 101 + i * 37).toNonIndexed();
-    rock.scale(spec.radius, spec.radius, spec.radius);
-    const n = rock.getAttribute('position').count;
-    const centre = new Float32Array(n * 3);
-    const spinAttr = new Float32Array(n * 4);
-    const seedAttr = new Float32Array(n);
-    const axis = new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize();
-    // Big rocks turn slowly; small ones a little faster, as they would.
-    const rate = (0.012 + rand() * 0.03) / Math.sqrt(Math.max(spec.radius, 0.3));
-    const seed = rand();
-    for (let k = 0; k < n; k++) {
-      centre.set([spec.at.x, spec.at.y, spec.at.z], k * 3);
-      spinAttr.set([axis.x, axis.y, axis.z, rate], k * 4);
-      seedAttr[k] = seed;
-    }
-    rock.setAttribute('aCenter', new THREE.BufferAttribute(centre, 3));
-    rock.setAttribute('aSpin', new THREE.BufferAttribute(spinAttr, 4));
-    rock.setAttribute('aSeed', new THREE.BufferAttribute(seedAttr, 1));
+  // Each rock's farthest point from its own centre (it turns about that).
+  const extent = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const [radius, shape, detail] = o.pool[i];
+    const rock = rockGeometry(detail, 101 + i * 37, shape).toNonIndexed();
+    rock.scale(radius, radius, radius);
+    const pos = rock.getAttribute('position') as THREE.BufferAttribute;
+    for (let k = 0; k < pos.count; k++) extent[i] = Math.max(extent[i], Math.hypot(pos.getX(k), pos.getY(k), pos.getZ(k)));
+    rock.setAttribute('aRock', new THREE.BufferAttribute(new Float32Array(pos.count).fill(i), 1));
+    rock.setAttribute('aSeed', new THREE.BufferAttribute(new Float32Array(pos.count).fill(rand()), 1));
     parts.push(rock);
-    if (spec.detail >= 4) await o.pace?.();
+    if (detail >= 4) await o.pace?.();
   }
   const geo = mergeGeometries(parts, false)!;
   for (const g of parts) g.dispose();
-  const maps = rockTextures();
-  const uniforms = {
-    uRock: { value: maps.map },
-    uRockNormal: { value: maps.normal },
-    uSunDir: { value: o.sunDir },
-    uRimDir: { value: o.rimDir },
-    uSunColor: { value: new THREE.Color(1.0, 0.95, 0.88).multiplyScalar(1.7) },
-    uBounceDir: { value: o.bounceDir },
-    uBounceColor: { value: new THREE.Color(0x3f8a5a).multiplyScalar(0.4) },
-    uTime: { value: 0 },
-    uFade: { value: 0 },
-  };
-  const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: VERTEX, fragmentShader: FRAGMENT, uniforms }));
+
+  const centres = Array.from({ length: count }, () => new THREE.Vector3());
+  const spins = Array.from({ length: count }, () => new THREE.Vector4());
+  const velocity = Array.from({ length: count }, () => new THREE.Vector3());
+  const rate = new Float32Array(count);
+  const passes = new Uint16Array(count);
+  const fade = { value: 0 };
+  const mesh = new THREE.Mesh(geo, rockMaterial(LARGE_VERTEX(count), o, { uCenter: { value: centres }, uSpin: { value: spins } }, fade));
   mesh.name = 'title-asteroids';
   // The vertices are placed in the shader, so the mesh's own bounds mean nothing.
   mesh.frustumCulled = false;
-  await maps.ready;
+
+  const { tanH, tanV } = o.view;
+  let viewH = tanH;
+  let viewV = tanV;
+  const dir = new THREE.Vector3();
+
+  /**
+   * Deals rock i a fresh pass: distance, height in the band, speed, sink, approach and spin. Its centre
+   * goes at frame x `sx`, or (null) just outside the left edge of the view.
+   */
+  const deal = (i: number, sx: number | null) => {
+    const t = THREE.MathUtils.clamp(i / Math.max(count - 1, 1) + (rand() - 0.5) * 0.3, 0, 1);
+    const dist = o.distance[0] * Math.pow(o.distance[1] / o.distance[0], t);
+    const size = extent[i] / dist;
+    const x = sx ?? 0.5 - (0.5 * viewH) / tanH - size / (2 * tanH) - 0.02;
+    const y = o.bandTop + size / (2 * tanV) + rand() * o.bandDepth;
+    centres[i].copy(dir.set((2 * x - 1) * tanH, (1 - 2 * y) * tanV, -1).normalize()).multiplyScalar(dist);
+    const speed = (2 * dist * tanH) / lerp(o.crossing, rand());
+    velocity[i].set(speed, -speed * lerp(o.sink, rand()), speed * lerp(o.approach, rand()));
+    spins[i].set(rand() - 0.5, rand() - 0.5, rand() - 0.5, 0).normalize();
+    spins[i].w = rand() * TAU;
+    rate[i] = (lerp(o.spin, rand()) / Math.sqrt(Math.max(o.pool[i][0], 0.3))) * (rand() < 0.5 ? -1 : 1);
+    passes[i]++;
+  };
+  const clear = (i: number) => !o.avoid || o.avoid.points.every((p) => p.distanceTo(centres[i]) > extent[i] + o.avoid!.clearance);
+
+  // First layout: spread across the frame (stratified, shuffled), clear of the ship's way in; a rock
+  // that finds no clear place starts just outside the left edge instead.
+  const order = Array.from({ length: count }, (_, i) => i);
+  for (let i = count - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  for (let k = 0; k < count; k++) {
+    const i = order[k];
+    let placed = false;
+    for (let tries = 0; tries < 24 && !placed; tries++) {
+      deal(i, -0.05 + (1.1 * (k + rand())) / count);
+      placed = clear(i);
+    }
+    if (!placed) deal(i, null);
+    passes[i] = 0;
+  }
+
+  await rockTextures().ready;
   return {
     mesh,
-    update(elapsed) {
-      uniforms.uTime.value = elapsed;
+    update(dt) {
+      const step = Math.min(dt, 0.1);
+      const right = 0.5 + (0.5 * viewH) / tanH + 0.02;
+      const bottom = 0.5 + (0.5 * viewV) / tanV + 0.02;
+      for (let i = 0; i < count; i++) {
+        const c = centres[i].addScaledVector(velocity[i], step);
+        spins[i].w = (spins[i].w + rate[i] * step) % TAU;
+        const depth = -c.z;
+        if (depth < NEAREST) {
+          deal(i, null);
+          continue;
+        }
+        const size = extent[i] / depth;
+        const sx = 0.5 + (0.5 * c.x) / depth / tanH - size / (2 * tanH);
+        const sy = 0.5 - (0.5 * c.y) / depth / tanV - size / (2 * tanV);
+        // Wholly past the right edge or below the bottom: a new pass from the left.
+        if (sx > right || sy > bottom) deal(i, null);
+      }
+    },
+    setView(h, v) {
+      viewH = Math.max(h, tanH);
+      viewV = Math.max(v, tanV);
     },
     setFade(k) {
-      uniforms.uFade.value = k;
+      fade.value = k;
+    },
+    report() {
+      return centres.map((c, i) => ({ x: 0.5 + (0.5 * c.x) / -c.z / tanH, y: 0.5 - (0.5 * c.y) / -c.z / tanV, d: -c.z, passes: passes[i] }));
     },
     dispose() {
       geo.dispose();
       mesh.material.dispose();
+    },
+  };
+}
+
+// ------------------------------------------------------------------ small debris
+
+export interface DebrisOptions extends RockLight {
+  count: number;
+  /** Distances, nearest and farthest (spread log). */
+  distance: [number, number];
+  /** Radius as a fraction of distance (the tangent of its angular radius): [min, max]. */
+  size: [number, number];
+  /** Drift across the screen, in frame widths per second at `driftAt`: [min, max]. */
+  drift: [number, number];
+  /** The distance at which drift is as given; nearer rocks drift faster by (driftAt / distance)^parallax. */
+  driftAt: number;
+  parallax: number;
+  /** Spin, radians per second: [min, max]. */
+  spin: [number, number];
+  view: FieldView;
+  seed: number;
+}
+
+export interface Debris {
+  group: THREE.Group;
+  update(elapsed: number): void;
+  /** The window's horizontal and vertical half-view tangents: the wrap box is kept just outside them. */
+  setView(tanH: number, tanV: number): void;
+  setFade(k: number): void;
+  dispose(): void;
+}
+
+/** How far outside the view (in frame fractions) a rock wraps: its own size plus the camera's drift. */
+const WRAP_MARGIN = 0.06;
+
+export function buildDebris(o: DebrisOptions): Debris {
+  const rand = mulberry32(o.seed);
+  const { tanH, tanV } = o.view;
+  const time = { value: 0 };
+  const fade = { value: 0 };
+  const wrap = { value: new THREE.Vector4() };
+  const setWrap = (h: number, v: number) => {
+    const hu = (0.5 * Math.max(h, tanH)) / tanH + WRAP_MARGIN;
+    const hv = (0.5 * Math.max(v, tanV)) / tanV + WRAP_MARGIN;
+    wrap.value.set(0.5 - hu, 0.5 - hv, 2 * hu, 2 * hv);
+  };
+  setWrap(tanH, tanV);
+  const material = rockMaterial(DEBRIS_VERTEX, o, { uTime: time, uTan: { value: new THREE.Vector2(tanH, tanV) }, uWrap: wrap }, fade);
+  const group = new THREE.Group();
+  group.name = 'title-debris';
+  const shapes: RockShape[] = ['chunky', 'angular', 'elongated'];
+  const geos: THREE.BufferGeometry[] = [];
+  let left = o.count;
+  shapes.forEach((shape, s) => {
+    const n = s === shapes.length - 1 ? left : Math.round(o.count / shapes.length);
+    left -= n;
+    const base = rockGeometry(2, 911 + s * 53, shape);
+    const geo = new THREE.InstancedBufferGeometry();
+    geo.index = base.index;
+    for (const name of ['position', 'normal', 'aCavity']) geo.setAttribute(name, base.getAttribute(name));
+    geo.instanceCount = n;
+    const slot = new Float32Array(n * 4);
+    const drift = new Float32Array(n * 2);
+    const spin = new Float32Array(n * 4);
+    const seed = new Float32Array(n);
+    const axis = new THREE.Vector3();
+    for (let k = 0; k < n; k++) {
+      const d = o.distance[0] * Math.pow(o.distance[1] / o.distance[0], rand());
+      slot.set([rand(), rand(), d, d * lerp(o.size, rand())], k * 4);
+      const speed = lerp(o.drift, rand()) * Math.pow(o.driftAt / d, o.parallax);
+      const heading = rand() * TAU;
+      // In frame widths and heights: the same speed on screen whichever way it heads.
+      drift.set([Math.cos(heading) * speed, Math.sin(heading) * speed * (tanH / tanV)], k * 2);
+      axis.set(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize();
+      spin.set([axis.x, axis.y, axis.z, lerp(o.spin, rand()) * (rand() < 0.5 ? -1 : 1)], k * 4);
+      seed[k] = rand();
+    }
+    geo.setAttribute('aSlot', new THREE.InstancedBufferAttribute(slot, 4));
+    geo.setAttribute('aDrift', new THREE.InstancedBufferAttribute(drift, 2));
+    geo.setAttribute('aSpin', new THREE.InstancedBufferAttribute(spin, 4));
+    geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 1));
+    geos.push(geo);
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.name = `title-debris-${shape}`;
+    // Placed in the shader.
+    mesh.frustumCulled = false;
+    group.add(mesh);
+  });
+  return {
+    group,
+    update(elapsed) {
+      time.value = elapsed;
+    },
+    setView: setWrap,
+    setFade(k) {
+      fade.value = k;
+    },
+    dispose() {
+      for (const g of geos) g.dispose();
+      material.dispose();
     },
   };
 }

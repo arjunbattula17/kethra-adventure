@@ -13,8 +13,8 @@ import { buildTitleSky } from './titleSky';
 import type { TitleSky } from './titleSky';
 import { buildHeroPlanet, buildMoon } from './heroPlanet';
 import type { HeroPlanet, Moon } from './heroPlanet';
-import { buildAsteroids, rockTextures } from './asteroids';
-import type { AsteroidField, RockSpec } from './asteroids';
+import { buildAsteroids, buildDebris, rockTextures } from './asteroids';
+import type { Debris, LargeRocks, RockShape } from './asteroids';
 import { buildSkyFx } from './skyFx';
 import type { SkyFx } from './skyFx';
 import { buildTitleShip, SHIP_NOSE_X, SHIP_STERN_X } from './titleShip';
@@ -45,6 +45,7 @@ const FOV = 40;
 const TAN_V = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
 const TAN_H = TAN_V * (16 / 9);
 const DEG = Math.PI / 180;
+const X_AXIS = new THREE.Vector3(1, 0, 0);
 
 /** World direction through a point of the 16:9 frame (0..1 from the top left) for the camera at rest. */
 function dirAt(sx: number, sy: number, out = new THREE.Vector3()): THREE.Vector3 {
@@ -93,30 +94,92 @@ const SHIP = {
 };
 
 /**
- * Rocks: screen point, distance, radius, subdivision. Dark ones close in the lower left, debris in
- * the lower middle under the ship, and a few out toward the limb, all clear of the ship and its plumes.
+ * The ship's way in: one continuous flight, not stitched moves. It sets off behind the camera beyond
+ * the right edge, overtakes us at speed, brakes hard once in frame and drifts on toward the planet,
+ * passing its composed pose (SHIP) and never stopping.
+ *
+ * Speed along the path: v(t) = vDrift(t) + (vStart - vDrift) * exp(-t / tau), with vStart - vDrift =
+ * distance / tau (40 units/s against a drift of 0.2: 200 times faster), and vDrift(t) = drift *
+ * exp(-t / driftTau), so the drift outlasts any visit without carrying the ship off. Position is that
+ * speed integrated (closed form). The path runs straight, then over its last `turnDistance` units arcs
+ * into the composed heading; the nose is always along the path, and the ship banks into the arc. Its
+ * plumes follow the boost and are out by the time it drifts.
  */
-const ROCKS: [number, number, number, number, number][] = [
-  [0.03, 1.04, 9, 2.3, 5],
-  [0.17, 1.09, 8, 1.6, 4],
-  [-0.07, 0.8, 12, 2.1, 4],
-  [0.3, 1.0, 16, 0.7, 3],
-  [0.95, 1.04, 11, 1.25, 5],
-  [0.66, 0.88, 20, 0.8, 4],
-  [0.93, 0.44, 40, 0.5, 3],
-  [0.6, 0.8, 30, 0.45, 3],
-  [0.47, 0.86, 26, 0.6, 3],
-  [0.53, 0.8, 34, 0.38, 2],
-  [0.41, 0.72, 44, 0.36, 2],
-  [0.53, 0.66, 52, 0.26, 2],
-  [0.98, 0.9, 24, 0.5, 3],
-  [0.47, 0.61, 62, 0.2, 2],
-  [0.86, 0.36, 64, 0.3, 2],
-  [0.12, 0.84, 30, 0.35, 2],
-  [0.36, 0.79, 38, 0.3, 2],
-  [0.78, 0.94, 30, 0.34, 2],
-  [0.7, 0.47, 72, 0.22, 2],
-];
+const FLIGHT = {
+  /** Seconds after the backdrop's first frame before it sets off (it is out of frame until then). */
+  delay: 0.1,
+  /** Units it travels on the boost, from its start to (nearly) the composed pose. The ship is ~12 long. */
+  distance: 28,
+  /** Braking time constant, seconds: the boost falls by e every tau; in frame from ~0.8 s, settled by ~3.5 s. */
+  tau: 0.7,
+  /**
+   * Drift speed once the boost is spent (units/s), and the time constant it eases off over (s). Its drift
+   * runs mostly away from the camera, so it has to be this fast to read on screen (~5-7 px/s at 1600 wide).
+   */
+  drift: 0.2,
+  driftTau: 120,
+  /** Seconds after setting off at which it passes the composed pose: mid-way through a typical look at the title. */
+  composedAt: 14,
+  /** Its heading at the start, turned from the composed one about its up axis (degrees; + = toward the left of frame). */
+  turn: 12,
+  /** The arc into the composed heading: its length along the path, in units. */
+  turnDistance: 22,
+  /** Bank into the arc at the full turn, degrees. */
+  bank: 9,
+  /** Plume strength per unit of boost (boost 1 at the start, falling as exp(-t / tau)); out below `thrustCut`: full until ~1.5 s, out by ~4 s, fading while the ship is in frame. */
+  thrustGain: 8,
+  thrustCut: 0.02,
+  /** How far beyond a rock's size its first place must be from the ship's way in. */
+  clearance: 8,
+};
+
+/** Whether the entrance has played in this page: a later visit to the title picks up the drift instead. */
+let flightFlown = false;
+
+/**
+ * Large rocks: a pool of twelve, streaming rightward along the bottom of the frame, under the menu and
+ * the ship's plumes, biggest nearest. Each pass gets its own distance, height, speed, sink, approach and
+ * spin; a rock that leaves is dealt a new pass from just outside the left edge (asteroids.ts).
+ */
+const LARGE_ROCKS = {
+  pool: [
+    [2.3, 'chunky', 5],
+    [1.8, 'angular', 5],
+    [1.5, 'elongated', 4],
+    [1.2, 'chunky', 4],
+    [1.0, 'angular', 4],
+    [0.85, 'elongated', 4],
+    [0.7, 'chunky', 3],
+    [0.6, 'angular', 3],
+    [0.5, 'elongated', 3],
+    [0.42, 'chunky', 3],
+    [0.35, 'angular', 2],
+    [0.3, 'chunky', 2],
+  ] as [number, RockShape, number][],
+  distance: [11, 70] as [number, number],
+  bandTop: 0.8,
+  bandDepth: 0.12,
+  /** Seconds to cross the frame's width: big near rocks visibly move within a few seconds. */
+  crossing: [26, 60] as [number, number],
+  sink: [-0.02, 0.1] as [number, number],
+  approach: [0, 0.12] as [number, number],
+  spin: [0.04, 0.1] as [number, number],
+  seed: 0xa57e,
+};
+
+/** Small debris at every depth: fixed drift (seeded random heading) and spin, nearer ones a little faster. */
+const DEBRIS = {
+  count: 90,
+  countLow: 60,
+  distance: [7, 70] as [number, number],
+  size: [0.0022, 0.006] as [number, number],
+  /** Frame widths per second at `driftAt` units: 1-3% of the width every second, so it reads within seconds. */
+  drift: [0.008, 0.016] as [number, number],
+  driftAt: 25,
+  parallax: 0.35,
+  spin: [0.15, 0.7] as [number, number],
+  seed: 0xdeb12,
+};
 
 /** The maps the backdrop draws with, fetched as soon as the menu is up (TitleScreen.show). */
 const MAPS: [string, boolean][] = [
@@ -156,7 +219,8 @@ export class TitleScene implements GameScene {
   private hero!: HeroPlanet;
   private worlds: PlanetInstance[] = [];
   private moon!: Moon;
-  private rocks!: AsteroidField;
+  private rocks!: LargeRocks;
+  private debris!: Debris;
   private ship!: TitleShip;
   private fx!: SkyFx;
 
@@ -170,6 +234,16 @@ export class TitleScene implements GameScene {
   private leaveT = -1;
   private onLeft: (() => void) | null = null;
   private lowTier = false;
+  private shipScale = 1;
+
+  /** The ship's composed pose (SHIP) and its axes there: forward, up, and the side its turn swings toward. */
+  private pose = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), forward: new THREE.Vector3(), up: new THREE.Vector3(), side: new THREE.Vector3() };
+  /** Flight time at elapsed 0 (negative: the wait before it sets off). */
+  private flightClock = -FLIGHT.delay;
+  private thrust = 1;
+  private turnQ = new THREE.Quaternion();
+  private bankQ = new THREE.Quaternion();
+  private offset = new THREE.Vector3();
 
   private scratchW = new THREE.Vector3();
   private lookTarget = new THREE.Vector3();
@@ -254,14 +328,28 @@ export class TitleScene implements GameScene {
     step('planets');
     await pacer?.tick();
 
-    const rocks: RockSpec[] = ROCKS.map(([x, y, d, r, sub]) => ({ at: dirAt(x, y).multiplyScalar(d), radius: r, detail: this.lowTier ? Math.min(sub, 4) : sub }));
-    this.rocks = await buildAsteroids(rocks, { sunDir: this.light, rimDir: this.sunSeen, bounceDir, pace: () => pacer?.tick() ?? Promise.resolve() });
+    // A later visit, or reduced motion: no entrance, the ship is already drifting.
+    if (flightFlown || motion.reduced) this.flightClock = FLIGHT.composedAt;
+    this.solveShip();
+    const view = { tanH: TAN_H, tanV: TAN_V };
+    const light = { sunDir: this.light, rimDir: this.sunSeen, bounceDir };
+    const L = LARGE_ROCKS;
+    this.rocks = await buildAsteroids({
+      ...L,
+      ...light,
+      pool: L.pool.map(([r, shape, sub]) => [r, shape, this.lowTier ? Math.min(sub, 4) : sub]),
+      avoid: { points: this.flightPath(2), clearance: FLIGHT.clearance },
+      view,
+      pace: () => pacer?.tick() ?? Promise.resolve(),
+    });
     this.scene.add(this.rocks.mesh);
+    this.debris = buildDebris({ ...DEBRIS, ...light, count: this.lowTier ? DEBRIS.countLow : DEBRIS.count, view });
+    this.scene.add(this.debris.group);
     step('rocks');
     await pacer?.tick();
 
     this.ship = await shipping;
-    this.placeShip();
+    this.flyShip(this.flightClock);
     this.scene.add(this.ship.group);
     step('ship');
 
@@ -287,6 +375,7 @@ export class TitleScene implements GameScene {
     for (const w of this.worlds) w.setFade(1);
     this.moon.setFade(1);
     this.rocks.setFade(1);
+    this.debris.setFade(1);
     this.ship.setFade(1);
     this.fx.setGlare(1);
     this.fx.setDust(0.9);
@@ -298,23 +387,81 @@ export class TitleScene implements GameScene {
     step('maps');
   }
 
-  /** Solves the ship's place from SHIP: the line from stern to nose sets its heading and its size. */
-  private placeShip(): void {
+  /** Solves the ship's composed pose from SHIP: the line from stern to nose sets its heading and its size. */
+  private solveShip(): void {
     const nose = dirAt(...SHIP.nose).multiplyScalar(SHIP.noseDistance);
     const stern = dirAt(...SHIP.stern).multiplyScalar(SHIP.sternDistance);
     const forward = nose.sub(stern);
-    const scale = forward.length() / (SHIP_NOSE_X - SHIP_STERN_X);
+    this.shipScale = forward.length() / (SHIP_NOSE_X - SHIP_STERN_X);
     forward.normalize();
     const up = new THREE.Vector3(0, 1, 0).addScaledVector(forward, -forward.y).normalize().applyAxisAngle(forward, SHIP.roll * DEG);
     const starboard = new THREE.Vector3().crossVectors(forward, up);
+    const p = this.pose;
+    p.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(forward, up, starboard));
+    p.position.copy(stern).addScaledVector(forward, -SHIP_STERN_X * this.shipScale);
+    p.forward.copy(forward);
+    p.up.copy(up);
+    // Turning the heading by +angle about up swings it toward this side (up x forward).
+    p.side.crossVectors(up, forward);
+  }
+
+  /** Units travelled along the path by flight time t (FLIGHT): the speed model, integrated. */
+  private travelled(t: number): number {
+    if (t <= 0) return 0;
+    const F = FLIGHT;
+    return F.drift * F.driftTau * (1 - Math.exp(-t / F.driftTau)) + F.distance * (1 - Math.exp(-t / F.tau));
+  }
+
+  /**
+   * The ship's offset from its composed pose with `remaining` units still to go to it (negative once
+   * past), written to `out`; returns its heading's turn from the composed one, in radians. Straight
+   * beyond the arc; on the arc the turn is proportional to the distance left.
+   */
+  private pathOffset(remaining: number, out: THREE.Vector3): number {
+    const { forward, side } = this.pose;
+    if (remaining <= 0) {
+      out.copy(forward).multiplyScalar(-remaining);
+      return 0;
+    }
+    const turn = FLIGHT.turn * DEG;
+    const L = FLIGHT.turnDistance;
+    const k = turn / L;
+    const a = Math.min(remaining, L);
+    // Back along the arc: the heading (forward turned by k*s toward side) integrated over s in 0..a.
+    out.copy(forward).multiplyScalar(-Math.sin(k * a) / k).addScaledVector(side, -(1 - Math.cos(k * a)) / k);
+    if (remaining > L) out.addScaledVector(forward, -Math.cos(turn) * (remaining - L)).addScaledVector(side, -Math.sin(turn) * (remaining - L));
+    return turn * (a / L);
+  }
+
+  /** Points along the way in, every `step` units, for the first rock layout to keep clear of. */
+  private flightPath(step: number): THREE.Vector3[] {
+    const points: THREE.Vector3[] = [];
+    const total = this.travelled(FLIGHT.composedAt) - this.travelled(Math.max(this.flightClock, 0));
+    for (let r = total; r > -step; r -= step) {
+      this.pathOffset(Math.max(r, 0), this.offset);
+      points.push(this.pose.position.clone().add(this.offset));
+    }
+    return points;
+  }
+
+  /** Places the ship at flight time t: the one owner of its group's transform. */
+  private flyShip(t: number): void {
+    const time = Math.max(t, 0);
+    const turned = this.pathOffset(this.travelled(FLIGHT.composedAt) - this.travelled(time), this.offset);
     const g = this.ship.group;
-    g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(forward, up, starboard));
-    g.scale.setScalar(scale);
-    g.position.copy(stern).addScaledVector(forward, -SHIP_STERN_X * scale);
+    g.position.copy(this.pose.position).add(this.offset);
+    this.turnQ.setFromAxisAngle(this.pose.up, turned);
+    // Banked into the arc, about its own long axis (+X): starboard down while it swings right.
+    this.bankQ.setFromAxisAngle(X_AXIS, FLIGHT.bank * DEG * (turned / (FLIGHT.turn * DEG)));
+    g.quaternion.copy(this.turnQ).multiply(this.pose.quaternion).multiply(this.bankQ);
+    g.scale.setScalar(this.shipScale);
+    const boost = Math.exp(-time / FLIGHT.tau);
+    this.thrust = clamp01((boost * FLIGHT.thrustGain - FLIGHT.thrustCut) / (1 - FLIGHT.thrustCut));
   }
 
   onEnter(): void {
     mark('title:backdrop');
+    flightFlown = true;
   }
 
   /** The way out: the camera eases forward toward the limb and the picture goes to black. */
@@ -340,8 +487,10 @@ export class TitleScene implements GameScene {
     const e = this.elapsed;
     for (const w of this.worlds) w.update(e, dt);
     this.hero.update(e);
-    this.rocks.update(e);
-    this.ship.update(e);
+    this.rocks.update(dt);
+    this.debris.update(e);
+    this.flyShip(e + this.flightClock);
+    this.ship.update(e, this.thrust);
 
     // Leaving: push in, black.
     let push = 0;
@@ -390,6 +539,8 @@ export class TitleScene implements GameScene {
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
     this.yaw = Math.max(0, Math.atan(TAN_H) - Math.atan(tanV * aspect));
+    this.rocks?.setView(tanV * aspect, tanV);
+    this.debris?.setView(tanV * aspect, tanV);
   }
 
   onResize(width: number, height: number): void {
@@ -407,6 +558,7 @@ export class TitleScene implements GameScene {
     this.hero?.dispose();
     this.moon?.dispose();
     this.rocks?.dispose();
+    this.debris?.dispose();
     this.ship?.dispose();
     this.fx?.dispose();
     for (const w of this.worlds) disposeObject(w.group);
