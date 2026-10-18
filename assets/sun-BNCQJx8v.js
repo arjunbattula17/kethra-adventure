@@ -1,4 +1,4 @@
-import{D as e,M as t,St as n,Tt as r,ft as i,jt as a,rt as o,z as s}from"./three-CZsmadtC.js";import{t as c}from"./spaceSky-DlbeZZ2N.js";var l=7,u=`
+import{D as e,Dt as t,M as n,Nt as r,at as i,mt as a,wt as o,z as s}from"./three-DrA6UbAx.js";import{t as c}from"./spaceSky-D4yQKKF8.js";var l=7,u=`
   varying vec2 vUv;
   void main() {
     vUv = uv;
@@ -24,7 +24,7 @@ import{D as e,M as t,St as n,Tt as r,ft as i,jt as a,rt as o,z as s}from"./three
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
-`,f=[];function p(){return Promise.all(f).then(()=>void 0)}function m(p){let m=new s;m.name=`sun`;let h;f.push(new Promise(e=>h=e));let g=new n({uniforms:{uMap:{value:new a().load(`/kethra-adventure/textures/planets/sun.jpg`,()=>h(),void 0,()=>h())},uDrift:{value:0}},vertexShader:`
+`,f=[];function p(){return Promise.all(f).then(()=>void 0)}function m(p){let m=new s;m.name=`sun`;let h;f.push(new Promise(e=>h=e));let g=new o({uniforms:{uMap:{value:new r().load(`/kethra-adventure/textures/planets/sun.jpg`,()=>h(),void 0,()=>h())},uDrift:{value:0}},vertexShader:`
       varying vec2 vUv;
       varying vec3 vNormal;
       varying vec3 vViewDir;
@@ -54,4 +54,4 @@ import{D as e,M as t,St as n,Tt as r,ft as i,jt as a,rt as o,z as s}from"./three
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }
-    `}),_=new o(new r(p.radius,48,32),g);m.add(_);let v=c(5800,new e),y=new o(new i(p.radius*l*2,p.radius*l*2),new n({uniforms:{uInner:{value:v.clone().multiplyScalar(1.1)},uOuter:{value:new e(16758896)},uDisc:{value:1/l}},vertexShader:u,fragmentShader:d,transparent:!0,depthWrite:!1,blending:2}));return m.add(y),{group:m,light:new t(v,3.2),update(e,t){y.quaternion.copy(e.quaternion),g.uniforms.uDrift.value+=t*.004}}}export{p as n,m as t};
+    `}),_=new i(new t(p.radius,48,32),g);m.add(_);let v=c(5800,new e),y=new i(new a(p.radius*l*2,p.radius*l*2),new o({uniforms:{uInner:{value:v.clone().multiplyScalar(1.1)},uOuter:{value:new e(16758896)},uDisc:{value:1/l}},vertexShader:u,fragmentShader:d,transparent:!0,depthWrite:!1,blending:2}));return m.add(y),{group:m,light:new n(v,3.2),update(e,t){y.quaternion.copy(e.quaternion),g.uniforms.uDrift.value+=t*.004}}}export{p as n,m as t};
