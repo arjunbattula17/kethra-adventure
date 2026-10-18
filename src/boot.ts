@@ -165,23 +165,27 @@ export function startGame(): void {
     mark('title:shown');
     // While the title waits, each when the browser is idle: the engine and the title's 3D backdrop
     // (TitleScreen.startBackdrop), and alongside it the downloads the first scene needs
-    // (GameFlow.prefetchWhileTitleWaits); then, once the backdrop is on screen, the environment map
-    // (Engine.ensureEnvironment), which only the game's scenes use. Measured on an Intel UHD laptop
-    // (docs/PERF_LOG.md, 2026-10-16): the prefetch's model and texture decoding dropped 5-6 frames of
-    // 120-150 ms when it ran with the backdrop on screen, right through its arrival, so it runs while
-    // only the menu is up; the environment map, built alongside the backdrop, held its first frame
-    // back by up to two seconds, so it waits for it. None of them starts the game: only a click on the
-    // title does, and a click that comes first simply finds them still to do. The engine waits ~0.6 s:
-    // made at once, it spent ~0.4 s blocked on the GPU process, which is still setting up the WebGL
-    // context main.ts created (glContext.ts).
+    // (GameFlow.prefetchWhileTitleWaits), then the environment map (Engine.ensureEnvironment), which
+    // only the game's scenes use. Both decode or compile, and on an Intel UHD laptop either one running
+    // with the backdrop on screen hitched it (docs/PERF_LOG.md, 2026-10-16 and 17): the prefetch
+    // dropped 5-6 frames of 120-150 ms through the backdrop's arrival, and the map, made once the
+    // backdrop was up, put frames over 50 ms on it in most runs. Made here, the map is done 0.8-1.2 s
+    // before the backdrop's first frame, at the cost of that frame coming ~0.1-0.3 s later. The map
+    // used to wait for the backdrop because, made alongside it, it doubled the backdrop's bakes: that
+    // was its GGX filter's unrolled compile, which Environment.ts no longer has. None of them starts the
+    // game: only a click on the title does, and a click that comes first simply finds them still to do.
+    // The engine waits ~0.6 s: made at once, it spent ~0.4 s blocked on the GPU process, which is still
+    // setting up the WebGL context main.ts created (glContext.ts).
     const whenIdle = (run: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(run, { timeout: 1500 }) : setTimeout(run, 300));
     setTimeout(
       () =>
         whenIdle(() => {
           ensureEngine();
-          const backdrop = TitleScreen.startBackdrop(engine);
-          whenIdle(() => flow.prefetchWhileTitleWaits(savedJourney === 'loaded' ? 'continue' : 'newGame'));
-          void backdrop.then(() => whenIdle(() => void engine.ensureEnvironment()));
+          void TitleScreen.startBackdrop(engine);
+          whenIdle(() => {
+            flow.prefetchWhileTitleWaits(savedJourney === 'loaded' ? 'continue' : 'newGame');
+            whenIdle(() => void engine.ensureEnvironment());
+          });
         }),
       600,
     );
