@@ -171,12 +171,12 @@ const LARGE_ROCKS = {
   seed: 0xa57e,
 };
 
-/** Small debris at every depth: fixed drift (seeded random heading) and spin, nearer ones a little faster. */
+/** Small debris at every depth: a sparse scatter of pebbles with fixed drift (seeded random heading) and spin, nearer ones a little faster. */
 const DEBRIS = {
-  count: 90,
-  countLow: 60,
+  count: 32,
+  countLow: 24,
   distance: [7, 70] as [number, number],
-  size: [0.0022, 0.006] as [number, number],
+  size: [0.0045, 0.01] as [number, number],
   /** Frame widths per second at `driftAt` units: 1-3% of the width every second, so it reads within seconds. */
   drift: [0.008, 0.016] as [number, number],
   driftAt: 25,
