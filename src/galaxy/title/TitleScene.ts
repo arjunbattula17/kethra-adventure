@@ -16,7 +16,7 @@ import type { HeroPlanet, Moon } from './heroPlanet';
 import { buildAsteroids, buildDebris, rockTextures } from './asteroids';
 import type { Debris, LargeRocks, RockShape } from './asteroids';
 import { buildSkyFx } from './skyFx';
-import type { SkyFx } from './skyFx';
+import type { MeteorOptions, SkyFx } from './skyFx';
 import { buildTitleShip, SHIP_NOSE_X, SHIP_STERN_X } from './titleShip';
 import type { TitleShip } from './titleShip';
 
@@ -173,6 +173,24 @@ const LARGE_ROCKS = {
   approach: [0, 0.12] as [number, number],
   spin: [0.04, 0.1] as [number, number],
   seed: 0xa57e,
+};
+
+/**
+ * Shooting stars in the top-left sky, over the wordmark: about one every 10 s (the first after the
+ * ship has arrived), each a bright, thin streak falling away to the left in under a second. Thin and
+ * drawn with the far sky, behind every planet, so they read as distant, not close by. The menu's scrim
+ * darkens the left of the picture, hence the brightness.
+ */
+const METEORS: MeteorOptions = {
+  area: [-0.75, 0.68, -0.05, 0.95],
+  heading: [Math.PI + 0.3, Math.PI + 0.65],
+  first: 5,
+  every: [8, 10.5],
+  seconds: 0.85,
+  travel: 0.55,
+  length: [0.3, 0.42],
+  width: 0.0034,
+  brightness: 2.8,
 };
 
 /** Small debris at every depth: a sparse scatter of pebbles with fixed drift (seeded random heading) and spin, nearer ones a little faster. */
@@ -372,8 +390,7 @@ export class TitleScene implements GameScene {
         boxSize: new THREE.Vector3(40, 22, 38),
         stream: drift,
       },
-      // Over the sky between the wordmark and the limb, clear of the corner labels.
-      meteorArea: [0.05, 0.4, 0.7, 0.78],
+      meteors: METEORS,
     });
     this.fx.setMeteors(!motion.reduced);
     this.scene.add(this.fx.group);

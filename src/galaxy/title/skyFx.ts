@@ -163,7 +163,7 @@ export interface SkyFx {
   setGlare(k: number): void;
   setDust(k: number): void;
   setVeil(k: number): void;
-  /** Turns the occasional meteor on or off (off under reduced motion). */
+  /** Turns the shooting stars on or off (off under reduced motion). */
   setMeteors(on: boolean): void;
   dispose(): void;
 }
@@ -175,8 +175,26 @@ export interface SkyFxOptions {
   coreDistance: number;
   /** Near-field dust: count, the box it fills, and the direction it streams. */
   dust: { count: number; boxMin: THREE.Vector3; boxSize: THREE.Vector3; stream: THREE.Vector3 };
-  /** Clip-space rectangle meteors may start in ([x0, y0, x1, y1], -1..1). */
-  meteorArea: [number, number, number, number];
+  meteors: MeteorOptions;
+}
+
+/** Shooting stars: where they start, which way they fall, how often, and how they look. */
+export interface MeteorOptions {
+  /** Clip-space rectangle they start in ([x0, y0, x1, y1], -1..1). */
+  area: [number, number, number, number];
+  /** Heading range, radians, on screen (0 rightward, PI leftward; up positive). */
+  heading: [number, number];
+  /** Seconds before the first one, and between later ones ([min, max]). */
+  first: number;
+  every: [number, number];
+  /** Seconds one takes to cross, and how far its head travels (clip units, aspect-corrected). */
+  seconds: number;
+  travel: number;
+  /** Trail length range and half-width (clip units): thin, so it reads as far off. */
+  length: [number, number];
+  width: number;
+  /** Peak brightness. */
+  brightness: number;
 }
 
 export function buildSkyFx(o: SkyFxOptions): SkyFx {
@@ -269,7 +287,7 @@ export function buildSkyFx(o: SkyFxOptions): SkyFx {
     uHead: { value: new THREE.Vector2() },
     uDir: { value: new THREE.Vector2(-0.8, -0.6) },
     uLength: { value: 0.22 },
-    uWidth: { value: 0.0024 },
+    uWidth: { value: o.meteors.width },
     uAspect: aspect,
     uIntensity: { value: 0 },
   };
@@ -284,7 +302,8 @@ export function buildSkyFx(o: SkyFxOptions): SkyFx {
   group.add(meteor);
   const rand = mulberry32(0x3e7e0);
   let meteorsOn = true;
-  let nextMeteor = 10 + rand() * 8;
+  const m = o.meteors;
+  let nextMeteor = m.first;
   let meteorT = -1;
   const meteorStart = new THREE.Vector2();
 
@@ -348,25 +367,25 @@ export function buildSkyFx(o: SkyFxOptions): SkyFx {
       projected.copy(sunWorld).project(camera);
       sunNdc.set(projected.x, projected.y);
       coreDepth.value = Math.min(projected.z, 0.99999);
-      // Meteors: one every 14-30 s, each crossing in ~0.7 s, faint: rare enough to be a find.
+      // Shooting stars (MeteorOptions): one at a time, each brightening and fading as it crosses.
       if (meteorT >= 0) {
         meteorT += dt;
-        const life = meteorT / 0.7;
+        const life = meteorT / m.seconds;
         if (life >= 1) {
           meteorT = -1;
           meteor.visible = false;
-          nextMeteor = 14 + rand() * 16;
+          nextMeteor = m.every[0] + rand() * (m.every[1] - m.every[0]);
         } else {
-          meteorU.uHead.value.copy(meteorU.uDir.value).multiplyScalar(life * 0.5).add(meteorStart);
-          meteorU.uIntensity.value = Math.sin(Math.PI * life) * 0.7;
+          meteorU.uHead.value.copy(meteorU.uDir.value).multiplyScalar(life * m.travel).add(meteorStart);
+          meteorU.uIntensity.value = Math.sin(Math.PI * life) * m.brightness;
         }
       } else if (meteorsOn && (nextMeteor -= dt) <= 0) {
-        const [x0, y0, x1, y1] = o.meteorArea;
+        const [x0, y0, x1, y1] = m.area;
         // The meteor shader works in aspect-corrected units (x spans -aspect..aspect).
         meteorStart.set((x0 + rand() * (x1 - x0)) * aspect.value, y0 + rand() * (y1 - y0));
-        const a = Math.PI + 0.35 + rand() * 0.5;
+        const a = m.heading[0] + rand() * (m.heading[1] - m.heading[0]);
         meteorU.uDir.value.set(Math.cos(a), Math.sin(a));
-        meteorU.uLength.value = 0.12 + rand() * 0.12;
+        meteorU.uLength.value = m.length[0] + rand() * (m.length[1] - m.length[0]);
         meteorT = 0;
         meteor.visible = true;
       }

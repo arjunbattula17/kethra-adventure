@@ -28,7 +28,7 @@ Backdrop modules:
 | `heroPlanet.ts` | Kethra up close: the real day, night and cloud maps plus baked detail at three scales. Elevation from the map's brightness (read softened through a warp) plus the detail's relief, so coastlines are the noise's, fractal and sharp: seas in the lowest fifth or so, greens from coastal canopy to pale terraces, a sun glint and sheen on the water, clouds with their shadows (softened edge-on near the limb), the canopy's teal night glow. An analytic scattering atmosphere over it. Also the small moon (`buildMoon`). |
 | `titleSky.ts` | Galactic band and nebula baked once to a "sky card", three star layers. |
 | `asteroids.ts` | Belt rocks (noise, ridges, fracture planes for broken faces, craters, cavity shading, the lichen_rock maps mapped three ways, sun rims) in chunky, elongated and angular shapes. A pool of 12 large rocks, one draw placed from per-rock uniforms that one controller moves and recycles; 12 small instanced rocks (10 on low; about 10 on screen, ~15 rocks in all with the large ones) drifting and wrapping on the GPU. |
-| `skyFx.ts` | Sun core and lens rays, three faint ghosts, a rare meteor, near-field dust, the exit veil. |
+| `skyFx.ts` | Sun core and lens rays, three faint ghosts, shooting stars (MeteorOptions), near-field dust, the exit veil. |
 | `bake.ts` | One-off GPU bakes (detail noise sheet), compiled in the background and drawn in strips. |
 
 Everything draws with its own shaders: no scene lights, no environment map, under twenty small
@@ -90,8 +90,8 @@ stops all but dead; plumes full through the dash and 0.35 s into the braking, th
 slow heave; a later visit or reduced motion starts it drifting. Large rocks cross the frame in 26-60 s
 (~30-70 px/s at 1600 wide) and are dealt a new pass from the left once they leave; small rocks (rounded
 pebbles: at a few pixels, cut and stretched shapes read as metal shards) drift at 9-25 px/s in seeded random directions, nearer ones faster, and spin. Dust drifts past; the camera drifts
-a little, showing the depth between rocks, ship and planet; a faint meteor every 14-30 s, away from
-the menu and the labels. Every motion runs on elapsed time, so its speed is the same at any frame
+a little, showing the depth between rocks, ship and planet; a shooting star about every 10 s (first at
+5 s) in the top-left sky over the wordmark, bright but thin and behind every planet, so it reads as far off. Every motion runs on elapsed time, so its speed is the same at any frame
 rate. Nothing follows the pointer or answers the menu.
 
 Reduced motion (Settings or the OS): the camera holds still, no meteors, the menu simply appears.
