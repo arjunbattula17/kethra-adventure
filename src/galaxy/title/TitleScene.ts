@@ -177,20 +177,21 @@ const LARGE_ROCKS = {
 
 /**
  * Shooting stars in the top-left sky, over the wordmark: about one every 10 s (the first after the
- * ship has arrived), each a bright, thin streak falling away to the left in under a second. Thin and
- * drawn with the far sky, behind every planet, so they read as distant, not close by. The menu's scrim
- * darkens the left of the picture, hence the brightness.
+ * ship has arrived), each a long, bright streak (a white-hot core in a blue glow, a glowing head)
+ * falling away to the left in about a second. Drawn with the far sky, behind every planet. The menu's
+ * scrim darkens the left of the picture, hence the brightness.
  */
 const METEORS: MeteorOptions = {
-  area: [-0.75, 0.68, -0.05, 0.95],
-  heading: [Math.PI + 0.3, Math.PI + 0.65],
+  // Started high and falling shallow, so the whole streak stays in the sky above the kicker and the wordmark.
+  area: [-0.75, 0.86, -0.05, 0.97],
+  heading: [Math.PI + 0.12, Math.PI + 0.3],
   first: 5,
   every: [8, 10.5],
-  seconds: 0.85,
-  travel: 0.55,
-  length: [0.3, 0.42],
-  width: 0.0034,
-  brightness: 2.8,
+  seconds: 1.1,
+  travel: 0.85,
+  length: [0.55, 0.75],
+  width: 0.009,
+  brightness: 4.5,
 };
 
 /** Small debris at every depth: a sparse scatter of pebbles with fixed drift (seeded random heading) and spin, nearer ones a little faster. */

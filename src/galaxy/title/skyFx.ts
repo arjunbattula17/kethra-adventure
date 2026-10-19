@@ -110,10 +110,17 @@ const METEOR_FRAGMENT = /* glsl */ `
   uniform float uIntensity;
   varying vec2 vP;
   void main() {
+    // along: 0 at the tail, 1 at the head; vP.y across, -1..1.
     float along = vP.x * 0.5 + 0.5;
-    float k = pow(along, 3.0) * exp(-vP.y * vP.y * 9.0);
-    k += exp(-((1.0 - along) * (1.0 - along)) * 900.0 - vP.y * vP.y * 6.0) * 1.5;
-    gl_FragColor = vec4(vec3(0.75, 0.9, 1.0) * k * uIntensity, 1.0);
+    float y2 = vP.y * vP.y;
+    // The trail: a white-hot core line inside a soft blue glow, both fading toward the tail.
+    float tail = pow(along, 2.2);
+    vec3 col = (vec3(1.0, 0.97, 0.92) * exp(-y2 * 40.0) + vec3(0.45, 0.72, 1.0) * exp(-y2 * 5.0) * 0.45) * tail;
+    // The head: a bright point in a halo.
+    float h = 1.0 - along;
+    col += vec3(1.0, 0.98, 0.95) * exp(-h * h * 500.0 - y2 * 10.0) * 2.0;
+    col += vec3(0.5, 0.75, 1.0) * exp(-h * h * 120.0 - y2 * 2.5) * 0.6;
+    gl_FragColor = vec4(col * uIntensity, 1.0);
   }
 `;
 
