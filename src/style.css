@@ -1230,6 +1230,9 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   background:
     linear-gradient(90deg, rgba(5, 9, 18, 0.66) 0%, rgba(5, 9, 18, 0.4) calc(var(--ts-pad) + var(--ts-btn-w) * 0.75), rgba(5, 9, 18, 0) calc(var(--ts-pad) + var(--ts-btn-w) * 1.5)),
     linear-gradient(0deg, rgba(5, 9, 18, 0.45) 0%, rgba(5, 9, 18, 0) 22%);
+  /* Clear over the strip of sky above the kicker, where the shooting stars fall (TitleScene METEORS). */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 10%, #000 21%);
+  mask-image: linear-gradient(to bottom, transparent 0%, transparent 10%, #000 21%);
 }
 
 /* The menu column. It comes in as one piece; `backwards` fill so the leaving fade above still applies. */
