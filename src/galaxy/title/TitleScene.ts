@@ -105,7 +105,8 @@ const SHIP = {
  * any visit without carrying the ship off. Position is that speed integrated (closed form). The path
  * runs straight, then over its last `turnDistance` units arcs into the composed heading, so it comes in
  * from the side and covers more of the frame; the nose is always along the path, and the ship banks into
- * the arc. Its plumes follow the boost: full through the dash, out about half a second after it shows.
+ * the arc. Its plumes burn full through the dash and on into the braking, then fade out: about a
+ * second of boost in frame before it floats.
  */
 const FLIGHT = {
   /** Seconds after the backdrop's first frame before it sets off: the galaxy alone first. */
@@ -133,9 +134,9 @@ const FLIGHT = {
   turnDistance: 26,
   /** Bank into the arc at the full turn, degrees. */
   bank: 10,
-  /** Plume strength per unit of boost (1 through the dash); out below `thrustCut`: full through the dash, gone ~0.4 s into the braking. */
-  thrustGain: 2,
-  thrustCut: 0.1,
+  /** The plumes: full until this long after it starts braking (s), then fading out over `plumeFade` (s). */
+  plumeHold: 0.35,
+  plumeFade: 0.6,
   /** How far beyond a rock's size its first place must be from the ship's way in. */
   clearance: 8,
 };
@@ -466,8 +467,7 @@ export class TitleScene implements GameScene {
     g.quaternion.copy(this.turnQ).multiply(this.pose.quaternion).multiply(this.bankQ);
     g.scale.setScalar(this.shipScale);
     const brakeAt = FLIGHT.distance / FLIGHT.speed - FLIGHT.tau;
-    const boost = time <= brakeAt ? 1 : Math.exp(-(time - brakeAt) / FLIGHT.tau);
-    this.thrust = clamp01((boost * FLIGHT.thrustGain - FLIGHT.thrustCut) / (1 - FLIGHT.thrustCut));
+    this.thrust = 1 - smooth(clamp01((time - brakeAt - FLIGHT.plumeHold) / FLIGHT.plumeFade));
   }
 
   onEnter(): void {
