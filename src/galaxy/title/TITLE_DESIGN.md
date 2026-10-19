@@ -83,10 +83,10 @@ Made alongside now, it costs the backdrop's first frame ~0.1-0.3 s (docs/PERF_LO
 
 ## Always moving, never busy
 Kethra turns about once in 12 minutes, so the ground visibly runs back under the ship within ten or
-twenty seconds; the clouds shear a little on top. The ship flies in once per page, 0.5 s after the reveal: from
-behind the camera off the right edge at ~155 units/s, braking on exp(-t / 0.18 s), so it streaks across
-the frame (~55 units/s) and has all but stopped half a second later, plumes full through the dash and
-spooled down by ~1.3 s, then drifting on toward the planet at 0.2 units/s (easing off over minutes) with a
+twenty seconds; the clouds shear a little on top. The ship flies in once per page, 2 s after the reveal (the galaxy
+alone first): from behind the camera off the right edge, curving in from the side, flat out at 60
+units/s until its last 9 units, then braking on exp(-t / 0.15 s), so it dashes across the frame and
+stops all but dead; plumes full through the dash and out ~0.4 s into the braking, then drifting on toward the planet at 0.2 units/s (easing off over minutes) with a
 slow heave; a later visit or reduced motion starts it drifting. Large rocks cross the frame in 26-60 s
 (~30-70 px/s at 1600 wide) and are dealt a new pass from the left once they leave; small rocks (rounded
 pebbles: at a few pixels, cut and stretched shapes read as metal shards) drift at 9-25 px/s in seeded random directions, nearer ones faster, and spin. Dust drifts past; the camera drifts

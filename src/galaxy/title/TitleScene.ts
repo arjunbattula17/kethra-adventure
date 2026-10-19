@@ -94,45 +94,48 @@ const SHIP = {
 };
 
 /**
- * The ship's way in: one continuous flight, not stitched moves. It sets off behind the camera beyond
- * the right edge, overtakes us at speed, brakes hard once in frame and drifts on toward the planet,
- * passing its composed pose (SHIP) and never stopping.
+ * The ship's way in: one continuous flight, not stitched moves. The scene holds still for `delay`;
+ * then the ship sets off behind the camera beyond the right edge, overtakes us flat out, brakes
+ * suddenly once well into the frame and drifts on toward the planet, passing its composed pose (SHIP)
+ * and never stopping.
  *
- * Speed along the path: v(t) = vDrift(t) + (vStart - vDrift) * exp(-t / tau), with vStart - vDrift =
- * distance / tau (~155 units/s against a drift of 0.2: over 700 times faster; it crosses the frame at
- * ~55 units/s, a streak of a few frames, and is nearly stopped half a second later), and vDrift(t) = drift *
- * exp(-t / driftTau), so the drift outlasts any visit without carrying the ship off. Position is that
- * speed integrated (closed form). The path runs straight, then over its last `turnDistance` units arcs
- * into the composed heading; the nose is always along the path, and the ship banks into the arc. Its
- * plumes follow the boost and are out by the time it drifts.
+ * Speed along the path: v(t) = vDrift(t) + boost(t). The boost holds at `speed` (300 times the drift)
+ * until the last speed * tau units of its `distance`, then falls as exp(-(t - tBrake) / tau): a dash
+ * across the frame, then a sudden stop. vDrift(t) = drift * exp(-t / driftTau), so the drift outlasts
+ * any visit without carrying the ship off. Position is that speed integrated (closed form). The path
+ * runs straight, then over its last `turnDistance` units arcs into the composed heading, so it comes in
+ * from the side and covers more of the frame; the nose is always along the path, and the ship banks into
+ * the arc. Its plumes follow the boost: full through the dash, out about half a second after it shows.
  */
 const FLIGHT = {
-  /**
-   * Seconds after the backdrop's first frame before it sets off (it is out of frame until then): the
-   * page has faded in (TitleScreen.reveal) by the time it streaks across.
-   */
-  delay: 0.5,
-  /** Units it travels on the boost, from its start to (nearly) the composed pose. The ship is ~12 long. */
-  distance: 28,
-  /** Braking time constant, seconds: the boost falls by e every tau; in frame ~0.2 s after setting off, all but stopped by ~0.8 s. */
-  tau: 0.18,
+  /** Seconds after the backdrop's first frame before it sets off: the galaxy alone first. */
+  delay: 2,
+  /** Units it travels on the boost, from its start to (nearly) its stop. The ship is ~12 long. */
+  distance: 34,
+  /** The dash: units per second until it brakes. */
+  speed: 60,
+  /** Braking time constant, seconds: the boost falls by e every tau once it brakes (it brakes for speed * tau = 9 units). */
+  tau: 0.15,
   /**
    * Drift speed once the boost is spent (units/s), and the time constant it eases off over (s). Its drift
    * runs mostly away from the camera, so it has to be this fast to read on screen (~5-7 px/s at 1600 wide).
    */
   drift: 0.2,
   driftTau: 120,
-  /** Seconds after setting off at which it passes the composed pose: mid-way through a typical look at the title. */
-  composedAt: 14,
+  /**
+   * Seconds after setting off at which it passes the composed pose. Soon after it stops, so it flies a
+   * little further than the composition before it glides (~2 units past where it used to stop).
+   */
+  composedAt: 3,
   /** Its heading at the start, turned from the composed one about its up axis (degrees; + = toward the left of frame). */
-  turn: 8,
+  turn: 16,
   /** The arc into the composed heading: its length along the path, in units. */
-  turnDistance: 22,
+  turnDistance: 26,
   /** Bank into the arc at the full turn, degrees. */
-  bank: 9,
-  /** Plume strength per unit of boost (boost 1 at the start, falling as exp(-t / tau)); out below `thrustCut`: full through the dash (~0.6 s), spooling down over the next ~0.7 s. */
-  thrustGain: 25,
-  thrustCut: 0.02,
+  bank: 10,
+  /** Plume strength per unit of boost (1 through the dash); out below `thrustCut`: full through the dash, gone ~0.4 s into the braking. */
+  thrustGain: 2,
+  thrustCut: 0.1,
   /** How far beyond a rock's size its first place must be from the ship's way in. */
   clearance: 8,
 };
@@ -414,7 +417,9 @@ export class TitleScene implements GameScene {
   private travelled(t: number): number {
     if (t <= 0) return 0;
     const F = FLIGHT;
-    return F.drift * F.driftTau * (1 - Math.exp(-t / F.driftTau)) + F.distance * (1 - Math.exp(-t / F.tau));
+    const brakeAt = F.distance / F.speed - F.tau;
+    const boost = t <= brakeAt ? F.speed * t : F.speed * brakeAt + F.speed * F.tau * (1 - Math.exp(-(t - brakeAt) / F.tau));
+    return F.drift * F.driftTau * (1 - Math.exp(-t / F.driftTau)) + boost;
   }
 
   /**
@@ -460,7 +465,8 @@ export class TitleScene implements GameScene {
     this.bankQ.setFromAxisAngle(X_AXIS, FLIGHT.bank * DEG * (turned / (FLIGHT.turn * DEG)));
     g.quaternion.copy(this.turnQ).multiply(this.pose.quaternion).multiply(this.bankQ);
     g.scale.setScalar(this.shipScale);
-    const boost = Math.exp(-time / FLIGHT.tau);
+    const brakeAt = FLIGHT.distance / FLIGHT.speed - FLIGHT.tau;
+    const boost = time <= brakeAt ? 1 : Math.exp(-(time - brakeAt) / FLIGHT.tau);
     this.thrust = clamp01((boost * FLIGHT.thrustGain - FLIGHT.thrustCut) / (1 - FLIGHT.thrustCut));
   }
 
