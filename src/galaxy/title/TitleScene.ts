@@ -177,7 +177,7 @@ const LARGE_ROCKS = {
 
 /**
  * Shooting stars in the top-left sky, over the wordmark: about one every 10 s (the first after the
- * ship has arrived), each a long, bright white streak with a hard white head, falling away to the left
+ * ship has arrived), each a long, bright white streak with a short white tip, falling away to the left
  * in about a second. Drawn with the far sky, behind every planet. The title's grade compresses
  * highlights and its vignette darkens the corners, hence the brightness and a path a little below the
  * top edge; the menu's scrim is faded out over this strip of sky (style.css, .ts-scrim).

@@ -91,7 +91,7 @@ slow heave; a later visit or reduced motion starts it drifting. Large rocks cros
 (~30-70 px/s at 1600 wide) and are dealt a new pass from the left once they leave; small rocks (rounded
 pebbles: at a few pixels, cut and stretched shapes read as metal shards) drift at 9-25 px/s in seeded random directions, nearer ones faster, and spin. Dust drifts past; the camera drifts
 a little, showing the depth between rocks, ship and planet; a shooting star about every 10 s (first at
-5 s) in the top-left sky above the wordmark: a long, bright white streak with a hard white head (the menu scrim is faded out over that strip of sky). Every motion runs on elapsed time, so its speed is the same at any frame
+5 s) in the top-left sky above the wordmark: a long, bright white streak with a short white tip (the menu scrim is faded out over that strip of sky). Every motion runs on elapsed time, so its speed is the same at any frame
 rate. Nothing follows the pointer or answers the menu.
 
 Reduced motion (Settings or the OS): the camera holds still, no meteors, the menu simply appears.

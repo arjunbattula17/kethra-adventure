@@ -117,10 +117,10 @@ const METEOR_FRAGMENT = /* glsl */ `
     // title's grade (its highlight shoulder) holds it at full white.
     float tail = pow(along, 1.8);
     vec3 col = (vec3(1.0) * exp(-y2 * 16.0) + vec3(0.75, 0.88, 1.0) * exp(-y2 * 4.0) * 0.25) * tail;
-    // The head: a hard white point with a small halo.
+    // The head: a short white point no wider than the core, at the streak's tip (no halo: a wider,
+    // brighter head bloomed into a ball).
     float h = 1.0 - along;
-    col += vec3(1.0) * exp(-h * h * 900.0 - y2 * 9.0) * 4.0;
-    col += vec3(0.85, 0.93, 1.0) * exp(-h * h * 160.0 - y2 * 3.0) * 0.3;
+    col += vec3(1.0) * exp(-h * h * 6000.0 - y2 * 20.0) * 1.2;
     gl_FragColor = vec4(col * uIntensity, 1.0);
   }
 `;
