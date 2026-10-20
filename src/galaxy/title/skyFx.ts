@@ -113,14 +113,16 @@ const METEOR_FRAGMENT = /* glsl */ `
     // along: 0 at the tail, 1 at the head; vP.y across, -1..1.
     float along = vP.x * 0.5 + 0.5;
     float y2 = vP.y * vP.y;
-    // The trail: a crisp white core with a thin glow, fading toward the tail. Pushed well past 1 so the
-    // title's grade (its highlight shoulder) holds it at full white.
+    // The quad is about twice as wide as the streak, so its glow has room to spread past the core.
+    // The trail: a crisp white core (pushed well past 1 so the title's grade, its highlight shoulder,
+    // holds it at full white) in a soft blue glow kept below white, fading toward the tail.
     float tail = pow(along, 1.8);
-    vec3 col = (vec3(1.0) * exp(-y2 * 16.0) + vec3(0.75, 0.88, 1.0) * exp(-y2 * 4.0) * 0.25) * tail;
-    // The head: a short white point no wider than the core, at the streak's tip (no halo: a wider,
-    // brighter head bloomed into a ball).
+    vec3 col = (vec3(1.0) * exp(-y2 * 60.0) * 0.7 + vec3(0.7, 0.85, 1.0) * exp(-y2 * 14.0) * 0.08) * tail;
+    // The head: a short white point no wider than the core, in a glow drawn out along the streak rather
+    // than round (a round, wide halo bloomed into a ball), so the tip glows.
     float h = 1.0 - along;
-    col += vec3(1.0) * exp(-h * h * 6000.0 - y2 * 20.0) * 1.2;
+    col += vec3(1.0) * exp(-h * h * 3000.0 - y2 * 80.0) * 1.0;
+    col += vec3(0.85, 0.93, 1.0) * exp(-h * h * 250.0 - y2 * 10.0) * 0.35;
     gl_FragColor = vec4(col * uIntensity, 1.0);
   }
 `;
@@ -198,7 +200,7 @@ export interface MeteorOptions {
   /** Seconds one takes to cross, and how far its head travels (clip units, aspect-corrected). */
   seconds: number;
   travel: number;
-  /** Trail length range and half-width (clip units): thin, so it reads as far off. */
+  /** Trail length range, and the half-width of the strip it is drawn in (clip units; the streak itself is narrower, its glow spreads to the edge). */
   length: [number, number];
   width: number;
   /** Peak brightness. */

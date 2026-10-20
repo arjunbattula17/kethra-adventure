@@ -191,17 +191,17 @@ const METEORS: MeteorOptions = {
   seconds: 1.1,
   travel: 0.85,
   length: [0.55, 0.75],
-  width: 0.011,
+  width: 0.022,
   brightness: 9,
 };
 
 /** Small debris at every depth: a sparse scatter of pebbles with fixed drift (seeded random heading) and spin, nearer ones a little faster. */
 const DEBRIS = {
-  /** About 10 on screen at a time (the wrap box runs a little past the view); with the large rocks, ~15 in all. */
-  count: 12,
-  countLow: 10,
+  /** About 6-9 on screen at a time (the wrap box runs a little past the view). */
+  count: 11,
+  countLow: 9,
   distance: [7, 70] as [number, number],
-  size: [0.006, 0.013] as [number, number],
+  size: [0.0072, 0.0155] as [number, number],
   /** Frame widths per second at `driftAt` units: 1-3% of the width every second, so it reads within seconds. */
   drift: [0.008, 0.016] as [number, number],
   driftAt: 25,
