@@ -1,0 +1,41 @@
+{
+  "label": "capital-ship/new-3",
+  "base": "http://localhost:4212/kethra-adventure/",
+  "path": "none",
+  "viewport": [
+    1366,
+    768
+  ],
+  "idle": 10,
+  "summary": {
+    "fcpMs": 1076,
+    "buttonsMs": 345.5,
+    "backdropMs": 2906.4,
+    "fpsMedian": 60.2,
+    "p95Ms": 17,
+    "over20": 0,
+    "over50": 0,
+    "longTaskMs": 487,
+    "longestTaskMs": 212,
+    "heapMb": 39.9,
+    "clickToSceneMs": null
+  },
+  "results": [
+    {
+      "run": 0,
+      "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "fcpMs": 1076,
+      "buttonsMs": 345.5,
+      "backdropMs": 2906.4,
+      "idleFrames": 462,
+      "fpsMedian": 60.2,
+      "p95Ms": 17,
+      "over20": 0,
+      "over50": 0,
+      "longTaskMs": 487,
+      "longestTaskMs": 212,
+      "heapMb": 39.9,
+      "errors": []
+    }
+  ]
+}

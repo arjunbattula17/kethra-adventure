@@ -165,3 +165,18 @@ run by run (`docs/perf/env-loop/`).
 | (measurement) Same runs, the backdrop's first frame | median; paired with the map-after build round by round | 4.10 s (3.14–5.22) | 4.33 s (3.33–5.89), no map 3.72 s; +0.28 s median over 12 rounds (−0.17 to +1.22), +0.12 s over rounds 4–11 | The order's cost, ~0.1–0.3 s, inside the run-to-run spread: the map-after and no-map builds, the same code until the backdrop, differ by −0.43 to +0.89 s (median +0.06) |
 | (measurement) `tools/title-bench.mjs`, A/B ×6 (pairs in alternating order), map after the backdrop vs alongside its preparation (`bench-overhaul-*`) | New game → intro; idle p95; share over 20 ms; frames over 50 ms; backdrop first frame | 2.81 s median (2.58–3.04); 17.1–17.5 ms; 2.1 % (1.1–3.4); 2–6; 4.12 s (3.99–5.33) | 2.90 s (2.60–3.31; paired −0.34 to +0.72, median +0.06); 17.1–17.4 ms; 0.6 % (0.5–3.3); 2–3; 4.31 s (4.14–5.12; paired median +0.12) | Same click; a smoother idle title, since the map no longer builds in the idle window |
 | (measurement) Tests, the new order | `tools/test-title.mjs`; `tools/smoke.mjs`; a rebuild from the committed source | | 39 of 39 pass; 6 of 6; byte-identical to the build measured | |
+
+## 2026-10-19: the title's capital ship
+
+Same Intel UHD laptop, installed Chrome through ANGLE D3D11, 1366×768, headless, a fresh profile per
+run, on mains power. Baseline is the live build (cd1bb1c, the cruiser); the branch replaces the ship
+and nothing else. `tools/title-bench.mjs` rows alternate live and branch run by run
+(`docs/perf/capital-ship/`).
+
+| Change | Measure | Before | After | Result |
+|---|---|---|---|---|
+| The capital ship replaces the cruiser: 41k triangles (was 13.4k) built in ~11 paced chunks, a 1024×512 markings sheet painted at load, a 58-triangle alpha-blended markings draw, 20 small boosters (plumes and glows one 440-triangle draw) | title frames once settled: median fps, p95, share over 20 ms, frames over 50 ms | 59.9-60.2; 16.9-17.0 ms; 0-0.2 %; 0 | 60.2; 16.9-17.0 ms; 0 %; 0 | **Kept.** Same |
+| (measurement) | backdrop first frame | 2.97 s median (2.80-3.16) | 3.02 s median (2.91-3.02) | +0.05 s here; +0.09 and ~+0.1-0.15 s in two earlier batches of 3+3 |
+| (measurement) The ship's build on the main thread (dev build, three cold loads) | longest chunk between frames | | 12-19 ms; ~75 ms in all | Each chunk yields a frame |
+| (measurement) JS heap 6 s after the backdrop, after a forced garbage collection (`--js-flags=--expose-gc`), ×2 each | used heap | 11.3-11.4 MB | 13.4-13.5 MB | +2 MB, the ship's geometry. The bench's 39-42 MB readings (live 14-19) are the build's garbage before a collection |
+| (measurement) Tests | `tools/test-title.mjs`; `tools/smoke.mjs` | | 41 of 41 pass; 6 of 6 | |

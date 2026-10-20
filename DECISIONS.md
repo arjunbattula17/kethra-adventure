@@ -188,7 +188,7 @@ them down inside it. Floors up to 1.45 m above the take-off become reachable by 
 nothing on the critical path depends on. Covered by `tools/test-controls.mjs`.
 
 ### D-27 · UPGRADE · A cinematic title screen with a live 3D backdrop — *Done 2026-10-16, reversible*
-The title is now a survey cruiser on blue engines over Kethra's day side at sunrise, rendered live
+The title is now a heavy capital ship over Kethra's day side at sunrise, rendered live
 behind the menu, with a new wordmark and glowing hexagonal buttons; the menu is up at once and the
 backdrop arrives complete, in one dissolve (src/galaxy/title/TITLE_DESIGN.md). Choices the team can
 reverse:
@@ -202,7 +202,9 @@ reverse:
 - **A ship, the tagline and corner labels, after a new reference** (2026-10-16, second pass, at the
   user's request; an earlier pass that day had taken all three out). The ship is a new model built
   for the title to match the reference (`titleShip.ts`), not the Wren hull the intro flies, so the
-  two ships differ. The kicker reads "A deep-space survey" and the tagline "Your ship went dark past
+  two ships differ. Rebuilt 2026-10-19 after the team's reference images: heavier, dark gunmetal
+  with cyan light, a door and small boosters at the stern.
+  The kicker reads "A deep-space survey" and the tagline "Your ship went dark past
   the edge of the charts. Wake it up." (`title.kicker`, `title.tagline`). The corner labels are
   decoration in the game's own terms ("Beyond the Kessic Drift / Uncharted system" where the
   reference had a made-up station and sector; `title.hud*`). Revert: drop `buildTitleShip` from
