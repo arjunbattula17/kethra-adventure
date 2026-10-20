@@ -98,7 +98,7 @@ without errors), `test-tutorial-flow.mjs` (36 checks through the opening), `intr
 ## Title screen (`src/ui/TitleScreen.ts`, `src/galaxy/title/`)
 **What:** the first screen: Continue / New Game / Controls / Settings (the credits roll at the ending). The menu
 is plain HTML and CSS, so it appears instantly; behind it, a live 3D scene drawn by the game's own engine: a
-cruiser over Kethra at sunrise, Isilthe's rings, a moon, drifting rocks (`src/galaxy/title/TITLE_DESIGN.md`).
+capital ship over Kethra at sunrise, Isilthe's rings, a moon, drifting rocks (`src/galaxy/title/TITLE_DESIGN.md`).
 **Why:** the rules require a controls screen reachable from a menu; the CC BY assets need visible
 credit; browsers won't play sound until the player clicks something; and the title is the first
 thing a judge sees.
@@ -109,9 +109,13 @@ thing a judge sees.
   stand-in night sky. The engine and the 3D scene get ready in the background (about two to three
   seconds on a school laptop, about one on a gaming PC), and the finished scene fades in once.
   Nothing waits on a timer.
-- *"Why is that ship different from the one in the intro?"* The title's cruiser was designed after a
-  reference image the team chose for the title; the intro flies the Wren model. A known difference
+- *"Why is that ship different from the one in the intro?"* The title's ship was designed after
+  reference images the team chose for the title; the intro flies the Wren model. A known difference
   (DECISIONS D-27).
+- *"How was that ship modelled?"* In code, not in a 3D program: cross-sections are joined into the
+  big shapes, every face is cut into panels, and each panel becomes a raised plate, a vent, a bay of
+  machinery or a black recess. The fine seams and bolts are a texture the graphics card bakes at
+  load, and the markings are painted on a canvas. The whole ship is three draw calls.
 - *"How does New Game work if there's a save?"* It reloads with `?newGame=1`, which clears the
   save, then removes that flag from the address bar so a later refresh continues instead of wiping
   progress.

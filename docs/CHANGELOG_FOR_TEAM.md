@@ -158,11 +158,13 @@ Measured numbers cite their files; the rest is description.
 ### The cinematic title screen
 - **What:**
   - A live 3D backdrop behind the menu (`src/galaxy/title/`), composed after a reference image the
-    team chose: a heavy survey cruiser on four blue engines flies over Kethra's day side at sunrise,
-    banked toward us, with Isilthe's rings over the horizon, a small moon off the limb and belt rocks
-    drifting past.
-  - The cruiser is built in code (`titleShip.ts`): an armoured hull, two engine nacelles, glowing
-    nozzles and exhaust plumes, plating generated on the graphics card. It is not the Wren model the
+    team chose: a heavy capital ship flies in over Kethra's day side at sunrise, banked toward us,
+    with Isilthe's rings over the horizon, a small moon off the limb and belt rocks drifting past.
+  - The ship is built in code (`titleShip.ts`; rebuilt 2026-10-19 after the team's reference
+    images): dark gunmetal armour with cyan light strips, one heavy blunt nose, a tall head block with
+    the hull number, big armoured pods with a bank of eight glowing tubes on each, thick arms with
+    canted fins, and at the stern a door between two clusters of small boosters. Every face is plated,
+    vented or recessed, and the underside is as detailed as the top. It is not the Wren model the
     intro flies.
   - Kethra up close from the game's own maps plus baked detail: coastlines, lakes and seas with a sun
     glint, greens from forest to pale terraces, clouds with their shadows, and an atmosphere that

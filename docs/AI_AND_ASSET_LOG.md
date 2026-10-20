@@ -13,6 +13,46 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-19 (Claude Code, model Claude Opus 5.5)
+
+**Asked for by the team:** a long brief (written for a different engine, Godot) and four reference
+images for the title's ship: a heavy capital ship with one dominant nose, a bulky stern that isn't
+three big cylinders, a dark palette with blue-white light, detail on top and underneath, built into
+the title screen. Then: more bulk, as close to the references as possible; then the stern of a third
+reference (small, barely visible boosters, the middle a door rather than an engine), darker colours,
+more futuristic; then commit, merge into overhaul and master, and deploy.
+
+**What the AI generated or changed**
+- `src/galaxy/title/titleShip.ts`, rewritten: the new ship, built in code. Its big shapes are
+  lofted cross-sections whose faces are cut into panels, each dressed as a raised plate, a stacked
+  plate, a vent, an open bay of machinery or a black recess; the markings (hull number, emblem,
+  hazard bands, stencils) are painted on a canvas when the title loads. It flies the same entrance.
+  TITLE_DESIGN.md, DECISIONS D-27, PERF_LOG.
+- `tools/capture-title-ship.mjs`: photographs the ship from fourteen angles in the real title scene.
+
+**What the AI found**
+- The game is TypeScript and three.js, not Godot, so the brief's engine steps didn't apply; the ship
+  was built the way the title's previous ship was.
+- Against the live title (interleaved runs on the Intel UHD laptop, on mains power): the same frame
+  rate (60 fps, p95 17 ms); the 3D scene first appears 0.05-0.15 s later.
+
+**Mistakes the AI made and caught this session**
+- Its engine chambers first rendered black: the hull's stern wall cut through them. Found in the
+  renders; the wall moved forward.
+- Glossy black recess floors caught the key light and read as pale ledges at the stern. Found in a
+  close-up; the insides of recesses are now shaded as in shadow.
+- A first benchmark, run on battery at 20 %, read +0.3 s; on mains power it was about +0.1 s.
+- A JS-heap reading of 41-49 MB (live: 14-18) looked like a leak. After a forced garbage collection
+  the new ship keeps 2 MB more than the old one: its geometry.
+
+**What the team must be able to explain**
+- How a ship this detailed is made without a 3D model file (cross-sections, panels, a plating sheet
+  baked on the graphics card, a painted markings sheet), and that it is drawn in three calls.
+- Which choices were the team's: the reference images, the bulk, a door and small boosters at the
+  stern, the darker palette. The reference images guided the design only; none of them is in the game.
+
+---
+
 ## Session 2026-10-16 to 17 (Claude Code, model Claude Opus 5.5)
 
 **Asked for by the team:** a cinematic title screen from a reference image; after seeing it, no
