@@ -52,6 +52,7 @@ this file first and carry on from **Next step**.
 | 4 | The Wren's background lighting upgrade (first visit): the steady-30 hold from the first frame instead of after the 4 s grace, and one program compiling at a time (`PACE.background`) instead of three | First 40 s aboard, Auto on Performance, cold shader cache, draws timed (`wren-timeline`), A/B x2 of four variants (`docs/perf/up-*`) | frames > 40 ms: 93-103; > 50 ms: 6-11 in the first 5 s, 11-22 after; upgrade 18.6-22.2 s | **frames > 40 ms: 19-30; > 50 ms: 2-5 in the first 5 s, 3-4 after**; upgrade 22.3-23.8 s | **Kept.** Hold alone: 65-68 > 40 ms; two at a time: 74-76. The longer upgrade is background time the player doesn't see |
 | 5 | Performance readout for any machine (`src/debug/PerfOverlay.ts`): the backquote key toggles it, `?fps` opens it at load. fps and frame p50/p95/max between real draws, frames over 50 ms, draw calls, triangles, textures/geometries/programs, JS heap, tier, render scale, the 30 cap, the benchmark and the GPU name. No cheats (the `?debug` harness keeps those) | cost when closed | - | a 2.6 KB chunk loaded on first use; closed: one null check per frame (`Engine.drawObserver`), three.js counters back on autoReset | **Kept** (`docs/perf/perf-overlay.png`) |
 | 6 | A masked or empty graphics-chip name (`WebKit WebGL`, `Mozilla`, none) starts on Performance (`guessInitialTier`); recognised chips keep their rules (Intel UHD/HD, Mali, Adreno, PowerVR, software: Performance; Iris/AMD integrated: Balanced; others by core count) | first tier on an unknown device | core-count guess (8 threads: Quality) | Performance | **Kept** (the brief's rule). Checked against 8 sample strings; this laptop, an RTX 4060 and Apple GPU unchanged |
+| 7 | Fix: the background lighting upgrade's off-screen first draws (`drawProgressively`) stop as soon as the room is replaced (`keepGoing`), and the upgrade returns. Before, leaving the Wren during that step kept drawing the disposed room, which uploaded its textures and geometry again with nothing left to free them | GPU textures/geometries in Vessek, journey | one final-journey run of change 6: **267 textures, 670 geometries**, Chrome 1611 MB (the Wren's ~193 painted textures and ~280 meshes back); runs of the same code before and after: 74 / 385 | 74 / 385 in every run since | **Kept.** Intermittent: it needs the departure to land inside that step, which change 4 (a longer upgrade that more often spills into the next visit aboard) made likelier. A targeted test (leave as the compile ends) could not hit the window on either build, because the departure keeps the room on screen for seconds; the fix closes the path whatever the timing |
 
 Measurement notes:
 - `tools/serve-like-pages.mjs` (127.0.0.1:4193) gzips like GitHub Pages (checked against the live
@@ -76,6 +77,19 @@ Investigated, not changed:
 - Programs alive grow 54 → 147 over a session: three.js keeps every program a material has used
   while the materials are never disposed. Bounded (each scene reuses its programs on return) and it
   saves recompiling Kethra (16 s cold) on a revisit. Left as is.
+
+## Loading, first visit (original d6e51f5 vs this branch, fresh profile, cold shader cache, Pages-like gzip server)
+
+| Path | Original | This branch |
+|---|---|---|
+| Title on screen (10 Mbps) | 0.6 s (0.33 MB) | 0.6 s (0.33 MB) |
+| New game -> walking in the Wren, watching the intro (10 Mbps, x2) | 30.2-30.3 s | 30.1-30.4 s (the intro hides the download either way) |
+| New game -> the Wren, intro skipped at 3 s (5 Mbps, x2) | 13.9 / 15.2 s | **13.6 / 13.4 s** |
+| Bytes before the Wren | 6.14 MB | **3.06 MB** |
+| Whole game, over the wire | ~18 MB (gzip estimate of 32 MB raw) | **14.1 MB** |
+
+The Wren's cold compile (5-7 s on this GPU) is what remains of the skip path; its programs are already
+prepared behind the intro when the intro is watched.
 
 ## Next step
 
