@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TEXTURES_1K } from './textures1k';
 
 /**
  * Fetches each texture file once per URL, without relying on THREE.Cache.
@@ -88,6 +89,24 @@ async function imageSize(blob: Blob): Promise<{ width: number; height: number } 
   return null;
 }
 
+const smallCopies = new Set(TEXTURES_1K);
+
+/**
+ * The file to fetch for a map: its 1024-pixel copy (tools/make-1k-textures.mjs) when the tier caps
+ * maps at 1024 and one exists. Performance would shrink the full file to the same size after
+ * downloading it; the copy is ~15-25% of the bytes (the Wren's kit and Vessek's walls: ~9 MB less).
+ */
+function sizedUrl(url: string): string {
+  if (maxTextureSize > 1024) return url;
+  const base = import.meta.env.BASE_URL;
+  const path = new URL(url, location.href).pathname;
+  if (!path.startsWith(base)) return url;
+  const rel = path.slice(base.length);
+  if (!smallCopies.has(rel)) return url;
+  const dot = url.lastIndexOf('.');
+  return `${url.slice(0, dot)}.1k${url.slice(dot)}`;
+}
+
 /**
  * Fetches and decodes one image as an ImageBitmap, shrunk to the tier's ceiling (maxTextureSize)
  * in the same call where it is oversized. The browser decodes an ImageBitmap from a Blob off the
@@ -98,7 +117,7 @@ async function imageSize(blob: Blob): Promise<{ width: number; height: number } 
 async function decodeBitmap(manager: THREE.LoadingManager, url: string, orientation: ImageOrientation = 'from-image'): Promise<ImageBitmap> {
   manager.itemStart(url);
   try {
-    const response = await fetch(url, { credentials: 'same-origin' });
+    const response = await fetch(sizedUrl(url), { credentials: 'same-origin' });
     if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
     const blob = await response.blob();
     const options: ImageBitmapOptions = { premultiplyAlpha: 'none', colorSpaceConversion: 'none', imageOrientation: orientation };
