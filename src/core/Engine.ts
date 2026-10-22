@@ -174,6 +174,8 @@ export class Engine {
   private verdicts = new Map<string, { cap: boolean; trial: 'off' | 'running' | 'failed' }>();
   private static readonly SMOOTH_SCALE = 0.85;
   private lastDrawAt = 0;
+  /** Called after each drawn frame while the performance readout is open (debug/PerfOverlay.ts). */
+  drawObserver: (() => void) | null = null;
   private contextLost = false;
   /** Set when the runtime governor stepped the tier down mid-play. Mid-play it leaves shadows and
    * anti-aliasing as they were (toggling them recompiles every shader, a multi-second freeze), so
@@ -681,6 +683,11 @@ export class Engine {
     return this.current;
   }
 
+  /** What the governor has settled on, for the performance readout. */
+  getPacingState(): { tier: QualityTier; auto: boolean; renderScale: number; capped: boolean; benchmarkMs: number | null } {
+    return { tier: this.tier, auto: !this.manualOverride, renderScale: this.renderScale, capped: this.steadyCap || this.capTo30, benchmarkMs: this.lastBenchmarkMs ?? null };
+  }
+
   getQualityTier(): QualityTier {
     return this.tier;
   }
@@ -858,6 +865,7 @@ export class Engine {
         // laptop busy behind the cover, and the Wren's first draws waited 21 s on it.
         if (!UIManager.isCovered()) {
           this.postFx.render();
+          this.drawObserver?.();
           if (this.current.governed !== false) this.recordFrameForQuality(realDt * 1000);
         }
       }

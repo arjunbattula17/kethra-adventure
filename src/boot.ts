@@ -128,6 +128,14 @@ export function startGame(): void {
     // A read-only probe for the test tools (tools/*.mjs). The interactive harness only loads with ?debug.
     (window as any).__DEBUG__ = { engine, flow, gameState, bus, audio: AudioSystem, mapController: MapController, levels: ['kethra', 'vessek'], motion, miniGame: activeMiniGame };
     if (params.has('debug')) void import('./debug/DebugHarness').then(({ startDebugHarness }) => startDebugHarness(engine, flow));
+    // The performance readout for any machine (debug/PerfOverlay.ts): the backquote key toggles it,
+    // ?fps opens it at load. Loaded on first use; closed, it costs nothing.
+    const togglePerf = () => void import('./debug/PerfOverlay').then(({ togglePerfOverlay }) => togglePerfOverlay(engine));
+    window.addEventListener('keydown', (e) => {
+      const target = e.target as HTMLElement | null;
+      if (e.code === 'Backquote' && !e.repeat && !(target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable))) togglePerf();
+    });
+    if (params.has('fps')) togglePerf();
   }
 
   if (bootFlags) {
