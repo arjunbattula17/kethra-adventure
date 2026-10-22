@@ -12,6 +12,7 @@ import { span, timed } from './perfMarks';
 import { takeProbedContext } from './glContext';
 import { PACE, Pacer, compileProgressively, drawProgressively, litMaterials, texturesOf, upgradeQuickLights, uploadProgressively, yieldToBrowser } from './prepare';
 import type { Pace } from './prepare';
+import { releaseLevelCaches } from './levelCaches';
 
 export interface PrepareOptions {
   /** How much work per frame; defaults to loading-screen pace. The caller may change pacer.pace mid-way. */
@@ -102,6 +103,9 @@ export interface GameScene {
    * once (shaderPatches.ts, QUICK_LIGHTS; Engine.upgradeQuickLights). For a scene whose first
    * preparation someone waits on: the Wren, behind the intro or a loading bar. */
   quickLights?: boolean;
+  /** Empty the levels' asset caches once this scene is on screen (levelCaches.ts): the hub, which
+   * nothing but the Wren's own assets has to stay loaded for. */
+  releasesLevelCaches?: boolean;
   /** Opt out of waiting for the shared environment map before init. For a scene whose first frame
    * draws nothing lit (the title backdrop, which brings its lit hull in later, see TitleScene). */
   needsEnvironment?: boolean;
@@ -449,6 +453,21 @@ export class Engine {
     for (const t of outgoing) if (!keep.has(t) && !(t as { isRenderTargetTexture?: boolean }).isRenderTargetTexture) t.dispose();
   }
 
+  /** Asks the level caches to free what neither the current scene nor one being prepared uses. */
+  private releaseLevelCaches(): void {
+    const geometries = new Set<THREE.BufferGeometry>();
+    const images = new Set<unknown>();
+    for (const s of [this.current, ...this.inPreparation]) {
+      if (!s) continue;
+      s.scene.traverse((o) => {
+        const g = (o as THREE.Mesh).geometry;
+        if (g) geometries.add(g);
+      });
+      for (const t of texturesOf(s.scene)) images.add(t.image);
+    }
+    timed('engine:releaseLevelCaches', () => releaseLevelCaches({ geometries, images }));
+  }
+
   /**
    * The GPU half of preparing a built scene: its programs, its textures and each object's first draw,
    * a few at a time. Run again after anything that changes the programs (a tier change's light budget).
@@ -560,6 +579,7 @@ export class Engine {
       // pattern at smaller scale, on boot and on every ship<->planet<->reveal transition.
       timed(`${kindOf(scene)}:warmup`, () => this.drawEverythingOnce(scene));
       scene.onEnter?.();
+      if (scene.releasesLevelCaches) this.releaseLevelCaches();
       if (litMaterials(scene.scene).some(hasQuickLights)) void this.upgradeQuickLights(scene);
     } finally {
       if (!opts.quiet) UIManager.hideLoading();

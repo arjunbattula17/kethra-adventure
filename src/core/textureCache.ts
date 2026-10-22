@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TEXTURES_1K } from './textures1k';
+import { closeImage, type InUse } from './levelCaches';
 
 /**
  * Fetches each texture file once per URL, without relying on THREE.Cache.
@@ -24,6 +25,23 @@ import { TEXTURES_1K } from './textures1k';
  * and decoded once.
  */
 const inFlight = new Map<string, Promise<THREE.Texture>>();
+/** The loaded entries of inFlight, for forgetTextures. */
+const settled = new Map<string, THREE.Texture>();
+
+/**
+ * Drops the cached files under `folder` (a kit's Textures/ URL) that no scene on hand uses, and frees
+ * their decoded pixels; a later load fetches them again. For a kit whose own templates are released
+ * with them (levelCaches.ts): a template still holding one of these maps would keep it alive anyway.
+ */
+export function forgetTextures(folder: string, inUse: InUse): void {
+  for (const [key, base] of settled) {
+    if (!key.includes(folder) || inUse.images.has(base.image)) continue;
+    inFlight.delete(key);
+    settled.delete(key);
+    base.dispose();
+    closeImage(base.image);
+  }
+}
 
 // Ceiling on kit texture dimensions, set by Engine from the quality tier before any scene loads.
 // The kits ship 2048x2048 maps (~21MB each on the GPU); on the low tier — old integrated GPUs
@@ -203,6 +221,7 @@ class SharedTextureLoader extends THREE.Loader<THREE.Texture> {
     if (!pending) {
       pending = loadTextureOnce(this.manager, resolved);
       inFlight.set(cacheKey, pending);
+      void pending.then((base) => inFlight.get(cacheKey) === pending && settled.set(cacheKey, base), () => {});
     }
     pending
       .then((base) => {

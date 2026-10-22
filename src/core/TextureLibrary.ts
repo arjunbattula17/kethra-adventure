@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { decodeImageFile, imagesArriveFlipped, textureMaxSize } from './textureCache';
+import { closeImage, registerLevelCache } from './levelCaches';
 
 interface CachedMap {
   texture: THREE.Texture;
@@ -8,7 +9,19 @@ interface CachedMap {
 }
 
 const cache = new Map<string, CachedMap>();
-const loads: Promise<void>[] = [];
+let loads: Promise<void>[] = [];
+
+// Back aboard, the planets' maps (lichen_rock, bark_willow, ship_wall, metal_plate) go; the Wren's own
+// stay, since it uses them.
+registerLevelCache((inUse) => {
+  for (const [key, entry] of cache) {
+    if (!entry.arrived || inUse.images.has(entry.texture.image)) continue;
+    entry.texture.dispose();
+    closeImage(entry.texture.image);
+    cache.delete(key);
+  }
+  loads = [...cache.values()].map((e) => e.ready);
+});
 
 /**
  * Resolves once every map requested so far has arrived (or failed). Scenes await it at the end of
