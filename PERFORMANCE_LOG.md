@@ -99,7 +99,7 @@ prepared behind the intro when the intro is watched.
 
 **Done.** All nine audit areas checked (table below), every finding fixed or written up with a
 reason, final numbers compared with the original build, and regression tests run. Branch
-`perf/lowend-pass` (8 commits on top of d6e51f5); nothing pushed or deployed.
+`perf/lowend-pass` (9 commits on top of d6e51f5, the last one documentation); nothing pushed or deployed.
 
 ## Audit areas A-I (final pass)
 
