@@ -1,0 +1,237 @@
+{
+  "label": "final-frames-orig",
+  "cpuThrottle": 1,
+  "viewport": "1366x768@1",
+  "capped": true,
+  "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "runs": [
+    {
+      "scene": "ship#1",
+      "tierRequested": "auto",
+      "frames": 564,
+      "fps": 37.7,
+      "frameMs": {
+        "mean": 26.5,
+        "p50": 26.3,
+        "p95": 37,
+        "p99": 43.9,
+        "max": 61.1
+      },
+      "cpuMs": {
+        "mean": 6.16,
+        "p50": 5.8,
+        "p95": 11.4,
+        "p99": 15.8,
+        "max": 18.9
+      },
+      "gpuMs": {
+        "mean": 21.9,
+        "p50": 22.32,
+        "p95": 32.87,
+        "p99": 34.06,
+        "max": 35.62
+      },
+      "over34": 263,
+      "over50": 3,
+      "drawCalls": 180,
+      "triangles": 130079,
+      "programs": 70,
+      "textures": 217,
+      "geometries": 288,
+      "tier": "low",
+      "pixelRatio": 0.85,
+      "heapMB": 51.9,
+      "consoleErrors": []
+    },
+    {
+      "scene": "ship#2",
+      "tierRequested": "auto",
+      "frames": 815,
+      "fps": 54.5,
+      "frameMs": {
+        "mean": 18.36,
+        "p50": 17.7,
+        "p95": 30.4,
+        "p99": 40.5,
+        "max": 50.5
+      },
+      "cpuMs": {
+        "mean": 5.17,
+        "p50": 4.9,
+        "p95": 7.2,
+        "p99": 8.9,
+        "max": 11.7
+      },
+      "gpuMs": {
+        "mean": 14.36,
+        "p50": 13.29,
+        "p95": 21.01,
+        "p99": 22.54,
+        "max": 24.42
+      },
+      "over34": 24,
+      "over50": 2,
+      "drawCalls": 181,
+      "triangles": 131222,
+      "programs": 70,
+      "textures": 217,
+      "geometries": 288,
+      "tier": "low",
+      "pixelRatio": 0.85,
+      "heapMB": 50.8,
+      "consoleErrors": []
+    },
+    {
+      "scene": "kethra#1",
+      "tierRequested": "auto",
+      "frames": 458,
+      "fps": 30.7,
+      "frameMs": {
+        "mean": 32.61,
+        "p50": 35.5,
+        "p95": 36.8,
+        "p99": 39.7,
+        "max": 60.3
+      },
+      "cpuMs": {
+        "mean": 3.71,
+        "p50": 3.6,
+        "p95": 6.2,
+        "p99": 6.8,
+        "max": 9
+      },
+      "gpuMs": {
+        "mean": 22.26,
+        "p50": 21.99,
+        "p95": 29.82,
+        "p99": 33.18,
+        "max": 37.52
+      },
+      "over34": 373,
+      "over50": 1,
+      "drawCalls": 136,
+      "triangles": 313867,
+      "programs": 109,
+      "textures": 47,
+      "geometries": 246,
+      "tier": "low",
+      "pixelRatio": 1,
+      "heapMB": 40.9,
+      "consoleErrors": []
+    },
+    {
+      "scene": "kethra#2",
+      "tierRequested": "auto",
+      "frames": 419,
+      "fps": 28.1,
+      "frameMs": {
+        "mean": 35.63,
+        "p50": 35.6,
+        "p95": 36.7,
+        "p99": 37.3,
+        "max": 37.6
+      },
+      "cpuMs": {
+        "mean": 3.88,
+        "p50": 3.4,
+        "p95": 6.4,
+        "p99": 6.9,
+        "max": 9
+      },
+      "gpuMs": {
+        "mean": 23.25,
+        "p50": 22.39,
+        "p95": 29.82,
+        "p99": 34.08,
+        "max": 36.82
+      },
+      "over34": 419,
+      "over50": 0,
+      "drawCalls": 129,
+      "triangles": 312945,
+      "programs": 109,
+      "textures": 47,
+      "geometries": 246,
+      "tier": "low",
+      "pixelRatio": 1,
+      "heapMB": 42.3,
+      "consoleErrors": []
+    },
+    {
+      "scene": "vessek#1",
+      "tierRequested": "auto",
+      "frames": 838,
+      "fps": 56,
+      "frameMs": {
+        "mean": 17.85,
+        "p50": 17.8,
+        "p95": 18.8,
+        "p99": 19.3,
+        "max": 45.2
+      },
+      "cpuMs": {
+        "mean": 4.72,
+        "p50": 4.4,
+        "p95": 7.3,
+        "p99": 9.2,
+        "max": 17.3
+      },
+      "gpuMs": {
+        "mean": 14.83,
+        "p50": 14.99,
+        "p95": 18.66,
+        "p99": 20.21,
+        "max": 22.58
+      },
+      "over34": 1,
+      "over50": 0,
+      "drawCalls": 136,
+      "triangles": 166676,
+      "programs": 132,
+      "textures": 74,
+      "geometries": 423,
+      "tier": "low",
+      "pixelRatio": 1,
+      "heapMB": 53.9,
+      "consoleErrors": []
+    },
+    {
+      "scene": "vessek#2",
+      "tierRequested": "auto",
+      "frames": 841,
+      "fps": 56.2,
+      "frameMs": {
+        "mean": 17.81,
+        "p50": 17.8,
+        "p95": 19,
+        "p99": 19.7,
+        "max": 25.5
+      },
+      "cpuMs": {
+        "mean": 4.89,
+        "p50": 4.7,
+        "p95": 7.6,
+        "p99": 8.4,
+        "max": 9.1
+      },
+      "gpuMs": {
+        "mean": 14.62,
+        "p50": 14.86,
+        "p95": 18.48,
+        "p99": 19.59,
+        "max": 20.59
+      },
+      "over34": 0,
+      "over50": 0,
+      "drawCalls": 136,
+      "triangles": 166698,
+      "programs": 132,
+      "textures": 74,
+      "geometries": 423,
+      "tier": "low",
+      "pixelRatio": 1,
+      "heapMB": 54.3,
+      "consoleErrors": []
+    }
+  ]
+}

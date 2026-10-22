@@ -1,0 +1,199 @@
+{
+  "label": "final-ship-long-final",
+  "cpuThrottle": 1,
+  "viewport": "1366x768@1",
+  "capped": true,
+  "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "runs": [
+    {
+      "scene": "ship#1",
+      "tierRequested": "auto",
+      "frames": 420,
+      "fps": 28.2,
+      "frameMs": {
+        "mean": 35.52,
+        "p50": 35.5,
+        "p95": 36.5,
+        "p99": 36.8,
+        "max": 37.3
+      },
+      "cpuMs": {
+        "mean": 5.15,
+        "p50": 4.7,
+        "p95": 8.5,
+        "p99": 11.4,
+        "max": 12.9
+      },
+      "gpuMs": {
+        "mean": 25.49,
+        "p50": 26.31,
+        "p95": 31.77,
+        "p99": 32.97,
+        "max": 35.34
+      },
+      "over34": 419,
+      "over50": 0,
+      "drawCalls": 184,
+      "triangles": 131777,
+      "programs": 69,
+      "textures": 217,
+      "geometries": 288,
+      "tier": "low",
+      "pixelRatio": 1,
+      "heapMB": 30.6,
+      "consoleErrors": []
+    },
+    {
+      "scene": "ship#2",
+      "tierRequested": "auto",
+      "frames": 711,
+      "fps": 47.7,
+      "frameMs": {
+        "mean": 20.98,
+        "p50": 17.9,
+        "p95": 36.2,
+        "p99": 47.6,
+        "max": 89.3
+      },
+      "cpuMs": {
+        "mean": 6.26,
+        "p50": 6.1,
+        "p95": 9.7,
+        "p99": 12.3,
+        "max": 16.6
+      },
+      "gpuMs": {
+        "mean": 18.66,
+        "p50": 16.97,
+        "p95": 31.2,
+        "p99": 34.2,
+        "max": 34.92
+      },
+      "over34": 113,
+      "over50": 5,
+      "drawCalls": 173,
+      "triangles": 128186,
+      "programs": 70,
+      "textures": 217,
+      "geometries": 288,
+      "tier": "low",
+      "pixelRatio": 0.85,
+      "heapMB": 51.3,
+      "consoleErrors": []
+    },
+    {
+      "scene": "ship#3",
+      "tierRequested": "auto",
+      "frames": 823,
+      "fps": 54.9,
+      "frameMs": {
+        "mean": 18.21,
+        "p50": 17.7,
+        "p95": 28,
+        "p99": 34.7,
+        "max": 43.4
+      },
+      "cpuMs": {
+        "mean": 5.84,
+        "p50": 5.7,
+        "p95": 8.7,
+        "p99": 10.7,
+        "max": 14.7
+      },
+      "gpuMs": {
+        "mean": 14.43,
+        "p50": 13.58,
+        "p95": 19.74,
+        "p99": 21.03,
+        "max": 25.18
+      },
+      "over34": 10,
+      "over50": 0,
+      "drawCalls": 182,
+      "triangles": 131427,
+      "programs": 70,
+      "textures": 217,
+      "geometries": 288,
+      "tier": "low",
+      "pixelRatio": 0.85,
+      "heapMB": 50.4,
+      "consoleErrors": []
+    },
+    {
+      "scene": "ship#4",
+      "tierRequested": "auto",
+      "frames": 442,
+      "fps": 29.5,
+      "frameMs": {
+        "mean": 33.85,
+        "p50": 35.5,
+        "p95": 36.7,
+        "p99": 41,
+        "max": 60
+      },
+      "cpuMs": {
+        "mean": 6.15,
+        "p50": 6,
+        "p95": 9.1,
+        "p99": 10.7,
+        "max": 19.1
+      },
+      "gpuMs": {
+        "mean": 22.72,
+        "p50": 21.29,
+        "p95": 29.57,
+        "p99": 36.29,
+        "max": 40.17
+      },
+      "over34": 390,
+      "over50": 2,
+      "drawCalls": 188,
+      "triangles": 132608,
+      "programs": 70,
+      "textures": 217,
+      "geometries": 288,
+      "tier": "low",
+      "pixelRatio": 1,
+      "heapMB": 26.7,
+      "consoleErrors": []
+    },
+    {
+      "scene": "ship#5",
+      "tierRequested": "auto",
+      "frames": 418,
+      "fps": 28,
+      "frameMs": {
+        "mean": 35.66,
+        "p50": 35.6,
+        "p95": 36.8,
+        "p99": 37.2,
+        "max": 37.5
+      },
+      "cpuMs": {
+        "mean": 5.72,
+        "p50": 5.6,
+        "p95": 8.8,
+        "p99": 9.4,
+        "max": 9.9
+      },
+      "gpuMs": {
+        "mean": 23.59,
+        "p50": 23.83,
+        "p95": 30.64,
+        "p99": 34.53,
+        "max": 37.45
+      },
+      "over34": 418,
+      "over50": 0,
+      "drawCalls": 184,
+      "triangles": 131785,
+      "programs": 70,
+      "textures": 217,
+      "geometries": 288,
+      "tier": "low",
+      "pixelRatio": 1,
+      "heapMB": 26.5,
+      "consoleErrors": []
+    }
+  ]
+}
