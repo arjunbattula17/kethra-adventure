@@ -163,6 +163,15 @@ export class Engine {
   /** Set while this scene runs at SMOOTH_SCALE because of the governor's trial (recordFrameForQuality);
    * cleared, with the resolution put back, at the next scene change. */
   private scaleTrial: 'off' | 'running' | 'failed' = 'off';
+  /** The steady-30 cap as the governor set it (not the hold during a lighting upgrade). */
+  private capVerdict = false;
+  /**
+   * The governor's verdict per kind of scene, kept for the session: a scene that needed the cap or
+   * 85% resolution gets it again from its first frame on the next visit. Judged afresh each time, the
+   * Wren spent its first 5-10 s of every return aboard on Performance swinging between 60 and 20 fps
+   * (grace period, judging window, resolution trial) before settling where it had settled before.
+   */
+  private verdicts = new Map<string, { cap: boolean; trial: 'off' | 'running' | 'failed' }>();
   private static readonly SMOOTH_SCALE = 0.85;
   private lastDrawAt = 0;
   private contextLost = false;
@@ -337,6 +346,7 @@ export class Engine {
           this.renderScale = 1;
         }
         this.steadyCap = true;
+        this.capVerdict = true;
       }
       if (this.renderScale !== scale) this.applyTier(this.tier, true);
       this.lastDowngradeAt = now;
@@ -540,6 +550,7 @@ export class Engine {
       // built here, so the two sets are never on the GPU together.
       let outgoing: THREE.Texture[] = [];
       if (this.current) {
+        if (this.capVerdict || this.scaleTrial !== 'off') this.verdicts.set(kindOf(this.current), { cap: this.capVerdict, trial: this.scaleTrial });
         outgoing = texturesOf(this.current.scene);
         this.current.dispose();
         this.current = null;
@@ -557,12 +568,24 @@ export class Engine {
       else this.releaseTextures(outgoing, scene);
       this.current = scene;
       // Frame pacing is this scene's to earn: the governor judges it afresh after the grace period.
+      // ...unless this kind of scene has been judged before this session (verdicts).
+      const verdict = this.manualOverride || this.tier !== 'low' ? undefined : this.verdicts.get(kindOf(scene));
+      let scale = this.scaleTrial === 'running' ? 1 : this.renderScale;
+      this.scaleTrial = 'off';
       this.steadyCap = false;
-      if (this.scaleTrial === 'running') {
-        this.renderScale = 1;
+      this.capVerdict = false;
+      if (verdict?.cap) {
+        this.steadyCap = true;
+        this.capVerdict = true;
+        this.scaleTrial = 'failed';
+      } else if (verdict?.trial === 'running' && scale === 1) {
+        scale = Engine.SMOOTH_SCALE;
+        this.scaleTrial = 'running';
+      }
+      if (scale !== this.renderScale) {
+        this.renderScale = scale;
         this.applyTier(this.tier, true);
       }
-      this.scaleTrial = 'off';
       this.postFx.setActive(scene.scene, scene.camera);
       this.postFx.setAOSupported(scene.usesAO !== false);
       this.postFx.setGrade(scene.grade);

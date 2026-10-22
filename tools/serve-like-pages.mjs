@@ -3,14 +3,14 @@
 // /kethra-adventure/. vite preview sends everything uncompressed, so byte counts taken against it
 // overstate what a player downloads (a tree's .bin: 0.77 MB raw, 0.33 MB from Pages).
 //
-//   node tools/serve-like-pages.mjs [port=4193]
+//   node tools/serve-like-pages.mjs [port=4193] [root=dist]   (a second root serves another build, for A/B)
 import { createServer } from 'node:http';
 import { readFileSync, statSync, existsSync } from 'node:fs';
 import { join, extname, normalize } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 const PORT = Number(process.argv[2] || 4193);
-const ROOT = 'dist';
+const ROOT = process.argv[3] || 'dist';
 const PREFIX = '/kethra-adventure/';
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
