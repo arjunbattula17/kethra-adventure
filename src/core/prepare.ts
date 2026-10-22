@@ -42,6 +42,10 @@ export const PACE = {
   loading: { sliceMs: 40, uploadBytes: 24 * MB, programsInFlight: COMPILE_THREADS },
   /** While a cinematic plays: stay inside a 60 fps frame. */
   playing: { sliceMs: 5, uploadBytes: 4 * MB, programsInFlight: COMPILE_THREADS },
+  /** In the background of a room being played (Engine.upgradeQuickLights): one program at a time. On an
+   * Intel UHD laptop three at a time made 93-103 frames over 40 ms in the Wren's first 40 s, one at a
+   * time 26-44, for an upgrade 2-5 s longer (docs/perf/up-*). */
+  background: { sliceMs: 5, uploadBytes: 4 * MB, programsInFlight: 1 },
   /** While a menu waits for a click: never delay the click. */
   idle: { sliceMs: 4, uploadBytes: 4 * MB, programsInFlight: Math.max(1, COMPILE_THREADS - 1) },
 } satisfies Record<string, Pace>;

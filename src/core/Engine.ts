@@ -417,18 +417,19 @@ export class Engine {
    * program compiled so far stays in three.js's cache).
    */
   private async upgradeQuickLights(scene: GameScene): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, Engine.POST_SCENE_GRACE_MS));
-    if (this.current !== scene) return;
-    const start = performance.now();
     // Its compiling slows the frames it shares the processor with, so the governor waits for the
     // quick programs to go before judging the scene (judged meanwhile, it settled the Wren at 70%
     // resolution and 30 fps). The bottom tier holds a steady 30 in the meantime, rather than the
-    // unsteady 24-36 fps it drew held off for the upgrade's 15-35 s on an Intel UHD laptop.
-    this.preparing++;
+    // unsteady 24-36 fps it drew held off for the upgrade's 15-35 s on an Intel UHD laptop; from the
+    // scene's first frame, not after the grace period (the first 5 s: 6-11 frames over 50 ms -> 2-4).
     const held = this.tier === 'low' && !this.steadyCap;
     if (held) this.steadyCap = true;
+    await new Promise((resolve) => setTimeout(resolve, Engine.POST_SCENE_GRACE_MS));
+    if (this.current !== scene) return;
+    const start = performance.now();
+    this.preparing++;
     try {
-      const done = await upgradeQuickLights(this.renderer, scene.scene, scene.camera, this.compileTarget, this.newPacer(PACE.playing), () => this.current === scene);
+      const done = await upgradeQuickLights(this.renderer, scene.scene, scene.camera, this.compileTarget, this.newPacer(PACE.background), () => this.current === scene);
       if (done) {
         this.upgradedKinds.add(kindOf(scene));
         span(`${kindOf(scene)}:upgradeLights`, start);
