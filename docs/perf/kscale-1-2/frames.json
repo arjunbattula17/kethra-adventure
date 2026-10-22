@@ -1,0 +1,47 @@
+{
+  "label": "kscale-1-2",
+  "cpuThrottle": 1,
+  "viewport": "1366x768@1",
+  "capped": false,
+  "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "runs": [
+    {
+      "scene": "kethra",
+      "tierRequested": "low",
+      "frames": 583,
+      "fps": 58.4,
+      "frameMs": {
+        "mean": 17.11,
+        "p50": 14.6,
+        "p95": 35.8,
+        "p99": 42.4,
+        "max": 52
+      },
+      "cpuMs": {
+        "mean": 16.32,
+        "p50": 13.7,
+        "p95": 34.5,
+        "p99": 41,
+        "max": 49.9
+      },
+      "gpuMs": {
+        "mean": 16.12,
+        "p50": 14.44,
+        "p95": 24,
+        "p99": 25.89,
+        "max": 27.39
+      },
+      "over34": 36,
+      "over50": 3,
+      "drawCalls": 116,
+      "triangles": 310909,
+      "programs": 85,
+      "textures": 47,
+      "geometries": 246,
+      "tier": "low",
+      "pixelRatio": 1,
+      "heapMB": 44.8,
+      "consoleErrors": []
+    }
+  ]
+}

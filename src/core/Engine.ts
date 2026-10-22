@@ -68,7 +68,12 @@ function guessInitialTier(renderer: THREE.WebGLRenderer): QualityTier {
   // compiled every one of them twice. Iris and AMD integrated graphics keep the Balanced guess; the
   // benchmark still checks all of them.
   let gpuCap: QualityTier = 'high';
-  if (/swiftshader|llvmpipe|software/.test(gpu)) gpuCap = 'low';
+  // A browser that hides the graphics chip (privacy settings: an empty string, "WebKit WebGL",
+  // "Mozilla") tells us nothing, and a school machine is the likelier case: start on Performance,
+  // the brief's rule for an unknown device. The start-up benchmark only ever steps down, so a fast
+  // machine behind a masked name stays on Performance until the player picks a tier in Settings.
+  if (!gpu.trim() || /^(webkit webgl|mozilla|generic renderer)$/.test(gpu.trim())) gpuCap = 'low';
+  else if (/swiftshader|llvmpipe|software/.test(gpu)) gpuCap = 'low';
   else if (/uhd graphics|hd graphics|mali|adreno|powervr/.test(gpu)) gpuCap = 'low';
   else if (/intel|iris|radeon\(tm\) graphics|vega/.test(gpu)) gpuCap = 'medium';
 
