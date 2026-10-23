@@ -26,7 +26,9 @@ const VERTEX = /* glsl */ `
     // Each mote flares for a moment every 5-12 s, and glows faintly between.
     float period = 5.0 + 7.0 * aSeed.y;
     float c = fract(uTime / period + aSeed.w);
-    float flare = exp(-pow((c - 0.5) / 0.05, 2.0));
+    // Squared by hand: pow() of a negative base is NaN on Direct3D.
+    float fd = (c - 0.5) / 0.05;
+    float flare = exp(-fd * fd);
     vec4 mv = viewMatrix * vec4(p, 1.0);
     float dist = -mv.z;
     vAlpha = edge * (0.18 + 0.82 * flare) * (0.5 + 0.5 * aSeed.x);

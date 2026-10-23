@@ -248,7 +248,9 @@ const RING_FRAGMENT = /* glsl */ `
     // The Choir's signal (TitleScene): a faint bright front running out through the rings in ~3.5 s.
     if (uPulse >= 0.0) {
       float front = uRingSpan.x + uPulse * 0.9;
-      float wave = exp(-pow((r - front) / 0.05, 2.0)) * smoothstep(0.0, 0.25, uPulse) * (1.0 - smoothstep(1.5, 3.5, uPulse));
+      // Squared by hand: pow() of a negative base is NaN on Direct3D.
+      float wd = (r - front) / 0.05;
+      float wave = exp(-wd * wd) * smoothstep(0.0, 0.25, uPulse) * (1.0 - smoothstep(1.5, 3.5, uPulse));
       col += vec3(0.45, 0.88, 1.0) * wave * (0.04 + 0.5 * (iceAlpha + dust));
     }
     // Premultiplied: the dense rings hide part of what lies behind them; the dust only adds light.

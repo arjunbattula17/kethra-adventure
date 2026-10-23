@@ -1,6 +1,7 @@
-// The title screen, end to end: the menu and its four buttons, the 3D backdrop behind it (without a
-// save the ship over a turning Kethra; with one the astronaut by ringed Isilthe, turning, rocks
-// drifting, the camera leaning toward the pointer), keyboard and mouse selection, Controls and Settings (and focus coming
+// The title screen, end to end: the menu and its four buttons, the 3D backdrop behind it (the ship
+// over a turning Kethra, with or without a save; and the astronaut by ringed Isilthe, kept behind
+// ?title=isilthe: turning, rocks drifting, breathing, the camera leaning toward the pointer), keyboard
+// and mouse selection, Controls and Settings (and focus coming
 // back), a quality change made from the title, New game into the intro, Continue into the Wren, an
 // unreadable save, reduced motion, and the menu held back until it can come in with the backdrop.
 //
@@ -16,14 +17,14 @@ const check = (name, ok, detail = '') => {
   if (!ok) failed++;
 };
 
-async function open({ save, reducedMotion = false } = {}) {
+async function open({ save, reducedMotion = false, query = '' } = {}) {
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, reducedMotion: reducedMotion ? 'reduce' : 'no-preference' });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   if (save !== undefined) await page.addInitScript((s) => localStorage.setItem('kethra_save_v1', s), save);
-  await page.goto(BASE);
+  await page.goto(BASE + query);
   await page.waitForSelector('.title-screen.revealed', { timeout: 60000 });
   return { page, context, errors };
 }
@@ -130,7 +131,19 @@ async function makeSave() {
   const b = await labels(page);
   check('with a save, Continue is enabled, selected and focused', !b[0].disabled && b[0].selected && b[0].focused);
   await backdropLive(page);
-  check('with a save the backdrop is the astronaut by Isilthe: planet, rings and rocks', await page.evaluate(() => ['title-astronaut', 'title-planet-surface', 'title-rings', 'title-ring-rubble', 'title-formations', 'title-asteroids', 'title-embers'].every((n) => window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName(n))));
+  check('with a save the backdrop is still the ship over Kethra', await page.evaluate(() => ['title-ship', 'title-moon', 'title-hero-surface'].every((n) => window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName(n))));
+  await page.keyboard.press('Enter');
+  const ship = await page.waitForFunction(() => window.__DEBUG__?.flow.state === 'wren' && !window.__DEBUG__.flow.isTransitioning(), null, { timeout: 180000, polling: 250 }).then(() => true, () => false);
+  check('Enter on Continue resumes aboard the Wren', ship && (await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene()?.kind)) === 'ShipInteriorScene');
+  check('no errors on the page', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await context.close();
+}
+
+// 3. The astronaut by Isilthe, kept as an alternative backdrop (?title=isilthe).
+{
+  const { page, context, errors } = await open({ query: '?title=isilthe' });
+  await backdropLive(page);
+  check('?title=isilthe shows the astronaut by Isilthe: planet, rings and rocks', await page.evaluate(() => ['title-astronaut', 'title-planet-surface', 'title-rings', 'title-ring-rubble', 'title-formations', 'title-asteroids', 'title-embers'].every((n) => window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName(n))));
   const moving = await page.evaluate(async () => {
     const s = window.__DEBUG__.engine.getCurrentScene();
     const surface = s.scene.getObjectByName('title-planet-surface');
@@ -158,14 +171,11 @@ async function makeSave() {
     return cam.position.x - before;
   });
   check('the camera leans toward the pointer', lean > 0.02, `${lean.toFixed(3)} units`);
-  await page.keyboard.press('Enter');
-  const ship = await page.waitForFunction(() => window.__DEBUG__?.flow.state === 'wren' && !window.__DEBUG__.flow.isTransitioning(), null, { timeout: 180000, polling: 250 }).then(() => true, () => false);
-  check('Enter on Continue resumes aboard the Wren', ship && (await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene()?.kind)) === 'ShipInteriorScene');
   check('no errors on the page', errors.length === 0, errors.slice(0, 3).join(' | '));
   await context.close();
 }
 
-// 3. An unreadable save: Continue stays off and says why.
+// 4. An unreadable save: Continue stays off and says why.
 {
   const { page, context } = await open({ save: '{not json' });
   const b = await labels(page);
@@ -173,7 +183,7 @@ async function makeSave() {
   await context.close();
 }
 
-// 4. Reduced motion; and the menu, held back until it comes in with the backdrop.
+// 5. Reduced motion; and the menu, held back until it comes in with the backdrop.
 {
   const { page, context, errors } = await open({ reducedMotion: true });
   check('reduced motion: the backdrop still comes up', await backdropLive(page));

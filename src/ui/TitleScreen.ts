@@ -15,11 +15,10 @@ import type { KethraTitleScene } from '../galaxy/title/kethraTitle';
  * The title screen: the first thing a judge sees. The menu is plain DOM and CSS, and the first click
  * on it is what unlocks audio (browsers block sound until the page gets a gesture).
  *
- * Behind it, once the engine exists (boot.ts), runs one of two 3D backdrops, picked by the save
- * (pickBackdrop): a first visit gets the survey cruiser over Kethra at sunrise
- * (galaxy/title/kethraTitle.ts), the journey not begun; a returning player, with a save to continue,
- * gets the astronaut resting on a rock in the belt, looking out at ringed Isilthe
- * (galaxy/title/TitleScene.ts). Only the one picked is downloaded and built. The page shows only a dark sky of its own
+ * Behind it, once the engine exists (boot.ts), runs the 3D backdrop: the survey cruiser over Kethra at
+ * sunrise (galaxy/title/kethraTitle.ts), for every player. The astronaut by ringed Isilthe
+ * (galaxy/title/TitleScene.ts) is kept as an alternative and shown only with ?title=isilthe
+ * (pickBackdrop). Only the one picked is downloaded and built. The page shows only a dark sky of its own
  * until the backdrop's first frame; then the menu and the backdrop come in together, in one fade
  * (reveal). Should the backdrop fail, or not arrive within REVEAL_CAP_MS, the menu comes in over that
  * sky alone. Nothing on the menu loops.
@@ -81,9 +80,12 @@ const SPARK = `<svg class="ts-spark" viewBox="0 0 16 16" aria-hidden="true"><pat
 let root: HTMLDivElement | null = null;
 let scene: TitleScene | KethraTitleScene | null = null;
 
-/** The backdrop for this visit: Isilthe once there is a save to continue, Kethra and the ship before. */
-function pickBackdrop(hasSave: boolean) {
-  return hasSave
+/**
+ * The backdrop: the ship over Kethra, with or without a save. The URL flag ?title=isilthe shows the
+ * astronaut by Isilthe instead (kept for later use; captures and checks).
+ */
+function pickBackdrop() {
+  return new URLSearchParams(location.search).get('title') === 'isilthe'
     ? import('../galaxy/title/TitleScene').then((m) => ({ preload: m.preloadTitle, make: (): TitleScene | KethraTitleScene => new m.TitleScene() }))
     : import('../galaxy/title/kethraTitle').then((m) => ({ preload: m.preloadKethraTitle, make: (): TitleScene | KethraTitleScene => new m.KethraTitleScene() }));
 }
@@ -219,7 +221,7 @@ export const TitleScreen = {
 
     document.body.appendChild(el);
     // The backdrop's code and maps start downloading now; it is built once the engine exists.
-    chosen = pickBackdrop(opts.hasSave);
+    chosen = pickBackdrop();
     void chosen.then((m) => m.preload()).catch(() => {});
     select(buttons.find((b) => !b.disabled)!, true);
     revealCap = window.setTimeout(reveal, REVEAL_CAP_MS);
@@ -252,7 +254,7 @@ export const TitleScreen = {
     if (!root || leaving || backdropStarted) return;
     backdropStarted = true;
     try {
-      const { make } = await (chosen ?? pickBackdrop(false));
+      const { make } = await (chosen ?? pickBackdrop());
       if (!root || leaving) return;
       const next = make();
       try {

@@ -1,22 +1,25 @@
-# Title screen — two backdrops, picked by the save
+# Title screen — the ship over Kethra (and the astronaut by Isilthe, kept)
 
 ## Which one
-The menu is the same for both; the 3D backdrop behind it depends on whether there is a journey to
-continue (`pickBackdrop` in `src/ui/TitleScreen.ts`):
+Every player sees **Kethra at sunrise**: the capital ship dashes in over Kethra's day side, Isilthe's
+rings over the horizon (`kethraTitle.ts`, `KethraTitleScene`, with `heroPlanet.ts` and
+`titleShip.ts`), with or without a save. It is the title that was live until 2026-10-22, unchanged;
+its design notes are in git history (this file at overhaul 0bcce10).
 
-| Save | Backdrop | Module |
-|---|---|---|
-| None, or unreadable (Continue disabled) | **Kethra at sunrise**: the capital ship dashes in over Kethra's day side, Isilthe's rings over the horizon. The journey hasn't started. | `kethraTitle.ts` (`KethraTitleScene`), with `heroPlanet.ts` and `titleShip.ts` |
-| A usable save (Continue enabled) | **Looking out at Isilthe**: the astronaut resting on a rock in the belt before the ringed moon (this document, below). | `TitleScene.ts` (`TitleScene`) |
+**Looking out at Isilthe** (the astronaut resting on a rock before the ringed moon, `TitleScene.ts`,
+described below) was shown to returning players from 26a55a9 and taken off on 2026-10-22 at the user's
+call. It is kept, working and tested, for use elsewhere: the URL flag `?title=isilthe` shows it
+(`pickBackdrop` in `src/ui/TitleScreen.ts`). A later, unfinished rework of it (a sculpted astronaut
+baked from a distance field, a slim pillar, a bigger planet) is parked on the local branch
+`wip/title-astronaut-sculpt`.
 
-Only the picked module is downloaded, preloaded and built, so neither costs the other anything. Both
-report `kind = 'TitleScene'` to the engine and tests. Only Isilthe's has the signal (`onSignal`).
-The Kethra scene is the one that was live until 2026-10-22, unchanged; its design notes are in git
-history (this file at overhaul 0bcce10). The rock shader both use keeps the Kethra scene's look by
-default (`RockLight`: albedo, rim colour, fill); the Isilthe scene passes its own.
+Only the picked module is downloaded, preloaded and built. Both report `kind = 'TitleScene'` to the
+engine and tests; only Isilthe's has the signal (`onSignal`). The rock shader both use keeps the
+Kethra scene's look by default (`RockLight`: albedo, rim colour, fill); the Isilthe scene passes its
+own.
 
 ## "Looking out at Isilthe": concept
-For a returning player: a surveyor in an EVA suit, resting on a rock in the belt and looking
+A surveyor in an EVA suit, resting on a rock in the belt and looking
 out at Isilthe, the ringed ocean moon at the edge of the system (LORE.md), backlit by its sun. The
 planet is a dark disc with a bright rim and an amber glow on its sun side, its rings sweep across the
 sky, rubble orbits in the ring plane, rocks frame the edges and drift through the middle distance.
@@ -103,8 +106,8 @@ else as before: hover and keyboard focus are one state, Enter/Space pick, arrows
   Both are gone; the signal's elements are drawn at 1/255 from the reveal.
 
 ## Testing
-`node tools/test-title.mjs <base>`: 45 checks. Without a save: the ship scene's parts and Kethra
-turning; with one: Isilthe's parts, Isilthe turning, the rocks drifting, the figure breathing, the
-pointer lean; and the menu, panels, button sweep, reduced motion, New game and Continue.
+`node tools/test-title.mjs <base>`: the ship scene with and without a save (its parts, Kethra
+turning); with `?title=isilthe`, Isilthe's parts, Isilthe turning, the rocks drifting, the figure
+breathing, the pointer lean; and the menu, panels, button sweep, reduced motion, New game and Continue.
 `node tools/capture-title.mjs <label> <base> --sizes=1920x1080,1280x1024 --at=4,14 [--bare]`:
 screenshots on this machine's GPU into renders/title/. `node tools/title-bench.mjs` as before.

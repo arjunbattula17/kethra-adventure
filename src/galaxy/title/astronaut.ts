@@ -397,10 +397,13 @@ const FRAGMENT = /* glsl */ `
   vec3 sky(vec3 r) {
     vec3 col = vec3(0.004, 0.008, 0.016) + vec3(0.01, 0.02, 0.035) * max(r.y, 0.0);
     float c = dot(r, uPlanetDir);
-    float rimBand = exp(-pow((c - uPlanetCos) / 0.0025, 2.0));
+    // Squares written out: pow() of a negative base is NaN on Direct3D.
+    float rd = (c - uPlanetCos) / 0.0025;
+    float rimBand = exp(-rd * rd);
     float off = 1.0 - smoothstep(uPlanetCos - 0.002, uPlanetCos + 0.002, c);
     // The rings span a wide arc of the sky round the planet: a band along their plane, brightest near it.
-    float ringBand = exp(-pow(dot(r, uRingNormal) / 0.07, 2.0)) * smoothstep(-0.2, uPlanetCos, c);
+    float rb = dot(r, uRingNormal) / 0.07;
+    float ringBand = exp(-rb * rb) * smoothstep(-0.2, uPlanetCos, c);
     col += vec3(0.35, 0.75, 1.0) * ringBand * off * 1.4;
     col += vec3(1.0, 0.85, 0.85) * rimBand * 2.0;
     col = mix(col, vec3(0.01, 0.025, 0.035), (1.0 - off));
