@@ -1,4 +1,4 @@
-import{At as e,D as t,Et as n,It as r,M as i,ht as a,ot as o,z as s}from"./three-BNTvIbIC.js";import{t as c}from"./spaceSky-BdVD7VSM.js";var l=7,u=`
+import{At as e,D as t,Et as n,It as r,M as i,ht as a,ot as o,z as s}from"./three-BNTvIbIC.js";import{t as c}from"./spaceSky-Cdu_0Jy1.js";var l=7,u=`
   varying vec2 vUv;
   void main() {
     vUv = uv;

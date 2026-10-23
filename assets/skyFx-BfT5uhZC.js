@@ -1,4 +1,4 @@
-import{$ as e,At as t,D as n,Et as r,G as i,Gt as a,H as o,Ht as s,It as c,L as l,Q as u,S as d,St as f,Tt as p,Ut as m,Vt as h,W as g,Wt as _,_t as v,b as y,ht as b,n as x,ot as S,r as C,rt as w,wt as T,x as E,z as D}from"./three-BNTvIbIC.js";import{u as O}from"./boot-nz7FZmk-.js";import{t as k}from"./spaceSky-BdVD7VSM.js";var A=`
+import{$ as e,At as t,D as n,Et as r,G as i,Gt as a,H as o,Ht as s,It as c,L as l,Q as u,S as d,St as f,Tt as p,Ut as m,Vt as h,W as g,Wt as _,_t as v,b as y,ht as b,n as x,ot as S,r as C,rt as w,wt as T,x as E,z as D}from"./three-BNTvIbIC.js";import{u as O}from"./boot-DRT8CN2B.js";import{t as k}from"./spaceSky-Cdu_0Jy1.js";var A=`
   varying vec2 vUv;
   void main() {
     vUv = uv;

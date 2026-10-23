@@ -1,4 +1,4 @@
-import{$ as e,A as t,At as n,Ct as r,D as i,E as a,Et as o,F as s,G as c,Ht as l,L as u,Q as d,Tt as f,Ut as p,W as m,Wt as h,_t as g,at as _,b as v,bt as y,it as b,kt as x,mt as S,n as C,ot as w,pt as T,rt as E,w as D,x as O,yt as k,z as A}from"./three-BNTvIbIC.js";import{n as ee,t as j}from"./perfMarks-B6nwIo-H.js";import{t as M}from"./motion-BYiHc0e5.js";import{d as N,h as P,u as F}from"./boot-nz7FZmk-.js";import{n as I,r as L}from"./planetShader-DiFSBZRs.js";import{a as R,c as z,i as B,l as te,n as ne,o as re,r as ie,s as ae,t as oe,u as se}from"./skyFx-C50vNz_2.js";var ce=`
+import{$ as e,A as t,At as n,Ct as r,D as i,E as a,Et as o,F as s,G as c,Ht as l,L as u,Q as d,Tt as f,Ut as p,W as m,Wt as h,_t as g,at as _,b as v,bt as y,it as b,kt as x,mt as S,n as C,ot as w,pt as T,rt as E,w as D,x as O,yt as k,z as A}from"./three-BNTvIbIC.js";import{n as ee,t as j}from"./perfMarks-B6nwIo-H.js";import{t as M}from"./motion-St5-4car.js";import{d as N,h as P,u as F}from"./boot-DRT8CN2B.js";import{n as I,r as L}from"./planetShader-DiFSBZRs.js";import{a as R,c as z,i as B,l as te,n as ne,o as re,r as ie,s as ae,t as oe,u as se}from"./skyFx-BfT5uhZC.js";var ce=`
   varying vec3 vNormalW;
   varying vec3 vPosW;
   varying vec2 vUv;
@@ -201,7 +201,9 @@ import{$ as e,A as t,At as n,Ct as r,D as i,E as a,Et as o,F as s,G as c,Ht as l
     // The Choir's signal (TitleScene): a faint bright front running out through the rings in ~3.5 s.
     if (uPulse >= 0.0) {
       float front = uRingSpan.x + uPulse * 0.9;
-      float wave = exp(-pow((r - front) / 0.05, 2.0)) * smoothstep(0.0, 0.25, uPulse) * (1.0 - smoothstep(1.5, 3.5, uPulse));
+      // Squared by hand: pow() of a negative base is NaN on Direct3D.
+      float wd = (r - front) / 0.05;
+      float wave = exp(-wd * wd) * smoothstep(0.0, 0.25, uPulse) * (1.0 - smoothstep(1.5, 3.5, uPulse));
       col += vec3(0.45, 0.88, 1.0) * wave * (0.04 + 0.5 * (iceAlpha + dust));
     }
     // Premultiplied: the dense rings hide part of what lies behind them; the dust only adds light.
@@ -258,10 +260,13 @@ import{$ as e,A as t,At as n,Ct as r,D as i,E as a,Et as o,F as s,G as c,Ht as l
   vec3 sky(vec3 r) {
     vec3 col = vec3(0.004, 0.008, 0.016) + vec3(0.01, 0.02, 0.035) * max(r.y, 0.0);
     float c = dot(r, uPlanetDir);
-    float rimBand = exp(-pow((c - uPlanetCos) / 0.0025, 2.0));
+    // Squares written out: pow() of a negative base is NaN on Direct3D.
+    float rd = (c - uPlanetCos) / 0.0025;
+    float rimBand = exp(-rd * rd);
     float off = 1.0 - smoothstep(uPlanetCos - 0.002, uPlanetCos + 0.002, c);
     // The rings span a wide arc of the sky round the planet: a band along their plane, brightest near it.
-    float ringBand = exp(-pow(dot(r, uRingNormal) / 0.07, 2.0)) * smoothstep(-0.2, uPlanetCos, c);
+    float rb = dot(r, uRingNormal) / 0.07;
+    float ringBand = exp(-rb * rb) * smoothstep(-0.2, uPlanetCos, c);
     col += vec3(0.35, 0.75, 1.0) * ringBand * off * 1.4;
     col += vec3(1.0, 0.85, 0.85) * rimBand * 2.0;
     col = mix(col, vec3(0.01, 0.025, 0.035), (1.0 - off));
@@ -353,7 +358,9 @@ import{$ as e,A as t,At as n,Ct as r,D as i,E as a,Et as o,F as s,G as c,Ht as l
     // Each mote flares for a moment every 5-12 s, and glows faintly between.
     float period = 5.0 + 7.0 * aSeed.y;
     float c = fract(uTime / period + aSeed.w);
-    float flare = exp(-pow((c - 0.5) / 0.05, 2.0));
+    // Squared by hand: pow() of a negative base is NaN on Direct3D.
+    float fd = (c - 0.5) / 0.05;
+    float flare = exp(-fd * fd);
     vec4 mv = viewMatrix * vec4(p, 1.0);
     float dist = -mv.z;
     vAlpha = edge * (0.18 + 0.82 * flare) * (0.5 + 0.5 * aSeed.x);

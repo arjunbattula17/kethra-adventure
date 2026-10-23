@@ -1,4 +1,4 @@
-import{At as e,D as t,Et as n,Ut as r,_t as i,b as a,ot as o,wt as s,x as c,z as l}from"./three-BNTvIbIC.js";import{u}from"./boot-nz7FZmk-.js";function d(e,t){let n=e/100,r,i,a;return n<=66?(r=255,i=99.4708025861*Math.log(n)-161.1195681661,a=n<=19?0:138.5177312231*Math.log(n-10)-305.0447927307):(r=329.698727446*(n-60)**-.1332047592,i=288.1221695283*(n-60)**-.0755148492,a=255),t.setRGB(Math.min(255,Math.max(0,r))/255,Math.min(255,Math.max(0,i))/255,Math.min(255,Math.max(0,a))/255,s),t}var f=new r(.28,.93,-.24).normalize(),p=`
+import{At as e,D as t,Et as n,Ut as r,_t as i,b as a,ot as o,wt as s,x as c,z as l}from"./three-BNTvIbIC.js";import{u}from"./boot-DRT8CN2B.js";function d(e,t){let n=e/100,r,i,a;return n<=66?(r=255,i=99.4708025861*Math.log(n)-161.1195681661,a=n<=19?0:138.5177312231*Math.log(n-10)-305.0447927307):(r=329.698727446*(n-60)**-.1332047592,i=288.1221695283*(n-60)**-.0755148492,a=255),t.setRGB(Math.min(255,Math.max(0,r))/255,Math.min(255,Math.max(0,i))/255,Math.min(255,Math.max(0,a))/255,s),t}var f=new r(.28,.93,-.24).normalize(),p=`
   varying vec3 vDir;
   void main() {
     vDir = normalize(position);
