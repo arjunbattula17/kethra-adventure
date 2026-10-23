@@ -1,0 +1,1 @@
+function e(e,t,n=performance.now()){try{performance.measure(e,{start:t,end:n})}catch{}}function t(e){try{performance.mark(e)}catch{}}function n(t,n){let r=performance.now();try{return n()}finally{e(t,r)}}async function r(t,n){let r=performance.now();try{return await n()}finally{e(t,r)}}export{r as i,e as n,n as r,t};
