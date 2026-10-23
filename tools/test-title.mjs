@@ -1,5 +1,6 @@
-// The title screen, end to end: the menu and its four buttons, the 3D backdrop behind it (ship, moon,
-// rocks, a turning planet), keyboard and mouse selection, Controls and Settings (and focus coming
+// The title screen, end to end: the menu and its four buttons, the 3D backdrop behind it (without a
+// save the ship over a turning Kethra; with one the astronaut by ringed Isilthe, turning, rocks
+// drifting, the camera leaning toward the pointer), keyboard and mouse selection, Controls and Settings (and focus coming
 // back), a quality change made from the title, New game into the intro, Continue into the Wren, an
 // unreadable save, reduced motion, and the menu held back until it can come in with the backdrop.
 //
@@ -53,7 +54,7 @@ async function makeSave() {
   check('the title has an accessible name', (await page.getByRole('heading', { level: 1 }).textContent()).trim() === 'Kethra');
   check('the 3D backdrop comes up behind the menu', await backdropLive(page));
   check('the game has not started (flow still at boot)', (await page.evaluate(() => window.__DEBUG__.flow.state)) === 'boot');
-  check('the backdrop has the ship, the moon and the rocks', await page.evaluate(() => ['title-ship', 'title-moon', 'title-asteroids', 'title-hero-surface'].every((n) => window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName(n))));
+  check('without a save the backdrop is the ship over Kethra', await page.evaluate(() => ['title-ship', 'title-moon', 'title-asteroids', 'title-hero-surface'].every((n) => window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName(n))));
   const spin = await page.evaluate(async () => {
     const surface = window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName('title-hero-surface');
     const a = surface.rotation.y;
@@ -66,6 +67,7 @@ async function makeSave() {
 
   await page.keyboard.press('ArrowDown');
   check('ArrowDown selects Controls', (await selectedLabel(page)) === 'Controls');
+  check('a light runs along the selected button', await page.evaluate(() => document.getAnimations().some((a) => a.animationName === 'tb-sweep')));
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   check('the selection wraps past Settings and skips disabled Continue', (await selectedLabel(page)) === 'New game');
@@ -128,6 +130,34 @@ async function makeSave() {
   const b = await labels(page);
   check('with a save, Continue is enabled, selected and focused', !b[0].disabled && b[0].selected && b[0].focused);
   await backdropLive(page);
+  check('with a save the backdrop is the astronaut by Isilthe: planet, rings and rocks', await page.evaluate(() => ['title-astronaut', 'title-planet-surface', 'title-rings', 'title-ring-rubble', 'title-formations', 'title-asteroids', 'title-embers'].every((n) => window.__DEBUG__.engine.getCurrentScene().scene.getObjectByName(n))));
+  const moving = await page.evaluate(async () => {
+    const s = window.__DEBUG__.engine.getCurrentScene();
+    const surface = s.scene.getObjectByName('title-planet-surface');
+    const bones = s.scene.getObjectByName('title-astronaut').material.uniforms.uBones.value;
+    const a = surface.rotation.y;
+    const rocks = s.rocks.report();
+    const torso = bones[1].elements.slice();
+    await new Promise((r) => setTimeout(r, 1000));
+    const after = s.rocks.report();
+    return {
+      spin: surface.rotation.y - a,
+      rocks: after.filter((r, i) => Math.hypot(r.x - rocks[i].x, r.y - rocks[i].y) > 0.001).length,
+      breath: bones[1].elements.some((v, i) => Math.abs(v - torso[i]) > 1e-5),
+    };
+  });
+  check('Isilthe turns on its own', Math.abs(moving.spin) > 0.008 && Math.abs(moving.spin) < 0.03, `${moving.spin.toFixed(4)} rad in 1 s`);
+  check('the drifting rocks move', moving.rocks >= 8, `${moving.rocks} of 12 moved in 1 s`);
+  check('the astronaut breathes', moving.breath);
+  const lean = await page.evaluate(async () => {
+    const cam = window.__DEBUG__.engine.getCurrentScene().camera;
+    const before = cam.position.x;
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: window.innerWidth - 1, clientY: window.innerHeight / 2 }));
+    await new Promise((r) => setTimeout(r, 1500));
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 }));
+    return cam.position.x - before;
+  });
+  check('the camera leans toward the pointer', lean > 0.02, `${lean.toFixed(3)} units`);
   await page.keyboard.press('Enter');
   const ship = await page.waitForFunction(() => window.__DEBUG__?.flow.state === 'wren' && !window.__DEBUG__.flow.isTransitioning(), null, { timeout: 180000, polling: 250 }).then(() => true, () => false);
   check('Enter on Continue resumes aboard the Wren', ship && (await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene()?.kind)) === 'ShipInteriorScene');

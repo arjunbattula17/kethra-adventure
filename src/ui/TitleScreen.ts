@@ -9,13 +9,17 @@ import type { Engine } from '../core/Engine';
 import { PACE } from '../core/prepare';
 import { motion } from '../motion';
 import type { TitleScene } from '../galaxy/title/TitleScene';
+import type { KethraTitleScene } from '../galaxy/title/kethraTitle';
 
 /**
  * The title screen: the first thing a judge sees. The menu is plain DOM and CSS, and the first click
  * on it is what unlocks audio (browsers block sound until the page gets a gesture).
  *
- * Behind it, once the engine exists (boot.ts), runs the 3D backdrop (galaxy/title/TitleScene.ts): a
- * survey cruiser over Kethra at sunrise, inside the belt. The page shows only a dark sky of its own
+ * Behind it, once the engine exists (boot.ts), runs one of two 3D backdrops, picked by the save
+ * (pickBackdrop): a first visit gets the survey cruiser over Kethra at sunrise
+ * (galaxy/title/kethraTitle.ts), the journey not begun; a returning player, with a save to continue,
+ * gets the astronaut resting on a rock in the belt, looking out at ringed Isilthe
+ * (galaxy/title/TitleScene.ts). Only the one picked is downloaded and built. The page shows only a dark sky of its own
  * until the backdrop's first frame; then the menu and the backdrop come in together, in one fade
  * (reveal). Should the backdrop fail, or not arrive within REVEAL_CAP_MS, the menu comes in over that
  * sky alone. Nothing on the menu loops.
@@ -75,7 +79,15 @@ const HUD_RULE = `<svg class="ts-hud-line" viewBox="0 0 400 20" preserveAspectRa
 const SPARK = `<svg class="ts-spark" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0l1.3 6.7L16 8l-6.7 1.3L8 16l-1.3-6.7L0 8l6.7-1.3z" fill="currentColor"/></svg>`;
 
 let root: HTMLDivElement | null = null;
-let scene: TitleScene | null = null;
+let scene: TitleScene | KethraTitleScene | null = null;
+
+/** The backdrop for this visit: Isilthe once there is a save to continue, Kethra and the ship before. */
+function pickBackdrop(hasSave: boolean) {
+  return hasSave
+    ? import('../galaxy/title/TitleScene').then((m) => ({ preload: m.preloadTitle, make: (): TitleScene | KethraTitleScene => new m.TitleScene() }))
+    : import('../galaxy/title/kethraTitle').then((m) => ({ preload: m.preloadKethraTitle, make: (): TitleScene | KethraTitleScene => new m.KethraTitleScene() }));
+}
+let chosen: ReturnType<typeof pickBackdrop> | null = null;
 let backdropStarted = false;
 let revealed = false;
 let revealCap = 0;
@@ -139,7 +151,7 @@ export const TitleScreen = {
       </main>
       <div class="ts-hud" aria-hidden="true">
         <div class="ts-hud-track">${HUD_TOP}<span class="ts-hud-words"></span></div>
-        <div class="ts-hud-place">${HUD_BRACKET}${HUD_SCOPE}<span class="ts-hud-place-text"><b></b><span></span></span></div>
+        <div class="ts-hud-place">${HUD_BRACKET}<span class="ts-hud-scope-wrap">${HUD_SCOPE}<span class="ts-hud-ping"></span></span><span class="ts-hud-place-text"><b></b><span></span><i class="ts-hud-signal"></i></span></div>
         <div class="ts-hud-end"><span class="ts-hud-end-text"></span>${SPARK}${HUD_RULE}</div>
       </div>`;
     el.querySelector('.ts-kicker span')!.textContent = t('title.kicker');
@@ -155,6 +167,7 @@ export const TitleScreen = {
     el.querySelector('.ts-hud-place-text b')!.textContent = t('title.hudPlace');
     el.querySelector('.ts-hud-place-text span')!.textContent = t('title.hudPlaceSub');
     el.querySelector('.ts-hud-end-text')!.textContent = t('title.hudEnd');
+    el.querySelector('.ts-hud-signal')!.textContent = t('title.hudSignal');
 
     const menu = el.querySelector('.ts-menu')!;
     menu.setAttribute('aria-label', t('title.menuLabel'));
@@ -206,7 +219,8 @@ export const TitleScreen = {
 
     document.body.appendChild(el);
     // The backdrop's code and maps start downloading now; it is built once the engine exists.
-    void import('../galaxy/title/TitleScene').then((m) => m.preloadTitle()).catch(() => {});
+    chosen = pickBackdrop(opts.hasSave);
+    void chosen.then((m) => m.preload()).catch(() => {});
     select(buttons.find((b) => !b.disabled)!, true);
     revealCap = window.setTimeout(reveal, REVEAL_CAP_MS);
 
@@ -238,9 +252,9 @@ export const TitleScreen = {
     if (!root || leaving || backdropStarted) return;
     backdropStarted = true;
     try {
-      const { TitleScene } = await import('../galaxy/title/TitleScene');
+      const { make } = await (chosen ?? pickBackdrop(false));
       if (!root || leaving) return;
-      const next = new TitleScene();
+      const next = make();
       try {
         await engine.prepareScene(next, { pacer: engine.newPacer(PACE.playing) });
       } catch (err) {
@@ -256,6 +270,8 @@ export const TitleScreen = {
         root?.classList.add('backdrop-live');
         reveal();
       };
+      // Only Isilthe's backdrop sends its signal.
+      if ('onSignal' in next) next.onSignal = signal;
       await engine.setScene(() => next, { prepared: true, quiet: true });
       engine.start();
       scene = next;
@@ -285,6 +301,7 @@ export const TitleScreen = {
       el.remove();
       root = null;
       scene = null;
+      chosen = null;
       buttons = [];
       selected = null;
       then();
@@ -337,6 +354,22 @@ function reveal(): void {
   root.inert = false;
   root.classList.add('revealed');
   (selected ?? buttons.find((b) => !b.disabled))?.focus({ preventScroll: true });
+}
+
+let signalTimer = 0;
+
+/** Isilthe's signal reached the backdrop's rings: the corner scope picks it up, with a faint chirp once sound is on. */
+function signal(): void {
+  if (!root || !revealed || leaving || PanelManager.isOpen) return;
+  const place = root.querySelector('.ts-hud-place');
+  if (!place) return;
+  place.classList.remove('signal');
+  // Restart the one-shot animation even if the last one is still running.
+  void (place as HTMLElement).offsetWidth;
+  place.classList.add('signal');
+  window.clearTimeout(signalTimer);
+  signalTimer = window.setTimeout(() => place.classList.remove('signal'), 2600);
+  if (stopMusic) AudioSystem.playSignal();
 }
 
 /** Marks one menu item as the selected one (hover and keyboard focus are the same thing here). */

@@ -107,6 +107,51 @@ const DEBRIS_VERTEX = /* glsl */ `
   }
 `;
 
+/** A formation that never moves: its vertices are already where they belong (formations.ts). */
+export const STATIC_VERTEX = /* glsl */ `
+  attribute float aSeed;
+  ${VARYINGS}
+  void main() {
+    vPosW = position;
+    vLocal = position;
+    vLocalN = normal;
+    vSpin = vec4(0.0, 1.0, 0.0, 0.0);
+    vSeed = aSeed;
+    vCavity = aCavity;
+    gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0);
+  }
+`;
+
+/**
+ * Rubble in a ring plane (ringworld.ts): each instance on its own circular orbit (aOrbit: radius,
+ * starting angle, angular rate, height off the plane) about uOrbitCenter, in the plane whose basis is
+ * uOrbitBasis (local X and Z in the plane, Y its normal); aSize its radius.
+ */
+export const ORBIT_VERTEX = /* glsl */ `
+  attribute vec4 aOrbit;
+  attribute vec4 aSpin;
+  attribute float aSize;
+  attribute float aSeed;
+  uniform float uTime;
+  uniform vec3 uOrbitCenter;
+  uniform mat3 uOrbitBasis;
+  ${VARYINGS}
+  ${SPIN_GLSL}
+  void main() {
+    float a = aOrbit.y + aOrbit.z * uTime;
+    vec3 centre = uOrbitCenter + uOrbitBasis * vec3(cos(a) * aOrbit.x, aOrbit.w, sin(a) * aOrbit.x);
+    float turn = aSpin.w * uTime + aSeed * 6.2832;
+    vec3 world = centre + spin(position * aSize, aSpin.xyz, turn);
+    vPosW = world;
+    vLocal = position;
+    vLocalN = normal;
+    vSpin = vec4(aSpin.xyz, turn);
+    vSeed = aSeed;
+    vCavity = aCavity;
+    gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
+  }
+`;
+
 const FRAGMENT = /* glsl */ `
   precision highp float;
   uniform sampler2D uRock;
@@ -116,6 +161,10 @@ const FRAGMENT = /* glsl */ `
   uniform vec3 uSunColor;
   uniform vec3 uBounceDir;
   uniform vec3 uBounceColor;
+  uniform vec3 uFill;
+  uniform vec3 uRimColor;
+  uniform vec2 uAlbedo;
+  uniform float uTexScale;
   uniform float uFade;
   varying vec3 vPosW;
   varying vec3 vLocal;
@@ -123,6 +172,33 @@ const FRAGMENT = /* glsl */ `
   varying vec4 vSpin;
   varying float vSeed;
   varying float vCavity;
+  #ifdef OCCLUDERS
+  // Spheres standing in for the astronaut: their occlusion and their soft shadow from the key. The
+  // loop runs to a uniform (the count) so Direct3D keeps it a loop: unrolled, the driver was still
+  // compiling it when the backdrop first drew, a 0.3-0.5 s frame in the dissolve.
+  uniform vec4 uOcc[OCCLUDERS];
+  uniform int uOccCount;
+  // A sphere round all of them: rock further away than this from it is left alone (most of the screen).
+  uniform vec4 uOccBound;
+  float contact(vec3 p, vec3 n) {
+    if (distance(p, uOccBound.xyz) > uOccBound.w) return 1.0;
+    float ao = 1.0;
+    float sh = 1.0;
+    for (int i = 0; i < OCCLUDERS; i++) {
+      if (i >= uOccCount) break;
+      vec3 d = uOcc[i].xyz - p;
+      float r = uOcc[i].w;
+      float l = length(d);
+      ao *= 1.0 - clamp(dot(n, d / l) * (r * r) / (l * l), 0.0, 1.0) * 0.85;
+      float b = dot(d, uSunDir);
+      if (b > 0.0) {
+        float h = length(d - uSunDir * b);
+        sh = min(sh, smoothstep(r * 0.55, r * 0.55 + b * 0.25 + 0.02, h));
+      }
+    }
+    return ao * mix(0.35, 1.0, sh);
+  }
+  #endif
   vec3 spin(vec3 v, vec3 k, float a) {
     float c = cos(a);
     float s = sin(a);
@@ -132,14 +208,14 @@ const FRAGMENT = /* glsl */ `
     vec3 ln = normalize(vLocalN);
     vec3 w = pow(abs(ln), vec3(4.0));
     w /= w.x + w.y + w.z;
-    vec3 p = vLocal * 0.42 + vSeed * 7.0;
+    vec3 p = vLocal * uTexScale + vSeed * 7.0;
     // Colour: three projections, taken to grey and given a per-rock tint.
     float lumX = dot(texture2D(uRock, p.zy).rgb, vec3(0.3, 0.59, 0.11));
     float lumY = dot(texture2D(uRock, p.xz).rgb, vec3(0.3, 0.59, 0.11));
     float lumZ = dot(texture2D(uRock, p.xy).rgb, vec3(0.3, 0.59, 0.11));
     float lum = lumX * w.x + lumY * w.y + lumZ * w.z;
     vec3 tint = mix(vec3(0.95, 0.92, 0.88), vec3(0.86, 0.9, 0.98), vSeed);
-    vec3 albedo = tint * (0.045 + lum * 0.3);
+    vec3 albedo = tint * (uAlbedo.x + lum * uAlbedo.y);
     // Grain: the normal map in each projection (whiteout-style blend), in the rock's space, then turned.
     vec2 nx = texture2D(uRockNormal, p.zy).xy * 2.0 - 1.0;
     vec2 ny = texture2D(uRockNormal, p.xz).xy * 2.0 - 1.0;
@@ -149,6 +225,9 @@ const FRAGMENT = /* glsl */ `
     vec3 V = normalize(cameraPosition - vPosW);
 
     float cavity = 1.0 - vCavity * 0.75;
+    #ifdef OCCLUDERS
+    cavity *= contact(vPosW, n);
+    #endif
     float ndl = dot(n, uSunDir);
     float key = max(ndl * 0.9 + 0.1, 0.0) * cavity;
     // The seen sun is behind most rocks: their edges toward it catch a hard, warm rim.
@@ -157,9 +236,9 @@ const FRAGMENT = /* glsl */ `
     float bounce = max(dot(n, uBounceDir), 0.0) * cavity;
     // With the sun behind them their faces would be black; the glow of the sky and the limb in front
     // of them gives a faint cool fill, enough for the stone to read.
-    vec3 fill = vec3(0.16, 0.2, 0.26) * (0.25 + 0.75 * facing);
+    vec3 fill = uFill * (0.25 + 0.75 * facing);
     vec3 col = albedo * (uSunColor * key + uBounceColor * bounce + fill);
-    col += vec3(1.0, 0.9, 0.78) * rim * (0.4 + 0.9 * lum) * cavity * 1.5;
+    col += uRimColor * rim * (0.4 + 0.9 * lum) * cavity;
     gl_FragColor = vec4(col * uFade, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -167,7 +246,7 @@ const FRAGMENT = /* glsl */ `
 `;
 
 /** Small 3D value noise for shaping rocks on the CPU (once, at build). */
-function makeNoise(seed: number) {
+export function makeNoise(seed: number) {
   const rand = mulberry32(seed);
   const perm = new Uint8Array(512);
   const p = Array.from({ length: 256 }, (_, i) => i);
@@ -212,7 +291,13 @@ function makeNoise(seed: number) {
  * One rock of unit-ish radius, with its cavity attribute: an icosphere pushed out by broad noise,
  * ridged noise for cracks and edges, and craters (a bowl and a raised rim).
  */
-function rockGeometry(detail: number, seed: number, shape: RockShape = 'chunky'): THREE.BufferGeometry {
+/** Extra shaping for a placed formation: fracture planes of its own (unit-sphere space, before the stretch) and its own stretch. */
+export interface RockExtra {
+  cuts?: { n: THREE.Vector3; d: number }[];
+  stretch?: THREE.Vector3;
+}
+
+export function rockGeometry(detail: number, seed: number, shape: RockShape = 'chunky', extra: RockExtra = {}): THREE.BufferGeometry {
   const fbm = makeNoise(seed);
   const rand = mulberry32(seed * 7 + 1);
   let geo: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, detail);
@@ -221,13 +306,14 @@ function rockGeometry(detail: number, seed: number, shape: RockShape = 'chunky')
   geo = mergeVertices(geo);
   const pebble = shape === 'pebble';
   const stretch =
-    shape === 'elongated'
+    extra.stretch ??
+    (shape === 'elongated'
       ? new THREE.Vector3(1.5 + rand() * 0.25, 0.6 + rand() * 0.15, 0.65 + rand() * 0.15)
       : shape === 'angular'
         ? new THREE.Vector3(1.05, 0.75 + rand() * 0.2, 0.8 + rand() * 0.15)
         : pebble
           ? new THREE.Vector3(1.12, 0.8 + rand() * 0.15, 0.85 + rand() * 0.15)
-          : new THREE.Vector3(1.15, 0.6 + rand() * 0.25, 0.72 + rand() * 0.23);
+          : new THREE.Vector3(1.15, 0.6 + rand() * 0.25, 0.72 + rand() * 0.23));
   // Angular rocks are cut harder: more planes, closer in, so broad flat faces dominate. Pebbles keep a
   // shallow facet or two.
   const cutCount = shape === 'angular' ? 5 + Math.floor(rand() * 3) : pebble ? 1 + Math.floor(rand() * 2) : 3 + Math.floor(rand() * 4);
@@ -244,7 +330,7 @@ function rockGeometry(detail: number, seed: number, shape: RockShape = 'chunky')
   const cuts = Array.from({ length: cutCount }, () => ({
     n: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize(),
     d: cutDepth + rand() * 0.22,
-  }));
+  })).concat(extra.cuts ?? []);
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const cavity = new Float32Array(pos.count);
   const v = new THREE.Vector3();
@@ -303,11 +389,21 @@ export interface RockLight {
   rimDir: THREE.Vector3;
   /** Toward the planet's lit face: its bounce. */
   bounceDir: THREE.Vector3;
+  /**
+   * The light's colour and strength, the bounce's, the fill from in front, the rim's gain over the light
+   * (without it, the Kethra title's warm rim), and the stone's albedo (base, and how much the map adds).
+   */
+  sunColor?: THREE.Color;
+  bounceColor?: THREE.Color;
+  fillColor?: THREE.Color;
+  rimGain?: number;
+  albedo?: [number, number];
 }
 
-function rockMaterial(vertexShader: string, light: RockLight, extra: Record<string, THREE.IUniform>, fade: THREE.IUniform<number>): THREE.ShaderMaterial {
+export function rockMaterial(vertexShader: string, light: RockLight, extra: Record<string, THREE.IUniform>, fade: THREE.IUniform<number>, texScale = 0.42, defines: Record<string, number> = {}): THREE.ShaderMaterial {
   const maps = rockTextures();
   return new THREE.ShaderMaterial({
+    defines,
     vertexShader,
     fragmentShader: FRAGMENT,
     uniforms: {
@@ -315,9 +411,13 @@ function rockMaterial(vertexShader: string, light: RockLight, extra: Record<stri
       uRockNormal: { value: maps.normal },
       uSunDir: { value: light.sunDir },
       uRimDir: { value: light.rimDir },
-      uSunColor: { value: new THREE.Color(1.0, 0.95, 0.88).multiplyScalar(1.7) },
+      uSunColor: { value: light.sunColor ?? new THREE.Color(1.0, 0.95, 0.88).multiplyScalar(1.7) },
       uBounceDir: { value: light.bounceDir },
-      uBounceColor: { value: new THREE.Color(0x3f8a5a).multiplyScalar(0.4) },
+      uBounceColor: { value: light.bounceColor ?? new THREE.Color(0x3f8a5a).multiplyScalar(0.4) },
+      uFill: { value: light.fillColor ?? new THREE.Color(0.16, 0.2, 0.26) },
+      uRimColor: { value: light.rimGain === undefined ? new THREE.Color(1.0, 0.9, 0.78).multiplyScalar(1.5) : (light.sunColor ?? new THREE.Color(1.0, 0.95, 0.88).multiplyScalar(1.7)).clone().multiplyScalar(light.rimGain) },
+      uAlbedo: { value: new THREE.Vector2(...(light.albedo ?? [0.045, 0.3])) },
+      uTexScale: { value: texScale },
       uFade: fade,
       ...extra,
     },
@@ -465,8 +565,8 @@ export async function buildAsteroids(o: LargeRockOptions): Promise<LargeRocks> {
         const size = extent[i] / depth;
         const sx = 0.5 + (0.5 * c.x) / depth / tanH - size / (2 * tanH);
         const sy = 0.5 - (0.5 * c.y) / depth / tanV - size / (2 * tanV);
-        // Wholly past the right edge or below the bottom: a new pass from the left.
-        if (sx > right || sy > bottom) deal(i, null);
+        // Wholly past the right edge, below the bottom or above the top: a new pass from the left.
+        if (sx > right || sy > bottom || sy + size / tanV < 1 - bottom) deal(i, null);
       }
     },
     setView(h, v) {

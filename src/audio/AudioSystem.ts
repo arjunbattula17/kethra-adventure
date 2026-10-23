@@ -276,6 +276,34 @@ export const AudioSystem = {
     glass(659.25, 0.16, 0.6, 0.045);
   },
 
+  /** A distant signal on the title (Isilthe's Choir, TitleScene): a breath of radio static and two faint falling notes. Very quiet. */
+  playSignal(): void {
+    const c = getCtx();
+    if (!c || !sfxBus) return;
+    const t0 = c.currentTime;
+    const length = Math.floor(c.sampleRate * 0.4);
+    const buffer = c.createBuffer(1, length, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource();
+    noise.buffer = buffer;
+    const band = c.createBiquadFilter();
+    band.type = 'bandpass';
+    band.Q.value = 3;
+    band.frequency.value = 2400;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(0.006, t0 + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0003, t0 + 0.38);
+    noise.connect(band);
+    band.connect(gain);
+    gain.connect(sfxBus);
+    noise.start(t0);
+    noise.stop(t0 + 0.4);
+    tone(1318.5, 0.08, 0.35, { type: 'sine', vol: 0.01, attack: 0.02 });
+    tone(987.8, 0.3, 0.6, { type: 'sine', vol: 0.008, attack: 0.03 });
+  },
+
   playFootstep(surface: 'metal' | 'organic' = 'metal'): void {
     const c = getCtx();
     if (!c || !sfxBus) return;

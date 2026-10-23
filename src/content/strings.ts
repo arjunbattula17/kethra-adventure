@@ -198,6 +198,7 @@ export const STRINGS = {
   'title.hudPlace': 'Beyond the Kessic Drift',
   'title.hudPlaceSub': 'Uncharted system',
   'title.hudEnd': 'The universe awaits',
+  'title.hudSignal': 'Signal // Isilthe',
   'title.continue': 'Continue',
   'title.newGame': 'New game',
   'title.controls': 'Controls',

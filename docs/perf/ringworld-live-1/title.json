@@ -1,0 +1,41 @@
+{
+  "label": "ringworld-live-1",
+  "base": "http://127.0.0.1:4233/kethra-adventure/",
+  "path": "none",
+  "viewport": [
+    1366,
+    768
+  ],
+  "idle": 14,
+  "summary": {
+    "fcpMs": 1176,
+    "buttonsMs": 326.7,
+    "backdropMs": 2776.5,
+    "fpsMedian": 59.9,
+    "p95Ms": 16.9,
+    "over20": 0,
+    "over50": 0,
+    "longTaskMs": 521,
+    "longestTaskMs": 200,
+    "heapMb": 18,
+    "clickToSceneMs": null
+  },
+  "results": [
+    {
+      "run": 0,
+      "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "fcpMs": 1176,
+      "buttonsMs": 326.7,
+      "backdropMs": 2776.5,
+      "idleFrames": 706,
+      "fpsMedian": 59.9,
+      "p95Ms": 16.9,
+      "over20": 0,
+      "over50": 0,
+      "longTaskMs": 521,
+      "longestTaskMs": 200,
+      "heapMb": 18,
+      "errors": []
+    }
+  ]
+}

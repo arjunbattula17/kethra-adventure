@@ -1364,7 +1364,8 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
 }
 .tb-fill { background: linear-gradient(180deg, rgba(22, 50, 84, 0.42), rgba(6, 16, 30, 0) 60%), linear-gradient(90deg, rgba(8, 20, 38, 0.86), rgba(8, 20, 38, 0.64) 60%, rgba(8, 20, 38, 0.5)); }
 .tb-lit {
-  background:
+  background-image:
+    linear-gradient(100deg, rgba(220, 246, 255, 0) 30%, rgba(220, 246, 255, 0.22) 50%, rgba(220, 246, 255, 0) 70%),
     radial-gradient(80% 140% at 10% 50%, rgba(90, 200, 255, 0.5), rgba(53, 191, 255, 0) 62%),
     linear-gradient(180deg, rgba(221, 246, 255, 0.16), rgba(221, 246, 255, 0) 48%),
     linear-gradient(90deg, rgba(22, 104, 188, 0.86), rgba(14, 66, 132, 0.66) 58%, rgba(10, 40, 84, 0.58));
@@ -1406,18 +1407,31 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
   transform: translateX(calc(var(--ts-btn-h) * 0.08));
   filter: drop-shadow(0 0 2px rgba(150, 225, 255, 0.7)) drop-shadow(0 0 calc(var(--ts-btn-h) * 0.3) rgba(53, 191, 255, 0.45));
 }
-.title-btn.is-selected .tb-frame { background: linear-gradient(90deg, #e2f7ff 0%, #4ec8ff 18%, #35bfff 50%, #4ec8ff 82%, #e2f7ff 100%); }
+.title-btn.is-selected .tb-frame { background-image: linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, #ffffff 50%, rgba(255, 255, 255, 0) 70%), linear-gradient(90deg, #e2f7ff 0%, #4ec8ff 18%, #35bfff 50%, #4ec8ff 82%, #e2f7ff 100%); }
 .title-btn.is-selected .tb-lit { opacity: 1; }
 .title-btn.is-selected .tb-icon { color: #fff; filter: drop-shadow(0 0 4px rgba(120, 215, 255, 0.95)); }
 .title-btn.is-selected .tb-label { text-shadow: 0 0 10px rgba(110, 210, 255, 0.8), 0 0 2px rgba(255, 255, 255, 0.5); }
 .title-btn.is-selected .tb-chevron { opacity: 1; transform: none; }
-.title-btn:focus-visible .tb-frame { background: linear-gradient(90deg, #ffffff 0%, #a6eaff 18%, #7fdcff 50%, #a6eaff 82%, #ffffff 100%); }
+.title-btn:focus-visible .tb-frame { background-image: linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, #ffffff 50%, rgba(255, 255, 255, 0) 70%), linear-gradient(90deg, #ffffff 0%, #a6eaff 18%, #7fdcff 50%, #a6eaff 82%, #ffffff 100%); }
 .title-btn:active:not(:disabled) { transform: translateX(calc(var(--ts-btn-h) * 0.08)) scale(0.985); transition-duration: 0.06s; }
 .title-btn.is-pressed .tb-lit { animation: tb-press 0.3s ease-out; }
 .title-btn:disabled { cursor: default; color: rgba(240, 246, 252, 0.42); filter: none; }
 .title-btn:disabled .tb-frame { background: rgba(140, 165, 190, 0.22); }
 .title-btn:disabled .tb-fill { background: rgba(8, 21, 38, 0.5); }
 .title-btn:disabled .tb-icon { color: rgba(165, 183, 201, 0.45); }
+/* On selection, once: a thin light runs along the edge (a band in the frame's own background, under
+   the fill, so it shows in the hairline and only faintly through the glass), and a soft glint crosses
+   the lit fill a beat later. Both slide by background-position inside the shapes' own paint: a
+   transformed layer inside each clip-path cost a 0.26 s mask raster when the menu first showed. */
+.title-btn.is-selected .tb-frame,
+.title-btn:focus-visible .tb-frame,
+.tb-lit {
+  background-repeat: no-repeat;
+  background-size: 40% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-position: -70% 0, 0 0, 0 0, 0 0;
+}
+.title-btn.is-selected .tb-frame { animation: tb-sweep 0.7s cubic-bezier(0.3, 0.6, 0.2, 1) 0.03s; }
+.title-btn.is-selected .tb-lit { animation: tb-sweep 0.85s cubic-bezier(0.3, 0.6, 0.2, 1) 0.1s; }
 
 /* Corner furniture, decorative only: a line of genre words top right, where we are bottom left, a
    sign-off bottom right. Small, dim, and gone on screens too small to keep them clear of the menu. */
@@ -1470,12 +1484,46 @@ body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
 }
 .ts-hud-end .ts-hud-line { position: absolute; right: -1.2em; top: 100%; width: calc(100% + 8em); height: 1.6em; margin-top: 0.5em; }
 .ts-spark { width: 1.3em; height: 1.3em; color: #cfeeff; filter: drop-shadow(0 0 4px rgba(53, 191, 255, 0.8)); }
+/* Isilthe's signal (TitleScreen.signal, every 18-28 s): a ring of light swells out of the scope and a
+   line of text comes up under the place name, once each. Nothing blurred (no box- or text-shadow), both
+   drawn from the reveal at 1/255 on layers of their own, and only their opacity and transform change:
+   a blur first drawn mid-idle compiled its shader, and even a plain first raster then cost a frame. */
+.ts-hud-scope-wrap { position: relative; display: block; flex-shrink: 0; }
+.ts-hud-scope-wrap .ts-hud-scope { display: block; }
+.ts-hud-ping {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  border: 1px solid rgba(150, 230, 255, 0.9);
+  background: radial-gradient(closest-side, rgba(53, 191, 255, 0) 70%, rgba(53, 191, 255, 0.35) 96%, rgba(53, 191, 255, 0));
+  opacity: 0.004;
+  transform: scale(0.55);
+  will-change: opacity, transform;
+}
+.ts-hud-place-text { position: relative; }
+.ts-hud-signal {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.55em);
+  font-style: normal;
+  letter-spacing: 0.24em;
+  color: rgba(120, 220, 255, 0.95);
+  text-shadow: none;
+  opacity: 0.004;
+  will-change: opacity;
+}
+.ts-hud-place.signal .ts-hud-ping { animation: ts-signal-ping 2.2s cubic-bezier(0.2, 0.7, 0.3, 1); }
+.ts-hud-place.signal .ts-hud-signal { animation: ts-signal-text 2.4s ease-out; }
 
-/* Reduced motion (Settings or the OS): the menu simply appears. */
+/* Reduced motion (Settings or the OS): the menu simply appears; no sweeps, no pulses. */
 body.reduced-motion .title-screen .ts-column,
 body.reduced-motion .title-screen .ts-hud { animation-duration: 0.2s; animation-delay: 0s; }
+body.reduced-motion .title-btn.is-selected .tb-frame,
+body.reduced-motion .title-btn.is-selected:not(.is-pressed) .tb-lit,
+body.reduced-motion .ts-hud-place.signal .ts-hud-ping { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .title-screen .ts-column, .title-screen .ts-hud { animation-duration: 0.2s; animation-delay: 0s; }
+  .title-btn.is-selected .tb-frame, .title-btn.is-selected:not(.is-pressed) .tb-lit, .ts-hud-place.signal .ts-hud-ping { animation: none; }
 }
 
 /* Squarer windows turn the camera to keep the ship and the planet (TitleScene.frame), which brings the
@@ -1497,8 +1545,25 @@ body.reduced-motion .title-screen .ts-hud { animation-duration: 0.2s; animation-
 @keyframes ts-in { from { opacity: 0; translate: 0 10px; } }
 @keyframes ts-fade { from { opacity: 0; } }
 @keyframes tb-press { 0% { filter: brightness(2); } 100% { filter: brightness(1); } }
+@keyframes tb-sweep { from { background-position: -70% 0, 0 0, 0 0, 0 0; } to { background-position: 170% 0, 0 0, 0 0, 0 0; } }
+@keyframes ts-signal-ping { 0% { opacity: 0.004; transform: scale(0.55); } 10% { opacity: 0.95; } 100% { opacity: 0.004; transform: scale(1.5); } }
+@keyframes ts-signal-text { 0% { opacity: 0.004; } 15% { opacity: 0.95; } 70% { opacity: 0.8; } 100% { opacity: 0.004; } }
+@keyframes ts-panel-line { from { transform: scaleX(0); opacity: 0; } }
 
 /* The panels the title opens (Controls, Settings) take its palette while it's up. */
+/* Opened from the title, a panel draws a thin accent line across its top edge as it comes in. */
+body.title-open .panel-overlay.visible .panel::before {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(53, 191, 255, 0), rgba(130, 220, 255, 0.9), rgba(53, 191, 255, 0));
+  animation: ts-panel-line 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.08s backwards;
+  pointer-events: none;
+}
+body.reduced-motion.title-open .panel-overlay.visible .panel::before { animation: none; }
 body.title-open .panel-overlay {
   --accent: #35bfff;
   --accent-dim: #2a7fae;

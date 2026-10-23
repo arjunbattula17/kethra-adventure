@@ -403,6 +403,8 @@ export function buildSkyFx(o: SkyFxOptions): SkyFx {
     setGlare(k) {
       glare.value = k;
       ghostIntensity.value = k * 0.05;
+      // No glare, no draws: the sun can be hidden (the ringworld title keeps it behind the planet).
+      core.visible = lens.visible = ghosts.visible = k > 0;
     },
     setDust(k) {
       dustIntensity.value = k;

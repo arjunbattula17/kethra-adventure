@@ -1,140 +1,110 @@
-# Title screen — "A cruiser over Kethra at sunrise"
+# Title screen — two backdrops, picked by the save
 
-## Concept
-The first thing a judge sees: a survey cruiser on four blue engines, banked toward us, flying over
-Kethra's day side as the sun rises on the limb, inside the belt the planet orbits (LORE.md: "first
-orbit past the belt"). Isilthe's rings rise over the horizon, a small grey moon hangs off the limb,
-rocks drift past. On the left, "A deep-space survey" over the KETHRA wordmark, the tagline, and the
-four menu buttons; small labels in three corners. Composition after the user's reference image of
-2026-10-16 (second pass that day).
+## Which one
+The menu is the same for both; the 3D backdrop behind it depends on whether there is a journey to
+continue (`pickBackdrop` in `src/ui/TitleScreen.ts`):
 
-Screens: `docs/screens/title/` (1920×1080, 1366×768, 1280×1024, 390×844, the opening at 1 s,
-Settings).
+| Save | Backdrop | Module |
+|---|---|---|
+| None, or unreadable (Continue disabled) | **Kethra at sunrise**: the capital ship dashes in over Kethra's day side, Isilthe's rings over the horizon. The journey hasn't started. | `kethraTitle.ts` (`KethraTitleScene`), with `heroPlanet.ts` and `titleShip.ts` |
+| A usable save (Continue enabled) | **Looking out at Isilthe**: the astronaut resting on a rock in the belt before the ringed moon (this document, below). | `TitleScene.ts` (`TitleScene`) |
+
+Only the picked module is downloaded, preloaded and built, so neither costs the other anything. Both
+report `kind = 'TitleScene'` to the engine and tests. Only Isilthe's has the signal (`onSignal`).
+The Kethra scene is the one that was live until 2026-10-22, unchanged; its design notes are in git
+history (this file at overhaul 0bcce10). The rock shader both use keeps the Kethra scene's look by
+default (`RockLight`: albedo, rim colour, fill); the Isilthe scene passes its own.
+
+## "Looking out at Isilthe": concept
+For a returning player: a surveyor in an EVA suit, resting on a rock in the belt and looking
+out at Isilthe, the ringed ocean moon at the edge of the system (LORE.md), backlit by its sun. The
+planet is a dark disc with a bright rim and an amber glow on its sun side, its rings sweep across the
+sky, rubble orbits in the ring plane, rocks frame the edges and drift through the middle distance.
+The menu (unchanged: kicker, wordmark, tagline, four buttons, corner labels) holds the left third.
+Composition after the user's reference image of 2026-10-22 (the menu in that image was not copied:
+the user wanted the existing buttons kept).
 
 ## How it is built
 Two layers, so the menu never waits for 3D:
 
 | Layer | Files | What it does |
 |---|---|---|
-| Menu (DOM, CSS) | `src/ui/TitleScreen.ts`, `src/style.css` (Title screen section) | Kicker, wordmark (one SVG path) with its orbit ring, tagline, four buttons, corner labels, input, audio. Held back (inert, drawn at 1/255 opacity) until the backdrop's first frame, then comes in with it. |
+| Menu (DOM, CSS) | `src/ui/TitleScreen.ts`, `src/style.css` (Title screen section) | Kicker, wordmark, tagline, four buttons, corner labels, input, audio. Held back (inert, drawn at 1/255 opacity) until the backdrop's first frame, then comes in with it. |
 | Backdrop (three.js scene) | `src/galaxy/title/` | Drawn by the engine like any scene, behind the menu; disposed by `Engine.setScene` when the player picks. |
 
 Backdrop modules:
 
 | File | Contents |
 |---|---|
-| `TitleScene.ts` | Composition (`COMPOSITION`, `SHIP`), the ship's way in (`FLIGHT`), the rock fields' tuning (`LARGE_ROCKS`, `DEBRIS`), camera, motion, the exit. |
-| `titleShip.ts` | The capital ship, built in code to the look of the reference images (dark gunmetal armour over graphite, mid-grey plates, black recesses, cyan-white light): a deep hull running into one heavy, blunt nose (V-plated roof overhanging the cheeks, light strips either side of a dark spine, cheek plates split by upright light strips, the hull number on a dark plate, a ridged face, a stepped jaw), a tall citadel head block with the number on its flank, a stepped bridge and two blade towers, big rounded pods either side wrapped in bent armour shells with a light along each lower edge, a cowl, launch cells and an 8-bore launcher on each pod's front, thick boxy arms ending in pods with canted fins, a dorsal fin over a block that carries the hull number aft, a keel with a deeper block and bay door, fairings with lift vents under the pods. The stern: in the middle a big door, not an engine (emblem, hinges, a hazard band, light round its gap); in each pod's skirt a framed cluster of eight small boosters over an emblem plate; two more on each arm's pod and two under the keel. Lofted faces are cut into panels with jittered seams and dressed as raised plates, stacked plates, open bays, vents or black recesses, some with a light strip in a seam; secondary parts (turrets, conduits on brackets, radiators, antennae, thrusters) on top. Normals from screen derivatives (no normal attribute); the black recess material's tint below 1 is occlusion (the skirts' insides). A 512² GPU-baked sheet of fine seams, hatches, vents and bolts, box-projected and read as bump; markings (hull number, emblem, hazard bands, stencils) are a second, alpha-blended draw over a canvas-painted atlas. Shading: key from the sunrise's side (raised), the sun's rim, a cool fill from our side, Kethra's bounce, the boosters' blue on the stern, reflections of an analytic sky. Plumes: thin ribbons turned to the camera with streaks flowing out of each booster, and a glow per mouth, in one additive draw. Inspect it from every side with `tools/capture-title-ship.mjs`. |
-| `heroPlanet.ts` | Kethra up close: the real day, night and cloud maps plus baked detail at three scales. Elevation from the map's brightness (read softened through a warp) plus the detail's relief, so coastlines are the noise's, fractal and sharp: seas in the lowest fifth or so, greens from coastal canopy to pale terraces, a sun glint and sheen on the water, clouds with their shadows (softened edge-on near the limb), the canopy's teal night glow. An analytic scattering atmosphere over it. Also the small moon (`buildMoon`). |
+| `TitleScene.ts` | Composition (`COMPOSITION`, `PERCH`, `FRAME_ROCKS`, `FRAMING`), the drifting rocks' tuning (`DRIFT_ROCKS`, `DEBRIS`), meteors, the signal (`SIGNAL`), the camera (`CAMERA`: drift, pointer lean, push-in on leaving), the lights, the exit. |
+| `ringworld.ts` | Isilthe: the surface (its map under the detail sheet, turning about the rings' axis, a haze layer drifting at its own rate, the rings' shadow, the amber crescent and limb haze, teal ringshine on the hemisphere facing the lit rings); the atmosphere (a shell, two analytic forward-scattering layers: a hairline rim and a cyan halo); the rings (one annulus 1.32-4.4 radii, radial structure from a 2048-texel CPU-made profile, streaks from the detail sheet, each radius turning at its own Kepler rate, slow spokes and a swell, the planet's shadow, the far side hidden by depth); rubble on its own orbits in the ring plane (one instanced draw). |
+| `astronaut.ts` | The figure, built in code: tubes along the bones with elliptical sections and accordion folds at the joints, armour plates laid on those tubes with bevelled, worn rims, superellipsoid boots, gloves, pack and caps, a helmet with a lime trim and a gold visor. Baked analytic occlusion (capsule stand-ins). Six rigid bones: breathing, shoulders following half way, a slow look about, hands swaying, a chest lamp blinking. Its shader reflects an analytic sky (the planet's disc and rim, the ring band). |
+| `formations.ts` | The ledge (a seat cut flat at y = 0, a step for the boots) and the framing rocks, belt-rock shapes with chosen fracture planes, merged into one static draw, with the figure's contact shadow and occlusion. |
+| `asteroids.ts` | The rocks' shapes and shader (shared by every rock): the drifting pool (dealt new passes out of sight), the pebbles (GPU-wrapped), plus the orbit and static vertex shaders used by `ringworld.ts` and `formations.ts`. Light colours, fill and rim gain are options. |
+| `embers.ts` | Warm sparks drifting up through the right of the picture, each flaring now and then (one Points draw). |
 | `titleSky.ts` | Galactic band and nebula baked once to a "sky card", three star layers. |
-| `asteroids.ts` | Belt rocks (noise, ridges, fracture planes for broken faces, craters, cavity shading, the lichen_rock maps mapped three ways, sun rims) in chunky, elongated and angular shapes. A pool of 12 large rocks, one draw placed from per-rock uniforms that one controller moves and recycles; 11 small instanced rocks (9 on low; about 6-9 on screen) drifting and wrapping on the GPU. |
-| `skyFx.ts` | Sun core and lens rays, three faint ghosts, shooting stars (MeteorOptions), near-field dust, the exit veil. |
-| `bake.ts` | One-off GPU bakes (detail noise sheet), compiled in the background and drawn in strips. |
+| `skyFx.ts` | Shooting stars, near-field dust, the exit veil (its sun glare is off: the sun is behind the planet). |
+| `bake.ts` | The detail noise sheet, compiled in the background and drawn in strips. |
 
-Everything draws with its own shaders: no scene lights, no environment map, under twenty small
-programs (25 in the renderer with the post chain's). Reused from the game: the planet maps and `buildPlanetInstance` (Isilthe and its ring), the
-lichen_rock maps, the post chain (bloom on Quality, glow pass below it), the `title` colour grade, the
-synthesized audio (`AudioSystem`: the `title` music bed, hover and click sounds, `playLaunch`). No new
-asset files.
+Everything draws with its own shaders: no scene lights, no environment map. Reused from the game:
+Isilthe's map, the lichen_rock maps, the post chain and `title` grade, the synthesized audio (title
+music bed, hover and click, `playLaunch`, and a new very quiet `playSignal`). No new asset files.
+`heroPlanet.ts` and `titleShip.ts` serve the Kethra backdrop (`tools/capture-title-ship.mjs` inspects
+its ship; open the title without a save).
 
-## Composition (tune in `COMPOSITION`, `SHIP` and `ROCKS`, TitleScene.ts)
-Authored as screen fractions of a 16:9 frame and solved into world space at build:
-- Kethra's limb is the circle through three screen points (a flat arc, as in the reference); the
-  planet's centre and size follow.
-- The sun sits just outside the limb at `sunAt`. The light that shades the planet and the rocks is
-  turned toward the camera by `lightTowardCamera`: with the true sun direction the whole disc would be
-  night (correct, and a black picture).
-- The ship: a nose point and a stern point at two distances set its heading and its size; `roll`
-  banks it about its own long axis. Its two engine pairs land where the reference has them.
-- Isilthe is half set behind the limb, turned half about the line of sight so its rings are seen from
-  above, opened by about a third and rising a little to the right.
-- Large rocks stream rightward along the bottom of the frame, their tops below `bandTop` (under the
-  menu and the plumes); their first layout keeps clear of the ship's way in.
-- Narrower windows turn the camera so the right of the picture (planet and ship) stays in frame;
-  very narrow ones also widen the field of view (`frame()`). Squarer windows get a deeper shade behind
-  the menu, since the limb then lies behind the wordmark.
+## Composition (TitleScene.ts)
+Authored as screen fractions of a 16:9 frame plus distances, solved into world space at build:
+- Isilthe's centre at (0.69, 0.36), 10.5° in radius. Its rings are opened 25° toward us (the near side
+  crosses the lower disc, the far side arches over the top) with the long axis rising 17° to the right.
+- The sun is behind the planet, offset down and left: a thin amber crescent and haze on that side,
+  the bright rim all round.
+- Near things (figure, ledge, framing rocks) share a cool key from the right (the ring arc's light),
+  a cyan rim from the planet's side, a warm bounce from below and a dim blue fill. Rubble by the
+  planet is lit by the real sun from behind: silhouettes with rims against the rings.
+- The figure's seat at (0.445, 0.705), 4.4 units away, facing 62° to the right.
+- Other windows (`FRAMING`): the span from the figure's pack to the planet's far limb has to fit
+  between the menu column's edge (~37% of the width) and the right edge; squarer windows open the
+  field of view (5:4: 45°) and turn left until the figure clears the menu. Portrait windows use the
+  old rule (wider view, turned toward the planet).
 
-## Arrival: no staged opening
-Everything comes in together. Until the backdrop's first frame the page shows only a stand-in sky
-(deep blue, a few stars, a teal glow low on the right where Kethra will be); then, in one moment, the
-stand-in dissolves into the backdrop (0.6 s) and the menu fades in as one piece (0.45 s, opacity and
-translate only). Nothing on it is on a timer: no stagger, no loops, no light sweeps. The backdrop is
-complete from its first frame. On this laptop that happens ~2.2-2.5 s after load; on a desktop GPU
-~1 s. If the backdrop fails, or has not come within 9 s, the menu comes in over the stand-in alone.
+## Always moving
+All on elapsed time, the same at any frame rate, nothing on a loop the eye can catch:
+- Isilthe turns once in ~7 minutes (0.015 rad/s); its haze drifts ahead of the bands.
+- The rings shear: each radius turns at its Kepler rate (0.02 rad/s at 2 radii, faster inside);
+  spokes drift at their own rate; the light swells a few percent on two unrelated periods.
+- Rubble orbits in the ring plane, passing behind the disc and across it.
+- Twelve rocks drift in from the left and down across the frame in 32-110 s, dealt new passes once
+  out of sight; pebbles tumble and wrap; sparks drift and flare; dust streams past.
+- A shooting star about every 10 s (first at 6 s) in the open sky above the planet.
+- The astronaut breathes (~4.6 s), looks about slowly, the hands sway, the chest lamp double-blinks.
+- The camera drifts a few centimetres and leans toward the pointer (0.06 units and 0.6° at the
+  window's edge, on a 0.6 s lag).
+- Isilthe's signal (lore: the Choir transmits on a cycle): first at 11 s, then every 18-28 s, a faint
+  front runs out through the rings and the corner scope picks it up (a ring swells out of it,
+  "Signal // Isilthe" shows for two seconds, a quiet chirp once sound is on).
 
-While it waits, the menu is drawn at 1/255 opacity (invisible) and inert, on GPU layers of its own
-that it keeps: its glows compile their blur shaders on first draw, and drawn first at the reveal they
-froze the fade for 0.6-0.8 s; a layer made for the fade and dropped after it repainted the menu, a
-0.2 s frame in the middle of the ship's entrance.
-
-What used to happen, and why it read as lag: the 3D arrived ~3-4.4 s after load and then built itself
-up in eight staggered fades over another 2.5 s (stars, nebula, planet, rocks, atmosphere, worlds,
-glare with a swell, dust), while the menu's own opening brought its buttons in only after ~1-2 s.
-
-What runs while the title waits (boot.ts): the engine (~0.6 s after the menu shows), the backdrop's
-preparation and, alongside it, the downloads the game's first scene needs, then the environment map.
-All of it is done before the backdrop's first frame (the map 0.8-1.2 s before it), so nothing decodes
-or compiles with the backdrop on screen. Measured, the other orders were worse: the prefetch decoding
-models and textures with the backdrop on screen dropped 5-6 frames of 120-150 ms right through its
-arrival, and the environment map made once the backdrop was up put 1-3 frames over 50 ms on it in
-most runs. The map used to wait for the backdrop because, made alongside it, it doubled the
-backdrop's bakes; that was its GGX filter's unrolled compile, gone since 2026-10-17 (Environment.ts).
-Made alongside now, it costs the backdrop's first frame ~0.1-0.3 s (docs/PERF_LOG.md, 2026-10-17).
-
-## Always moving, never busy
-Kethra turns about once in 12 minutes, so the ground visibly runs back under the ship within ten or
-twenty seconds; the clouds shear a little on top. The ship flies in once per page, 2 s after the reveal (the galaxy
-alone first): from behind the camera off the right edge, curving in from the side, flat out at 60
-units/s until its last 9 units, then braking on exp(-t / 0.15 s), so it dashes across the frame and
-stops all but dead; plumes full through the dash and 0.35 s into the braking, then fading out over 0.6 s, then drifting on toward the planet at 0.2 units/s (easing off over minutes) with a
-slow heave; a later visit or reduced motion starts it drifting. Large rocks cross the frame in 26-60 s
-(~30-70 px/s at 1600 wide) and are dealt a new pass from the left once they leave; small rocks (rounded
-pebbles: at a few pixels, cut and stretched shapes read as metal shards) drift at 9-25 px/s in seeded random directions, nearer ones faster, and spin. Dust drifts past; the camera drifts
-a little, showing the depth between rocks, ship and planet; a shooting star about every 10 s (first at
-5 s) in the top-left sky above the wordmark: a long, bright white streak with a short white tip (the menu scrim is faded out over that strip of sky). Every motion runs on elapsed time, so its speed is the same at any frame
-rate. Nothing follows the pointer or answers the menu.
-
-Reduced motion (Settings or the OS): the camera holds still, no meteors, the menu simply appears.
+Reduced motion (Settings or the OS): the camera holds still, no lean, no meteors, the figure sits
+still, no button sweeps or scope pulse; the world keeps turning.
 
 ## The buttons
-A hairline hexagon round a glass fill, the icon, the label. Selected (mouse hover and keyboard focus
-are one state): the edge turns bright cyan and glows, the fill lights from the left, the strip steps
-right and its chevron shows, all within 0.2 s; keyboard focus brightens the edge further. Pressed: a
-brightness flash and a slight squeeze. Disabled: dimmed, no glow, with the reason under the label.
-Arrow keys or W/S move, Home/End jump, Enter/Space pick. Focus returns to Controls or Settings when
-their panel closes; those panels take the title's palette while it is up.
+Unchanged look. Added: on selection a thin light runs once along the edge, and a soft glint crosses
+the lit fill a beat later (both a band in the shapes' own background, slid by background-position);
+the Controls and Settings panels draw a thin accent line across their top as they open. Everything
+else as before: hover and keyboard focus are one state, Enter/Space pick, arrows/W/S move, Home/End.
 
-## Behaviour kept
-- Continue resumes the save exactly as before. Without a usable save it is shown disabled with the
-  reason ("No saved journey yet" / "The saved journey could not be read").
-- New game: unchanged (fresh start, or a clean reboot with `?newGame=1` when a save was loaded).
-- Controls prints `src/content/controls.ts`; Settings is the game's one settings panel.
-- Test and capture flags (`?newGame`, `?skipIntro`, `?jump`…) skip the title as before.
-
-## Performance (Intel UHD i5-1035G1, cold profile; docs/PERF_LOG.md, 2026-10-16 and 17)
-- Title frame pacing as before: ~60 fps on Performance and Balanced (median 16.7 ms, p95 ~17 ms).
-  Quality (4× MSAA, full bloom) ~30 fps here, as in the rest of the game; Auto picks Performance.
-- Start-up: the menu shows from ~0.4 s and is fully in by ~0.8-0.9 s (the buttons used to arrive
-  at ~1-2 s); the backdrop at a median of
-  ~3.0 s, as before, with a ship, a moon and a third bake added. The environment map is made alongside
-  its preparation and holds its first frame back ~0.1-0.3 s (see above). New game → intro and
-  Continue → the Wren unchanged.
-- The ship is one mesh (41k triangles, built in ~11 paced chunks of ≤20 ms; it keeps ~2 MB of JS heap once the build's garbage is collected), one 58-triangle alpha-blended draw for its markings (a 1024×512 canvas atlas) and one 440-triangle additive draw for its plumes and glows;
-  its panel sheet is a 512² bake. The 12 large rocks are one draw; the small rocks three instanced
-  draws of 320 triangles each.
-- Bakes: compiled with `compileAsync` and drawn in strips; loop bounds are uniforms so Direct3D keeps
-  them as loops. Hashes are sine-free (`sin()` of large arguments loses precision under ANGLE/D3D).
-- The title is not judged by the runtime quality governor (`GameScene.governed = false`).
-- Leaving disposes everything the title made (render targets, geometry, materials); shared maps are
-  released by the engine.
-- The environment map's long frame just after the dissolve (83-383 ms, in every run) is gone: it was
-  the map's first GGX draw waiting on that filter's unrolled compile, and the loop bound is now a
-  uniform (Environment.ts, `keepSampleLoop`, 2026-10-17); the map is also done before the backdrop
-  shows.
+## Performance (Intel UHD i5-1035G1, cold profile, interleaved A/B against the live build, on AC)
+- Idle: 60 fps, p95 17 ms, no frames over 20 ms, as before.
+- Backdrop first frame: 2.81-2.94 s after load vs 2.73-2.85 s for the previous title.
+- Draws: sky (3), planet surface, atmosphere, rings, rubble (instanced), figure (1),
+  formations (1, ~287k triangles), drifting rocks (1), pebbles (3), sparks, dust, meteor.
+- Gotchas found on the way (arrival hitches on this GPU): a transformed pseudo-element inside a
+  clip-path (the first sweep design) cost a 0.26 s mask raster when the menu first showed; a
+  box-shadow or text-shadow first drawn mid-idle compiles its blur (50-130 ms frames at the signal).
+  Both are gone; the signal's elements are drawn at 1/255 from the reveal.
 
 ## Testing
-`node tools/test-title.mjs <base>`: 39 checks (buttons, both save cases, keyboard and mouse, panels
-and focus, a quality change from the title, the ship, moon and rocks in the scene, the planet turning
-by itself, nothing looping on the menu, the menu up and answering keys before the backdrop, reduced
-motion holding the camera still, New game, Continue, an early click). `node tools/title-bench.mjs
-<label> <base>`: start-up, title frame pacing and click to scene, written to `docs/perf/<label>/`.
+`node tools/test-title.mjs <base>`: 45 checks. Without a save: the ship scene's parts and Kethra
+turning; with one: Isilthe's parts, Isilthe turning, the rocks drifting, the figure breathing, the
+pointer lean; and the menu, panels, button sweep, reduced motion, New game and Continue.
+`node tools/capture-title.mjs <label> <base> --sizes=1920x1080,1280x1024 --at=4,14 [--bare]`:
+screenshots on this machine's GPU into renders/title/. `node tools/title-bench.mjs` as before.
