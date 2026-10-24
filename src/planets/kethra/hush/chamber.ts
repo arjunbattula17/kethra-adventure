@@ -193,8 +193,14 @@ export function buildChamber(): Chamber {
   const tz = Math.cos(archA);
   const archYaw = -archA;
   const pillarH = arch.y - F - 1.9;
+  const archPillars: THREE.Box3[] = [];
+  // A turned 0.7 m square's footprint, as an axis-aligned box.
+  const pillarReach = 0.35 * (Math.abs(Math.cos(archYaw)) + Math.abs(Math.sin(archYaw)));
   for (const side of [-1, 1]) {
-    cut.add(box(0.7, pillarH, 0.7), place(arch.x + tx * side * 1.5, F + pillarH / 2, arch.z + tz * side * 1.5, archYaw));
+    const px = arch.x + tx * side * 1.5;
+    const pz = arch.z + tz * side * 1.5;
+    cut.add(box(0.7, pillarH, 0.7), place(px, F + pillarH / 2, pz, archYaw));
+    archPillars.push(new THREE.Box3(v3(px - pillarReach, F, pz - pillarReach), v3(px + pillarReach, F + pillarH, pz + pillarReach)));
   }
   // The arch lies in the wall's plane (the block's local y-z); each stone is pitched to the curve.
   for (let i = 0; i < 9; i++) {
@@ -213,10 +219,11 @@ export function buildChamber(): Chamber {
 
   // --- The root tunnels: a woven roof on root arches, walled in ---
   // Each arch is flattened and lifted so that over all the floor a player can stand on (out to
-  // 0.8 m from the tunnel's middle: the outer wall's face, less a body's radius) its underside is
-  // in the roof, and its crown stays under the roof's top; it shows where it meets the walls. Any
-  // lower and it reaches head height, and a walk down the tunnel passes the camera through it.
-  const reach = 0.8;
+  // 0.8 m from the tunnel's middle: the outer wall's face, less a body's radius), and 0.1 m past it
+  // for the camera's own clearance, its underside is in the roof, and its crown stays under the
+  // roof's top; it shows where it meets the walls. Any lower and it reaches head height, and a walk
+  // down the tunnel passes the camera through it.
+  const reach = 0.9;
   for (const k of blocks.filter((b) => b.kind === 'roof')) {
     bark.add(box(k.hx * 2, k.y1 - k.y0, k.hz * 2, 1.5), place(k.x, (k.y0 + k.y1) / 2, k.z, k.yaw));
     const n = Math.round((k.hz * 2) / 1.1);
@@ -331,6 +338,8 @@ export function buildChamber(): Chamber {
   }
   for (const side of [-1, 1]) colliders.push(new THREE.Box3(v3(side * gw - 0.7, F, gateZ - 1), v3(side * gw + 0.7, F + 9.4, gateZ + 1)));
   for (const post of H.POSTS) colliders.push(new THREE.Box3(v3(post.lamp.x - 0.3, F, post.lamp.z - 0.3), v3(post.lamp.x + 0.3, F + 2, post.lamp.z + 0.3)));
+  // The far arch's pillars stand in front of the wall, behind the moth's gaze from its perch above them.
+  colliders.push(...archPillars);
 
   let pulse = -1;
   const postLit = H.POSTS.map(() => false);

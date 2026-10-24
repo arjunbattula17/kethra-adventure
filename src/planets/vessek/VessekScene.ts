@@ -60,6 +60,8 @@ const HALL_PROPS = ['Prop_Crate3', 'Prop_Crate4', 'Prop_Barrel_Large', 'Prop_Che
 /** Length of the pulse cutscene in seconds, before the player regains control and the frost timer
  * starts. */
 const PULSE_BEAT = 6.2;
+/** A duct fan folded against the wall: a quarter turn about its hinge, swinging south. */
+const FAN_FOLDED = Math.PI / 2;
 
 /** Most lamp groups follow the bus circuit of the same name; goalFor() drives the rest. */
 type LampGroup = 'lamps' | 'dock' | 'school' | 'grow' | 'junction' | 'emergency';
@@ -858,11 +860,15 @@ export class VessekScene implements GameScene {
     for (const m of d.plantMats) this.animated.add(m);
     for (const f of d.ductFans) {
       this.animated.add(f.light);
-      f.blades.traverse((o) => this.noMerge.add(o));
+      f.hinge.traverse((o) => this.noMerge.add(o));
+      f.hinge.rotation.y = this.bus.isOn('fans') ? 0 : FAN_FOLDED;
     }
     d.scrubberFan.traverse((o) => this.noMerge.add(o));
     for (const o of [d.resetPanel, d.keypad, d.insideButton, d.crank]) o.traverse((x) => this.noMerge.add(x));
-    if (gameState.hasFlag('vessek_junction_reset')) d.resetLever.rotation.x = -0.9;
+    if (gameState.hasFlag('vessek_junction_reset')) {
+      d.resetLever.rotation.x = -0.9;
+      d.resetLeverBox.makeEmpty();
+    }
     // Restore door states from save flags.
     const sealed = gameState.hasFlag('vessek_pulse') && !gameState.hasFlag('vessek_hatch_open') && !gameState.hasFlag('vessek_power_restored');
     this.rooms.hatch.setOpen(!sealed);
@@ -923,6 +929,7 @@ export class VessekScene implements GameScene {
           return;
         }
         gameState.setFlag('vessek_junction_reset');
+        this.dressing.resetLeverBox.makeEmpty();
         gameState.addAttributeXp('engineering', 1);
         AudioSystem.playConfirm();
         UIManager.toast('The junction thumps back onto the bus and its lamps come up. Tell Varro.', 'learn');
@@ -1046,8 +1053,8 @@ export class VessekScene implements GameScene {
       if (!all.some((c) => c.box === door.collider)) all.push({ box: door.collider });
     }
     for (const f of this.dressing.ductFans) {
-      if (this.bus.isOn('fans')) f.collider.copy(f.closed);
-      else f.collider.makeEmpty();
+      // Off, a fan is out of the way at once. On, update() swings it back and closes it.
+      if (!this.bus.isOn('fans')) f.collider.makeEmpty();
       if (!all.some((c) => c.box === f.collider)) all.push({ box: f.collider });
     }
   }
@@ -1296,7 +1303,17 @@ export class VessekScene implements GameScene {
     const d = this.dressing;
     const fans = this.bus.isOn('fans');
     for (const f of d.ductFans) {
-      f.blades.rotation.z += dt * (fans ? 14 : 0);
+      // Off, the housing swings free and folds against the wall. On, it swings back across the duct
+      // once the player is clear of where it swings, as a door waits, and blocks it again when shut.
+      if (!fans) f.hinge.rotation.y = damp(f.hinge.rotation.y, FAN_FOLDED, 4, dt);
+      else if (f.collider.isEmpty() && !this.player.overlaps(f.swept)) {
+        f.hinge.rotation.y = damp(f.hinge.rotation.y, 0, 5, dt);
+        if (f.hinge.rotation.y < 0.02) {
+          f.hinge.rotation.y = 0;
+          f.collider.copy(f.closed);
+        }
+      }
+      f.blades.rotation.z += dt * (fans && !f.collider.isEmpty() ? 14 : 0);
       // Slow pulse (about 0.6 Hz), well under three flashes a second.
       f.light.emissiveIntensity = fans ? 0.35 + 0.3 * Math.max(0, Math.sin(elapsed * 4)) : 0.08;
     }

@@ -167,7 +167,8 @@ export const LEVERS: Record<LeverId, { at: Vec; room: RoomId; yaw: number }> = {
 
 /** The auto-reset lockout boxes, in the ducts: the dock's at Dace's far bend, the lamps' at the hall duct's ladder top. */
 export const LOCKOUTS: { id: 'dock' | 'lamps'; at: Vec; duct: Duct['id'] }[] = [
-  { id: 'dock', at: v(-18, UPPER, -25.5), duct: 'dace' },
+  // Short of the bend: from z -25.35 the turn east opens the wall it hangs on.
+  { id: 'dock', at: v(-18, UPPER, -24.9), duct: 'dace' },
   { id: 'lamps', at: v(10, UPPER, -15), duct: 'hall' },
 ];
 

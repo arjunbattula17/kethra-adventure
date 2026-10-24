@@ -26,6 +26,8 @@ const {
 // the top either way. A smaller drop leaves a crouched eye above the capsule, and a roof that stops
 // the capsule then cuts through the camera.
 const CROUCH_DROP = PLAYER_HEIGHT - CROUCH_HEIGHT;
+/** How far short of a roof a rising head stops: the camera then stays 0.13 m under it, clear of the 5 cm near plane's corners. */
+const ROOF_GAP = 0.03;
 
 /** How far the capsule centred at (x, z) reaches into `box` in plan view; above 0 means they overlap. */
 function depthInto(box: THREE.Box3, x: number, z: number): number {
@@ -91,6 +93,7 @@ export class PlayerController {
   private jumping = false;
   /** Feet height at take-off; colliders keep blocking from this height until the player lands. */
   private jumpFromY = 0;
+  private leftWithoutHeadroom = false;
   private landDip = 0;
   private lean = 0;
   /** 0 standing, 1 crouched: eased, so the view lowers instead of snapping. */
@@ -352,11 +355,14 @@ export class PlayerController {
     // Forgiveness: a press shortly before landing is remembered (buffer), and a jump shortly after
     // leaving a ledge still counts (coyote time). Jump height and distance are unchanged.
     this.sinceGrounded = this.onGround ? 0 : this.sinceGrounded + dt;
+    // Where there is no room to stand there is no jump, and that holds for the coyote jump just after
+    // stepping off such a spot too: off Vessek's high vent lips it carried the head through the ceiling.
+    if (this.onGround) this.leftWithoutHeadroom = noHeadroom;
     this.jumpBufferedFor = pressed('jump') ? JUMP_BUFFER : Math.max(0, this.jumpBufferedFor - dt);
     // Not on a ladder: over the shaft, a jump from the top rung would come down past it. Not without
     // room to stand either (a duct, under a shelf): the head is at the roof already, and small
     // fittings hanging under it have no colliders to keep the camera out.
-    if (this.jumpBufferedFor > 0 && !ladder && !noHeadroom && (this.onGround || this.sinceGrounded < COYOTE_TIME) && this.velocityY <= 0) {
+    if (this.jumpBufferedFor > 0 && !ladder && !noHeadroom && (this.onGround || (this.sinceGrounded < COYOTE_TIME && !this.leftWithoutHeadroom)) && this.velocityY <= 0) {
       this.velocityY = JUMP_SPEED;
       this.onGround = false;
       this.jumping = true;
@@ -370,8 +376,9 @@ export class PlayerController {
       this.velocityY += GRAVITY * dt;
       resolved.y = this.rig.position.y + this.velocityY * dt;
       if (this.velocityY > 0) {
-        // Rising: the head stops at the underside of anything overhead (a duct roof, a root tunnel).
-        const height = this.headHeight();
+        // Rising: the head stops just under anything overhead (a duct roof, a root tunnel). Short of
+        // touching it, so the camera, 0.1 m under the head, stays clear of the stone's near side.
+        const height = this.headHeight() + ROOF_GAP;
         const roof = this.roofAbove(resolved.x, resolved.z, this.rig.position.y + height);
         if (roof !== null && resolved.y + height > roof) {
           resolved.y = Math.max(this.rig.position.y, roof - height);

@@ -181,7 +181,7 @@ check('the hall lamps switch themselves back on and trip it', b.trips === 2 && !
 check('the trip costs the bay warmth', b.frost < frostBefore - 9, `${frostBefore.toFixed(1)} -> ${b.frost.toFixed(1)}`);
 // The lockouts, in the ducts.
 await page.keyboard.down('KeyC');
-await teleport(-18, 2.55, -24.6, 0);
+await teleport(-18, 2.55, -24.0, 0);
 await press('KeyE');
 await teleport(10, 2.55, -16, Math.PI);
 await press('KeyE');

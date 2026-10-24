@@ -233,6 +233,28 @@ export async function buildRooms(scene: THREE.Scene, mats: { wall: THREE.MeshSta
   noMerge.add(grateObj);
   grateObj.traverse((o) => noMerge.add(o));
   const grateCollider = box3(gp.x + 0.45, 0, gp.z - L.DUCT_WIDTH / 2, gp.x + 0.75, L.DUCT_HEIGHT, gp.z + L.DUCT_WIDTH / 2);
+  // Forced, the four middle bars come loose at the foot and bend out to the duct's walls: below a
+  // crawling player's head (1.1 m) nothing is left within a body's width of the middle. Each is set
+  // a little further along the duct than the one outside it, so they pass behind the bars they cross.
+  const bentBar = (z0: number, zWall: number, back: number) =>
+    new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, L.DUCT_HEIGHT, z0),
+        new THREE.Vector3(back * 0.3, L.DUCT_HEIGHT - 0.12, z0 + (zWall - z0) * 0.75),
+        new THREE.Vector3(back * 0.8, L.DUCT_HEIGHT - 0.35, zWall),
+        new THREE.Vector3(back, 0.04, zWall),
+      ]),
+      16,
+      0.02,
+      5,
+      false,
+    );
+  const bent: [number, number, number][] = [
+    [1, -0.6, 0.05],
+    [2, -0.56, 0.1],
+    [3, 0.56, 0.1],
+    [4, 0.6, 0.05],
+  ];
   const grate: Door = {
     object: grateObj,
     collider: grateCollider,
@@ -240,10 +262,16 @@ export async function buildRooms(scene: THREE.Scene, mats: { wall: THREE.MeshSta
     open: false,
     setOpen(open) {
       this.open = open;
-      // One-way: the two middle bars fold aside and are not restored on close.
-      grateObj.children.forEach((b, i) => {
-        if (open && i >= 2 && i <= 3) b.rotation.z = 1.3 * (i === 2 ? -1 : 1);
-      });
+      // One-way: the bent bars are not restored on close.
+      if (!open) return;
+      for (const [i, zWall, back] of bent) {
+        const bar = grateObj.children[i] as THREE.Mesh;
+        if (bar.geometry.type === 'TubeGeometry') continue;
+        bar.geometry.dispose();
+        bar.geometry = bentBar(bar.position.z, zWall, back);
+        bar.position.set(0, 0, 0);
+        bar.rotation.set(0, 0, 0);
+      }
     },
     update() {},
   };

@@ -8,7 +8,7 @@
 //   - the visible geometry, triangle by triangle: a body that passes into a mesh means the mesh has
 //     no collider there, and a mesh within 0.12 m of the eye is the camera clipping into it.
 // Ground cover on Kethra (kit batches, instanced or merged, not marked `collides`) is walk-through by design and is
-// left out, as are the floors themselves and skinned characters.
+// left out, as are the floors themselves, skinned characters and the sky dome.
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
 //   node tools/wall-sweep.mjs [baseUrl] [ship] [kethra] [vessek] [--starts N] [--json out.json]
@@ -55,7 +55,12 @@ async function sweep(cfg) {
       d.update?.(10);
     }
     s.syncDoorColliders();
-    for (const f of s.dressing?.ductFans ?? []) f.collider.makeEmpty();
+    // Off, a fan folds against the duct's wall on its hinge (VessekScene.update), which this loop doesn't run.
+    for (const f of s.dressing?.ductFans ?? []) {
+      f.collider.makeEmpty();
+      f.hinge.rotation.y = Math.PI / 2;
+      f.hinge.updateMatrixWorld(true);
+    }
   }
   const boxes = p.colliders.map((c) => c.box).filter((b) => !b.isEmpty());
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -338,6 +343,8 @@ async function sweep(cfg) {
       return;
     }
     if ((obj.isInstancedMesh || obj.userData.kit) && cfg.name === 'kethra' && obj.userData.collides !== true) return;
+    // The sky dome rides on the camera to stay at infinity (galaxy/spaceSky.ts).
+    if (obj.parent?.name === 'space-sky') return;
     const g = obj.geometry;
     const pos = g.attributes.position;
     if (!pos) return;

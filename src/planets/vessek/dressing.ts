@@ -14,12 +14,15 @@ export interface Dressing {
   schoolMat: THREE.MeshStandardMaterial;
   junctionMat: THREE.MeshStandardMaterial;
   plantMats: THREE.MeshStandardMaterial[];
-  /** Spinning parts: the duct fans (with their colliders while they run) and the scrubber's fan. */
-  ductFans: { blades: THREE.Object3D; collider: THREE.Box3; closed: THREE.Box3; light: THREE.MeshStandardMaterial }[];
+  /** Spinning parts: the duct fans (with their colliders while they run) and the scrubber's fan. A
+   * fan's `hinge` swings it flat against the duct's west wall while its circuit is off. */
+  ductFans: { blades: THREE.Object3D; hinge: THREE.Object3D; collider: THREE.Box3; closed: THREE.Box3; swept: THREE.Box3; light: THREE.MeshStandardMaterial }[];
   scrubberFan: THREE.Object3D;
   /** The junction's reset panel and the door buttons, for the scene's interactions. */
   resetPanel: THREE.Object3D;
   resetLever: THREE.Object3D;
+  /** The raised lever's arm, solid until it is thrown. */
+  resetLeverBox: THREE.Box3;
   keypad: THREE.Object3D;
   insideButton: THREE.Object3D;
   crank: THREE.Object3D;
@@ -250,9 +253,12 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
   resetPanel.add(panel, resetLever);
   resetPanel.position.set(21, 0, junction.z0 + 0.15);
   add(resetPanel);
-  // The panel stands 0.25 m proud of the wall and the raised lever 0.6 m further; this keeps the
-  // player out of the panel and the camera off the lever's tip.
+  // The panel stands 0.25 m proud of the wall; this keeps the player out of it. The raised lever
+  // reaches 0.84 m out at eye height, so its arm is solid too until it is thrown, or walking up to
+  // it put the camera on its tip.
   solid(20.4, junction.z0, 21.6, junction.z0 + 0.3, 2.2);
+  const resetLeverBox = new THREE.Box3(new THREE.Vector3(20.9, 1.1, junction.z0), new THREE.Vector3(21.1, 1.75, junction.z0 + 0.9));
+  colliders.push(resetLeverBox);
   // The door button inside, and the keypad outside.
   const insideButton = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.2), new THREE.MeshStandardMaterial({ color: 0x7cbf7c, emissive: 0x7cbf7c, emissiveIntensity: 0.6 }));
   insideButton.position.set(junction.x0 + 0.1, 1.4, -31.6);
@@ -264,10 +270,14 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
 
   // --- The ducts: a fan behind each mouth, and the chalk arrows ---
   const ductFans: Dressing['ductFans'] = [];
+  // Both ducts run along z here, with at least the fan's width of straight west wall south of it:
+  // 2.6 m to Dace's ladder, and 0.8 m to the hall duct's corner, where its west wall runs on.
   const fanSpots = [
-    { x: -18, z: -1.4, alongZ: true },
-    { x: 2, z: -13.2, alongZ: true },
+    { x: -18, z: -1.4 },
+    { x: 2, z: -13.2 },
   ];
+  // The ring's tube clears the wall it folds against.
+  const hingeIn = L.DUCT_WIDTH / 2 - 0.06;
   for (const f of fanSpots) {
     const blades = new THREE.Group();
     for (let b = 0; b < 5; b++) {
@@ -279,17 +289,20 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
       blades.add(arm);
     }
     mergeRigid(blades);
-    blades.position.set(f.x, L.DUCT_HEIGHT / 2, f.z);
-    if (!f.alongZ) blades.rotation.y = Math.PI / 2;
-    add(blades);
+    const hinge = new THREE.Group();
+    hinge.position.set(f.x - hingeIn, 0, f.z);
+    blades.position.set(hingeIn, L.DUCT_HEIGHT / 2, 0);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.04, 6, 24), steel);
     ring.position.copy(blades.position);
-    ring.rotation.y = f.alongZ ? 0 : Math.PI / 2;
-    add(ring);
+    ring.castShadow = true;
+    hinge.add(blades, ring);
+    add(hinge);
     const light = new THREE.MeshStandardMaterial({ color: 0x1a1d20, emissive: 0xb8d0e0, emissiveIntensity: 0.6 });
     mesh(new THREE.BoxGeometry(0.5, 0.03, 0.08), light, f.x, L.DUCT_HEIGHT - 0.05, f.z + 0.4).castShadow = false;
     const closed = new THREE.Box3(new THREE.Vector3(f.x - 0.65, 0, f.z - 0.1), new THREE.Vector3(f.x + 0.65, L.DUCT_HEIGHT, f.z + 0.1));
-    ductFans.push({ blades, collider: closed.clone(), closed, light });
+    // Where it swings between closed and folded: it waits for the player to be out of here to close.
+    const swept = new THREE.Box3(new THREE.Vector3(f.x - 0.65, 0, f.z - 1.3), new THREE.Vector3(f.x + 0.65, L.DUCT_HEIGHT, f.z + 0.1));
+    ductFans.push({ blades, hinge, collider: closed.clone(), closed, swept, light });
   }
   // Each arrow: its position on a duct's inner wall, the wall normal into the duct, and its
   // direction.
@@ -315,5 +328,5 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
     add(a);
   }
 
-  return { growBars, heaterMat, schoolMat, junctionMat, plantMats, ductFans, scrubberFan, resetPanel, resetLever, keypad, insideButton, crank, colliders, floors };
+  return { growBars, heaterMat, schoolMat, junctionMat, plantMats, ductFans, scrubberFan, resetPanel, resetLever, resetLeverBox, keypad, insideButton, crank, colliders, floors };
 }
