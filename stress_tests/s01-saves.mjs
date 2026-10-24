@@ -1,6 +1,6 @@
 // Persistence abuse: corrupt, odd-shaped and old saves; storage that throws on every access; a full
 // quota. The game must boot, play and open every panel without an uncaught error.
-import { launch, openPage, check, clean, failures, settled, until, press } from './lib.mjs';
+import { launch, openPage, check, clean, failures, settled, until, press, leftTitle } from './lib.mjs';
 
 const KEY = 'kethra_save_v1';
 const browser = await launch();
@@ -26,8 +26,9 @@ const titleButtons = (page) => page.$$eval('.title-btn', (b) => b.map((x) => x.t
 {
   const { page, context, errors } = await openPage(browser, '?seed=3', { init: seed('{{not json') });
   await page.waitForSelector('.title-btn', { timeout: 60000 });
-  const buttons = await titleButtons(page);
-  check('garbage save: no Continue offered', !buttons.some((b) => /continue/i.test(b)), buttons.join(', '));
+  // Continue stays on the menu, disabled, and says why (DECISIONS D-37).
+  const cont = await page.$eval('.title-btn', (b) => ({ text: b.textContent, disabled: b.disabled }));
+  check('garbage save: Continue is disabled and says the save could not be read', /continue/i.test(cont.text) && cont.disabled && /could not be read/i.test(cont.text), cont.text);
   await clean(page, errors, 'garbage save at the title');
   await context.close();
 }
@@ -37,9 +38,9 @@ for (const raw of ['null', '[]', '42', '"hello"']) {
   const { page, context, errors } = await openPage(browser, '?seed=3', { init: seed(raw) });
   await page.waitForSelector('.title-btn', { timeout: 60000 });
   const cont = page.locator('.title-btn', { hasText: /continue/i });
-  if (await cont.count()) {
+  if (await cont.first().isEnabled()) {
     await cont.first().click();
-    await until(page, () => !!window.__DEBUG__?.engine.getCurrentScene(), 120000);
+    await until(page, leftTitle, 120000);
     await page.waitForTimeout(4000);
   }
   await clean(page, errors, `top-level ${raw} save`);
@@ -63,7 +64,7 @@ for (const raw of ['null', '[]', '42', '"hello"']) {
   const { page, context, errors } = await openPage(browser, '?seed=3', { init: seed(weird) });
   await page.waitForSelector('.title-btn', { timeout: 60000 });
   await page.locator('.title-btn', { hasText: /continue/i }).first().click();
-  const reached = await until(page, () => !!window.__DEBUG__?.engine.getCurrentScene() && !window.__DEBUG__.flow.isTransitioning(), 180000);
+  const reached = await until(page, leftTitle, 180000);
   check('weird save: Continue reaches a scene', reached, await page.evaluate(() => window.__DEBUG__?.engine.getCurrentScene()?.kind ?? 'none'));
   await page.waitForTimeout(3000);
   if (reached) await openEveryPanel(page, errors);

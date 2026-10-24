@@ -63,7 +63,8 @@ if (!ONLY || ONLY === 'replay') {
     arg: save,
   };
   const { page, context, errors } = await openPage(browser, '?tier=low&seed=7', { init });
-  await page.waitForSelector('.title-btn', { timeout: 60000 });
+  // The menu can't be reached until it is revealed with the title's backdrop (DECISIONS D-37).
+  await page.waitForSelector('.title-screen.revealed', { timeout: 60000 });
   await page.locator('.title-btn', { hasText: /continue/i }).first().focus();
   await press(page, 'Space', 60);
   await settled(page, 'ShipInteriorScene');

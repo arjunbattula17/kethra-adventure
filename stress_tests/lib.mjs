@@ -78,6 +78,12 @@ export async function settled(page, k, timeout = 240000) {
   await page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k && !window.__DEBUG__.flow.isTransitioning(), k, { timeout, polling: 250 });
 }
 export const until = (page, fn, timeout = 30000, arg) => page.waitForFunction(fn, arg, { timeout, polling: 100 }).then(() => true, () => false);
+// The game has left the title and settled in a scene. The title's own 3D backdrop is an engine scene
+// too, so "a scene is current" alone is already true on the title; the flow leaving 'boot' is not.
+export const leftTitle = () => {
+  const d = window.__DEBUG__;
+  return !!d && d.flow.state !== 'boot' && !!d.engine.getCurrentScene() && !d.flow.isTransitioning();
+};
 export const violations = (page) => page.evaluate(() => window.__STRESS__?.violations ?? []);
 export async function teleport(page, x, y, z, yaw = 0) {
   await page.evaluate(([x, y, z, yaw]) => {

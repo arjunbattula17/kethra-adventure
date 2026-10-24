@@ -1,7 +1,7 @@
-// The title screen, end to end: the menu and its four buttons, the 3D backdrop behind it (the ship
+// The title screen, end to end: the menu and its five buttons, the 3D backdrop behind it (the ship
 // over a turning Kethra, with or without a save; and the astronaut by ringed Isilthe, kept behind
 // ?title=isilthe: turning, rocks drifting, breathing, the camera leaning toward the pointer), keyboard
-// and mouse selection, Controls and Settings (and focus coming
+// and mouse selection, Chapters, Controls and Settings (and focus coming
 // back), a quality change made from the title, New game into the intro, Continue into the Wren, an
 // unreadable save, reduced motion, and the menu held back until it can come in with the backdrop.
 //
@@ -32,12 +32,16 @@ const labels = (page) => page.$$eval('.title-btn', (bs) => bs.map((b) => ({ labe
 const selectedLabel = async (page) => (await labels(page)).find((b) => b.selected)?.label ?? null;
 const backdropLive = (page) => page.waitForFunction(() => document.querySelector('.title-screen.backdrop-live') && window.__DEBUG__?.engine.getCurrentScene()?.kind === 'TitleScene', null, { timeout: 90000 }).then(() => true, () => false);
 
-// A save as the game writes it, made in a throwaway page.
+// A save as the game writes it, made in a throwaway page, from a player who has plotted the course.
+// Without galaxy_revealed it would be a save made mid-reveal, which resumes at the reveal (BUG-006).
 async function makeSave() {
   const page = await browser.newPage();
   await page.goto(`${BASE}?newGame=1&skipIntro=1`);
   await page.waitForFunction(() => window.__DEBUG__?.gameState, null, { timeout: 120000 });
-  const json = await page.evaluate(() => window.__DEBUG__.gameState.toJSON());
+  const json = await page.evaluate(() => {
+    window.__DEBUG__.gameState.setFlag('galaxy_revealed');
+    return window.__DEBUG__.gameState.toJSON();
+  });
   await page.close();
   return json;
 }
@@ -46,7 +50,7 @@ async function makeSave() {
 {
   const { page, context, errors } = await open();
   const b = await labels(page);
-  check('four buttons in order', b.map((x) => x.label).join('|') === 'Continue|New game|Controls|Settings', b.map((x) => x.label).join('|'));
+  check('five buttons in order', b.map((x) => x.label).join('|') === 'Continue|New game|Chapters|Controls|Settings', b.map((x) => x.label).join('|'));
   check('Continue is shown disabled without a save, with the reason', b[0].disabled && /No saved journey/.test(await page.textContent('.title-btn')));
   check('New game starts selected and focused', b[1].selected && b[1].focused);
   check('the kicker reads A deep-space survey', (await page.textContent('.ts-kicker')).trim() === 'A deep-space survey');
@@ -67,19 +71,28 @@ async function makeSave() {
   check('nothing on the menu loops', loops === 0, `${loops} looping`);
 
   await page.keyboard.press('ArrowDown');
-  check('ArrowDown selects Controls', (await selectedLabel(page)) === 'Controls');
+  check('ArrowDown selects Chapters', (await selectedLabel(page)) === 'Chapters');
   check('a light runs along the selected button', await page.evaluate(() => document.getAnimations().some((a) => a.animationName === 'tb-sweep')));
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.panel-overlay.visible .chapter-select', { timeout: 5000 }).catch(() => {});
+  const chapters = await page.$$eval('.panel-overlay.visible .chapter-row', (r) => r.length).catch(() => 0);
+  check('Enter on Chapters opens the chapter list', chapters === 3, `${chapters} chapters`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(700);
+  check('Esc closes Chapters and focus returns to it', (await page.evaluate(() => document.activeElement?.querySelector?.('.tb-label')?.textContent)) === 'Chapters');
+  await page.keyboard.press('ArrowDown');
+  check('ArrowDown again selects Controls', (await selectedLabel(page)) === 'Controls');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   check('the selection wraps past Settings and skips disabled Continue', (await selectedLabel(page)) === 'New game');
   await page.keyboard.press('End');
   check('End selects Settings', (await selectedLabel(page)) === 'Settings');
-  await page.hover('.title-btn:nth-child(3)');
-  check('hovering a button selects and focuses it', (await labels(page))[2].selected && (await labels(page))[2].focused);
+  await page.hover('.title-btn:nth-child(4)');
+  check('hovering a button selects and focuses it', (await labels(page))[3].selected && (await labels(page))[3].focused);
   await page.hover('.title-btn:nth-child(1)');
   check('hovering disabled Continue does not select it', !(await labels(page))[0].selected);
 
-  await page.click('.title-btn:nth-child(3)');
+  await page.click('.title-btn:nth-child(4)');
   await page.waitForSelector('.panel-overlay.visible .title-panel', { timeout: 5000 }).catch(() => {});
   const rows = await page.$$eval('.panel-overlay.visible .controls-list dt', (d) => d.length).catch(() => 0);
   check('Controls opens the controls list', rows > 10, `${rows} actions`);
@@ -88,7 +101,7 @@ async function makeSave() {
   await page.waitForTimeout(400);
   check('Esc closes Controls and focus returns to it', (await page.evaluate(() => document.activeElement?.querySelector?.('.tb-label')?.textContent)) === 'Controls');
 
-  await page.click('.title-btn:nth-child(4)');
+  await page.click('.title-btn:nth-child(5)');
   await page.waitForSelector('#settings-panel', { timeout: 5000 }).catch(() => {});
   check('Settings opens the settings panel', !!(await page.$('#settings-panel')));
   check('the panel takes the title palette', (await page.evaluate(() => getComputedStyle(document.querySelector('.panel-overlay')).getPropertyValue('--accent').trim())) === '#35bfff');
@@ -100,7 +113,7 @@ async function makeSave() {
   check('the backdrop draws again after the panel closes', await page.evaluate(() => window.__DEBUG__.engine.paused === false));
 
   // Every panel closes on a click outside it, and only outside it.
-  await page.click('.title-btn:nth-child(4)');
+  await page.click('.title-btn:nth-child(5)');
   await page.waitForSelector('#settings-panel', { timeout: 5000 }).catch(() => {});
   const box = await page.$eval('#settings-panel', (p) => p.getBoundingClientRect().toJSON());
   await page.mouse.click(box.x + box.width / 2, box.y + 12);
@@ -109,7 +122,7 @@ async function makeSave() {
   await page.mouse.click(8, 8);
   await page.waitForTimeout(700);
   check('a click outside Settings closes it', !(await page.$('.panel-overlay.visible')) && (await page.evaluate(() => window.__DEBUG__.engine.paused === false)));
-  await page.click('.title-btn:nth-child(3)');
+  await page.click('.title-btn:nth-child(4)');
   await page.waitForSelector('.panel-overlay.visible .title-panel', { timeout: 5000 }).catch(() => {});
   await page.mouse.click(1350, 760);
   await page.waitForTimeout(700);

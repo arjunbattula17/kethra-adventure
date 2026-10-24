@@ -3,7 +3,7 @@
 // (BUG-020), the hull left behind by each cruise (BUG-021), the map re-opened during departure
 // (BUG-023), a double-click in dialogue (BUG-026), a throwing timer (BUG-029), and the journal
 // backfill on an old save (BUG-031).
-import { launch, openPage, check, clean, failures, settled, until, press, teleport } from './lib.mjs';
+import { launch, openPage, check, clean, failures, settled, until, press, teleport, leftTitle } from './lib.mjs';
 
 const browser = await launch();
 const D = (page, fn, arg) => page.evaluate(fn, arg);
@@ -42,7 +42,7 @@ const ONLY = process.argv[2];
     await quit.first().click();
     await page.waitForSelector('.title-btn', { timeout: 60000 });
     await page.locator('.title-btn', { hasText: /continue/i }).first().click();
-    await until(page, () => !!window.__DEBUG__?.engine.getCurrentScene() && !window.__DEBUG__.flow.isTransitioning(), 180000);
+    await until(page, leftTitle, 180000);
     await page.waitForTimeout(2000);
     const s = await D(page, () => { const g = window.__DEBUG__.gameState; return { kind: window.__DEBUG__.engine.getCurrentScene()?.kind, battle: g.hasFlag('tutorial_battle_complete'), revealed: g.hasFlag('galaxy_revealed'), planets: [...g.data.planetsUnlocked] }; });
     check('BUG-006: a save made mid-MG1 continues at the reveal, not on a Wren that can never reach Kethra', s.kind === 'GalaxyRevealScene' || (s.revealed && s.planets.includes('kethra')), JSON.stringify(s));
