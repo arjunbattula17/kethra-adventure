@@ -67,6 +67,8 @@ export class ShipInteriorScene implements GameScene {
   readonly staticShadows = true;
   /** The first room of a session prepares behind the intro (or a loading bar): see GameScene.quickLights. */
   readonly quickLights = true;
+  /** The hub: back aboard, the levels' caches are emptied (levelCaches.ts). */
+  readonly releasesLevelCaches = true;
   /**
    * Per-frame hook for a director that lives outside the scene — currently the opening tutorial,
    * which has to poll movement and the player's position but is owned by GameFlow, not by the room.

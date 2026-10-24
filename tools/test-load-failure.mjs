@@ -64,7 +64,8 @@ async function flyToKethra(page) {
   await page.waitForSelector('.title-btn', { timeout: 60000 });
   await page.waitForTimeout(15000);
   const state = await page.evaluate(() => ({ title: !!document.querySelector('.title-screen'), flow: window.__DEBUG__?.flow.state ?? 'no engine yet', scene: window.__DEBUG__?.engine.getCurrentScene()?.kind ?? null }));
-  check('title waits 15 s without starting anything', state.title && state.flow === 'boot' && state.scene === null, JSON.stringify(state));
+  // The title's own 3D backdrop (TitleScene) may be the engine's scene; nothing of the game may be.
+  check('title waits 15 s without starting anything', state.title && state.flow === 'boot' && (state.scene === null || state.scene === 'TitleScene'), JSON.stringify(state));
   const buttons = await page.$$eval('.title-btn', (bs) => bs.map((b) => b.textContent.trim()));
   check('title offers New game, Controls and Settings', ['New game', 'Controls', 'Settings'].every((b) => buttons.includes(b)), buttons.join(', '));
   await page.close();

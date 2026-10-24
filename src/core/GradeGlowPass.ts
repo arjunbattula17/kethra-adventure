@@ -38,6 +38,8 @@ export const GRADES = {
   interior: { exposure: 0.85, knee: 0.48, shoulder: 1.15, gamma: 1.15, toe: 0.035, cool: [0.92, 0.96, 1.05], warm: [1.06, 1.0, 0.9], vignette: 0.85 },
   /** Space: black stays black, highlights roll off warm, a slightly firmer vignette. */
   space: { exposure: 1.0, knee: 0.6, shoulder: 0.9, gamma: 1.0, toe: 0, cool: [0.95, 0.98, 1.04], warm: [1.04, 1.0, 0.94], vignette: 0.8 },
+  /** The title backdrop: space's black, shadows pushed a little bluer, a firmer vignette under the menu. */
+  title: { exposure: 1.0, knee: 0.62, shoulder: 0.9, gamma: 1.02, toe: 0, cool: [0.93, 0.98, 1.07], warm: [1.05, 1.0, 0.93], vignette: 0.74 },
   /** Kethra at night: deep blacks, teal shadows, the canopy's green kept clean. */
   kethra: { exposure: 0.95, knee: 0.5, shoulder: 1.0, gamma: 1.08, toe: 0.01, cool: [0.9, 1.0, 1.02], warm: [1.03, 1.0, 0.93], vignette: 0.82 },
   /** Vessek: warm mids, cool blue shadows. */

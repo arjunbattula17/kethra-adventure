@@ -193,12 +193,21 @@ export const STRINGS = {
   // Title screen. title.name is the game's working title (DECISIONS D-17): change it here.
   'title.kicker': 'A deep-space survey',
   'title.name': 'Kethra',
-  'title.tagline': 'Your ship went dark past the edge of the charts. Wake it up.',
+  'title.tagline': 'Your ship went dark past the edge of the charts.\nWake it up.',
+  // The title's corner labels: decoration, not readouts. The first is split on '//'.
+  'title.hudTrack': 'Exploration // Research // Survival',
+  'title.hudPlace': 'Beyond the Kessic Drift',
+  'title.hudPlaceSub': 'Uncharted system',
+  'title.hudEnd': 'The universe awaits',
+  'title.hudSignal': 'Signal // Isilthe',
   'title.continue': 'Continue',
   'title.newGame': 'New game',
   'title.chapters': 'Chapters',
   'title.controls': 'Controls',
   'title.settings': 'Settings',
+  'title.menuLabel': 'Main menu',
+  'title.noSave': 'No saved journey yet',
+  'title.saveUnreadable': 'The saved journey could not be read',
   'title.closeHint': 'Esc to close',
   // The chapter list (src/ui/ChapterSelect.ts).
   'chapters.note': 'Start at any level. Each one stands on its own.',

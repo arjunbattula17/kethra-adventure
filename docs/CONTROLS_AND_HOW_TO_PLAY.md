@@ -26,12 +26,14 @@ pause menu.
 | Action | Keys |
 |---|---|
 | Look around | `Mouse` |
-| Turn left (no mouse needed) | `←` |
-| Turn right (no mouse needed) | `→` |
-| Move forward | `W` `↑` |
-| Move back | `S` `↓` |
-| Step left | `A` |
-| Step right | `D` |
+| Look left (no mouse needed) | `←` |
+| Look right (no mouse needed) | `→` |
+| Look up (no mouse needed) | `↑` |
+| Look down (no mouse needed) | `↓` |
+| Move forward | `W` |
+| Move back | `S` |
+| Move left | `A` |
+| Move right | `D` |
 | Sprint (hold) | `Shift` |
 | Jump | `Space` |
 | Crouch (hold) | `C` `Ctrl` |
@@ -98,5 +100,5 @@ chapter replaces the saved journey, so the list asks twice when there is one.
 a wall of chalk in a duct. Each one read is counted in that level's survey (shown in the pause menu
 and at the end), and most raise a skill, which opens routes later on.
 
-**Playing without a mouse.** The arrow keys turn and move, `E` interacts, number keys answer
-dialogue, and `Tab`/`Enter` work every menu.
+**Playing without a mouse.** The arrow keys look around while `W` `A` `S` `D` move, `E`
+interacts, number keys answer dialogue, and `Tab`/`Enter` work every menu.

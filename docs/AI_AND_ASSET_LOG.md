@@ -13,6 +13,76 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-19 (Claude Code, model Claude Opus 5.5)
+
+**Asked for by the team:** a long brief (written for a different engine, Godot) and four reference
+images for the title's ship: a heavy capital ship with one dominant nose, a bulky stern that isn't
+three big cylinders, a dark palette with blue-white light, detail on top and underneath, built into
+the title screen. Then: more bulk, as close to the references as possible; then the stern of a third
+reference (small, barely visible boosters, the middle a door rather than an engine), darker colours,
+more futuristic; then commit, merge into overhaul and master, and deploy.
+
+**What the AI generated or changed**
+- `src/galaxy/title/titleShip.ts`, rewritten: the new ship, built in code. Its big shapes are
+  lofted cross-sections whose faces are cut into panels, each dressed as a raised plate, a stacked
+  plate, a vent, an open bay of machinery or a black recess; the markings (hull number, emblem,
+  hazard bands, stencils) are painted on a canvas when the title loads. It flies the same entrance.
+  TITLE_DESIGN.md, DECISIONS D-27, PERF_LOG.
+- `tools/capture-title-ship.mjs`: photographs the ship from fourteen angles in the real title scene.
+
+**What the AI found**
+- The game is TypeScript and three.js, not Godot, so the brief's engine steps didn't apply; the ship
+  was built the way the title's previous ship was.
+- Against the live title (interleaved runs on the Intel UHD laptop, on mains power): the same frame
+  rate (60 fps, p95 17 ms); the 3D scene first appears 0.05-0.15 s later.
+
+**Mistakes the AI made and caught this session**
+- Its engine chambers first rendered black: the hull's stern wall cut through them. Found in the
+  renders; the wall moved forward.
+- Glossy black recess floors caught the key light and read as pale ledges at the stern. Found in a
+  close-up; the insides of recesses are now shaded as in shadow.
+- A first benchmark, run on battery at 20 %, read +0.3 s; on mains power it was about +0.1 s.
+- A JS-heap reading of 41-49 MB (live: 14-18) looked like a leak. After a forced garbage collection
+  the new ship keeps 2 MB more than the old one: its geometry.
+
+**What the team must be able to explain**
+- How a ship this detailed is made without a 3D model file (cross-sections, panels, a plating sheet
+  baked on the graphics card, a painted markings sheet), and that it is drawn in three calls.
+- Which choices were the team's: the reference images, the bulk, a door and small boosters at the
+  stern, the darker palette. The reference images guided the design only; none of them is in the game.
+
+---
+
+## Session 2026-10-16 to 17 (Claude Code, model Claude Opus 5.5)
+
+**Asked for by the team:** a cinematic title screen from a reference image; after seeing it, no
+ship, no tagline and no corner text. Later, a new reference image and a detailed brief: a ship like
+the reference's, a visibly turning planet, slowly drifting asteroids that don't react to the mouse,
+no awkward late pop-ins, nothing broken; then commit, merge into overhaul and master, and deploy.
+
+**What the AI generated or changed**
+- `src/galaxy/title/` (the 3D backdrop: planet, rocks, sky, effects) and `titleShip.ts` (the
+  cruiser, built in code); `src/ui/TitleScreen.ts` and the title CSS; the start-up order in
+  `src/boot.ts`; `tools/test-title.mjs` (39 checks); TITLE_DESIGN.md, DECISIONS D-27, PERF_LOG.
+
+**What the AI found**
+- The late pop-ins were timers, not slowness: the scene built itself up in eight staggered fades
+  after a 3-4 s wait. Measured, two real slowdowns: the environment map doubled the title's
+  preparation, and loading the Wren's assets with the scene on screen dropped 5-6 frames.
+
+**Mistakes the AI made and caught this session**
+- Its first ship was a long thin hull seen side-on; a side-by-side with the reference showed it.
+- It blamed blocky coastlines on the small planet map; zooming in showed a cut in the bump shading.
+- Moving the asset loading after the scene appeared made the arrival stutter; measured, reverted.
+- A script's line endings silently made a timing experiment run the same order six times; caught
+  because the numbers didn't move.
+
+**What the team must be able to explain**
+- Why the title no longer pops in (the scene is complete before it shows and fades in once), and
+  why the title's ship differs from the intro's Wren.
+
+---
+
 ## Session 2026-10-13, second (Claude Code, model Claude Opus 5.5): the release pass
 
 **Asked for by the team:** a "make it safe to submit" brief and a "push the branch" brief, both
@@ -119,6 +189,78 @@ three Sketchfab files themselves (they need a login) and chose every asset on th
 - Why the columns stand outside the chamber, not in it (cover has to be real cover).
 - What CC BY asks for and where the game gives it (the end credits).
 - That this cost performance, and how much (docs/PROGRESS.md, Performance).
+
+---
+
+## Session 2026-10-04 (Claude Code, model Claude Opus 5.5)
+
+**Asked for by the team:** A and D should move you left and right, not look; the mouse should be
+the way to look, with the arrow keys as an option for up, down, left and right; and Space should
+visibly jump. Earlier in the same session: an analysis-only inventory of every visual element on
+Kethra, for replacing art one asset at a time (no files changed).
+
+**What the AI generated or changed**
+- `src/content/controls.ts`: the arrow keys are four look bindings; ↑ and ↓ no longer move.
+- `src/player/PlayerController.ts`: arrow-key look up and down, and a working jump (D-26).
+- The tutorial's first card, README, EXPLAIN_TO_TEAM, CHANGELOG_FOR_TEAM's controls and movement
+  entries, DECISIONS D-26, the regenerated CONTROLS_AND_HOW_TO_PLAY.md, and
+  `tools/test-controls.mjs`.
+
+**What the AI found**
+- A and D already stepped sideways in the live build (measured: D moved the player 2.56 m right
+  and turned them 0°). The turning came from ← and →, while ↑ and ↓ moved, so arrow-key players
+  read the left and right keys as "look".
+- The jump had never worked: it rose 9.5 cm for one frame. No test checked jump height, so the
+  new test does.
+
+**Mistakes the AI made and caught this session**
+- Its Kethra inventory quoted a code comment's 2.6 m Wickmoth wingspan; measured on the live
+  model it is 3.8 m spread (2.1–2.7 m perched), and it corrected the figure.
+
+**What the team must be able to explain**
+- Why Space did nothing before (the stair-following floor snap pulled the player back down) and
+  why a jump now can't carry you inside an object (colliders block from the take-off height).
+
+**Later the same session — asked for by the team:** fix the bugs found, "like going through
+walls", then commit and push without waiting for review.
+
+**What the AI generated or changed**
+- `tools/wall-sweep.mjs` (new): walks, sprints and jumps the real player into every wall in the
+  three walkable places and checks the body and camera against every visible triangle, then tries
+  to walk or jump back from anywhere walking can't reach.
+- `src/player/PlayerController.ts`: a move out of a collider the player is already inside is
+  always allowed; the crouched eye 10 cm lower; no jump without room to stand; a public
+  `overlaps()` for doors.
+- Vessek: a lip at each drop vent (`rooms.ts`), grow-table tops as floors, stool and reset-panel
+  colliders (`dressing.ts`), colliders for Varro, Dace, the crate, the barrel and the whole pipe
+  holder, and the keypad door waiting for the player (`VessekScene.ts`).
+- Kethra: the root-tunnel arches lifted into the roof (`hush/chamber.ts`).
+- The Wren: wall-fixture colliders up to the top of a jump (`ship/interior/collision.ts`), and the
+  console's grime decals moved onto the desk (`console.ts`).
+- `tools/collision-check.mjs` and `movement-check.mjs` reach Kethra again; `test-controls.mjs` has
+  nine more checks. DECISIONS D-28, CHANGELOG_FOR_TEAM, EXPLAIN_TO_TEAM, README.
+
+**What the AI found**
+- Both of Vessek's drop vents trapped the player on the live build: walking out at crawl speed,
+  they landed against the wall under the vent (or inside the grow table under Dace's) and no key
+  moved them, measured with real key presses.
+- Walking either root tunnel on the live build put the camera within 0.5 cm of the arches.
+- The flow tests had never reached either problem: they teleport past the ducts' far ends.
+
+**Mistakes the AI made and caught this session**
+- Its first vent lip was a full body's radius deep; standing at its edge there was room to jump,
+  and the jump put the head through the room's ceiling. The sweep caught it; the lip is now 2 cm
+  short of a radius, so the wall above the vent always leaves no headroom there.
+- Its first grow-table floors were a body's radius wider than the tables, which let a jump from the
+  floor land on air at a table's corner. They now match the tables exactly.
+- The sweep's first runs used the old crouched eye height and started players in crouch-only
+  spots without the crouch a real player would be in, reporting overlaps that couldn't happen in
+  play. Both were fixed before any result was used.
+
+**What the team must be able to explain**
+- Why nothing can trap the player now (moves out of a collider are always allowed, doors wait).
+- Why the drop vents needed a lip (the fall began with half the body still over the wall below).
+- Why the crouched view moved down (the eye was above the top of the crouched body).
 
 ---
 

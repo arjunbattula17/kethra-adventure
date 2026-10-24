@@ -36,7 +36,6 @@ import { buildDressing } from './dressing';
 import type { Dressing } from './dressing';
 import * as L from './layout';
 import { LAMP_COLORS } from './anchorage';
-import { PLAYER } from '../../content/tuning';
 import { preloadNatureKit } from '../kethra/kit';
 import type { Pacer } from '../../core/prepare';
 
@@ -234,7 +233,8 @@ export class VessekScene implements GameScene {
     this.buildFinds();
 
     this.scene.add(this.player.rig);
-    this.player.setFloorTargets([this.floor, ...rooms.floors]);
+    for (const o of dressing.floors) this.noMerge.add(o);
+    this.player.setFloorTargets([this.floor, ...rooms.floors, ...dressing.floors]);
     this.player.setColliders([...hallColliders, ...this.hallFurniture(), ...rooms.colliders, ...dressing.colliders]);
     this.syncDoorColliders();
     this.player.ladders = rooms.ladders;
@@ -1006,6 +1006,7 @@ export class VessekScene implements GameScene {
 
   private hallFurniture(): THREE.Box3[] {
     const box = (x0: number, z0: number, x1: number, z1: number, h = 3) => new THREE.Box3(new THREE.Vector3(x0, 0, z0), new THREE.Vector3(x1, h, z1));
+    // Measured off the placed pieces.
     return [
       // Desk, lectern, columns, cargo.
       box(-4.1, -1.7, -1.0, -0.85, 1.0),
@@ -1015,19 +1016,17 @@ export class VessekScene implements GameScene {
       box(5.7, 6.2, 7.3, 8.9, 1.1),
       box(-3.9, 10.2, -2.9, 11.0, 0.8),
       box(-7.1, -10.9, -4.5, -8.8, 1.1),
-      box(4.8, -11.5, 5.6, -10.3, 0.9),
+      // The pipe holder, all 4.1 m of it along the north wall.
+      box(3.15, -11.5, 7.25, -10.3, 0.95),
+      // The crate and barrel by the column west of the desk.
+      box(-6.55, -3.85, -5.25, -2.55, 1.0),
+      box(-6.85, -2.45, -6.35, -1.95, 1.1),
+      // Varro and Dace, where they stand.
+      box(L.PEOPLE.varro.x - 0.3, L.PEOPLE.varro.z - 0.3, L.PEOPLE.varro.x + 0.3, L.PEOPLE.varro.z + 0.3, 1.8),
+      box(L.PEOPLE.dace.x - 0.3, L.PEOPLE.dace.z - 0.3, L.PEOPLE.dace.x + 0.3, L.PEOPLE.dace.z + 0.3, 1.5),
       // The scope's stand at the east port.
       box(6.7, 1.75, 7.3, 2.25, 1.5),
     ];
-  }
-
-  /** Whether a door shutting now would close on the player. */
-  private inDoorway(door: Door): boolean {
-    const p = this.player.rig.position;
-    const b = door.closedBox;
-    const dx = p.x - THREE.MathUtils.clamp(p.x, b.min.x, b.max.x);
-    const dz = p.z - THREE.MathUtils.clamp(p.z, b.min.z, b.max.z);
-    return dx * dx + dz * dz < PLAYER.PLAYER_RADIUS * PLAYER.PLAYER_RADIUS && p.y < b.max.y;
   }
 
   /** Keeps door and fan colliders in the player's list, empty while a door is open or the fans are
@@ -1303,8 +1302,8 @@ export class VessekScene implements GameScene {
     for (const [door, t] of this.doorTimers) {
       const left = t - dt;
       if (left > 0) this.doorTimers.set(door, left);
-      // Never shut on the player: a closed collider around them blocks every move.
-      else if (this.inDoorway(door)) this.doorTimers.set(door, 0.5);
+      // Held while the player stands in the doorway: shut on them, its collider traps them.
+      else if (this.player.overlaps(door.closedBox)) this.doorTimers.set(door, 0.5);
       else {
         this.doorTimers.delete(door);
         door.setOpen(false);

@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { pageProbe, stats, longStats, CHROME_ARGS } from './lib/probe.mjs';
 
 const args = process.argv.slice(2);
@@ -26,7 +27,7 @@ const OUT = `docs/perf/${LABEL}`;
 mkdirSync(OUT, { recursive: true });
 
 const dir = mkdtempSync(join(tmpdir(), 'kethra-journey-'));
-const context = await chromium.launchPersistentContext(dir, { channel: 'chrome', headless: false, viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1, args: CHROME_ARGS });
+const context = await chromium.launchPersistentContext(dir, { channel: 'chrome', headless: false, viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1, args: [...CHROME_ARGS, '--js-flags=--expose-gc'] });
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
@@ -43,6 +44,39 @@ const lastSeen = { events: [] };
 const keeper = setInterval(() => {
   page.evaluate(() => window.__prof?.events.slice(-6).map(([n, t]) => `${Math.round(t)} ${n}`)).then((e) => (lastSeen.events = e ?? lastSeen.events), () => {});
 }, 2000);
+// Bytes over the wire (compressed sizes as served) and the whole browser's memory (every Chrome
+// process of this profile: browser, renderer, GPU), sampled at each act mark.
+const net = { total: 0, byUrl: new Map() };
+const cdp = await context.newCDPSession(page);
+await cdp.send('Network.enable');
+const urls = new Map();
+cdp.on('Network.requestWillBeSent', (e) => urls.set(e.requestId, e.request.url));
+cdp.on('Network.loadingFinished', (e) => {
+  net.total += e.encodedDataLength;
+  const u = (urls.get(e.requestId) ?? '?').replace(BASE, '');
+  net.byUrl.set(u, (net.byUrl.get(u) ?? 0) + e.encodedDataLength);
+});
+const profileTag = dir.split(/[\\/]/).at(-1);
+function chromeMemoryMB() {
+  if (process.platform !== 'win32') return null;
+  try {
+    const ps = `$all = Get-CimInstance Win32_Process -Filter "name='chrome.exe'"; $root = $all | Where-Object { $_.CommandLine -match '${profileTag}' -and $_.CommandLine -notmatch '--type=' } | Select-Object -First 1; if ($root) { $kids = $all | Where-Object { $_.ProcessId -eq $root.ProcessId -or $_.ParentProcessId -eq $root.ProcessId }; foreach ($k in $kids) { $t = if ($k.CommandLine -match '--type=([a-z-]+)') { $Matches[1] } else { 'browser' }; "$t $($k.PrivatePageCount) $($k.WorkingSetSize)" } }`;
+    const out = execFileSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8' });
+    const r = { private: 0, gpuPrivate: 0, rendererPrivate: 0 };
+    for (const line of out.trim().split(/\r?\n/)) {
+      const [t, p] = line.split(' ');
+      const mb = Number(p) / 1048576;
+      r.private += mb;
+      if (t === 'gpu-process') r.gpuPrivate += mb;
+      if (t === 'renderer') r.rendererPrivate += mb;
+    }
+    for (const k of Object.keys(r)) r[k] = Math.round(r[k]);
+    return r;
+  } catch {
+    return null;
+  }
+}
+const marks = [];
 await page.addInitScript(pageProbe, [flag('cold-gpu') ? Math.floor(Math.random() * 1e6) : 0]);
 
 const log = (msg) => console.log(`${new Date().toISOString().slice(11, 19)}  ${msg}`);
@@ -69,7 +103,11 @@ const lookAround = () =>
       }),
     HOLD,
   );
-const mark = (name) => page.evaluate((n) => window.__prof.events.push([n, performance.now()]), name);
+const mark = async (name) => {
+  const heap = await page.evaluate((n) => { window.__prof.events.push([n, performance.now()]); window.gc?.(); return performance.memory ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1) : null; }, name);
+  const info = await page.evaluate(() => { const r = window.__DEBUG__?.engine.renderer.info; return r ? { textures: r.memory.textures, geometries: r.memory.geometries, programs: r.programs?.length } : {}; });
+  marks.push({ name, bytesMB: +(net.total / 1048576).toFixed(2), heapMB: heap, ...info, chrome: name.startsWith('act:look') ? chromeMemoryMB() : null });
+};
 
 try {
 // The Wren, then straight to the reveal (the tutorial's own flow is tools/test-tutorial-flow.mjs).
@@ -212,7 +250,8 @@ for (let i = 0; i < sceneEvents.length; i++) {
     spans: dump.spans.filter(([, s]) => s >= at && s < until).map(([n, s, d]) => [n, Math.round(s - at), Math.round(d)]),
   });
 }
-const out = { label: LABEL, base: BASE, coldGpu: flag('cold-gpu'), tier: dump.tier, programsAlive: dump.programs, memory: dump.memory, heapMaxMB: Math.max(...dump.heap.map((h) => h[1])), heapEndMB: dump.heap.at(-1)?.[1], errors: [...new Set(errors)].slice(0, 10), segments, events: dump.events.map(([n, t]) => [Math.round(t), n]), long: dump.long.map(([t, d]) => [Math.round(t), Math.round(d)]), gaps: dump.frames.filter((f) => f[1] > 50).map((f) => [Math.round(f[0]), Math.round(f[1]), f[2]]) };
+const topBytes = [...net.byUrl].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([u, b]) => [u, +(b / 1048576).toFixed(2)]);
+const out = { bytesTotalMB: +(net.total / 1048576).toFixed(2), requests: net.byUrl.size, topBytes, marks, label: LABEL, base: BASE, coldGpu: flag('cold-gpu'), tier: dump.tier, programsAlive: dump.programs, memory: dump.memory, heapMaxMB: Math.max(...dump.heap.map((h) => h[1])), heapEndMB: dump.heap.at(-1)?.[1], errors: [...new Set(errors)].slice(0, 10), segments, events: dump.events.map(([n, t]) => [Math.round(t), n]), long: dump.long.map(([t, d]) => [Math.round(t), Math.round(d)]), gaps: dump.frames.filter((f) => f[1] > 50).map((f) => [Math.round(f[0]), Math.round(f[1]), f[2]]) };
 writeFileSync(`${OUT}/journey.json`, JSON.stringify(out, null, 1));
 
 console.log(`\ntier ${out.tier} | programs alive ${out.programsAlive} | heap max ${out.heapMaxMB} MB, end ${out.heapEndMB} MB | textures ${dump.memory.textures} geometries ${dump.memory.geometries} | errors ${out.errors.length}`);
@@ -226,5 +265,8 @@ for (const s of segments) {
   const big = s.spans.filter(([n, , d]) => d > 300 && !/^renderer\./.test(n));
   if (big.length) console.log(`${''.padEnd(16)}   spans: ${big.map(([n, a, d]) => `${n}@${(a / 1000).toFixed(1)}s ${d}`).join(' | ')}`);
 }
+console.log(`
+bytes total ${out.bytesTotalMB} MB over ${out.requests} URLs`);
+for (const m of marks) console.log(`  ${m.name.padEnd(22)} bytes ${String(m.bytesMB).padStart(6)} MB | heap ${m.heapMB} MB | textures ${m.textures} geo ${m.geometries} programs ${m.programs}${m.chrome ? ` | chrome private ${m.chrome.private} MB (gpu ${m.chrome.gpuPrivate}, renderer ${m.chrome.rendererPrivate})` : ''}`);
 if (out.errors.length) console.log('errors: ' + out.errors.join(' || ').slice(0, 800));
 console.log(`wrote ${OUT}/journey.json`);

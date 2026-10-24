@@ -14,21 +14,16 @@ const baseline = baselineArg >= 0 ? Number(process.argv[baselineArg + 1]) : null
 const baseUrl = process.env.BASE_URL || 'http://localhost:5180/kethra-adventure/';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
-await page.goto(`${baseUrl}?skipIntro=1&newGame=1&unlockKethra=1`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+// ?jump=kethra goes straight to the grove; the old travel shortcut (emitting galaxy:travel_to) no
+// longer leaves the Wren, so the Kethra run timed out before measuring anything.
+await page.goto(`${baseUrl}?skipIntro=1&newGame=1&unlockKethra=1${scene === 'kethra' ? '&jump=kethra' : ''}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 90000 });
 const wantClass = scene === 'kethra' ? 'KethraScene' : 'ShipInteriorScene';
-if (scene === 'kethra') {
-  // Through the flow's own jump. The galaxy:travel_to event this used to send now begins the
-  // departure at the helm (First light, then the cruise), which waits on a held key and never
-  // arrives by itself.
-  await page.waitForFunction(() => !!window.__DEBUG__.engine.getCurrentScene?.() && !window.__DEBUG__.flow.isTransitioning(), undefined, { timeout: 90000 });
-  await page.evaluate(() => void window.__DEBUG__.flow.debugGo('kethra'));
-}
 try {
   await page.waitForFunction((cls) => {
     const s = window.__DEBUG__.engine.getCurrentScene?.();
-    return !!(s && s.player && (s.kind ?? s.constructor.name) === cls);
-  }, wantClass, { timeout: 90000 });
+    return !!(s && s.player && (s.kind ?? s.constructor.name) === cls && !window.__DEBUG__.flow.isTransitioning());
+  }, wantClass, { timeout: 240000 });
 } catch {
   // Say what actually loaded rather than just timing out. This used to be a silent 90-second wait
   // whenever the identity check failed — which it did for every production build, because

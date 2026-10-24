@@ -88,14 +88,34 @@ without errors), `test-tutorial-flow.mjs` (36 checks through the opening), `intr
   before every commit.
 - *"Why test with a browser instead of unit tests?"* Most bugs here are visual or timing bugs,
   and only the real renderer shows them.
+- *"How do you know you can't walk through walls?"* `wall-sweep.mjs` drives the real player into
+  every wall it can reach, walking, sprinting and jumping, and checks the body and the camera
+  against every visible triangle. It found Vessek's drop vents trapping the player and the camera
+  passing through the root-tunnel arches on Kethra (D-28).
 - *"What can't you test?"* Other browsers and real Chromebooks, until we run them by hand
   (BACKLOG B-5).
 
-## Title screen (`src/ui/TitleScreen.ts`)
-**What:** the first screen: Continue / New Game / Chapters / Controls / Settings (the credits roll at the ending). Plain HTML and
-CSS, so it appears instantly.
+## Title screen (`src/ui/TitleScreen.ts`, `src/galaxy/title/`)
+**What:** the first screen: Continue / New Game / Chapters / Controls / Settings (the credits roll at the ending). The menu
+is plain HTML and CSS, so it appears instantly; behind it, a live 3D scene drawn by the game's own engine: a
+capital ship over Kethra at sunrise, Isilthe's rings, a moon, drifting rocks (`src/galaxy/title/TITLE_DESIGN.md`).
 **Why:** the rules require a controls screen reachable from a menu; the CC BY assets need visible
-credit; and browsers won't play sound until the player clicks something.
+credit; browsers won't play sound until the player clicks something; and the title is the first
+thing a judge sees.
+- *"Is the background a picture?"* No. It is rendered live every frame: the planet turns, the ship
+  flies and its engines flicker, the rocks tumble. Nothing in it is an image file except the game's
+  own planet and rock textures; the ship, the moon and the rocks are built in code.
+- *"How does the menu show instantly if there's 3D behind it?"* The menu goes up first, over a
+  stand-in night sky. The engine and the 3D scene get ready in the background (about two to three
+  seconds on a school laptop, about one on a gaming PC), and the finished scene fades in once.
+  Nothing waits on a timer.
+- *"Why is that ship different from the one in the intro?"* The title's ship was designed after
+  reference images the team chose for the title; the intro flies the Wren model. A known difference
+  (DECISIONS D-27).
+- *"How was that ship modelled?"* In code, not in a 3D program: cross-sections are joined into the
+  big shapes, every face is cut into panels, and each panel becomes a raised plate, a vent, a bay of
+  machinery or a black recess. The fine seams and bolts are a texture the graphics card bakes at
+  load, and the markings are painted on a canvas. The whole ship is three draw calls.
 - *"How does New Game work if there's a save?"* It reloads with `?newGame=1`, which clears the
   save, then removes that flag from the address bar so a later refresh continues instead of wiping
   progress.
@@ -161,8 +181,9 @@ is generated live: a slow chord plus notes picked at random, different for each 
 ## Pause, settings, keyboard-only (`src/ui/PauseMenu.ts`, `SettingsPanel.ts`, `src/content/controls.ts`)
 - *"How does Esc pause when the browser uses Esc to release the mouse?"* The browser swallows that
   Esc, so the game listens for the mouse being released instead (`InputManager.onUserUnlock`).
-- *"Can you play without a mouse?"* Yes: the arrow keys turn, number keys pick dialogue options,
-  Enter presses the focused button, Tab moves between buttons in menus.
+- *"Can you play without a mouse?"* Yes: the arrow keys look around while W, A, S and D move,
+  number keys pick dialogue options, Enter presses the focused button, Tab moves between buttons
+  in menus.
 - *"Where do the controls come from?"* One table, `controls.ts`, read by the player code, the
   Controls screen and the how-to-play document, so they can never disagree.
 

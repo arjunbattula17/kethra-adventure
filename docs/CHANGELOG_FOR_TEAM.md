@@ -160,7 +160,8 @@ Measured numbers cite their files; the rest is description.
 
 ### Keyboard-only play
 - **What:**
-  - Arrow keys turn; A and D step sideways.
+  - The arrow keys look around (← → turn, ↑ ↓ look up and down) and never move you; W, A, S and
+    D move, with A and D stepping sideways.
   - Number keys choose dialogue options and Rite colours.
   - Tab and Enter work every menu.
   - The map preselects the next destination, and the arrow keys change it.
@@ -190,10 +191,45 @@ Measured numbers cite their files; the rest is description.
 
 ---
 
+### The cinematic title screen
+- **What:**
+  - A live 3D backdrop behind the menu (`src/galaxy/title/`), composed after a reference image the
+    team chose: a heavy capital ship flies in over Kethra's day side at sunrise, banked toward us,
+    with Isilthe's rings over the horizon, a small moon off the limb and belt rocks drifting past.
+  - The ship is built in code (`titleShip.ts`; rebuilt 2026-10-19 after the team's reference
+    images): dark gunmetal armour with cyan light strips, one heavy blunt nose, a tall head block with
+    the hull number, big armoured pods with a bank of eight glowing tubes on each, thick arms with
+    canted fins, and at the stern a door between two clusters of small boosters. Every face is plated,
+    vented or recessed, and the underside is as detailed as the top. It is not the Wren model the
+    intro flies.
+  - Kethra up close from the game's own maps plus baked detail: coastlines, lakes and seas with a sun
+    glint, greens from forest to pale terraces, clouds with their shadows, and an atmosphere that
+    blazes where the sun clears the limb. It turns visibly: the ground runs back under the ship.
+  - Rocks with broken faces, each tumbling and drifting on its own; a rare shooting star.
+  - The menu: "A deep-space survey", the KETHRA wordmark with its orbit ring, the tagline "Your ship
+    went dark past the edge of the charts. Wake it up.", four hexagonal buttons with icons and
+    hover/focus/press/disabled states, arrow-key navigation, and three small corner labels
+    (`src/ui/TitleScreen.ts`, `src/style.css`).
+  - No waiting: the whole menu is up in under a second, and the 3D scene arrives complete and
+    dissolves in once (it used to build itself up piece by piece). Nothing reacts to the mouse.
+- **Why:** the title is the first ten seconds of a judge's three minutes, and it was a flat page.
+- **Rubric:** Overall Appeal; Creativity & Artisanship.
+- **Say:** "The title screen is a real-time scene, not a picture: that's our planet, Kethra, turning
+  under a ship we built in code, rendered live with the same engine as the game. The menu works in
+  under a second, and the game starts exactly as fast as it did before."
+
 ## Game feel
 
 ### Movement and feedback
 - **What:**
+  - Space jumps 1 m and lands with the dip and thud below. It had never left the ground: the
+    floor snap caught the player on the jump's second frame and set them back down. Overhead
+    colliders (duct roofs, root tunnels) stop the head, and anything that blocks walking still
+    blocks mid-jump, so a jump can't carry you into an object.
+  - Nothing to walk through and nowhere to get stuck (D-28): Vessek's drop vents no longer trap
+    you, nothing can hold you inside a collider, the camera stays clear of Kethra's root-tunnel
+    arches, and the Wren's high fixtures, Vessek's people and its furniture are solid. Crouching
+    lowers the view 10 cm more, and doors wait for you to step through.
   - Coyote time (a jump still works 0.1 s after you step off a ledge) and a jump buffer (a press
     0.12 s early still counts).
   - A landing dip with a thud, and a slight lean when strafing (`src/player/PlayerController.ts`,

@@ -12,6 +12,7 @@ import { span, timed } from './perfMarks';
 import { takeProbedContext } from './glContext';
 import { PACE, Pacer, compileProgressively, drawProgressively, litMaterials, texturesOf, upgradeQuickLights, uploadProgressively, yieldToBrowser } from './prepare';
 import type { Pace } from './prepare';
+import { releaseLevelCaches } from './levelCaches';
 
 export interface PrepareOptions {
   /** How much work per frame; defaults to loading-screen pace. The caller may change pacer.pace mid-way. */
@@ -67,7 +68,12 @@ function guessInitialTier(renderer: THREE.WebGLRenderer): QualityTier {
   // compiled every one of them twice. Iris and AMD integrated graphics keep the Balanced guess; the
   // benchmark still checks all of them.
   let gpuCap: QualityTier = 'high';
-  if (/swiftshader|llvmpipe|software/.test(gpu)) gpuCap = 'low';
+  // A browser that hides the graphics chip (privacy settings: an empty string, "WebKit WebGL",
+  // "Mozilla") tells us nothing, and a school machine is the likelier case: start on Performance,
+  // the brief's rule for an unknown device. The start-up benchmark only ever steps down, so a fast
+  // machine behind a masked name stays on Performance until the player picks a tier in Settings.
+  if (!gpu.trim() || /^(webkit webgl|mozilla|generic renderer)$/.test(gpu.trim())) gpuCap = 'low';
+  else if (/swiftshader|llvmpipe|software/.test(gpu)) gpuCap = 'low';
   else if (/uhd graphics|hd graphics|mali|adreno|powervr/.test(gpu)) gpuCap = 'low';
   else if (/intel|iris|radeon\(tm\) graphics|vega/.test(gpu)) gpuCap = 'medium';
 
@@ -105,6 +111,15 @@ export interface GameScene {
    * once (shaderPatches.ts, QUICK_LIGHTS; Engine.upgradeQuickLights). For a scene whose first
    * preparation someone waits on: the Wren, behind the intro or a loading bar. */
   quickLights?: boolean;
+  /** Empty the levels' asset caches once this scene is on screen (levelCaches.ts): the hub, which
+   * nothing but the Wren's own assets has to stay loaded for. */
+  releasesLevelCaches?: boolean;
+  /** Opt out of waiting for the shared environment map before init. For a scene whose first frame
+   * draws nothing lit (the title backdrop, which brings its lit hull in later, see TitleScene). */
+  needsEnvironment?: boolean;
+  /** Opt out of the runtime quality governor. The title backdrop is drawn while nothing of the game
+   * is: a downgrade judged on it would follow the player into the Wren for the rest of the session. */
+  governed?: boolean;
 }
 
 export class Engine {
@@ -156,8 +171,19 @@ export class Engine {
   /** Set while this scene runs at SMOOTH_SCALE because of the governor's trial (recordFrameForQuality);
    * cleared, with the resolution put back, at the next scene change. */
   private scaleTrial: 'off' | 'running' | 'failed' = 'off';
+  /** The steady-30 cap as the governor set it (not the hold during a lighting upgrade). */
+  private capVerdict = false;
+  /**
+   * The governor's verdict per kind of scene, kept for the session: a scene that needed the cap or
+   * 85% resolution gets it again from its first frame on the next visit. Judged afresh each time, the
+   * Wren spent its first 5-10 s of every return aboard on Performance swinging between 60 and 20 fps
+   * (grace period, judging window, resolution trial) before settling where it had settled before.
+   */
+  private verdicts = new Map<string, { cap: boolean; trial: 'off' | 'running' | 'failed' }>();
   private static readonly SMOOTH_SCALE = 0.85;
   private lastDrawAt = 0;
+  /** Called after each drawn frame while the performance readout is open (debug/PerfOverlay.ts). */
+  drawObserver: (() => void) | null = null;
   private contextLost = false;
   /** Set when the runtime governor stepped the tier down mid-play. Mid-play it leaves shadows and
    * anti-aliasing as they were (toggling them recompiles every shader, a multi-second freeze), so
@@ -333,6 +359,7 @@ export class Engine {
           this.renderScale = 1;
         }
         this.steadyCap = true;
+        this.capVerdict = true;
       }
       if (this.renderScale !== scale) this.applyTier(this.tier, true);
       this.lastDowngradeAt = now;
@@ -370,7 +397,7 @@ export class Engine {
    * setScene with `prepared: true` so it isn't initialized twice.
    */
   async prepareScene(scene: GameScene, opts: PrepareOptions = {}): Promise<void> {
-    await this.ensureEnvironment();
+    if (scene.needsEnvironment !== false) await this.ensureEnvironment();
     const pacer = opts.pacer ?? this.newPacer(PACE.loading);
     this.preparing++;
     this.inPreparation.add(scene);
@@ -403,18 +430,19 @@ export class Engine {
    * program compiled so far stays in three.js's cache).
    */
   private async upgradeQuickLights(scene: GameScene): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, Engine.POST_SCENE_GRACE_MS));
-    if (this.current !== scene) return;
-    const start = performance.now();
     // Its compiling slows the frames it shares the processor with, so the governor waits for the
     // quick programs to go before judging the scene (judged meanwhile, it settled the Wren at 70%
     // resolution and 30 fps). The bottom tier holds a steady 30 in the meantime, rather than the
-    // unsteady 24-36 fps it drew held off for the upgrade's 15-35 s on an Intel UHD laptop.
-    this.preparing++;
+    // unsteady 24-36 fps it drew held off for the upgrade's 15-35 s on an Intel UHD laptop; from the
+    // scene's first frame, not after the grace period (the first 5 s: 6-11 frames over 50 ms -> 2-4).
     const held = this.tier === 'low' && !this.steadyCap;
     if (held) this.steadyCap = true;
+    await new Promise((resolve) => setTimeout(resolve, Engine.POST_SCENE_GRACE_MS));
+    if (this.current !== scene) return;
+    const start = performance.now();
+    this.preparing++;
     try {
-      const done = await upgradeQuickLights(this.renderer, scene.scene, scene.camera, this.compileTarget, this.newPacer(PACE.playing), () => this.current === scene);
+      const done = await upgradeQuickLights(this.renderer, scene.scene, scene.camera, this.compileTarget, this.newPacer(PACE.background), () => this.current === scene);
       if (done) {
         this.upgradedKinds.add(kindOf(scene));
         span(`${kindOf(scene)}:upgradeLights`, start);
@@ -447,6 +475,21 @@ export class Engine {
     // Copies of one image share its upload (three.js counts their users), so freeing one copy leaves
     // the image on the GPU for as long as a kept copy uses it.
     for (const t of outgoing) if (!keep.has(t) && !(t as { isRenderTargetTexture?: boolean }).isRenderTargetTexture) t.dispose();
+  }
+
+  /** Asks the level caches to free what neither the current scene nor one being prepared uses. */
+  private releaseLevelCaches(): void {
+    const geometries = new Set<THREE.BufferGeometry>();
+    const images = new Set<unknown>();
+    for (const s of [this.current, ...this.inPreparation]) {
+      if (!s) continue;
+      s.scene.traverse((o) => {
+        const g = (o as THREE.Mesh).geometry;
+        if (g) geometries.add(g);
+      });
+      for (const t of texturesOf(s.scene)) images.add(t.image);
+    }
+    timed('engine:releaseLevelCaches', () => releaseLevelCaches({ geometries, images }));
   }
 
   /**
@@ -523,6 +566,7 @@ export class Engine {
       // built here, so the two sets are never on the GPU together.
       let outgoing: THREE.Texture[] = [];
       if (this.current) {
+        if (this.capVerdict || this.scaleTrial !== 'off') this.verdicts.set(kindOf(this.current), { cap: this.capVerdict, trial: this.scaleTrial });
         outgoing = texturesOf(this.current.scene);
         this.current.dispose();
         this.current = null;
@@ -540,12 +584,24 @@ export class Engine {
       else this.releaseTextures(outgoing, scene);
       this.current = scene;
       // Frame pacing is this scene's to earn: the governor judges it afresh after the grace period.
+      // ...unless this kind of scene has been judged before this session (verdicts).
+      const verdict = this.manualOverride || this.tier !== 'low' ? undefined : this.verdicts.get(kindOf(scene));
+      let scale = this.scaleTrial === 'running' ? 1 : this.renderScale;
+      this.scaleTrial = 'off';
       this.steadyCap = false;
-      if (this.scaleTrial === 'running') {
-        this.renderScale = 1;
+      this.capVerdict = false;
+      if (verdict?.cap) {
+        this.steadyCap = true;
+        this.capVerdict = true;
+        this.scaleTrial = 'failed';
+      } else if (verdict?.trial === 'running' && scale === 1) {
+        scale = Engine.SMOOTH_SCALE;
+        this.scaleTrial = 'running';
+      }
+      if (scale !== this.renderScale) {
+        this.renderScale = scale;
         this.applyTier(this.tier, true);
       }
-      this.scaleTrial = 'off';
       this.postFx.setActive(scene.scene, scene.camera);
       this.postFx.setAOSupported(scene.usesAO !== false);
       this.postFx.setGrade(scene.grade);
@@ -562,6 +618,7 @@ export class Engine {
       // pattern at smaller scale, on boot and on every ship<->planet<->reveal transition.
       timed(`${kindOf(scene)}:warmup`, () => this.drawEverythingOnce(scene));
       scene.onEnter?.();
+      if (scene.releasesLevelCaches) this.releaseLevelCaches();
       if (litMaterials(scene.scene).some(hasQuickLights)) void this.upgradeQuickLights(scene);
     } finally {
       if (!opts.quiet) UIManager.hideLoading();
@@ -637,6 +694,11 @@ export class Engine {
 
   getCurrentScene(): GameScene | null {
     return this.current;
+  }
+
+  /** What the governor has settled on, for the performance readout. */
+  getPacingState(): { tier: QualityTier; auto: boolean; renderScale: number; capped: boolean; benchmarkMs: number | null } {
+    return { tier: this.tier, auto: !this.manualOverride, renderScale: this.renderScale, capped: this.steadyCap || this.capTo30, benchmarkMs: this.lastBenchmarkMs ?? null };
   }
 
   getQualityTier(): QualityTier {
@@ -816,7 +878,8 @@ export class Engine {
         // laptop busy behind the cover, and the Wren's first draws waited 21 s on it.
         if (!UIManager.isCovered()) {
           this.postFx.render();
-          this.recordFrameForQuality(realDt * 1000);
+          this.drawObserver?.();
+          if (this.current.governed !== false) this.recordFrameForQuality(realDt * 1000);
         }
       }
       InputManager.endFrame();

@@ -42,6 +42,10 @@ export const PACE = {
   loading: { sliceMs: 40, uploadBytes: 24 * MB, programsInFlight: COMPILE_THREADS },
   /** While a cinematic plays: stay inside a 60 fps frame. */
   playing: { sliceMs: 5, uploadBytes: 4 * MB, programsInFlight: COMPILE_THREADS },
+  /** In the background of a room being played (Engine.upgradeQuickLights): one program at a time. On an
+   * Intel UHD laptop three at a time made 93-103 frames over 40 ms in the Wren's first 40 s, one at a
+   * time 26-44, for an upgrade 2-5 s longer (docs/perf/up-*). */
+  background: { sliceMs: 5, uploadBytes: 4 * MB, programsInFlight: 1 },
   /** While a menu waits for a click: never delay the click. */
   idle: { sliceMs: 4, uploadBytes: 4 * MB, programsInFlight: Math.max(1, COMPILE_THREADS - 1) },
 } satisfies Record<string, Pace>;
@@ -268,7 +272,8 @@ export async function upgradeQuickLights(
   const materials = litMaterials(scene).filter(hasQuickLights);
   const t2 = performance.now();
   // First uses, off screen: drawProgressively's partial draws, each with the unrolled programs.
-  await drawProgressively(renderer, scene, camera, target, pacer, 24, undefined, (draw) => unrolled(materials, draw));
+  await drawProgressively(renderer, scene, camera, target, pacer, 24, undefined, (draw) => unrolled(materials, draw), stillCurrent);
+  if (!stillCurrent()) return false;
   span('upgradeQuickLights:firstDraw', t2);
   // For good, eight materials a frame (the Wren has ~200).
   for (let i = 0; i < materials.length; i++) {
@@ -356,6 +361,7 @@ export async function drawProgressively(
   batch = 24,
   onProgress?: (fraction: number) => void,
   around: (draw: () => void) => void = (draw) => draw(),
+  keepGoing: () => boolean = () => true,
 ): Promise<void> {
   const objects = drawablesOf(scene).filter((o) => o.layers.test(camera.layers));
   const lights: THREE.Object3D[] = [];
@@ -374,6 +380,9 @@ export async function drawProgressively(
     camera.layers.set(WARM_LAYER);
     for (let start = 0; start < objects.length; start += batch) {
       await pacer.breathe();
+      // A scene replaced meanwhile has been disposed: drawing it would upload its textures and
+      // geometry again, for good.
+      if (!keepGoing()) return;
       const end = Math.min(objects.length, start + batch);
       for (let i = start; i < end; i++) objects[i].layers.enable(WARM_LAYER);
       const previous = renderer.getRenderTarget();

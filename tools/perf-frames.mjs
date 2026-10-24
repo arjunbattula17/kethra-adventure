@@ -176,6 +176,8 @@ for (const tier of TIERS) {
   const settle = async () => {
     // Close any chapter card / toast-driven pause and let first-use work finish before sampling.
     await page.evaluate(() => window.__DEBUG__.engine.setPaused(false));
+    // --scale=0.5: a fixed internal render scale (Engine.renderScale), to tell per-pixel cost from the rest.
+    if (opt('scale', '')) await page.evaluate((k) => { const e = window.__DEBUG__.engine; e.renderScale = k; e.applyTier(e.getQualityTier(), true); }, Number(opt('scale', '1')));
     // On Auto the runtime governor needs its 4 s grace plus a judging window before it acts.
     await page.waitForTimeout(tier === 'auto' ? 9000 : 3000);
   };

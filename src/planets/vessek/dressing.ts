@@ -23,6 +23,8 @@ export interface Dressing {
   insideButton: THREE.Object3D;
   crank: THREE.Object3D;
   colliders: THREE.Box3[];
+  /** Unseen floors for the player's raycast: the grow tables' tops. */
+  floors: THREE.Object3D[];
 }
 
 function canvasTex(w: number, h: number, draw: (ctx: CanvasRenderingContext2D) => void): THREE.CanvasTexture {
@@ -131,6 +133,8 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
   };
   const solid = (x0: number, z0: number, x1: number, z1: number, h: number) =>
     colliders.push(new THREE.Box3(new THREE.Vector3(Math.min(x0, x1), 0, Math.min(z0, z1)), new THREE.Vector3(Math.max(x0, x1), h, Math.max(z0, z1))));
+  const floors: THREE.Object3D[] = [];
+  const hidden = new THREE.MeshBasicMaterial({ visible: false });
 
   const steel = new THREE.MeshStandardMaterial({ color: 0x4a5258, metalness: 0.6, roughness: 0.5 });
   const darkSteel = new THREE.MeshStandardMaterial({ color: 0x2c3136, metalness: 0.7, roughness: 0.5 });
@@ -155,6 +159,7 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
     mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.42, 8), steel, x - 0.4, 0.21, z + 0.75);
     mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.42, 8), steel, x + 0.4, 0.21, z + 0.75);
     solid(x - 0.8, z - 0.4, x + 0.8, z + 0.4, 0.7);
+    for (const sx of [x - 0.4, x + 0.4]) solid(sx - 0.2, z + 0.55, sx + 0.2, z + 0.95, 0.42);
   }
   // The school lamps: a string of bulbs across the hold.
   const schoolMat = new THREE.MeshStandardMaterial({ color: 0x3a3228, emissive: 0xffc27a, emissiveIntensity: 1.6 });
@@ -176,6 +181,12 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
       mesh(new THREE.BoxGeometry(5.0, 0.08, 0.94), soilMat, x, 0.94, z);
       mesh(new THREE.BoxGeometry(4.8, 0.06, 0.16), bar, x, 2.5, z).castShadow = false;
       solid(x - 2.6, z - 0.55, x + 2.6, z + 0.55, 1);
+      // Its top is a floor as well, for a player who drops onto it from Dace's vent: a collider
+      // doesn't hold a falling player up. No wider than the collider, so a jump from the floor
+      // (which the collider stops) can't land on it.
+      const top = add(new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.2, 1.1), hidden));
+      top.position.set(x, 0.9, z);
+      floors.push(top);
       for (let i = 0; i < 9; i++) plants.push({ position: new THREE.Vector3(x - 2.2 + i * 0.55, 0.96, z + (rnd() - 0.5) * 0.4), yaw: rnd() * 6.28, scale: 0.55 + rnd() * 0.3 });
     }
   }
@@ -237,6 +248,9 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
   resetPanel.add(panel, resetLever);
   resetPanel.position.set(21, 0, junction.z0 + 0.15);
   add(resetPanel);
+  // The panel stands 0.25 m proud of the wall and the raised lever 0.6 m further; this keeps the
+  // player out of the panel and the camera off the lever's tip.
+  solid(20.4, junction.z0, 21.6, junction.z0 + 0.3, 2.2);
   // The door button inside, and the keypad outside.
   const insideButton = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.2), new THREE.MeshStandardMaterial({ color: 0x7cbf7c, emissive: 0x7cbf7c, emissiveIntensity: 0.6 }));
   insideButton.position.set(junction.x0 + 0.1, 1.4, -31.6);
@@ -298,5 +312,5 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
     add(a);
   }
 
-  return { growBars, heaterMat, schoolMat, junctionMat, plantMats, ductFans, scrubberFan, resetPanel, resetLever, keypad, insideButton, crank, colliders };
+  return { growBars, heaterMat, schoolMat, junctionMat, plantMats, ductFans, scrubberFan, resetPanel, resetLever, keypad, insideButton, crank, colliders, floors };
 }

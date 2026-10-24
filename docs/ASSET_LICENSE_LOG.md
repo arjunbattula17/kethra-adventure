@@ -47,6 +47,11 @@ docs/AI_AND_ASSET_LOG.md for what that means for the honor statement.
   board face, the ledger pages and the ring plate, `src/planets/vessek/VessekScene.ts`.
   *(AI-written code)*
 - The ending's transmission rings and the title logo treatment (CSS). *(AI-written code)*
+- The title's 3D backdrop: the ship, Kethra close up, the moon, the belt rocks, the sky and its
+  effects, built in code in `src/galaxy/title/` (2026-10-16; the ship rebuilt 2026-10-19 after
+  reference images the team supplied, none of which is in the game). It reuses the planet maps and
+  lichen_rock above; the ship's markings are drawn at load in the Rajdhani font above.
+  *(AI-written code)*
 - The Wren's hull, in every space scene and as the Anchorage's moored ships: built in code,
   `src/galaxy/shipHull.ts` (2026-09-27). It replaced the CC BY "Colored Freighter" model.
 - Kethra's colonnade, its resting moths and the crystal in the Cistern Heart's basin: built in code,

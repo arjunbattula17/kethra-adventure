@@ -963,7 +963,6 @@ button.text-btn:disabled { color: var(--ink-dim); cursor: not-allowed; backgroun
 #pause-panel .pause-survey { margin-top: 6px; font-size: calc(13px * var(--text-scale)); color: var(--grove); }
 
 /* Reduced motion: no transitions beyond short fades, no idle animation, no transform motion. */
-body.reduced-motion .title-planet-surface { animation: none; }
 body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
   animation-duration: 1ms !important;
   animation-iteration-count: 1 !important;
@@ -1146,185 +1145,447 @@ body.tutorial-active .look-prompt { padding-bottom: 250px; }
   letter-spacing: 0.1em;
 }
 
-/* Title screen (TitleScreen.ts). Sits under #ui-root (z 10) so the Controls / Credits / Settings
-   panels open above it; the HUD is hidden while it's up. Pure CSS motion: two drifting star
-   layers at different speeds for depth, a slow amber glow, staggered entrances. */
+/* Title screen (TitleScreen.ts): the menu over the 3D backdrop (src/galaxy/title/TitleScene.ts). Sits
+   under #ui-root (z 10) so the Controls / Settings panels open above it; the HUD is hidden while it's
+   up. It keeps the game's type and takes the backdrop's deep-space blues: cyan marks what can be
+   picked, the way amber does in play. Until the backdrop's first frame only its dark stand-in sky
+   shows; then the menu fades in as one piece while that sky dissolves into the backdrop (.revealed),
+   by opacity and translate only (an animated blur or a stroke being drawn repaints every frame, and
+   that stalled the engine's creation behind it on an Intel UHD laptop: 40 ms became 500 ms). Nothing
+   on it loops. */
 body.title-open #ui-root > :not(.panel-overlay) { visibility: hidden; }
 .title-screen {
+  --ts-cyan: #35bfff;
+  --ts-ice: #ddf6ff;
+  --ts-ink: #f0f6fc;
+  --ts-ink-dim: #a5b7c9;
+  --ts-line: rgba(110, 190, 240, 0.45);
+  --ts-pad: clamp(22px, 7.4vw, 150px);
+  --ts-title-h: clamp(34px, min(8vh, 9.4vw), 100px);
+  --ts-btn-w: clamp(250px, 28vw, 470px);
+  --ts-btn-h: clamp(40px, 6vh, 64px);
+  --ts-out: 0.42s cubic-bezier(0.55, 0, 1, 0.45);
   position: fixed;
   inset: 0;
   z-index: 9;
-  display: grid;
-  place-items: center start;
-  padding: 0 clamp(24px, 9vw, 180px);
   overflow: hidden;
-  background: radial-gradient(120% 90% at 78% 60%, #141a26 0%, #0a0d14 45%, #05060a 100%);
-  transition: opacity 0.45s cubic-bezier(0.55, 0, 1, 0.45);
+  color: var(--ts-ink);
+  transition: opacity 0.5s cubic-bezier(0.55, 0, 1, 0.45);
 }
-.title-screen.leaving { opacity: 0; }
+/* Leaving: the menu slides out while the backdrop pushes in and goes to black (TitleScene.leave). */
+.title-screen.leaving .ts-column { opacity: 0; transform: translateX(-16px); transition: opacity var(--ts-out), transform var(--ts-out); }
+.title-screen.leaving .ts-hud,
+.title-screen.leaving .ts-scrim { opacity: 0; transition: opacity var(--ts-out); }
+/* No backdrop yet: the whole screen fades, as it always did. */
+.title-screen.leaving:not(.backdrop-live) { opacity: 0; }
+.title-screen.leaving * { pointer-events: none; }
+
+/* The stand-in sky until the 3D backdrop draws its first frame: deep space, a few stars, and a glow low
+   on the right where Kethra will be. The backdrop arrives complete and this dissolves into it, once. */
+.ts-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(70% 80% at 96% 104%, rgba(34, 92, 96, 0.42), rgba(16, 46, 66, 0.2) 55%, rgba(5, 9, 18, 0) 80%),
+    radial-gradient(120% 90% at 76% 64%, #0b1727 0%, #070e1a 45%, #050912 100%);
+  transition: opacity 0.9s cubic-bezier(0.33, 0, 0.2, 1);
+}
+.title-screen.backdrop-live .ts-fallback { opacity: 0; transition-duration: 0.6s; }
+/* Held until it is revealed with the backdrop (TitleScreen.reveal); the entry animations start then.
+   It waits drawn at the least opacity that still draws (1/255, invisible), not hidden: its glows (drop-shadow and
+   text-shadow blurs) compile their GPU shaders on first draw, and made visible only with the backdrop
+   that compile was a 0.6-0.8 s frame at the start of the fade on Intel UHD. */
+.title-screen:not(.revealed) .ts-column,
+.title-screen:not(.revealed) .ts-hud,
+.title-screen:not(.revealed) .ts-scrim { opacity: 0.004; animation: none; }
+/* Kept on their own GPU layers for good: one made at the fade and dropped when it ends repaints the
+   menu, a 0.2 s frame mid-entrance. */
+.title-screen .ts-column,
+.title-screen .ts-hud,
+.title-screen .ts-scrim { will-change: opacity, transform; }
 .title-stars,
 .title-stars.far {
   position: absolute;
   inset: -50% -50%;
   background-image:
-    radial-gradient(1.4px 1.4px at 12% 18%, rgba(223,230,245,0.9), transparent 60%),
-    radial-gradient(1px 1px at 38% 72%, rgba(223,230,245,0.7), transparent 60%),
-    radial-gradient(1.2px 1.2px at 64% 34%, rgba(255,228,180,0.8), transparent 60%),
-    radial-gradient(1px 1px at 82% 86%, rgba(223,230,245,0.6), transparent 60%),
-    radial-gradient(1.6px 1.6px at 90% 12%, rgba(223,230,245,0.8), transparent 60%),
-    radial-gradient(1px 1px at 24% 48%, rgba(223,230,245,0.5), transparent 60%);
+    radial-gradient(1.4px 1.4px at 12% 18%, rgba(221,240,255,0.9), transparent 60%),
+    radial-gradient(1px 1px at 38% 72%, rgba(221,240,255,0.7), transparent 60%),
+    radial-gradient(1.2px 1.2px at 64% 34%, rgba(255,236,206,0.75), transparent 60%),
+    radial-gradient(1px 1px at 82% 86%, rgba(221,240,255,0.6), transparent 60%),
+    radial-gradient(1.6px 1.6px at 90% 12%, rgba(221,240,255,0.8), transparent 60%),
+    radial-gradient(1px 1px at 24% 48%, rgba(221,240,255,0.5), transparent 60%);
   background-size: 340px 340px;
   opacity: 0.8;
+  pointer-events: none;
 }
 .title-stars.far {
   background-size: 190px 190px;
   opacity: 0.45;
 }
-@keyframes title-drift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-340px, -120px, 0); } }
-.title-planet {
+
+/* Keeps the menu legible whatever the backdrop puts behind it. */
+.ts-scrim {
   position: absolute;
-  right: -14vmin;
-  bottom: -22vmin;
-  width: 88vmin;
-  height: 88vmin;
-  border-radius: 50%;
-  overflow: hidden;
+  inset: 0;
   pointer-events: none;
-  /* A soft outer glow here; the atmosphere rim is ::before, see below. */
-  box-shadow: 0 0 8vmin rgba(90, 200, 150, 0.12);
-  opacity: 0.9;
+  background:
+    linear-gradient(90deg, rgba(5, 9, 18, 0.66) 0%, rgba(5, 9, 18, 0.4) calc(var(--ts-pad) + var(--ts-btn-w) * 0.75), rgba(5, 9, 18, 0) calc(var(--ts-pad) + var(--ts-btn-w) * 1.5)),
+    linear-gradient(0deg, rgba(5, 9, 18, 0.45) 0%, rgba(5, 9, 18, 0) 22%);
+  /* Clear over the strip of sky above the kicker, where the shooting stars fall (TitleScene METEORS). */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 10%, #000 21%);
+  mask-image: linear-gradient(to bottom, transparent 0%, transparent 10%, #000 21%);
 }
-/* Lit from the upper left (the unseen star), a thin atmosphere rim. Its own layer between the
-   surface and the terminator (::after), the order it painted in when the map was this element's
-   background: an inset shadow on .title-planet would now sit under the surface and not show. */
-.title-planet::before {
-  content: "";
+
+/* The menu column. It comes in as one piece; `backwards` fill so the leaving fade above still applies. */
+.ts-column {
   position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: 50%;
-  box-shadow: inset -1.2vmin 1.2vmin 3vmin rgba(210, 255, 225, 0.25);
-}
-/* The turning surface: two copies of the map side by side (each twice the disc's width, as the
-   old background-size was), slid by one copy's width per turn. It moves by transform, which the
-   compositor animates without repainting; the old background-position animation repainted the whole
-   disc and its blurred shadows on every frame the title was open. */
-.title-planet-surface {
-  position: absolute;
-  z-index: 0;
+  left: var(--ts-pad);
   top: 0;
-  left: 0;
-  width: 400%;
-  height: 100%;
-  background-size: 50% 100%;
-  background-repeat: repeat-x;
-  will-change: transform;
-  animation: title-spin 240s linear infinite;
+  bottom: 0;
+  width: min(calc(100vw - 2 * var(--ts-pad)), calc(var(--ts-title-h) * 8.4));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6vh 0 10vh;
+  animation: ts-in 0.45s 0.05s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
-@keyframes title-spin { to { transform: translateX(-50%); } }
-/* The terminator: lit from the upper right (toward the screen corner), falling into night on the
-   side that faces the menu, so the text sits over the dark limb. */
-.title-planet::after {
-  content: "";
+
+.ts-kicker {
+  display: flex;
+  align-items: center;
+  gap: 1.1em;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: calc(clamp(11px, 1.7vh, 18px) * var(--text-scale));
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: rgba(221, 246, 255, 0.86);
+}
+.ts-emblem {
+  width: 2.1em;
+  height: 2.8em;
+  flex-shrink: 0;
+  color: var(--ts-ice);
+  filter: drop-shadow(0 0 5px rgba(53, 191, 255, 0.75));
+}
+
+/* The wordmark: an SVG on a 776 x 100 grid, sized by its height. */
+.ts-title {
+  position: relative;
+  height: var(--ts-title-h);
+  width: calc(var(--ts-title-h) * 7.76);
+  max-width: 100%;
+  margin: calc(var(--ts-title-h) * 0.32) 0 calc(var(--ts-title-h) * 0.62);
+  font-size: 1px;
+  line-height: 0;
+}
+.ts-wordmark {
   position: absolute;
   inset: 0;
-  z-index: 2;
-  border-radius: 50%;
-  background: radial-gradient(circle at 76% 18%, rgba(255, 250, 235, 0.12) 0%, rgba(0, 0, 0, 0) 26%, rgba(3, 5, 10, 0.45) 46%, rgba(3, 5, 10, 0.88) 64%, rgba(3, 5, 10, 0.97) 82%);
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  z-index: 1;
+  filter: drop-shadow(0 0 calc(var(--ts-title-h) * 0.15) rgba(53, 191, 255, 0.42)) drop-shadow(0 0 1px rgba(221, 246, 255, 0.8));
 }
-.title-inner { position: relative; z-index: 1; max-width: 560px; }
-.title-stars { pointer-events: none; }
-.title-inner > * { opacity: 0; transform: translateY(0.6em); animation: title-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-.title-inner > :nth-child(1) { animation-delay: 0.15s; }
-.title-inner > :nth-child(2) { animation-delay: 0.3s; }
-.title-inner > :nth-child(3) { animation-delay: 0.5s; }
-.title-inner > :nth-child(4) { animation-delay: 0.62s; }
-.title-inner > :nth-child(5) { animation-delay: 0.8s; }
-/* The entrance plays once, because the player opened the game; nothing loops on the page. */
-@keyframes title-in { to { opacity: 1; transform: none; } }
-.title-kicker {
+/* The orbit shares the wordmark's grid (its viewBox starts at -110, -70 and spans 996 x 240). */
+.ts-orbit {
+  position: absolute;
+  left: calc(-110 / 776 * 100%);
+  top: -70%;
+  width: calc(996 / 776 * 100%);
+  height: 240%;
+  overflow: visible;
+  pointer-events: none;
+}
+.ts-orbit-back { z-index: 0; }
+.ts-orbit-front { z-index: 2; }
+.ts-orbit-line {
+  fill: none;
+  stroke: url(#ts-orbit-grad);
+  stroke-width: 1.7;
+}
+.ts-orbit-back .ts-orbit-line { stroke: rgba(53, 191, 255, 0.6); stroke-width: 1.2; opacity: 0.5; }
+.ts-flare { fill: #fff; filter: drop-shadow(0 0 3px var(--ts-ice)) drop-shadow(0 0 9px rgba(53, 191, 255, 0.9)); }
+.ts-flare-halo { fill: rgba(53, 191, 255, 0.35); }
+
+.ts-tagline {
+  margin: 0 0 calc(var(--ts-title-h) * 0.62);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: calc(clamp(13px, 2vh, 21px) * var(--text-scale));
+  line-height: 1.55;
+  letter-spacing: 0.12em;
+  white-space: pre-line;
+  color: rgba(226, 238, 248, 0.88);
+  text-shadow: 0 1px 10px rgba(5, 9, 18, 0.95);
+}
+
+/* Menu buttons: a hairline hexagon round a glass fill, an icon, the label. Selected (mouse and
+   keyboard are one state, TitleScreen.select): the edge turns bright cyan and glows, the fill lights
+   from the left, the strip steps right and its chevron shows. Every change takes under 0.2 s, and
+   none of it delays the pick. */
+.ts-menu { display: grid; gap: clamp(9px, 1.5vh, 16px); width: var(--ts-btn-w); max-width: 100%; }
+.title-btn {
+  --cut: calc(var(--ts-btn-h) * 0.32);
+  --hex: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% 50%, calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 50%);
+  --hex-in: polygon(calc(var(--cut) - 0.4px) 0, calc(100% - var(--cut) + 0.4px) 0, 100% 50%, calc(100% - var(--cut) + 0.4px) 100%, calc(var(--cut) - 0.4px) 100%, 0 50%);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ts-btn-h) * 0.4);
+  height: var(--ts-btn-h);
+  padding: 0 calc(var(--ts-btn-h) * 0.5) 0 calc(var(--ts-btn-h) * 0.62);
+  border: 0;
+  background: none;
+  color: var(--ts-ink);
+  cursor: pointer;
+  text-align: left;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: clamp(13px, 1.6vh, 18px);
+  font-size: calc(clamp(14px, 2vh, 21px) * var(--text-scale));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  outline: none;
+  filter: drop-shadow(0 0 5px rgba(53, 191, 255, 0.14));
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.18s ease, color 0.15s ease;
+}
+.tb-frame {
+  position: absolute;
+  inset: 0;
+  clip-path: var(--hex);
+  background: linear-gradient(90deg, rgba(130, 210, 255, 0.62) 0%, rgba(84, 164, 222, 0.4) 18%, rgba(84, 164, 222, 0.32) 50%, rgba(84, 164, 222, 0.4) 82%, rgba(130, 210, 255, 0.62) 100%);
+  transition: background-color 0.15s ease;
+}
+.tb-fill,
+.tb-lit {
+  position: absolute;
+  inset: 1px;
+  clip-path: var(--hex-in);
+}
+.tb-fill { background: linear-gradient(180deg, rgba(22, 50, 84, 0.42), rgba(6, 16, 30, 0) 60%), linear-gradient(90deg, rgba(8, 20, 38, 0.86), rgba(8, 20, 38, 0.64) 60%, rgba(8, 20, 38, 0.5)); }
+.tb-lit {
+  background-image:
+    linear-gradient(100deg, rgba(220, 246, 255, 0) 30%, rgba(220, 246, 255, 0.22) 50%, rgba(220, 246, 255, 0) 70%),
+    radial-gradient(80% 140% at 10% 50%, rgba(90, 200, 255, 0.5), rgba(53, 191, 255, 0) 62%),
+    linear-gradient(180deg, rgba(221, 246, 255, 0.16), rgba(221, 246, 255, 0) 48%),
+    linear-gradient(90deg, rgba(22, 104, 188, 0.86), rgba(14, 66, 132, 0.66) 58%, rgba(10, 40, 84, 0.58));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.tb-icon,
+.tb-text,
+.tb-chevron { position: relative; }
+.tb-icon {
+  width: calc(var(--ts-btn-h) * 0.42);
+  height: calc(var(--ts-btn-h) * 0.42);
+  flex-shrink: 0;
+  color: #a9dcf8;
+  transition: color 0.15s ease, filter 0.15s ease;
+}
+.tb-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.tb-label { line-height: 1; padding-top: 0.08em; transition: text-shadow 0.15s ease; }
+.tb-note {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 0.58em;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--ts-ink-dim);
+}
+.tb-chevron {
+  width: calc(var(--ts-btn-h) * 0.34);
+  height: calc(var(--ts-btn-h) * 0.34);
+  flex-shrink: 0;
+  color: var(--ts-ice);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.15s ease, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.title-btn.is-selected {
+  transform: translateX(calc(var(--ts-btn-h) * 0.08));
+  filter: drop-shadow(0 0 2px rgba(150, 225, 255, 0.7)) drop-shadow(0 0 calc(var(--ts-btn-h) * 0.3) rgba(53, 191, 255, 0.45));
+}
+.title-btn.is-selected .tb-frame { background-image: linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, #ffffff 50%, rgba(255, 255, 255, 0) 70%), linear-gradient(90deg, #e2f7ff 0%, #4ec8ff 18%, #35bfff 50%, #4ec8ff 82%, #e2f7ff 100%); }
+.title-btn.is-selected .tb-lit { opacity: 1; }
+.title-btn.is-selected .tb-icon { color: #fff; filter: drop-shadow(0 0 4px rgba(120, 215, 255, 0.95)); }
+.title-btn.is-selected .tb-label { text-shadow: 0 0 10px rgba(110, 210, 255, 0.8), 0 0 2px rgba(255, 255, 255, 0.5); }
+.title-btn.is-selected .tb-chevron { opacity: 1; transform: none; }
+.title-btn:focus-visible .tb-frame { background-image: linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, #ffffff 50%, rgba(255, 255, 255, 0) 70%), linear-gradient(90deg, #ffffff 0%, #a6eaff 18%, #7fdcff 50%, #a6eaff 82%, #ffffff 100%); }
+.title-btn:active:not(:disabled) { transform: translateX(calc(var(--ts-btn-h) * 0.08)) scale(0.985); transition-duration: 0.06s; }
+.title-btn.is-pressed .tb-lit { animation: tb-press 0.3s ease-out; }
+.title-btn:disabled { cursor: default; color: rgba(240, 246, 252, 0.42); filter: none; }
+.title-btn:disabled .tb-frame { background: rgba(140, 165, 190, 0.22); }
+.title-btn:disabled .tb-fill { background: rgba(8, 21, 38, 0.5); }
+.title-btn:disabled .tb-icon { color: rgba(165, 183, 201, 0.45); }
+/* On selection, once: a thin light runs along the edge (a band in the frame's own background, under
+   the fill, so it shows in the hairline and only faintly through the glass), and a soft glint crosses
+   the lit fill a beat later. Both slide by background-position inside the shapes' own paint: a
+   transformed layer inside each clip-path cost a 0.26 s mask raster when the menu first showed. */
+.title-btn.is-selected .tb-frame,
+.title-btn:focus-visible .tb-frame,
+.tb-lit {
+  background-repeat: no-repeat;
+  background-size: 40% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-position: -70% 0, 0 0, 0 0, 0 0;
+}
+.title-btn.is-selected .tb-frame { animation: tb-sweep 0.7s cubic-bezier(0.3, 0.6, 0.2, 1) 0.03s; }
+.title-btn.is-selected .tb-lit { animation: tb-sweep 0.85s cubic-bezier(0.3, 0.6, 0.2, 1) 0.1s; }
+
+/* Corner furniture, decorative only: a line of genre words top right, where we are bottom left, a
+   sign-off bottom right. Small, dim, and gone on screens too small to keep them clear of the menu. */
+.ts-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: rgba(176, 222, 250, 0.68);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: calc(clamp(9px, 1.3vh, 13px) * var(--text-scale));
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: var(--accent);
+  text-shadow: 0 0 6px rgba(5, 9, 18, 0.95), 0 1px 2px rgba(5, 9, 18, 0.9);
+  animation: ts-fade 0.45s 0.05s ease-out backwards;
 }
-.title-name {
-  position: relative;
-  margin: 8px 0 26px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: calc(clamp(72px, 13vh, 160px) * var(--text-scale));
-  line-height: 0.9;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.ts-hud-line { display: block; color: var(--ts-line); overflow: visible; }
+.ts-hud-track {
+  position: absolute;
+  top: clamp(18px, 4.6vh, 48px);
+  right: clamp(18px, 3.4vw, 64px);
+  display: flex;
+  align-items: flex-end;
+  gap: 1.4em;
 }
-/* The logo is the game's verb drawn in type: the Wren's scan line passes through the name, and
-   below it the letters are sea-green: a second copy of the name in the grove colour sits exactly
-   over the first, clipped away above the line. */
-.title-name-text {
-  display: inline-block;
-  color: var(--ink);
+.ts-hud-track .ts-hud-line { width: clamp(60px, 9vw, 180px); height: 1.7em; margin-bottom: 0.25em; }
+.ts-hud-words { display: flex; gap: 1.3em; padding-bottom: 0.15em; }
+.ts-hud-words i { font-style: normal; letter-spacing: 0.05em; opacity: 0.55; }
+.ts-hud-place {
+  position: absolute;
+  left: clamp(18px, 2.6vw, 48px);
+  bottom: clamp(18px, 4vh, 44px);
+  display: flex;
+  align-items: center;
+  gap: 1.3em;
+  padding: 1.3em 3em 1.3em 1.6em;
 }
-.title-name-lit {
+.ts-hud-bracket { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--ts-line); }
+.ts-hud-scope { width: 4.4em; height: 4.4em; color: rgba(150, 214, 250, 0.82); }
+.ts-hud-place-text { display: flex; flex-direction: column; gap: 0.55em; white-space: nowrap; }
+.ts-hud-place-text b { font-weight: 600; letter-spacing: 0.2em; color: rgba(214, 238, 252, 0.84); }
+.ts-hud-place-text span { opacity: 0.6; }
+.ts-hud-end {
+  position: absolute;
+  right: clamp(18px, 3.4vw, 64px);
+  bottom: clamp(26px, 5.4vh, 58px);
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+}
+.ts-hud-end .ts-hud-line { position: absolute; right: -1.2em; top: 100%; width: calc(100% + 8em); height: 1.6em; margin-top: 0.5em; }
+.ts-spark { width: 1.3em; height: 1.3em; color: #cfeeff; filter: drop-shadow(0 0 4px rgba(53, 191, 255, 0.8)); }
+/* Isilthe's signal (TitleScreen.signal, every 18-28 s): a ring of light swells out of the scope and a
+   line of text comes up under the place name, once each. Nothing blurred (no box- or text-shadow), both
+   drawn from the reveal at 1/255 on layers of their own, and only their opacity and transform change:
+   a blur first drawn mid-idle compiled its shader, and even a plain first raster then cost a frame. */
+.ts-hud-scope-wrap { position: relative; display: block; flex-shrink: 0; }
+.ts-hud-scope-wrap .ts-hud-scope { display: block; }
+.ts-hud-ping {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  border: 1px solid rgba(150, 230, 255, 0.9);
+  background: radial-gradient(closest-side, rgba(53, 191, 255, 0) 70%, rgba(53, 191, 255, 0.35) 96%, rgba(53, 191, 255, 0));
+  opacity: 0.004;
+  transform: scale(0.55);
+  will-change: opacity, transform;
+}
+.ts-hud-place-text { position: relative; }
+.ts-hud-signal {
   position: absolute;
   left: 0;
-  top: 0;
-  color: var(--grove);
-  clip-path: inset(58% 0 0 0);
-  pointer-events: none;
+  top: calc(100% + 0.55em);
+  font-style: normal;
+  letter-spacing: 0.24em;
+  color: rgba(120, 220, 255, 0.95);
+  text-shadow: none;
+  opacity: 0.004;
+  will-change: opacity;
 }
-.title-scan {
-  position: absolute;
-  left: -0.15em;
-  right: -0.35em;
-  top: 58%;
-  height: 3px;
-  margin-top: -1px;
-  background: var(--accent);
-  box-shadow: 0 0 18px 2px rgba(217, 164, 65, 0.45);
+.ts-hud-place.signal .ts-hud-ping { animation: ts-signal-ping 2.2s cubic-bezier(0.2, 0.7, 0.3, 1); }
+.ts-hud-place.signal .ts-hud-signal { animation: ts-signal-text 2.4s ease-out; }
+
+/* Reduced motion (Settings or the OS): the menu simply appears; no sweeps, no pulses. */
+body.reduced-motion .title-screen .ts-column,
+body.reduced-motion .title-screen .ts-hud { animation-duration: 0.2s; animation-delay: 0s; }
+body.reduced-motion .title-btn.is-selected .tb-frame,
+body.reduced-motion .title-btn.is-selected:not(.is-pressed) .tb-lit,
+body.reduced-motion .ts-hud-place.signal .ts-hud-ping { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .title-screen .ts-column, .title-screen .ts-hud { animation-duration: 0.2s; animation-delay: 0s; }
+  .title-btn.is-selected .tb-frame, .title-btn.is-selected:not(.is-pressed) .tb-lit, .ts-hud-place.signal .ts-hud-ping { animation: none; }
 }
-.title-scan::after {
+
+/* Squarer windows turn the camera to keep the ship and the planet (TitleScene.frame), which brings the
+   bright limb in behind the wordmark and the tagline: a deeper shade keeps them legible. */
+@media (max-aspect-ratio: 3/2) {
+  .ts-scrim { background: linear-gradient(90deg, rgba(5, 9, 18, 0.74) 0%, rgba(5, 9, 18, 0.56) calc(var(--ts-pad) + var(--ts-btn-w) * 1.1), rgba(5, 9, 18, 0) calc(var(--ts-pad) + var(--ts-btn-w) * 2)), linear-gradient(0deg, rgba(5, 9, 18, 0.45) 0%, rgba(5, 9, 18, 0) 22%); }
+}
+@media (max-width: 760px) {
+  .ts-kicker { letter-spacing: 0.3em; white-space: nowrap; }
+  .ts-tagline { letter-spacing: 0.06em; }
+  .ts-scrim { background: linear-gradient(90deg, rgba(5, 9, 18, 0.8), rgba(5, 9, 18, 0.35)), linear-gradient(0deg, rgba(5, 9, 18, 0.5), rgba(5, 9, 18, 0) 30%); }
+  .ts-hud { display: none; }
+}
+@media (max-height: 620px) {
+  .ts-column { padding: 3vh 0 5vh; }
+  .ts-hud-place, .ts-hud-end { display: none; }
+}
+
+@keyframes ts-in { from { opacity: 0; translate: 0 10px; } }
+@keyframes ts-fade { from { opacity: 0; } }
+@keyframes tb-press { 0% { filter: brightness(2); } 100% { filter: brightness(1); } }
+@keyframes tb-sweep { from { background-position: -70% 0, 0 0, 0 0, 0 0; } to { background-position: 170% 0, 0 0, 0 0, 0 0; } }
+@keyframes ts-signal-ping { 0% { opacity: 0.004; transform: scale(0.55); } 10% { opacity: 0.95; } 100% { opacity: 0.004; transform: scale(1.5); } }
+@keyframes ts-signal-text { 0% { opacity: 0.004; } 15% { opacity: 0.95; } 70% { opacity: 0.8; } 100% { opacity: 0.004; } }
+@keyframes ts-panel-line { from { transform: scaleX(0); opacity: 0; } }
+
+/* The panels the title opens (Controls, Settings) take its palette while it's up. */
+/* Opened from the title, a panel draws a thin accent line across its top edge as it comes in. */
+body.title-open .panel-overlay.visible .panel::before {
   content: '';
   position: absolute;
-  right: 0;
-  top: -5px;
-  width: 13px;
-  height: 13px;
-  border: 2px solid var(--accent);
-  border-radius: 1px;
-  transform: rotate(45deg);
-  background: var(--void);
+  left: 12%;
+  right: 12%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(53, 191, 255, 0), rgba(130, 220, 255, 0.9), rgba(53, 191, 255, 0));
+  animation: ts-panel-line 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.08s backwards;
+  pointer-events: none;
 }
-.title-tagline {
-  margin: 0 0 34px;
-  font-size: clamp(15px, 1.9vh, 21px);
-  line-height: 1.55;
-  color: var(--ink-dim);
+body.reduced-motion.title-open .panel-overlay.visible .panel::before { animation: none; }
+body.title-open .panel-overlay {
+  --accent: #35bfff;
+  --accent-dim: #2a7fae;
+  --accent-hover: #6dd3ff;
+  --surface-hover: rgba(53, 191, 255, 0.1);
+  --ink: #f0f6fc;
+  --ink-dim: #a5b7c9;
+  --panel-bg: rgba(8, 21, 38, 0.94);
+  --line: rgba(80, 140, 190, 0.42);
 }
-.title-menu { display: grid; gap: 10px; width: min(320px, 80vw); }
-.title-btn {
-  padding: 13px 18px;
-  text-align: left;
-  border-radius: 5px;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: calc(clamp(15px, 1.9vh, 19px) * var(--text-scale));
-  letter-spacing: 0.01em;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--surface-border);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
-}
-.title-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
-.title-btn:active { transform: scale(0.98); }
-.title-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.title-btn.primary { background: var(--accent); color: #1a1408; border-color: var(--accent); }
-.title-btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-@media (prefers-reduced-motion: reduce) {
-  .title-planet-surface { animation: none; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Controls and Credits panels, opened from the title screen. */
@@ -1691,7 +1952,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 :root { --chamfer: 12px; --chamfer-sm: 6px; }
 @property --edge { syntax: '<color>'; inherits: false; initial-value: rgba(93, 102, 111, 0.45); }
 .panel, .hud-frame, .toast, .chapter-card, .look-prompt-inner, #interact-prompt, .map-panel, .tut-card, .intercept-panel, .canopy-panel, .hush-panel,
-.btn, .dialogue-option, .map-btn, .title-btn, .keycap {
+.btn, .dialogue-option, .map-btn, .keycap {
   --c: var(--chamfer);
   clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
   border: 0;
@@ -1706,25 +1967,25 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 }
 .panel, .intercept-panel, .canopy-panel, .hush-panel { --edge-tl: var(--accent); }
 .hud-frame, .toast, #interact-prompt, .look-prompt-inner { --c: 8px; }
-.btn, .dialogue-option, .map-btn, .title-btn { --c: var(--chamfer-sm); }
+.btn, .dialogue-option, .map-btn { --c: var(--chamfer-sm); }
 .keycap { --c: 3px; --edge: var(--accent-dim); }
 .tut-card { --edge: rgba(217, 164, 65, 0.5); }
 
 /* Plate interaction states: amber edge on hover, spring on press, inner amber ring on focus. */
-.btn, .dialogue-option, .map-btn, .title-btn {
+.btn, .dialogue-option, .map-btn {
   transition: transform var(--dur-micro) var(--ease-decelerate), --edge var(--dur-micro) var(--ease-decelerate), background-color var(--dur-micro) var(--ease-decelerate), color var(--dur-micro) var(--ease-decelerate);
 }
-.btn:hover:not(:disabled), .dialogue-option:hover:not(.locked), .map-btn:hover:not(:disabled), .title-btn:hover { --edge: var(--accent); }
-.btn:active:not(:disabled), .dialogue-option:active:not(.locked), .map-btn:active:not(:disabled), .title-btn:active {
+.btn:hover:not(:disabled), .dialogue-option:hover:not(.locked), .map-btn:hover:not(:disabled) { --edge: var(--accent); }
+.btn:active:not(:disabled), .dialogue-option:active:not(.locked), .map-btn:active:not(:disabled) {
   transform: scale(0.97);
   transition: transform var(--dur-spring-press) var(--ease-spring-press);
 }
-.btn:focus-visible, .dialogue-option:focus-visible, .map-btn:focus-visible, .title-btn:focus-visible {
+.btn:focus-visible, .dialogue-option:focus-visible, .map-btn:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--accent);
 }
-.btn.primary, .map-btn.primary, .title-btn.primary { --edge: var(--accent); }
-.btn.primary:focus-visible, .map-btn.primary:focus-visible, .title-btn.primary:focus-visible { box-shadow: inset 0 0 0 2px var(--void), inset 0 0 0 3px var(--accent); }
+.btn.primary, .map-btn.primary { --edge: var(--accent); }
+.btn.primary:focus-visible, .map-btn.primary:focus-visible { box-shadow: inset 0 0 0 2px var(--void), inset 0 0 0 3px var(--accent); }
 .btn:disabled { --edge: var(--line); }
 
 /* Hold to skip (src/ui/HoldToSkip.ts): bottom-right, on top of the letterbox. The line fills while

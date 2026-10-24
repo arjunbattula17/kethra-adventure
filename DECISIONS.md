@@ -454,3 +454,75 @@ commit's (2026-08-22).
   of furniture, a shortcut). The layout tests assume the 1 m jump and pass. Both collision checks
   pass with the same counts as before (the Wren 1,757 of 1,757 cells, Kethra 11 targets), but they
   model walking, not jumping, so they do not look for what a jump newly reaches.
+- **The remote fixed the same bug independently** (D-36, 2026-10-04), by skipping the floor snap for
+  the whole of a jump (`!this.jumping`). That guard makes this fix's condition redundant, so the
+  2026-10-24 merge kept the remote's code and comment alone; the behaviour is the same.
+
+### D-36 · UPGRADE · The arrow keys look, W/A/S/D move, and Space jumps — *Done 2026-10-04*
+*Numbered D-26 where it was written, on the remote branch (its commits and team changelog call it that). This branch already used D-26, so it took the next free number when the two were merged (2026-10-24).*
+Asked for by the team. The mouse looks; the arrow keys are its keyboard stand-in (← → turn, ↑ ↓
+look up and down) and no longer move the player, so ↑ and ↓ stop duplicating W and S. A and D
+already stepped sideways. Space never left the ground: the floor snap that keeps the player on
+stairs caught a jump on its second frame and set it back down, so the jump was one 10 cm frame. A
+jump now rises the 1 m the tuning file always assumed and lands with the existing dip and thud.
+Overhead colliders (Vessek's ducts, Kethra's root tunnels) stop the head, and anything that blocks
+walking still blocks mid-jump, so a jump can't carry the player over a waist-high object and set
+them down inside it. Floors up to 1.45 m above the take-off become reachable by jumping, which
+nothing on the critical path depends on. Covered by `tools/test-controls.mjs`.
+
+### D-37 · UPGRADE · A cinematic title screen with a live 3D backdrop — *Done 2026-10-16, reversible*
+*Numbered D-27 where it was written, on the remote branch (its commits and team changelog call it that). This branch already used D-27, so it took the next free number when the two were merged (2026-10-24).*
+The title is now a heavy capital ship over Kethra's day side at sunrise, rendered live
+behind the menu, with a new wordmark and glowing hexagonal buttons; the menu is up at once and the
+backdrop arrives complete, in one dissolve (src/galaxy/title/TITLE_DESIGN.md). Choices the team can
+reverse:
+- **The title has its own palette.** Deep-space blues with cyan marking what can be picked, instead
+  of the game's amber and sea-green; Controls and Settings take it while the title is up. Revert: the
+  token block at the top of the Title screen section of `src/style.css` and the
+  `body.title-open .panel-overlay` rule.
+- **Continue is shown disabled, with the reason, when there is no usable save** (it used to be
+  hidden), so the menu always has the same four rows. Revert: skip the `add('title.continue', …)`
+  call in `TitleScreen.show` when `opts.hasSave` is false.
+- **A ship, the tagline and corner labels, after a new reference** (2026-10-16, second pass, at the
+  user's request; an earlier pass that day had taken all three out). The ship is a new model built
+  for the title to match the reference (`titleShip.ts`), not the Wren hull the intro flies, so the
+  two ships differ. Rebuilt 2026-10-19 after the team's reference images: heavier, dark gunmetal
+  with cyan light, a door and small boosters at the stern.
+  The kicker reads "A deep-space survey" and the tagline "Your ship went dark past
+  the edge of the charts. Wake it up." (`title.kicker`, `title.tagline`). The corner labels are
+  decoration in the game's own terms ("Beyond the Kessic Drift / Uncharted system" where the
+  reference had a made-up station and sector; `title.hud*`). Revert: drop `buildTitleShip` from
+  `TitleScene.init`; empty `.ts-tagline`; remove the `.ts-hud` block from `TitleScreen.show`.
+- **The world keeps its own time.** Nothing in the backdrop follows the pointer or the menu (the
+  camera used to lean toward the pointer and the sunrise to swell on each selection), nothing on the
+  menu loops, and there is no staged opening: the menu fades in as one piece and the backdrop arrives
+  whole. Reduced motion holds the camera still and stops the meteors.
+The backdrop can be switched off entirely by not calling `TitleScreen.startBackdrop` in `boot.ts`:
+the menu then runs over its CSS starfield, as it does on any machine where the 3D fails to build.
+
+### D-38 · UPGRADE · Nothing to walk through, nowhere to get stuck — *Done 2026-10-04*
+*Numbered D-28 where it was written, on the remote branch (its commits and team changelog call it that). This branch already used D-28, so it took the next free number when the two were merged (2026-10-24).*
+`tools/wall-sweep.mjs` drives the real player into every wall it can reach in the Wren, on Kethra
+and on Vessek (walking, sprinting and jumping, at 60 fps and at the engine's 10 fps floor) and
+checks the body and the camera against every visible triangle. What it found, now fixed:
+- **Vessek's drop vents trapped the player** (live build). Crawling out of either one left them
+  wedged against the wall under the vent, or inside the grow table under Dace's vent, and no key
+  moved them; the tanker is reached that way during the crisis. Each drop vent has an unseen lip,
+  so the fall starts clear of the wall, and the grow tables' tops are floors to land on.
+- **Nothing can hold the player inside a collider any more.** Whatever leaves them overlapping one
+  (a door, a fall), a move that takes them out of it is always allowed. The junction's keypad door
+  also waits while someone stands in it instead of shutting on them.
+- **The camera went through the root-tunnel arches** in the Heart's chamber: they hung at head
+  height, and walking a tunnel passed through each one. They're lifted into the roof and show as
+  braces where they meet the walls; the tunnels' size and the Wickmoth's sight lines are unchanged.
+- **The Wren's wall fixtures above 2.1 m had no collision**, which a jump reached; colliders now
+  cover everything up to the top of a jump.
+- **Crouched, the eye sat above the top of the body**, so a crouched jump under a duct roof put
+  the camera in the roof. The crouched view is 10 cm lower (1.0 m, still above the stealth mounds'
+  0.82 m), and there's no jumping where there's no room to stand.
+- **Vessek pieces with no collision:** Varro and Dace, the crate and barrel by the desk, the
+  4 m pipe holder (only its middle 0.8 m was solid), the school stools and the junction's reset
+  panel.
+- **Two grime decals on the Wren's console** still sat where the old, smaller room had its desk,
+  and hung in the air 1.2 m in front of it.
+Covered by `tools/test-controls.mjs` (22 checks) and the sweep.

@@ -1,0 +1,59 @@
+{
+  "label": "title-final-continue",
+  "base": "http://localhost:4192/kethra-adventure/",
+  "path": "continue",
+  "viewport": [
+    1366,
+    768
+  ],
+  "idle": 6,
+  "summary": {
+    "fcpMs": 4268,
+    "buttonsMs": 1362.9,
+    "backdropMs": 4012.4,
+    "fpsMedian": 60.2,
+    "p95Ms": 17.4,
+    "over20": 2.9,
+    "over50": 3,
+    "longTaskMs": 896,
+    "longestTaskMs": 358,
+    "heapMb": 15.3,
+    "clickToSceneMs": 14064.2
+  },
+  "results": [
+    {
+      "run": 0,
+      "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "fcpMs": 3872,
+      "buttonsMs": 1229.4,
+      "backdropMs": 3609.8,
+      "idleFrames": 224,
+      "fpsMedian": 60.2,
+      "p95Ms": 16.9,
+      "over20": 1.3,
+      "over50": 1,
+      "longTaskMs": 530,
+      "longestTaskMs": 345,
+      "heapMb": 15.3,
+      "errors": [],
+      "clickToSceneMs": 11049.6
+    },
+    {
+      "run": 1,
+      "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00008A56) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "fcpMs": 4268,
+      "buttonsMs": 1362.9,
+      "backdropMs": 4012.4,
+      "idleFrames": 239,
+      "fpsMedian": 59.9,
+      "p95Ms": 17.4,
+      "over20": 2.9,
+      "over50": 3,
+      "longTaskMs": 896,
+      "longestTaskMs": 358,
+      "heapMb": 14.8,
+      "errors": [],
+      "clickToSceneMs": 14064.2
+    }
+  ]
+}

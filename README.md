@@ -14,8 +14,8 @@ Development with live reload: `npm run dev`.
 ## Controls
 Every key is defined once in `src/content/controls.ts`; the in-game Controls screen and
 docs/CONTROLS_AND_HOW_TO_PLAY.md (regenerate with `node tools/gen-controls-doc.mjs`) print from it.
-Mouse to look (arrow keys turn without a mouse), W/S or ↑/↓ to move, A/D to step, E to interact,
-Tab for the character sheet, O for settings, Esc to pause.
+Mouse to look (the arrow keys look around without a mouse), W/A/S/D to move, Space to jump, E to
+interact, Tab for the character sheet, O for settings, Esc to pause.
 
 ## Checks
 ```
@@ -25,7 +25,8 @@ npm run smoke       # every scene boots with no console errors
 ```
 Player-path tests (run against the preview): `node tools/test-tutorial-flow.mjs <url>` (the
 opening), `test-kethra-flow.mjs` (level 2), `test-vessek-flow.mjs` (level 3 and the ending),
-`test-resilience.mjs` (no WebGL, context loss, blocked storage). Measurement: `perf-run.mjs`
+`test-resilience.mjs` (no WebGL, context loss, blocked storage), `test-controls.mjs` (movement,
+jumping and the collision fixes), `wall-sweep.mjs` (walks and jumps the player into every wall). Measurement: `perf-run.mjs`
 (throttled profile), `perf-frames.mjs` (frame, CPU and GPU time per scene and tier on this machine's
 real GPU, in installed Chrome), `perf-ab.mjs` (one change A/B against another, alternated so a
 laptop's heat drift cancels), `browser-matrix.mjs` (Chromium, Edge, Firefox, WebKit),

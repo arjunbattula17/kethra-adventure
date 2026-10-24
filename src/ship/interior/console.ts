@@ -564,9 +564,11 @@ function buildWear(ctx: InteriorCtx): void {
   decal(drip, 1.5, 0.78, [-1.2, 0.5, -4.4], [0, 0, 0]);
   decal(drip, 1.1, 0.7, [1.5, 0.46, -4.4], [0, 0, 0]);
   // Hand grime bleeding down the desk fascia from under the grab rail, at each end where the
-  // grab handles are and people actually take hold.
-  decal(drip, 0.6, 0.34, [-1.3, 0.85, -3.2], [0, 0, 0]);
-  decal(drip, 0.56, 0.3, [1.3, 0.85, -3.2], [0, 0, 0]);
+  // grab handles are and people actually take hold. Just proud of the placards and end caps it
+  // runs over (frontZ + 0.03), and inside the end caps. Placed from DESK_FRONT_Z like the fascia's
+  // other details: at the old room's z of -3.2 it hung in the air in front of the desk.
+  decal(drip, 0.6, 0.34, [-1.2, 0.85, DESK_FRONT_Z + 0.035], [0, 0, 0]);
+  decal(drip, 0.56, 0.3, [1.2, 0.85, DESK_FRONT_Z + 0.035], [0, 0, 0]);
   // Boot scuffing on the strip of plinth in front of the operator well.
   decal(scuff, 2.6, 0.4, [0, 0.089, -3.03], [-Math.PI / 2, 0, 0]);
   // A second scuffed lane further out, where a walk-up pauses before reaching for the wing pods.

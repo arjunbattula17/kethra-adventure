@@ -256,6 +256,70 @@ graphics driver's own shader cache): the way a judge first meets the game.
 
 ---
 
+## 2026-10-21 and 22: the low-end pass
+
+Same Intel UHD laptop, the whole game played in order by `tools/journey-profile.mjs` (now also counting
+bytes downloaded and the browser's memory), against a local server that compresses files the way
+GitHub Pages does. Full detail: `PERFORMANCE_LOG.md` in the project root.
+
+### 24. Half the download on slow laptops
+- **Why:** on Performance the game shrank every 2048-pixel texture to 1024 after downloading it, so it
+  downloaded four times the pixels it used.
+- **What:** each of those 28 textures has a ready-made 1024-pixel copy, and Performance downloads that
+  instead. Balanced and Quality still get the full ones.
+- **Number:** the whole game 26 → 14 MB over the wire; 5.8 → 2.8 MB before you can walk in the Wren. The
+  picture is the same (checked pixel by pixel against run-to-run noise).
+- **Say it:** "A slow laptop downloads the textures at the size it actually draws them, so it gets half
+  the download for the same picture."
+
+### 25. Leaving a planet gives its memory back
+- **Why:** Kethra's trees and rocks, and both planets' stone and metal textures, stayed loaded for the
+  rest of the session after you left.
+- **What:** back aboard the Wren, everything only the planets use is released. Going back to a planet
+  loads it again from the browser's cache while the cruise plays.
+- **Number:** the browser's total memory at the end of a playthrough 1583 → 1417 MB.
+- **Say it:** "When you come back aboard, the planet you left stops taking up memory, which matters on a
+  4 GB school laptop with other tabs open."
+
+### 26. Coming back aboard is smooth from the first frame
+- **Why:** each time you returned to the Wren, the automatic quality setting judged it again from
+  scratch, so the first 5–15 seconds swung between smooth and choppy.
+- **What:** the game remembers what each place needed during the session and applies it straight away.
+- **Number:** returning aboard, 12–14 slow frames (over 50 ms) in the first 20 seconds → 0.
+- **Say it:** "The game learns what your laptop needs in each place, so it doesn't have to work it out
+  again every time you come back."
+
+### 27. A calmer first minute in the Wren
+- **Why:** the faster lighting shaders were prepared three at a time in the background while you played,
+  which made frames late.
+- **What:** one at a time, and the steady 30 is held from the first frame while they're prepared.
+- **Number:** in the first 40 seconds aboard, 89 frames over 40 ms → 24. The preparation takes about
+  4 s longer, unseen.
+- **Say it:** "The game prepares its faster lighting quietly in the background, slowly enough that you
+  don't feel it."
+
+### 28. A performance readout anyone can open
+- **What:** press the backquote key (`) in the game, or add `?fps` to the link, to see frames per
+  second, frame times, slow frames, draw calls, memory and the quality setting. Press ` again to close
+  it; closed, it costs nothing.
+- **Say it:** "Anyone can check how the game runs on their own machine with one key."
+
+### 29. Fixed: the Wren could come back to life after you left
+- **Why:** if you left the Wren at the exact moment its lighting was being prepared, the game kept
+  drawing the room off screen and loaded all of it into graphics memory again.
+- **Number:** seen once: 267 textures in Vessek instead of 74. Not possible now.
+
+### Tried and dropped (this pass)
+- Drawing depth first so each pixel is lit once: no faster in the Wren (within noise), so it came out.
+- Freeing the Wren's painted textures after upload: 182 MB less memory, but every return aboard would
+  repaint the room. Listed as a team decision.
+
+### Still open
+- Kethra and the Wren end at a steady 30 on the test laptop (both are limited by lighting per pixel).
+- About six single 100–150 ms frames per playthrough, each at a scene cut.
+
+---
+
 ## How to talk about performance
 
 1. "We tested on a simulated school Chromebook, with the processor slowed six times and a slow

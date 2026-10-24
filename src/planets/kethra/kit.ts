@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { cacheTexturesFor } from '../../core/textureCache';
+import { cacheTexturesFor, forgetTextures } from '../../core/textureCache';
+import { registerLevelCache } from '../../core/levelCaches';
 import { cachedLoad } from '../../core/retry';
 
 // Quaternius "Stylized Nature MegaKit" (CC0) — see public/models/CREDITS.md. Unlike the ship's
@@ -47,6 +48,24 @@ export interface KitPrimitive {
 }
 
 const templateCache = new Map<string, Promise<KitPrimitive[]>>();
+/** The loaded entries of templateCache, for the release below. */
+const loadedTemplates = new Map<string, KitPrimitive[]>();
+
+// Back aboard, the kit goes: its geometry, materials and decoded maps (~100 MB on Performance, kept
+// for the session before). Kethra and Vessek fetch it again, from the browser's cache, while they
+// prepare. A template a scene on hand still draws stays.
+registerLevelCache((inUse) => {
+  for (const [name, prims] of loadedTemplates) {
+    if (prims.some((p) => inUse.geometries.has(p.geometry))) continue;
+    for (const p of prims) {
+      p.geometry.dispose();
+      p.material.dispose();
+    }
+    loadedTemplates.delete(name);
+    templateCache.delete(name);
+  }
+  if (!loadedTemplates.size) forgetTextures(TEXTURES_BASE, inUse);
+});
 
 // Every piece in this kit is a single node with 1-2 mesh primitives (trunk + canopy for trees,
 // one primitive for rocks/grass/etc.) and no node-level transform, so raw accessor-space geometry
@@ -63,6 +82,7 @@ function loadTemplate(name: string): Promise<KitPrimitive[]> {
           prims.push({ geometry: mesh.geometry, material: mesh.material as THREE.MeshStandardMaterial });
         }
       });
+      loadedTemplates.set(name, prims);
       return prims;
     }),
   );
