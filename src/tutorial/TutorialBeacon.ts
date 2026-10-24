@@ -34,7 +34,7 @@ function buildBeamTexture(): THREE.CanvasTexture {
 function glowMaterial(opacity: number, map?: THREE.Texture): THREE.MeshBasicMaterial {
   return new THREE.MeshBasicMaterial({
     color: ACCENT,
-    map,
+    map: map ?? null,
     transparent: true,
     opacity,
     blending: THREE.AdditiveBlending,

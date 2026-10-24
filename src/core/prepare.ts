@@ -342,6 +342,34 @@ export async function uploadProgressively(renderer: THREE.WebGLRenderer, texture
 const WARM_LAYER = 31;
 
 /**
+ * A light with no shadow map yet has three.js (r185) bind a stand-in it never uploads, which WebGL
+ * sees as a colour texture on a shadow sampler: every warm-up draw that received shadows logged
+ * "Mismatch between texture format and sampler type". One shadow pass while nothing is on the
+ * camera's layer gives each shadow-casting light a real, empty map and paints nothing; the scene's
+ * own first frame paints them. Each light's own pending repaint is put back as it was.
+ */
+function giveShadowMaps(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, target: THREE.WebGLRenderTarget, lights: THREE.Object3D[]): void {
+  const mapless = (lights as (THREE.DirectionalLight | THREE.SpotLight | THREE.PointLight)[]).filter((l) => l.castShadow && l.shadow && !l.shadow.map);
+  if (!renderer.shadowMap.enabled || mapless.length === 0) return;
+  const pending = mapless.map((l) => l.shadow.needsUpdate);
+  const autoShadow = renderer.shadowMap.autoUpdate;
+  const needsShadow = renderer.shadowMap.needsUpdate;
+  for (const l of mapless) l.shadow.needsUpdate = true;
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
+  const previous = renderer.getRenderTarget();
+  renderer.setRenderTarget(target);
+  try {
+    renderer.render(scene, camera);
+  } finally {
+    renderer.setRenderTarget(previous);
+    renderer.shadowMap.autoUpdate = autoShadow;
+    renderer.shadowMap.needsUpdate = needsShadow;
+    mapless.forEach((l, i) => (l.shadow.needsUpdate = pending[i]));
+  }
+}
+
+/**
  * Draws a scene a few objects at a time into a small off-screen target, so each object's first draw
  * (geometry upload, the program's first use, the driver's own first-draw work) happens in a slice of
  * its own instead of all inside one frame.
@@ -378,6 +406,7 @@ export async function drawProgressively(
     }
     for (const l of lights) l.layers.enable(WARM_LAYER);
     camera.layers.set(WARM_LAYER);
+    giveShadowMaps(renderer, scene, camera, target, lights);
     for (let start = 0; start < objects.length; start += batch) {
       await pacer.breathe();
       // A scene replaced meanwhile has been disposed: drawing it would upload its textures and
