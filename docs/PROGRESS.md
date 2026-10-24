@@ -11,7 +11,10 @@ D-35). By today the remote had 35 more (the live 3D title, arrow keys look and S
 sweep, low-end texture and memory work: D-36 to D-38, renumbered from its D-26 to D-28). Both are
 merged into `overhaul` (53 commits ahead of `origin/overhaul`, none behind; not pushed), with every
 suite green and the wall sweep clean in all three levels after three collision fixes it found
-(QA log). Next: the draw-call work (D-31) onto this code, then M6 and M7.
+(QA log). The draw-call work (D-31) is on it too, journey finished: **every level is inside its
+Low draw-call budget**, the Wren for the first time. The console is clean on every route and tier
+(new `tools/console-scan.mjs`), and nothing visible comes inside the camera's near plane in any level
+(wall sweep). Next: M6 and M7.
 
 **2026-10-13: the release pass** (docs/REPORT_2.md, written phase by phase). Phase 0 audited the
 finishing pass and corrected four things in it. Phase 1 took the three CC BY models out of the build
@@ -103,7 +106,7 @@ live title, a timed human playthrough, and real hardware.
 | 4 | ~~P2~~ | **Fixed (131f3a3)**: stale timers closing the wrong panel (`close(id)`) | PanelManager.ts | |
 | 5 | ~~P2~~ | **Fixed (131f3a3)**: replaced panels now close properly | PanelManager.ts | |
 | 6 | ~~P2~~ | **Fixed (131f3a3)**: beacon sweeps registered noMerge | lighting.ts | |
-| 7 | P2 | *2026-10-13: 246 on Low and 500 on High on the branch `overhaul-phase2-unverified` (budgets 150 and 350); what the remaining draws are is in DECISIONS D-31.* The Wren is still over its Low budget: 256 calls against 150 (was 614). Its scene pass is 30–50% cheaper than the baseline's in a controlled A/B (below), but perf-run's Low p95 at 6× still misses 33 ms in the Wren, Kethra and Vessek | ship/interior/*, all scenes | M7: the remaining calls are unique-parameter materials; measure with the steadier method in issue 16 |
+| 7 | P2 | *2026-10-24: **Low is inside: 123 against 150** (the remote's lighting work plus D-31, 3a23313). High is 500 against 350.* *2026-10-13: 246 on Low and 500 on High on the branch `overhaul-phase2-unverified` (budgets 150 and 350); what the remaining draws are is in DECISIONS D-31.* The Wren is still over its Low budget: 256 calls against 150 (was 614). Its scene pass is 30–50% cheaper than the baseline's in a controlled A/B (below), but perf-run's Low p95 at 6× still misses 33 ms in the Wren, Kethra and Vessek | ship/interior/*, all scenes | M7: the remaining calls are unique-parameter materials; measure with the steadier method in issue 16 |
 | 8 | ~~P2~~ | **Fixed (131f3a3)**: per-scene grades; space grade has no toe lift | GradeGlowPass.ts | |
 | 9 | ~~P2~~ | **Fixed (131f3a3)**: world text on bundled faces; counters on Atkinson tabular | *Textures.ts, style.css | |
 | 10 | ~~P2~~ | **Fixed (2026-10-13)**: with reduced motion the intro holds one framing and the white sky swells to 40% | IntroScene | |
@@ -124,7 +127,7 @@ live title, a timed human playthrough, and real hardware.
 | 25 | P3 | After the cruise the arrival card repeats the planet's name the kinetic title just gave | GameFlow.cruiseTo | M6 (the card's redesign) |
 | 26 | P3 | MG2's foliage reads as stylized blobs where it's lit; the limbs are plain tapered cylinders | canopy/CanopyScene.ts | M7 art pass |
 | 27 | P3 | A naive autopilot steering straight at each gap scraped 11 times in one descent (132 s): the short limbs hugging each gap leave about 2 m of margin | canopy/layout.ts | Playtest; widen the hugging ring if players find it punishing |
-| 28 | ~~P2~~ | **Fixed on the branch `overhaul-phase2-unverified` (2026-10-13)**, pending its journey run: 122 on Low and 253 on High, inside both budgets (D-31). Was: Kethra on Low is over budget: 229 draw calls against 160 (baseline 155). Toggled one at a time: the kit's instanced foliage and scatter are 69 calls, the chamber 11, the canopy 4; the other 145 aren't broken down yet | KethraScene | M7: break the rest down by object, then merge static props per material (as the Wren's batchStaticGeometry does) |
+| 28 | ~~P2~~ | **Fixed (3a23313, 2026-10-24, journey 16/16)**: 122 on Low and 253 on High, inside both budgets (D-31). Was: Kethra on Low is over budget: 229 draw calls against 160 (baseline 155). Toggled one at a time: the kit's instanced foliage and scatter are 69 calls, the chamber 11, the canopy 4; the other 145 aren't broken down yet | KethraScene | M7: break the rest down by object, then merge static props per material (as the Wren's batchStaticGeometry does) |
 | 29 | P3 | The Hush's view on High draws 669k triangles against 500k: the background tree belt behind the chamber's walls is still drawn | KethraScene filler trees | M7: the design's LOD or impostors for the belt |
 | 30 | P3 | tools/record-gameplay.mjs still travels by the pre-M2 fade (it emits `galaxy:travel_to` and waits 2.2 s); its Hush clip is updated, but the trip needs tools/lib/travel.mjs | tools/record-gameplay.mjs | M8, before the video is recorded |
 | 31 | P3 | MG2's Wickmoth now flies its layer-4 path: the old patrol overwrote its position every frame, so it had never been on screen | canopy/CanopyScene.ts | M7 art pass: look at layer 4 with it there |
@@ -132,16 +135,16 @@ live title, a timed human playthrough, and real hardware.
 | 33 | P2 | The Kethra dressing (D-25) takes the scene further over budget: High 467 draw calls against 450, Low 361k triangles against 320k, the Hush view 872k against 500k on High, and 102.5 MB of textures against 90 MB (the scene was about 96 MB before it). *2026-10-13:* its three CC BY models are rebuilt in code (D-30), which took Low to 349k and the Hush view on High to 819k; the draw calls are unchanged | planets/kethra/dressing.ts | Team decision on D-25; if it stays, the understory trees and the landmark's leaf cards are the first things to thin |
 | 34 | ~~P3~~ | **Fixed (2026-10-13)**: the tool travels by `flow.debugGo('kethra')`, and marks the one target reached by jumping (Oshel's lantern, which tools/test-survey.mjs jumps to) | tools/collision-check.mjs | |
 | 35 | ~~P3~~ | **Fixed (2026-10-13)**: the flake was the test's. A breath sends the moth a step closer and no breath counts while it flies there (the HUD says "Let it settle first"); the test read its perch, and breathed again, the moment the breath counted. It now waits for the moth to arrive. 5 of 5 runs passed on the final build | tools/test-mg3-flow.mjs | |
-| 36 | P3 | Kethra on Medium and High logs about 200 WebGL warnings on arrival ("Mismatch between texture format and sampler type"): a shadow sampler bound before its map has been drawn. Not on Low, not aboard the Wren. Present at 0e1a526 with the same counts (101, 72 and 33 by draw type), so not from the finishing pass. Nothing visible was traced to it | KethraScene (the moon's one-time shadow and the gaze's shadow pass) | Find which light's map is sampled before its first render; it may be the cause of part of issue 22's stall |
+| 36 | ~~P3~~ | **Fixed (e3ba2af, 2026-10-24)**: the warm-up renders ran before any shadow map existed, and three.js r185 binds an un-uploaded stand-in for a missing map; one empty shadow pass first gives every light its map. Was: Kethra on Medium and High logs about 200 WebGL warnings on arrival ("Mismatch between texture format and sampler type"): a shadow sampler bound before its map has been drawn. Not on Low, not aboard the Wren. Present at 0e1a526 with the same counts (101, 72 and 33 by draw type), so not from the finishing pass. Nothing visible was traced to it | KethraScene (the moon's one-time shadow and the gaze's shadow pass) | Find which light's map is sampled before its first render; it may be the cause of part of issue 22's stall |
 | 37 | P2 | The live 3D title with a match cut into the intro (DESIGN §1, M6) is not built: the title is still the DOM screen over a planet image | boot.ts, GameFlow.bootIntro, TitleScreen | docs/REPORT.md, next steps: hold the intro's first frame behind the DOM title first, then prepare the ship while the title is up, and measure a cold cache before removing the loading screen |
 | 38 | P3 | The evidence board's only connection is made automatically by Fen's dialogue, so the board's own "select two clues" action always answers "already connected" or "no clear connection" | JournalSystem.CONNECTION_INSIGHTS | Give the board pairs of its own to find (the survey's texts are candidates), or drop the action |
 | 39 | P3 | Three of the Wren's seven systems (navigation, shields, power distribution) can be repaired to no effect | GameFlow's `ship:repaired` handlers | Give each a consequence or remove it from the panel |
 | 40 | P1 | `reference/bar.png` and its ten crops are a commercial game's promotional image with its logos, in a repository that is public. Not in the build; nothing was copied from it | `reference/`, docs/interior-art-brief.md, the interior review tools | **Team:** remove it before the repository is shown to anyone, and decide with the advisor whether the published history needs D-12's fresh-repository fix (docs/ASSETS.md) |
-| 41 | P3 | Arriving at Kethra logs "THREE.Material: parameter 'map' has value of undefined" once, on every tier. In the build before the release pass too | Not traced; a material built with a `map` key that is undefined | Find the constructor and drop the key |
+| 41 | ~~P3~~ | **Fixed (e3ba2af)**: the tutorial beacon's glow passed `map: undefined`. Was: Arriving at Kethra logs "THREE.Material: parameter 'map' has value of undefined" once, on every tier. In the build before the release pass too | Not traced; a material built with a `map` key that is undefined | Find the constructor and drop the key |
 | 42 | P2 | The design's frame target (p95 ≤ 33 ms on Low at 6× CPU) is met in none of the three levels: Kethra 37–39 ms, the Anchorage 34–42 ms, the Wren 50–71 ms (three runs each, 2026-10-13) | every level | The Wren first: it is the opening level and the furthest off |
 | 43 | P3 | Kethra holds 22.7 MB of vertex data on Low where it held 11.9: the merged kit gives every tree its own copy of its vertices | kit.ts `mergeKit` | Free the CPU-side copies after upload, or use three's BatchedMesh where the multi-draw extension exists |
 | 44 | P3 | The Anchorage is inside its Low draw-call budget by 4 (176 of 180) at the view it opens on; other views were not counted | VessekScene | The lever plates (7 draws) and the lamps (one material each, 34 draws) are the next things to fold |
-| 45 | P2 | The camera comes within 0–8 cm of stone in the Heart's chamber: jumping by its west wall near (-6.5, -31) brings the eye to overhead stone, and walking the east root tunnel over a rise near (10, -20.5) leaves it 8 cm under the roof. On the remote's build too (wall sweep, 2026-10-24) | hush/chamber.ts, roofAbove | Find the overhead piece; the collider's underside must sit at or below the visible stone |
+| 45 | ~~P2~~ | **Fixed (503fbfb)**: the far arch's pillars had no collider; a rising head now stops 3 cm under a roof and the tunnel arches clear it. Was: The camera comes within 0–8 cm of stone in the Heart's chamber: jumping by its west wall near (-6.5, -31) brings the eye to overhead stone, and walking the east root tunnel over a rise near (10, -20.5) leaves it 8 cm under the roof. On the remote's build too (wall sweep, 2026-10-24) | hush/chamber.ts, roofAbove | Find the overhead piece; the collider's underside must sit at or below the visible stone |
 | 46 | P3 | The wall sweep's body-in-mesh list: wall fixtures 1–2 cm proud of the Wren's walls are inside the 0.35 m body when hugging a wall; the stepping stones' flared feet touch a body falling past into the pool. Neither is seen in first person | ship/interior, dressing.ts | Leave unless the body is ever drawn |
 
 ## Decisions log
@@ -271,6 +274,9 @@ live title, a timed human playthrough, and real hardware.
 | 2026-10-24 | Stress suite on the merge | 13/13 after three test fixes: the title's backdrop is an engine scene, so "Continue reaches a scene" passed on the title itself (`lib.leftTitle` waits for the flow to leave boot); Continue is shown disabled for an unreadable save (D-37); the menu is inert until revealed (D-37). s08 keeps its KNOWN BUG-013 |
 | 2026-10-24 | The remote's wall sweep on the merge, and on the remote's own build for a baseline | Merge: Kethra and Vessek "inside a collider". Remote: Vessek the same, Kethra clean. Causes and fixes in 2542465: the secret ledge walked into from the banks (now a collider), the gate's columns jumped through (colliders), a fall past an edge landing the body in its side (it slides off). After: inside a collider never, in all three |
 | 2026-10-24 | After the collision fixes | journey 16/16, test-title, test-controls, s06, s08, both collision checks. test-kethra-flow's valve spot stood inside the valve's collider; it now looks down at it from the front |
+| 2026-10-24 | D-31 (Phase 2) re-applied on the merged code (3a23313) | journey 16/16, test-controls, s06, s08, wall sweep in all three. mergeKit now keeps solid kit apart from ground cover and marks it, or the sweep counted merged grass as walls |
+| 2026-10-24 | WebGL warnings on High, traced with gl.getError() after each draw | 208–256 per arrival, every level, all from warm-up renders before any shadow map existed (issue 36). Fixed; `tools/console-scan.mjs` (title, intro, Wren, reveal, Kethra, Vessek, ending) clean on Low, Medium and High. Journey 16/16 after |
+| 2026-10-24 | The wall sweep's eye check, each case looked at in place | Seven cases fixed (503fbfb): the chamber's far-arch pillars (no collider), the root tunnels' roof (a jump left the camera 10 cm from an arch), the bent grate's bars lying across the crawl, the duct fans crawled through when off (they now fold against the wall on a hinge, screenshots checked), the reset lever's arm, the dock lockout box hanging over a corner, a coyote jump off a vent lip through the tanker's ceiling. After: nothing within 8 cm of the eye in any level |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;
@@ -423,6 +429,20 @@ throttle). "Before" is the table above. The three code-built pieces (D-30) repla
 | Hush | High, before → after | 302 → 301 | 872k → **819k** | 86 → 85 | 300 / 500k |
 
 The build is 98.0 MB (was 98.2).
+
+### Integrated (2026-10-24)
+`tools/measure-scene.mjs` at 1366×768, the view each scene opens on, unthrottled (counts do not
+depend on the throttle). Both branches merged and D-31 re-applied (3a23313).
+
+| View | Low: calls / tris (budget) | High: calls / tris (budget) |
+|---|---|---|
+| The Wren | **123** / 74k (150 / 150k) | **500** / 297k (350 / 300k) |
+| Kethra | 122 / **349k** (160 / 320k) | 253 / 798k (450 / 900k) |
+| Hush | 91 / **347k** (120 / 200k) | 202 / **820k** (300 / 500k) |
+| Vessek | 162 / 173k (180 / 200k) | 346 / 362k (400 / 400k) |
+
+- **Over:** the Wren's calls on High; triangles in Kethra and the Hush view on Low, and the Hush view on High.
+- The Wren on Low went from 246 to 123: the remote's fewer lights and merged instances (D-33) with D-31's shared tiled textures.
 
 ### Release pass, Phase 2 (2026-10-13)
 `tools/measure-scene.mjs` at 1366×768, the view each scene opens on, one run each for the counts.
