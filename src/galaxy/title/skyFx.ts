@@ -110,8 +110,9 @@ const METEOR_FRAGMENT = /* glsl */ `
   uniform float uIntensity;
   varying vec2 vP;
   void main() {
-    // along: 0 at the tail, 1 at the head; vP.y across, -1..1.
-    float along = vP.x * 0.5 + 0.5;
+    // along: 0 at the tail, 1 at the head; vP.y across, -1..1. Clamped: MSAA samples the varying past
+    // the quad's ends, and pow() of a negative is NaN, which High's bloom spread over the whole title.
+    float along = clamp(vP.x * 0.5 + 0.5, 0.0, 1.0);
     float y2 = vP.y * vP.y;
     // The quad is about twice as wide as the streak, so its glow has room to spread past the core.
     // The trail: a crisp white core (pushed well past 1 so the title's grade, its highlight shoulder,

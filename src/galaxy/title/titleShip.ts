@@ -2194,7 +2194,9 @@ const PLUME_FRAGMENT = /* glsl */ `
   void main() {
     vec3 col;
     if (vKind < 0.5) {
-      float along = vShape.x;
+      // Clamped here, not trusted from the vertices: MSAA samples the varying past its ends, and pow() of
+      // a negative is NaN, which High's bloom spread over the whole title.
+      float along = clamp(vShape.x, 0.0, 1.0);
       float across = vShape.y;
       float core = exp(-across * across * 26.0);
       float sheath = exp(-across * across * 5.0) * smoothstep(1.0, 0.7, abs(across));
