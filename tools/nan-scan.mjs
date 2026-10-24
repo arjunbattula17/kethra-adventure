@@ -22,6 +22,8 @@ const ROUTES = [
   ['cruise', '?skipIntro=1&newGame=1&unlockKethra=1', settled('wren'), async (page) => {
     await page.evaluate(() => { window.__DEBUG__.flow.tutorial?.skip?.(); window.__DEBUG__.gameState.setFlag('first_light'); window.__DEBUG__.bus.emit('galaxy:travel_to', 'kethra'); });
     await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'CruiseScene', null, { timeout: 60000 });
+    // The reveal: Kethra and its atmosphere fill the frame.
+    await page.evaluate(() => { window.__DEBUG__.engine.getCurrentScene().time = 31; });
   }],
   ['kethra', '?skipIntro=1&newGame=1&unlockKethra=1&jump=kethra', settled('kethra')],
   ['hush', '?skipIntro=1&newGame=1&unlockKethra=1&jump=kethra', settled('kethra'), async (page) => {

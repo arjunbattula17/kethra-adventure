@@ -16,7 +16,10 @@ import type { StringKey } from '../content/strings';
 import { PLANETS } from './planetData';
 import { buildShipHull } from './shipHull';
 import type { ShipHull } from './shipHull';
-import { buildPlanetInstance, planetTexturesReady, type PlanetInstance } from './planetShader';
+import { buildPlanetInstance, planetTexture, planetTexturesReady, type PlanetInstance } from './planetShader';
+import { bakeDetailNoise } from './title/bake';
+import { buildHeroPlanet } from './title/heroPlanet';
+import type { HeroPlanet } from './title/heroPlanet';
 import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
 import { buildSun, sunMapReady } from './sun';
@@ -115,7 +118,14 @@ export class CruiseScene implements GameScene {
   private readonly fog = new THREE.FogExp2(0x0a211b, 0);
   private plumes: ReturnType<typeof buildPlume>[] = [];
   private rings: ReturnType<typeof buildShockRing>[] = [];
-  private planet!: PlanetInstance;
+  /** Vessek's world; Kethra is `hero`. */
+  private planet: PlanetInstance | null = null;
+  /** Kethra: the title's planet (title/heroPlanet.ts), so the world the player arrives at is the one on
+   * the menu, with its terminator, cloud shadows and the atmosphere blazing toward the sun. */
+  private hero: HeroPlanet | null = null;
+  private heroDetail: THREE.WebGLRenderTarget | null = null;
+  private readonly heroCenter = new THREE.Vector3(1e5, 0, 0);
+  private readonly heroSun = new THREE.Vector3(1, 0, 0);
   private rocks!: THREE.InstancedMesh;
   private streaks = new Streaks();
   private course!: THREE.Line;
@@ -186,9 +196,28 @@ export class CruiseScene implements GameScene {
     this.course.visible = false;
     this.scene.add(this.course);
 
-    const def = PLANETS.find((p) => p.id === this.opts.destination)!;
-    this.planet = buildPlanetInstance({ ...def, radius: 170 }, new THREE.Vector3(1e5, 0, 0), this.sun.group.position, this.camera);
-    this.scene.add(this.planet.group);
+    if (this.opts.destination === 'kethra') {
+      const engine = getActiveEngine()!;
+      this.heroDetail = await bakeDetailNoise(engine.renderer, () => pacer?.breathe() ?? Promise.resolve());
+      this.hero = buildHeroPlanet({
+        radius: 170,
+        center: this.heroCenter,
+        sunDir: this.heroSun,
+        glareDir: this.heroSun,
+        day: planetTexture('kethra_day.jpg', true),
+        night: planetTexture('kethra_night.jpg', true),
+        clouds: planetTexture('clouds.jpg', false),
+        detail: this.heroDetail.texture,
+        segments: engine.getQualityTier() === 'low' ? 96 : 160,
+        nightGlow: 0.3,
+      });
+      this.hero.setReveal(1, 1);
+      this.scene.add(this.hero.group);
+    } else {
+      const def = PLANETS.find((p) => p.id === this.opts.destination)!;
+      this.planet = buildPlanetInstance({ ...def, radius: 170 }, new THREE.Vector3(1e5, 0, 0), this.sun.group.position, this.camera);
+      this.scene.add(this.planet.group);
+    }
     // The sun's and the planet's maps in hand before the cruise is prepared, rather than decoded and
     // uploaded in a frame of it.
     await Promise.all([planetTexturesReady(), sunMapReady()]);
@@ -269,8 +298,11 @@ export class CruiseScene implements GameScene {
     this.titled = true;
     const def = PLANETS.find((p) => p.id === this.opts.destination)!;
     const title = this.opts.destination === 'vessek' ? t('cruise.title.vessek') : def.name;
+    // Each arrival in its world's own light: Kethra's grove sea-green, the Anchorage's tungsten.
+    const vessek = this.opts.destination === 'vessek';
     this.titleEl.classList.add('visible');
-    playKineticTitle(this.titleEl, title, 'rgba(92, 209, 176, 0.95)');
+    this.titleEl.classList.toggle('vessek', vessek);
+    playKineticTitle(this.titleEl, title, vessek ? 'rgba(232, 199, 154, 0.9)' : 'rgba(92, 209, 176, 0.95)');
     motion.conductor.duck(3);
     AudioSystem.playLevelStart();
     // Hold on the title until the destination level is built.
@@ -331,19 +363,29 @@ export class CruiseScene implements GameScene {
 
     // The planet follows the ship at a fixed offset so it keeps its size; at Vessek it is fixed
     // relative to the berth instead, so it grows as the ship approaches.
-    this.planet.group.position.copy(this.anchorage ? this.berth : S).add(_planetOffset);
+    const world = this.hero?.group ?? this.planet!.group;
+    world.position.copy(this.anchorage ? this.berth : S).add(_planetOffset);
     // At Kethra the planet is hidden once the skiff is in the air.
-    this.planet.group.visible = time > BEAT.reveal - 0.5 && (time < BEAT.entry + 2 || !this.skiff);
-    this.planet.group.rotation.y += dt * 0.01;
+    world.visible = time > BEAT.reveal - 0.5 && (time < BEAT.entry + 2 || !this.skiff);
+    // Kethra's surface turns in its own update.
+    if (this.planet) this.planet.group.rotation.y += dt * 0.01;
     // From the reveal on, the sun sits behind the planet and slightly above so it is backlit. Set
     // before planet.update(), which reads the sun position.
     if (time > BEAT.reveal - 0.5) {
-      const behind = _behind.copy(this.planet.group.position).sub(S).normalize().multiplyScalar(2600).add(this.planet.group.position);
-      behind.y += 420;
+      // At Kethra the sun is off to the side as well as behind: a lit crescent about a fifth of the
+      // disc with its terminator, the rest the faint night side, and the limb blazing toward the sun.
+      const away = _behind.copy(world.position).sub(S).normalize();
+      if (this.hero) away.multiplyScalar(0.55).addScaledVector(_side.crossVectors(away, _up).normalize(), 0.75).setY(away.y + 0.35).normalize();
+      const behind = away.multiplyScalar(2600).add(world.position);
+      if (!this.hero) behind.y += 420;
       this.sun.group.position.copy(behind);
       this.sun.light.position.copy(behind);
     }
-    this.planet.update(motion.ambientTime, dt);
+    if (this.hero) {
+      this.heroCenter.copy(world.position);
+      this.heroSun.copy(this.sun.group.position).sub(world.position).normalize();
+      this.hero.update(motion.ambientTime);
+    } else this.planet!.update(motion.ambientTime, dt);
     const reveal = smooth(BEAT.reveal, BEAT.reveal + 6, time);
     lerpGrade(GRADES.space, this.opts.destination === 'kethra' ? GRADES.kethra : GRADES.vessek, reveal, this.grade);
 
@@ -470,6 +512,7 @@ export class CruiseScene implements GameScene {
     // The hull is built fresh for this scene (only its panel textures are cached, and a disposed
     // texture re-uploads on next use), so it goes with everything else.
     disposeSceneFully(this.scene);
+    this.heroDetail?.dispose();
   }
 }
 
@@ -477,6 +520,8 @@ const _x = new THREE.Vector3(1, 0, 0);
 const SUN_DIR = new THREE.Vector3(-0.85, 0.25, -0.45).normalize();
 const _sunDir = new THREE.Vector3();
 const _behind = new THREE.Vector3();
+const _side = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0);
 const _planetOffset = new THREE.Vector3(520, -40, 30);
 const _space = new THREE.Color(0x02030a);
 const _night = new THREE.Color(0x061612);

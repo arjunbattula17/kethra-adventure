@@ -193,12 +193,13 @@ export function buildCanopyLights(seed = 0xca9): THREE.Group {
     const cx = (rand() - 0.5) * 1200;
     const cz = (rand() - 0.5) * 1200;
     pos.set([cx + (rand() - 0.5) * 18, 2 + rand() * 10, cz + (rand() - 0.5) * 18], i * 3);
-    c.setHex(0x5cd1b0).multiplyScalar(0.3 + rand() * 0.9);
+    c.setHex(0x5cd1b0).multiplyScalar(0.5 + rand() * 1.1);
     col.set([c.r, c.g, c.b], i * 3);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  group.add(new THREE.Points(geo, new THREE.PointsMaterial({ size: 3, sizeAttenuation: false, map: getPointSprite(), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })));
+  // Living light: it reads through the entry's haze, which would otherwise swallow it at this height.
+  group.add(new THREE.Points(geo, new THREE.PointsMaterial({ size: 4.5, sizeAttenuation: false, map: getPointSprite(), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, fog: false })));
   return group;
 }

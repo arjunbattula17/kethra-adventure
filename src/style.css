@@ -15,6 +15,7 @@
   --ink: #eae2d0;
   --accent: #d9a441;        /* Wren amber: reserved for "you can act on this" */
   --grove: #5cd1b0;         /* Grove sea-green: something new was learned */
+  --tungsten: #e8c79a;      /* Anchorage tungsten: the colour of people (world light, the Anchorage's title) */
   --white-sky: #f3f0ea;     /* the Choir's light only, never UI */
 
   --ink-dim: #a89e88;
@@ -1731,18 +1732,21 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .cruise-days.visible { opacity: 0.9; }
 .cruise-title {
   position: absolute;
-  top: 34vh;
+  /* Low in the frame, inside the letterbox: the chase camera frames the skiff, and the docking shot
+     the Wren, above it. */
+  top: 74vh;
   left: 0;
   right: 0;
   text-align: center;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: calc(64px * var(--text-scale));
+  font-size: calc(88px * var(--text-scale));
   color: var(--grove);
   opacity: 0;
   z-index: 21;
 }
 .cruise-title.visible { opacity: 1; }
+.cruise-title.vessek { color: var(--tungsten); }
 
 /* Canopy minigame panel (src/planets/kethra/canopy), top right; the hull is shown as three pips. */
 .canopy-panel {

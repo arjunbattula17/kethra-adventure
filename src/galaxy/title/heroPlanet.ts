@@ -266,6 +266,8 @@ export interface HeroPlanetOptions {
   detail: THREE.Texture;
   /** Sphere segments around; half as many rings. */
   segments: number;
+  /** How bright the canopy's glow is on the night side; the title's is 1.25. */
+  nightGlow?: number;
 }
 
 export function buildHeroPlanet(o: HeroPlanetOptions): HeroPlanet {
@@ -283,7 +285,7 @@ export function buildHeroPlanet(o: HeroPlanetOptions): HeroPlanet {
     uSunColor: { value: sunColor },
     uCloudShift: { value: 0 },
     uBumpScale: { value: o.radius * 0.0014 },
-    uNightGlow: { value: 1.25 },
+    uNightGlow: { value: o.nightGlow ?? 1.25 },
     uCloudHeight: { value: o.radius * 0.004 },
     uFade: { value: 0 },
   };
