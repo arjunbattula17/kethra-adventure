@@ -43,11 +43,13 @@ export function buildThrottle(ctx: InteriorCtx): Throttle {
   const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.013, 0.17, 10), steel);
   arm.position.y = 0.085;
   pivot.add(arm);
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.04, 0.05), dark);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.04, 0.05), steel);
   grip.position.y = 0.18;
   pivot.add(grip);
+  // A band round the grip's middle, proud of it by 2 mm: a ring of light from any side. On the grip's
+  // top it read, from above, as a flat amber square.
   const rimBand = new THREE.Mesh(new THREE.BoxGeometry(0.079, 0.008, 0.054), rim);
-  rimBand.position.y = 0.201;
+  rimBand.position.y = 0.18;
   pivot.add(rimBand);
 
   // Four pod lamps in a row along the base: one per engine.

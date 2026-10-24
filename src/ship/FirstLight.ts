@@ -13,6 +13,9 @@ import { WAVE_AFT, WAVE_FORE } from './interior/power';
 /** How long a full hold takes, and the fraction of it at which each pod lights. */
 const HOLD_SECONDS = 3.5;
 const IGNITIONS = [0.25, 0.5, 0.75, 1];
+/** Where the eye leans to, from the throttle: behind it, toward the seat, and above, for a
+ * three-quarter view of the lever half a metre away. */
+const THROTTLE_LEAN = new THREE.Vector3(-0.3, 0.3, 0.28);
 
 /**
  * The engine start sequence: the cabin drops to emergency lighting, the desk chart redraws the
@@ -64,8 +67,8 @@ export class FirstLight {
     await this.fx.wait(motion.reduced ? 0.4 : 2.8);
     ship.power.apply('emergency');
 
-    // Turn to the throttle, pause for a second, then light its rim and arm the hold input.
-    await this.turnTo(ship.throttle.focus, motion.reduced ? 0.01 : 1);
+    // Lean over to the throttle, pause for a second, then light its rim and arm the hold input.
+    await this.leanTo(ship.throttle.focus, THROTTLE_LEAN, motion.reduced ? 0.01 : 1.2);
     await this.fx.wait(1);
     this.fx.tween({ duration: 0.5, update: (k) => ship.throttle.setRim(k) });
     for (let i = 0; i < 4; i++) ship.throttle.setPod(i, 1);
@@ -153,25 +156,35 @@ export class FirstLight {
     }
   }
 
-  /** Turns the seated view to look at `point`. */
-  private turnTo(point: THREE.Vector3, seconds: number): Promise<void> {
+  /** Leans the seated view over to `point`: the eye moves to `point + offset` and looks at it. */
+  private leanTo(point: THREE.Vector3, offset: THREE.Vector3, seconds: number): Promise<void> {
     const player = this.ship.player;
-    const eye = this.ship.camera.getWorldPosition(new THREE.Vector3());
+    const camera = this.ship.camera;
+    const eye = point.clone().add(offset);
     const d = point.clone().sub(eye);
     const toYaw = Math.atan2(-d.x, -d.z);
     const toPitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
     // Mouse-look winds yaw up by whole turns: start from the same heading within half a turn of the
     // target, or the camera spins through every one of them.
-    const from = { yaw: toYaw + THREE.MathUtils.euclideanModulo(player.yaw - toYaw + Math.PI, Math.PI * 2) - Math.PI, pitch: player.pitch };
+    const from = {
+      yaw: toYaw + THREE.MathUtils.euclideanModulo(player.yaw - toYaw + Math.PI, Math.PI * 2) - Math.PI,
+      pitch: player.pitch,
+      x: player.rig.position.x,
+      z: player.rig.position.z,
+      eye: camera.position.y,
+    };
     return new Promise((resolve) => {
       this.fx.tween({
         duration: seconds,
         ease: ease.standard,
         update: (k) => {
+          player.rig.position.x = THREE.MathUtils.lerp(from.x, eye.x, k);
+          player.rig.position.z = THREE.MathUtils.lerp(from.z, eye.z, k);
+          camera.position.y = THREE.MathUtils.lerp(from.eye, eye.y - player.rig.position.y, k);
           player.yaw = THREE.MathUtils.lerp(from.yaw, toYaw, k);
           player.pitch = THREE.MathUtils.lerp(from.pitch, toPitch, k);
           player.rig.rotation.set(0, player.yaw, 0);
-          this.ship.camera.rotation.set(player.pitch, 0, 0);
+          camera.rotation.set(player.pitch, 0, 0);
         },
         done: resolve,
       });

@@ -835,21 +835,24 @@ export class GameFlow {
   private async pushIntoViewport(ship: ShipInteriorScene): Promise<void> {
     const player = ship.player;
     const camera = ship.camera;
-    // First light leaves the view turned to the throttle: the push faces forward again (yaw 0,
-    // the monitors and the viewport), turning the short way round.
+    // First light leaves the view leaning over the throttle: the push comes back to the seat's line
+    // and faces forward again (yaw 0, the monitors and the viewport), turning the short way round.
     const yaw0 = THREE.MathUtils.euclideanModulo(player.yaw + Math.PI, Math.PI * 2) - Math.PI;
-    const from = { z: player.rig.position.z, eye: camera.position.y, pitch: player.pitch, yaw: yaw0 };
-    const to = { z: from.z - 1.1, eye: 1.95, pitch: 0.16, yaw: 0 };
+    const from = { x: player.rig.position.x, z: player.rig.position.z, eye: camera.position.y, pitch: player.pitch, yaw: yaw0 };
+    // 1.1 m on from where First light's slow push (0.12 m) left the seat: into the glass.
+    const to = { x: CONSOLE_SEAT.x, z: CONSOLE_SEAT.z - 0.12 - 1.1, eye: 1.95, pitch: 0.16, yaw: 0 };
     const DURATION = motion.reduced ? 0.01 : 1.3;
     await new Promise<void>((resolve) => {
       let elapsed = 0;
       ship.onTick = (dt) => {
         elapsed += dt;
         const k = ease.accelerate(Math.min(1, elapsed / DURATION));
+        const turn = ease.standard(Math.min(1, elapsed / DURATION));
+        player.rig.position.x = THREE.MathUtils.lerp(from.x, to.x, turn);
         player.rig.position.z = THREE.MathUtils.lerp(from.z, to.z, k);
         camera.position.y = THREE.MathUtils.lerp(from.eye, to.eye, k);
         player.pitch = THREE.MathUtils.lerp(from.pitch, to.pitch, k);
-        player.yaw = THREE.MathUtils.lerp(from.yaw, to.yaw, ease.standard(Math.min(1, elapsed / DURATION)));
+        player.yaw = THREE.MathUtils.lerp(from.yaw, to.yaw, turn);
         player.rig.rotation.set(0, player.yaw, 0);
         camera.rotation.set(player.pitch, 0, 0);
         if (elapsed >= DURATION) {
