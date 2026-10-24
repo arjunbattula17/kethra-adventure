@@ -5,6 +5,14 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
+**2026-10-24: both branches integrated.** The remote's fifteen commits (D-32) were merged on
+2026-10-14 with the team's choice of a failed trip ending aboard (D-34; jumping fixed on the way,
+D-35). By today the remote had 35 more (the live 3D title, arrow keys look and Space jumps, the wall
+sweep, low-end texture and memory work: D-36 to D-38, renumbered from its D-26 to D-28). Both are
+merged into `overhaul` (53 commits ahead of `origin/overhaul`, none behind; not pushed), with every
+suite green and the wall sweep clean in all three levels after three collision fixes it found
+(QA log). Next: the draw-call work (D-31) onto this code, then M6 and M7.
+
 **2026-10-13: the release pass** (docs/REPORT_2.md, written phase by phase). Phase 0 audited the
 finishing pass and corrected four things in it. Phase 1 took the three CC BY models out of the build
 and wrote the licence audit (docs/ASSETS.md) and the canon review sheet (docs/CANON_REVIEW.md).
@@ -133,6 +141,8 @@ live title, a timed human playthrough, and real hardware.
 | 42 | P2 | The design's frame target (p95 ≤ 33 ms on Low at 6× CPU) is met in none of the three levels: Kethra 37–39 ms, the Anchorage 34–42 ms, the Wren 50–71 ms (three runs each, 2026-10-13) | every level | The Wren first: it is the opening level and the furthest off |
 | 43 | P3 | Kethra holds 22.7 MB of vertex data on Low where it held 11.9: the merged kit gives every tree its own copy of its vertices | kit.ts `mergeKit` | Free the CPU-side copies after upload, or use three's BatchedMesh where the multi-draw extension exists |
 | 44 | P3 | The Anchorage is inside its Low draw-call budget by 4 (176 of 180) at the view it opens on; other views were not counted | VessekScene | The lever plates (7 draws) and the lamps (one material each, 34 draws) are the next things to fold |
+| 45 | P2 | The camera comes within 0–8 cm of stone in the Heart's chamber: jumping by its west wall near (-6.5, -31) brings the eye to overhead stone, and walking the east root tunnel over a rise near (10, -20.5) leaves it 8 cm under the roof. On the remote's build too (wall sweep, 2026-10-24) | hush/chamber.ts, roofAbove | Find the overhead piece; the collider's underside must sit at or below the visible stone |
+| 46 | P3 | The wall sweep's body-in-mesh list: wall fixtures 1–2 cm proud of the Wren's walls are inside the 0.35 m body when hugging a wall; the stepping stones' flared feet touch a body falling past into the pool. Neither is seen in first person | ship/interior, dressing.ts | Leave unless the body is ever drawn |
 
 ## Decisions log
 | Date | Decision | Why |
@@ -255,6 +265,12 @@ live title, a timed human playthrough, and real hardware.
 | 2026-10-13 | Phase 2: `stress_tests/run.mjs` on the same build | Not run: the machine was out of memory |
 | 2026-10-13 | Not done (the pass stopped after Phase 2) | The journey under WebKit; a throttled playthrough; the four-size screenshot matrix; the live title; a real Chromebook; a human playthrough |
 | 2026-10-13 | Phase 1: `tools/run-journey.mjs` on the build that was committed | 16/16 (10:20 to 10:41); no source file changed between that build and the commit |
+| 2026-10-14 | Merge A (D-34) validated on `integration/A-validation` | journey 16/16, test-load-failure 6/6, stress 13/13 |
+| 2026-10-24 | Merge of the remote's 35 new commits (`integration/C-20261024`, 3a2cd0b) | Nine files conflicted, each kept both sides (commit message). Build clean; journey 16/16 |
+| 2026-10-24 | The remote's own suites on the merge | test-controls, test-load-failure, test-level-caches passed. test-title failed on what our side adds: the Chapters button (now a sixth button checked: Enter opens it, focus returns), and a save without galaxy_revealed resuming at the reveal (BUG-006; the test's save now has the flag) |
+| 2026-10-24 | Stress suite on the merge | 13/13 after three test fixes: the title's backdrop is an engine scene, so "Continue reaches a scene" passed on the title itself (`lib.leftTitle` waits for the flow to leave boot); Continue is shown disabled for an unreadable save (D-37); the menu is inert until revealed (D-37). s08 keeps its KNOWN BUG-013 |
+| 2026-10-24 | The remote's wall sweep on the merge, and on the remote's own build for a baseline | Merge: Kethra and Vessek "inside a collider". Remote: Vessek the same, Kethra clean. Causes and fixes in 2542465: the secret ledge walked into from the banks (now a collider), the gate's columns jumped through (colliders), a fall past an edge landing the body in its side (it slides off). After: inside a collider never, in all three |
+| 2026-10-24 | After the collision fixes | journey 16/16, test-title, test-controls, s06, s08, both collision checks. test-kethra-flow's valve spot stood inside the valve's collider; it now looks down at it from the front |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;
