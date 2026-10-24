@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { placeKitPiece, preloadKit } from '../../ship/interior/kit';
 import { groundKitPiece } from '../../ship/interior/walls';
 import { applyPbr } from '../../core/TextureLibrary';
@@ -151,18 +152,30 @@ export async function buildRooms(scene: THREE.Scene, mats: { wall: THREE.MeshSta
   applyPbr(ductMat, 'metal_plate', [1, 1]);
   const grateMat = new THREE.MeshStandardMaterial({ color: 0x2c3136, roughness: 0.5, metalness: 0.7 });
   applyPbr(grateMat, 'metal_plate_02', [1, 1]);
+  // The grated floors are stood on, so the batcher has to leave them be; apart, each stretch of
+  // duct floor was a draw call. They are one mesh.
+  const grates: THREE.BufferGeometry[] = [];
   for (const k of L.ductShell()) {
     const size = new THREE.Vector3(k.max.x - k.min.x, k.max.y - k.min.y, k.max.z - k.min.z);
-    const m = new THREE.Mesh(panelBox(size.x, size.y, size.z, 1.3), k.kind === 'floor' ? grateMat : ductMat);
-    m.position.set((k.min.x + k.max.x) / 2, (k.min.y + k.max.y) / 2, (k.min.z + k.max.z) / 2);
-    m.castShadow = k.kind !== 'floor';
+    const centre = new THREE.Vector3((k.min.x + k.max.x) / 2, (k.min.y + k.max.y) / 2, (k.min.z + k.max.z) / 2);
+    const panel = panelBox(size.x, size.y, size.z, 1.3);
+    if (k.kind === 'floor') {
+      grates.push(panel.translate(centre.x, centre.y, centre.z));
+      continue;
+    }
+    const m = new THREE.Mesh(panel, ductMat);
+    m.position.copy(centre);
+    m.castShadow = true;
     m.receiveShadow = true;
     scene.add(m);
-    if (k.kind === 'floor') {
-      floors.push(m);
-      noMerge.add(m);
-    } else colliders.push(new THREE.Box3(new THREE.Vector3(k.min.x, k.min.y, k.min.z), new THREE.Vector3(k.max.x, k.max.y, k.max.z)));
+    colliders.push(new THREE.Box3(new THREE.Vector3(k.min.x, k.min.y, k.min.z), new THREE.Vector3(k.max.x, k.max.y, k.max.z)));
   }
+  const grateFloor = new THREE.Mesh(mergeGeometries(grates, false)!, grateMat);
+  for (const g of grates) g.dispose();
+  grateFloor.receiveShadow = true;
+  scene.add(grateFloor);
+  floors.push(grateFloor);
+  noMerge.add(grateFloor);
   // An unseen lip at each drop vent, almost a body's radius out into the room at the duct floor's
   // height. The duct floor stops at the wall's face, so without it a player stepping out starts to
   // fall with half their body over the wall under the vent, and lands wedged against it. Short of a

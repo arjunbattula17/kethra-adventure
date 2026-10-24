@@ -19,7 +19,7 @@ import { Survey } from '../../journal/Survey';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { AudioSystem } from '../../audio/AudioSystem';
 import { applyPbr, pbrTexturesReady } from '../../core/TextureLibrary';
-import { KitBatcher, kitInstanceBox, jitter, groveRandom, resetGroveRandom } from './kit';
+import { KitBatcher, kitInstanceBox, mergeKit, jitter, groveRandom, resetGroveRandom } from './kit';
 import { buildKethraColliders } from './collision';
 import { Figure } from '../../characters/Figure';
 import { getPointSprite } from '../../galaxy/spaceDressing';
@@ -244,16 +244,33 @@ function generateFillerTrees(): TreePlacement[] {
  */
 const TERRACE_CAP_INSET = 0.3;
 
-function makeTerrace(width: number, depth: number, x: number, y: number, z: number, color = 0x7d8c86): THREE.Group {
+/**
+ * Lichen rock in a slab's colour. The map's tiling is in each slab's own UVs (tiledBox), not on
+ * the map, so every slab of a colour shares this one material and they merge (mergeSlabs).
+ */
+function slabMaterial(color = 0x7d8c86): THREE.MeshStandardMaterial {
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.02 });
-  applyPbr(mat, 'lichen_rock', [width / 3, depth / 3]);
+  applyPbr(mat, 'lichen_rock', [1, 1]);
   addWake(mat, WAKE_GREEN.clone().multiplyScalar(0.02), 0.7);
+  return mat;
+}
+
+/** A box whose UVs run `repeat` times across each face, as that repeat set on a map would tile it. */
+function tiledBox(width: number, height: number, depth: number, repeat: [number, number]): THREE.BoxGeometry {
+  const box = new THREE.BoxGeometry(width, height, depth);
+  const uv = box.getAttribute('uv') as THREE.BufferAttribute;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * repeat[0], uv.getY(i) * repeat[1]);
+  return box;
+}
+
+function makeTerrace(width: number, depth: number, x: number, y: number, z: number, mat: THREE.MeshStandardMaterial): THREE.Group {
+  const repeat: [number, number] = [width / 3, depth / 3];
   const group = new THREE.Group();
 
   // The base tier's top is at 0.2; it extends below the water line so no gap shows under the
   // terrace.
   const baseHeight = 0.5 + Math.max(0, y + 1.4 - WATER_Y - 0.9);
-  const base = new THREE.Mesh(new THREE.BoxGeometry(width, baseHeight, depth), mat);
+  const base = new THREE.Mesh(tiledBox(width, baseHeight, depth, repeat), mat);
   base.position.y = 0.2 - baseHeight / 2;
   base.receiveShadow = true;
   base.castShadow = true;
@@ -263,7 +280,7 @@ function makeTerrace(width: number, depth: number, x: number, y: number, z: numb
   // reads as a worn stone platform under the same lichen_rock PBR set rather than a placeholder.
   const capW = Math.max(width - 2 * TERRACE_CAP_INSET, 0.6);
   const capD = Math.max(depth - 2 * TERRACE_CAP_INSET, 0.6);
-  const cap = new THREE.Mesh(new THREE.BoxGeometry(capW, 0.18, capD), mat);
+  const cap = new THREE.Mesh(tiledBox(capW, 0.18, capD, repeat), mat);
   cap.position.y = 0.29;
   cap.receiveShadow = true;
   cap.castShadow = true;
@@ -271,6 +288,30 @@ function makeTerrace(width: number, depth: number, x: number, y: number, z: numb
 
   group.position.set(x, y, z);
   return group;
+}
+
+/**
+ * The slabs as one mesh per stone colour, each slab's place and tilt baked into its vertices. A
+ * dozen terraces and ramps were two draw calls apiece. The slabs themselves are spent.
+ */
+function mergeSlabs(slabs: THREE.Group[]): THREE.Mesh[] {
+  const byMaterial = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  for (const slab of slabs) {
+    slab.updateMatrixWorld(true);
+    for (const part of slab.children as THREE.Mesh[]) {
+      const parts = byMaterial.get(part.material as THREE.Material);
+      const placed = part.geometry.applyMatrix4(part.matrixWorld);
+      if (parts) parts.push(placed);
+      else byMaterial.set(part.material as THREE.Material, [placed]);
+    }
+  }
+  return [...byMaterial].map(([material, parts]) => {
+    const mesh = new THREE.Mesh(mergeGeometries(parts, false)!, material);
+    for (const part of parts) part.dispose();
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+  });
 }
 
 /**
@@ -299,7 +340,7 @@ function makeRamp(
   to: [number, number],
   width: number,
   cross: number,
-  color = 0x7d8c86,
+  mat: THREE.MeshStandardMaterial,
 ): THREE.Group {
   const run = to[0] - from[0];
   const rise = to[1] - from[1];
@@ -313,12 +354,12 @@ function makeRamp(
     // then has to be offset by the cap height through that rotation so the mid-surface lands on
     // (midAxis, midTop).
     const phi = -angle;
-    const ramp = makeTerrace(width, length, cross, midTop - TERRACE_TOP * Math.cos(phi), midAxis - TERRACE_TOP * Math.sin(phi), color);
+    const ramp = makeTerrace(width, length, cross, midTop - TERRACE_TOP * Math.cos(phi), midAxis - TERRACE_TOP * Math.sin(phi), mat);
     ramp.rotation.x = phi;
     return ramp;
   }
   const psi = angle;
-  const ramp = makeTerrace(length, width, midAxis + TERRACE_TOP * Math.sin(psi), midTop - TERRACE_TOP * Math.cos(psi), cross, color);
+  const ramp = makeTerrace(length, width, midAxis + TERRACE_TOP * Math.sin(psi), midTop - TERRACE_TOP * Math.cos(psi), cross, mat);
   ramp.rotation.z = psi;
   return ramp;
 }
@@ -414,6 +455,8 @@ export class KethraScene implements GameScene {
   onDepart: (() => void) | null = null;
 
   private floorMeshes: THREE.Object3D[] = [];
+  /** Every instanced kit mesh, kept until the colliders are built and then merged (mergeKit). */
+  private kit: THREE.InstancedMesh[] = [];
   /** Mid-points of the connecting ramps, kept clear of scattered boulders — see buildClutter. */
   private rampAnchors: THREE.Vector3[] = [];
   /** The secret ledge's sides, up to its base tier (buildTerraces). */
@@ -503,6 +546,14 @@ export class KethraScene implements GameScene {
     this.scene.add(this.player.rig);
     this.player.setFloorTargets(this.floorMeshes);
     this.player.setColliders(await this.colliders());
+    // The colliders read the boulders' placements from their instanced meshes, so the kit is only
+    // merged now. Meshes draw alike when their material came from the same kit material and was
+    // tinted the same way.
+    mergeKit(this.scene, this.kit, (mesh) => {
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      return [mat.name, mat.vertexColors, mat.color.getHex(), mat.emissive.getHex(), mat.emissiveIntensity, mesh.castShadow].join('|');
+    });
+    this.kit = [];
     this.player.teleport(SPAWN, 0);
     // Terrace edges are unguarded and there is no way back up from the water, so a fall respawns
     // the player. The reset height is just above the water so they never visibly sink into it.
@@ -580,19 +631,20 @@ export class KethraScene implements GameScene {
   }
 
   private buildTerraces(): void {
-    const landing = makeTerrace(10, 10, 0, 0, 16);
-    const plaza = makeTerrace(16, 16, 0, 0, 2);
-    const rampA = makeTerrace(4, 8, -7, -0.1, 10);
+    const stone = slabMaterial();
+    const landing = makeTerrace(10, 10, 0, 0, 16, stone);
+    const plaza = makeTerrace(16, 16, 0, 0, 2, stone);
+    const rampA = makeTerrace(4, 8, -7, -0.1, 10, stone);
     rampA.rotation.x = -0.12;
-    const westTerrace = makeTerrace(10, 9, -16, 0.6, -2);
-    const rampB = makeTerrace(4, 8, 7, -0.1, 10);
+    const westTerrace = makeTerrace(10, 9, -16, 0.6, -2, stone);
+    const rampB = makeTerrace(4, 8, 7, -0.1, 10, stone);
     rampB.rotation.x = -0.12;
-    const eastTerrace = makeTerrace(10, 9, 16, 0.6, -2);
+    const eastTerrace = makeTerrace(10, 9, 16, 0.6, -2, stone);
     // The landing's walking surface stops at z = 11.3 and the plaza's starts at 9.7, with the pool
     // between: walking straight from the spawn at the plaza fell in every time, and the two side
     // ramps are out of sight behind the player's shoulders. This span is the direct way across. It
     // sits 2 mm low so its faces share no plane with the two slabs it overlaps.
-    const causeway = makeTerrace(3, 2.2, 0, -0.002, 10.5);
+    const causeway = makeTerrace(3, 2.2, 0, -0.002, 10.5, stone);
 
     // Connecting ramps. Without these, the plaza, the side terraces and the Heart's chamber are
     // separate islands with nothing between them: the side terraces sit 3 units away across empty
@@ -608,12 +660,12 @@ export class KethraScene implements GameScene {
     // x[5.68,9.67] z[2.14,5.72] across the east one, so both side ramps sit south of z = 2.
     // Endpoints are cap edges: the plaza's slab reaches x = +-8 but its walking surface stops at
     // +-7.7, and the side terraces' slabs start at +-11 but their surfaces at +-11.3.
-    const westRamp = makeRamp('x', [-11.3, 0.98], [-7.7, 0.38], 5, -0.5);
-    const eastRamp = makeRamp('x', [7.7, 0.38], [11.3, 0.98], 5, -0.5);
+    const westRamp = makeRamp('x', [-11.3, 0.98], [-7.7, 0.38], 5, -0.5, stone);
+    const eastRamp = makeRamp('x', [7.7, 0.38], [11.3, 0.98], 5, -0.5, stone);
     // Run out to z = -4 rather than stopping at the plaza edge, so 1.10 m is climbed over 5 units
     // (12.4deg) instead of 3 (20deg); the first two units simply lie on the plaza as a wedge. It
     // tops out at the chamber's door (hush/sim.ts puts the ring's north edge at z = -9.3).
-    const chamberRamp = makeRamp('z', [H.CENTER.z + H.RADIUS, H.FLOOR_Y], [-4, 0.38], 6, 0);
+    const chamberRamp = makeRamp('z', [H.CENTER.z + H.RADIUS, H.FLOOR_Y], [-4, 0.38], 6, 0, stone);
 
     // A boulder is up to 6.7 units across and a ramp is 2.2-6 wide, so one landing at a ramp's mouth
     // can cover most of it. Measured before this was added: a 5.5 x 5.5 boulder sat across the
@@ -625,18 +677,13 @@ export class KethraScene implements GameScene {
       new THREE.Vector3(-20.6, 0, -4.65),
     ];
 
-    for (const t of [landing, plaza, causeway, rampA, westTerrace, rampB, eastTerrace, westRamp, eastRamp, chamberRamp]) {
-      this.scene.add(t);
-      this.floorMeshes.push(t);
-    }
-
-    const secretLedge = makeTerrace(3, 3, -20, 2.4, -8, 0x3a4a5a);
-    this.scene.add(secretLedge);
-    this.floorMeshes.push(secretLedge);
+    const ledgeStone = slabMaterial(0x3a4a5a);
+    const secretLedge = makeTerrace(3, 3, -20, 2.4, -8, ledgeStone);
     // Terraces are floors, not colliders: a rise is refused by comparing floor heights, and the floor
     // probe starts 2 m above the feet. The ledge's top is 2.4 m above the banks beside it, out of the
     // probe's sight, so without its own box the player walked into the pillar from there. The box stops
     // at the base tier, under the cap, so standing on the ledge and the stair's top are unaffected.
+    // Taken before mergeSlabs, which bakes each part's placement into its geometry.
     secretLedge.updateMatrixWorld(true);
     this.ledgeSides.setFromObject(secretLedge.children[0]);
 
@@ -651,9 +698,12 @@ export class KethraScene implements GameScene {
     // Tops out at z = -6.5, the ledge's own north edge, not at its centre: a stair that only reaches
     // full height mid-platform leaves the player a 0.68 m step up at the edge, well over
     // PlayerController's 0.45 m MAX_STEP_UP, so it would have looked connected and still not been.
-    const ledgeStair = makeRamp('z', [-6.8, 2.78], [-2.5, 0.98], 2.6, -20.6, 0x3a4a5a);
-    this.scene.add(ledgeStair);
-    this.floorMeshes.push(ledgeStair);
+    const ledgeStair = makeRamp('z', [-6.8, 2.78], [-2.5, 0.98], 2.6, -20.6, ledgeStone);
+
+    for (const mesh of mergeSlabs([landing, plaza, causeway, rampA, westTerrace, rampB, eastTerrace, westRamp, eastRamp, chamberRamp, secretLedge, ledgeStair])) {
+      this.scene.add(mesh);
+      this.floorMeshes.push(mesh);
+    }
   }
 
   private async buildFoliage(fillers: TreePlacement[]): Promise<void> {
@@ -677,6 +727,7 @@ export class KethraScene implements GameScene {
       if (!leafMesh) continue;
       dressCanopy(leafMesh.material as THREE.MeshStandardMaterial, CANOPY_TINTS[species.length % CANOPY_TINTS.length]);
     }
+    for (const meshes of built.values()) this.kit.push(...meshes);
   }
 
   /**
@@ -764,23 +815,25 @@ export class KethraScene implements GameScene {
       [16, 0.98, -3],
       [-20, 2.78, -8],
     ];
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x2a2418, roughness: 0.8 });
+    applyPbr(pillarMat, 'lichen_rock', [1, 1]);
+    // Base, shaft and capital as one piece, which the three pillars share.
+    const pillarGeo = mergeGeometries(
+      [
+        new THREE.CylinderGeometry(0.42, 0.48, 0.22, 10).translate(0, 0.11, 0),
+        new THREE.CylinderGeometry(0.26, 0.32, 1.0, 8).translate(0, 0.22 + 0.5, 0),
+        new THREE.CylinderGeometry(0.4, 0.3, 0.18, 10).translate(0, 0.22 + 1.0 + 0.09, 0),
+      ],
+      false,
+    )!;
     fragmentSpots.forEach(([x, y, z], idx) => {
-      const pillarMat = new THREE.MeshStandardMaterial({ color: 0x2a2418, roughness: 0.8 });
-      applyPbr(pillarMat, 'lichen_rock', [1, 1]);
-
       // The group's origin is the pillar's own base, so getWorldPosition() lands on the pillar. It
       // used to be pinned at y = 0.7 with each child offset by `y - 0.7`, which for the ledge pillar
       // left the origin 2.5 m below the geometry — and InteractionSystem's proximity fallback
       // measures to that origin, so a prompt would fire from a point in mid-air under the pillar
       // rather than from the pillar. World positions are unchanged.
       const pillar = new THREE.Group();
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 0.22, 10), pillarMat);
-      base.position.y = 0.11;
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.32, 1.0, 8), pillarMat);
-      shaft.position.y = 0.22 + 0.5;
-      const capital = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.18, 10), pillarMat);
-      capital.position.y = 0.22 + 1.0 + 0.09;
-      pillar.add(base, shaft, capital);
+      pillar.add(new THREE.Mesh(pillarGeo, pillarMat));
       pillar.position.set(x, y, z);
       this.scene.add(pillar);
 
@@ -837,15 +890,16 @@ export class KethraScene implements GameScene {
     // ground instead of the valve. World transforms are unchanged.
     const valveGroup = new THREE.Group();
     valveGroup.position.set(2.5, 0, 8);
-    const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.3), valveMat);
-    bracket.position.set(0, 0.65, 0.25);
-    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.6, 10), valveMat);
-    pipe.rotation.z = Math.PI / 2;
-    pipe.position.set(0, 0.9, 0.35);
-    const valve = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 8, 16), valveMat);
-    valve.position.set(0, 0.9, 0);
-    valve.rotation.x = Math.PI / 2;
-    valveGroup.add(bracket, pipe, valve);
+    // Bracket, pipe and wheel as one piece.
+    const valve = mergeGeometries(
+      [
+        new THREE.BoxGeometry(0.5, 0.5, 0.3).translate(0, 0.65, 0.25),
+        new THREE.CylinderGeometry(0.14, 0.14, 0.6, 10).rotateZ(Math.PI / 2).translate(0, 0.9, 0.35),
+        new THREE.TorusGeometry(0.35, 0.1, 8, 16).rotateX(Math.PI / 2).translate(0, 0.9, 0),
+      ],
+      false,
+    )!;
+    valveGroup.add(new THREE.Mesh(valve, valveMat));
     this.scene.add(valveGroup);
     this.perches.push({ parent: valveGroup, position: new THREE.Vector3(0.12, 1.042, 0.35), normal: new THREE.Vector3(0, 1, 0), span: 0.17, turn: 1.9 });
     this.interaction.register({
@@ -920,16 +974,18 @@ export class KethraScene implements GameScene {
     const carvingMat = new THREE.MeshStandardMaterial({ color: 0x1c1810, roughness: 0.9 });
     applyPbr(carvingMat, 'lichen_rock', [1, 1.5]);
     const carvingGroup = new THREE.Group();
-    const plaque = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.6, 0.2), carvingMat);
-    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.14, 0.28), carvingMat);
-    frameTop.position.y = 0.92;
-    const frameBottom = frameTop.clone();
-    frameBottom.position.y = -0.92;
-    const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.9, 0.28), carvingMat);
-    frameLeft.position.x = -0.65;
-    const frameRight = frameLeft.clone();
-    frameRight.position.x = 0.65;
-    carvingGroup.add(plaque, frameTop, frameBottom, frameLeft, frameRight);
+    // The plaque and its four-sided frame as one piece.
+    const carving = mergeGeometries(
+      [
+        new THREE.BoxGeometry(1.0, 1.6, 0.2),
+        new THREE.BoxGeometry(1.3, 0.14, 0.28).translate(0, 0.92, 0),
+        new THREE.BoxGeometry(1.3, 0.14, 0.28).translate(0, -0.92, 0),
+        new THREE.BoxGeometry(0.14, 1.9, 0.28).translate(-0.65, 0, 0),
+        new THREE.BoxGeometry(0.14, 1.9, 0.28).translate(0.65, 0, 0),
+      ],
+      false,
+    )!;
+    carvingGroup.add(new THREE.Mesh(carving, carvingMat));
     carvingGroup.position.set(-(H.GATE.halfWidth + 0.55), H.FLOOR_Y + 1.02, H.GATE.z - 1.04);
     carvingGroup.rotation.y = Math.PI;
     this.scene.add(carvingGroup);
@@ -1144,6 +1200,7 @@ export class KethraScene implements GameScene {
       if (ROCKS_BIG.includes(species) && meshes[0]) meshes[0].userData.collides = true;
     }
     retintFlora(built);
+    for (const meshes of built.values()) this.kit.push(...meshes);
   }
 
   private async buildClutter(): Promise<void> {
@@ -1154,6 +1211,8 @@ export class KethraScene implements GameScene {
     const keepClear = [...this.interaction.anchorPositions(), new THREE.Vector3(0, 0, 18), ...this.rampAnchors];
     const glowMatA = new THREE.MeshStandardMaterial({ color: 0x3fd98a, emissive: 0x3fd98a, emissiveIntensity: 0.8, roughness: 0.4 });
     const glowMatB = new THREE.MeshStandardMaterial({ color: 0x4fd9c8, emissive: 0x4fd9c8, emissiveIntensity: 0.8, roughness: 0.4 });
+    // The glow motes of each colour, merged into one mesh once they are all placed.
+    const glows = new Map<THREE.Material, THREE.BufferGeometry[]>([[glowMatA, []], [glowMatB, []]]);
 
     // xMin, xMax, zMin, zMax, y (terrace top surface height), item count
     const clutterZones: [number, number, number, number, number, number][] = [
@@ -1192,14 +1251,16 @@ export class KethraScene implements GameScene {
         } else if (roll < 0.9) {
           batcher.add(pick(SMALL_FLORA), { position: new THREE.Vector3(x, y + 0.03, z), yaw, scale: jitter(0.85, 1.25) });
         } else {
-          const glow = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(0.1 + groveRandom() * 0.08, 0),
-            groveRandom() > 0.5 ? glowMatA : glowMatB,
-          );
-          glow.position.set(x, y + 0.1, z);
-          this.scene.add(glow);
+          const mote = new THREE.IcosahedronGeometry(0.1 + groveRandom() * 0.08, 0);
+          glows.get(groveRandom() > 0.5 ? glowMatA : glowMatB)!.push(mote.translate(x, y + 0.1, z));
         }
       }
+    }
+
+    for (const [mat, motes] of glows) {
+      const mesh = new THREE.Mesh(mergeGeometries(motes, false)!, mat);
+      for (const mote of motes) mote.dispose();
+      this.scene.add(mesh);
     }
 
     const built = await batcher.flush(this.scene);
@@ -1207,6 +1268,7 @@ export class KethraScene implements GameScene {
       if (ROCKS_BIG.includes(species) && meshes[0]) meshes[0].userData.collides = true;
     }
     retintFlora(built);
+    for (const meshes of built.values()) this.kit.push(...meshes);
   }
 
   private buildAtmosphere(): void {

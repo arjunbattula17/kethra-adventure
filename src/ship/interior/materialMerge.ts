@@ -59,6 +59,74 @@ function isOwnCanvasTexture(tex: THREE.Texture | null): tex is THREE.CanvasTextu
   );
 }
 
+/** The slots that sample through a mesh's `uv`. */
+const UV_SLOTS = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'alphaMap', 'bumpMap'] as const;
+
+/** How a texture samples its image, leaving out where the image starts and how often it repeats. */
+function samplingKey(tex: THREE.Texture): string {
+  return [tex.source.uuid, tex.wrapS, tex.wrapT, tex.magFilter, tex.minFilter, tex.anisotropy, tex.colorSpace, tex.flipY, tex.generateMipmaps, tex.premultiplyAlpha].join('|');
+}
+
+/**
+ * Lets meshes share a material when they sample the same images and differ only in how the images
+ * tile: the same wall plate at three sizes was three materials and three draw calls. Each such
+ * texture is swapped for the first one seen of its image, and the difference in repeat and offset
+ * goes into a copy of the mesh's UVs, so every texel lands where it did. Returns how many meshes
+ * were changed.
+ */
+export function shareTiledTextures(meshes: THREE.Mesh[], animated: Set<THREE.Material>, noMerge: Set<THREE.Object3D>): number {
+  const firstSeen = new Map<string, THREE.Texture>();
+  const rewritten = new Map<THREE.Material, THREE.Material>();
+  let moved = 0;
+  for (const mesh of meshes) {
+    if (noMerge.has(mesh) || (mesh as THREE.InstancedMesh).isInstancedMesh || Array.isArray(mesh.material)) continue;
+    const mat = mesh.material;
+    if (animated.has(mat) || !isPlainMat(mat)) continue;
+    const slots = mat as unknown as Record<string, THREE.Texture | null>;
+    if (slots.aoMap || slots.lightMap) continue;
+    const used = UV_SLOTS.filter((slot) => slots[slot]);
+    const uv = mesh.geometry.getAttribute('uv');
+    if (!used.length || !uv) continue;
+    if (used.some((slot) => slots[slot]!.rotation !== 0 || slots[slot]!.channel !== 0 || !slots[slot]!.matrixAutoUpdate)) continue;
+
+    // The one scale and shift of the UVs under which each slot's stand-in samples what the slot
+    // samples now. Slots that would need different ones cannot share a `uv`, so the mesh is left.
+    let fit: [number, number, number, number] | null = null;
+    let swaps = false;
+    let agree = true;
+    for (const slot of used) {
+      const tex = slots[slot]!;
+      const key = samplingKey(tex);
+      const base = firstSeen.get(key) ?? tex;
+      if (base === tex) firstSeen.set(key, tex);
+      else swaps = true;
+      const need: [number, number, number, number] = [tex.repeat.x / base.repeat.x, tex.repeat.y / base.repeat.y, (tex.offset.x - base.offset.x) / base.repeat.x, (tex.offset.y - base.offset.y) / base.repeat.y];
+      if (!need.every(Number.isFinite)) agree = false;
+      else if (!fit) fit = need;
+      else if (need.some((v, i) => Math.abs(v - fit![i]) > 1e-6)) agree = false;
+    }
+    if (!swaps || !agree || !fit) continue;
+
+    let shared = rewritten.get(mat);
+    if (!shared) {
+      shared = mat.clone();
+      for (const slot of used) (shared as unknown as Record<string, THREE.Texture>)[slot] = firstSeen.get(samplingKey(slots[slot]!))!;
+      rewritten.set(mat, shared);
+    }
+    const [sx, sy, ox, oy] = fit;
+    if (sx !== 1 || sy !== 1 || ox !== 0 || oy !== 0) {
+      const geo = mesh.geometry.clone();
+      const baked = geo.getAttribute('uv') as THREE.BufferAttribute;
+      for (let i = 0; i < baked.count; i++) baked.setXY(i, baked.getX(i) * sx + ox, baked.getY(i) * sy + oy);
+      baked.needsUpdate = true;
+      mesh.geometry = geo;
+    }
+    mesh.material = shared;
+    moved++;
+  }
+  return moved;
+}
+
 interface Placement {
   page: number;
   x: number;

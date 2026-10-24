@@ -644,9 +644,15 @@ export class VessekScene implements GameScene {
       ctx.fillRect(140, 16 + 11 * 11, 100, 3);
     });
     const cover = new THREE.MeshStandardMaterial({ color: 0x5a3b24 });
-    const book = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.44), [cover, cover, new THREE.MeshStandardMaterial({ map: pageTex, roughness: 0.9 }), cover, cover, cover]);
+    // The open page is a sheet laid on the cover's top face: a box with a material per face is a
+    // draw call per face.
+    const book = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.44), cover);
     book.position.y = 1.13;
     book.rotation.x = -0.3;
+    const page = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.44), new THREE.MeshStandardMaterial({ map: pageTex, roughness: 0.9 }));
+    page.rotation.x = -Math.PI / 2;
+    page.position.y = 0.021;
+    book.add(page);
     g.add(book);
     this.scene.add(g);
     g.traverse((o) => this.noMerge.add(o));

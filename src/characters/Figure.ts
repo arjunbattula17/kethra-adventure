@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeRigid } from '../core/mergeRigid';
 import { damp } from '../motion';
 
 /**
@@ -356,6 +357,11 @@ export class Figure {
       this.glowLight.position.set(0, spec.headlamp ? shoulderY : H * 1.02, spec.headlamp ? H * 0.5 : H * 0.28);
       this.group.add(this.glowLight);
     }
+
+    // The legs, the torso, each arm and the head each move as one piece: a figure is some two
+    // dozen primitives in a handful of materials, and this halves its draw calls.
+    const parts = new Set<THREE.Object3D>([this.torso, this.armL, this.armR, this.headPivot]);
+    for (const part of [this.group, ...parts]) mergeRigid(part, parts);
 
     this.group.traverse((o) => {
       const m = o as THREE.Mesh;

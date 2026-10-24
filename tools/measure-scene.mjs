@@ -3,10 +3,11 @@
 // budget without the full tools/perf-run.mjs loop.
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
-//   node tools/measure-scene.mjs <ship|kethra|hush|vessek|dock|reveal|intro|ending> [baseUrl] [--tier=low|medium|high] [--cpu=1]
+//   node tools/measure-scene.mjs <ship|kethra|hush|vessek|dock|cruise|canopy|reveal|intro|ending> [baseUrl] [--tier=low|medium|high] [--cpu=1]
 //
 // `hush` is Kethra from just inside the Heart's chamber door, looking in.
 // `dock` is the cruise to Vessek at its last shot, docked at the Anchorage.
+// `cruise` is the cruise to Kethra in mid-transit; `canopy` is MG2 as the skiff starts its descent.
 import { chromium } from 'playwright';
 
 const args = process.argv.slice(2);
@@ -20,6 +21,8 @@ const SCENES = {
   hush: ['?newGame=1&skipIntro=1&unlockKethra=1&jump=kethra', 'KethraScene', { x: 0, y: 1.6, z: -11.4, yaw: 0 }],
   vessek: ['?newGame=1&skipIntro=1&unlockVessek=1&jump=vessek', 'VessekScene'],
   dock: ['?newGame=1&skipIntro=1&unlockVessek=1', 'ShipInteriorScene'],
+  cruise: ['?newGame=1&skipIntro=1&unlockKethra=1', 'ShipInteriorScene'],
+  canopy: ['?newGame=1&skipIntro=1&unlockKethra=1', 'ShipInteriorScene'],
   reveal: ['?newGame=1&skipTutorial=1', 'GalaxyRevealScene'],
   intro: ['?newGame=1', 'IntroScene'],
   ending: ['?newGame=1&skipIntro=1&unlockVessek=1&jump=ending', 'EndingScene'],
@@ -56,6 +59,25 @@ if (SCENE === 'dock') {
   await page.keyboard.up('Space');
   await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'CruiseScene', null, { timeout: 60000, polling: 100 });
   await page.evaluate(() => { window.__DEBUG__.engine.getCurrentScene().time = 46.5; });
+  await page.waitForTimeout(1500);
+}
+if (SCENE === 'cruise' || SCENE === 'canopy') {
+  // Leave for Kethra with First light already seen, so the trip starts in the cruise.
+  await page.evaluate(() => {
+    window.__DEBUG__.flow.tutorial?.skip?.();
+    window.__DEBUG__.gameState.setFlag('first_light');
+    window.__DEBUG__.bus.emit('galaxy:travel_to', 'kethra');
+  });
+  await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'CruiseScene', null, { timeout: 60000, polling: 100 });
+  if (SCENE === 'cruise') {
+    await page.evaluate(() => { window.__DEBUG__.engine.getCurrentScene().time = 20; });
+  } else {
+    await page.waitForSelector('.hold-skip', { timeout: 30000 });
+    await page.keyboard.down('Space');
+    await page.waitForTimeout(1100);
+    await page.keyboard.up('Space');
+    await page.waitForFunction(() => { const s = window.__DEBUG__.engine.getCurrentScene(); return s?.kind === 'CanopyScene' && s.state().phase === 'fly'; }, null, { timeout: 180000, polling: 100 });
+  }
   await page.waitForTimeout(1500);
 }
 const r = await page.evaluate(async () => {

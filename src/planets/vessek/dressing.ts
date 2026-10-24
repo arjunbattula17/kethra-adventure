@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildInstancedKit } from '../kethra/kit';
+import { mergeRigid } from '../../core/mergeRigid';
 import * as L from './layout';
 
 /**
@@ -213,6 +214,7 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
     blade.rotation.x = 0.3;
     scrubberFan.add(blade);
   }
+  mergeRigid(scrubberFan);
   scrubberFan.position.set(-6.6, 3.28, -21.8);
   add(scrubberFan);
   // The hatch crank, on the tanker side of the hall tube.
@@ -276,6 +278,7 @@ export async function buildDressing(scene: THREE.Scene): Promise<Dressing> {
       arm.add(blade);
       blades.add(arm);
     }
+    mergeRigid(blades);
     blades.position.set(f.x, L.DUCT_HEIGHT / 2, f.z);
     if (!f.alongZ) blades.rotation.y = Math.PI / 2;
     add(blades);

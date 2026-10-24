@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { cacheTexturesFor, forgetTextures } from '../../core/textureCache';
 import { registerLevelCache } from '../../core/levelCaches';
 import { cachedLoad } from '../../core/retry';
@@ -144,6 +145,57 @@ export async function buildInstancedKit(
 /** Starts the downloads for these pieces, for a scene that builds with them later. */
 export function preloadNatureKit(names: string[]): Promise<void> {
   return Promise.all(names.map(loadTemplate)).then(() => undefined);
+}
+
+/** How a geometry's vertex data is stored: only geometries that agree on this can be merged. */
+function layoutOf(geometry: THREE.BufferGeometry): string {
+  const attributes = Object.entries(geometry.attributes).map(([name, a]) => `${name}:${a.itemSize}:${a.array.constructor.name}:${a.normalized}`);
+  return [geometry.index ? 'indexed' : 'plain', ...attributes.sort()].join(',');
+}
+
+/**
+ * Folds instanced kit meshes that draw alike into one mesh each, every placement baked into its
+ * vertices: one draw call per material where there was one per species. `drawsAs` says which
+ * meshes draw alike; the first of each group lends its material and the others' are freed. A group
+ * of one stays instanced, and so do pieces whose vertex data is laid out differently from the rest
+ * of their group (the kit stores vertex colour in more than one format). The price is memory: a placement now owns a copy of its vertices, where
+ * instances shared one. Call it once nothing reads the placements any more (the colliders do).
+ */
+export function mergeKit(scene: THREE.Scene, meshes: THREE.InstancedMesh[], drawsAs: (mesh: THREE.InstancedMesh) => string): void {
+  const groups = new Map<string, THREE.InstancedMesh[]>();
+  for (const mesh of meshes) {
+    // Solid pieces (boulders) merge only with solid ones, so what is merged stays solid or ground cover.
+    const key = `${drawsAs(mesh)}|${layoutOf(mesh.geometry)}|${mesh.userData.collides === true}`;
+    const group = groups.get(key);
+    if (group) group.push(mesh);
+    else groups.set(key, [mesh]);
+  }
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const parts: THREE.BufferGeometry[] = [];
+    for (const mesh of group) {
+      mesh.updateWorldMatrix(true, false);
+      for (let i = 0; i < mesh.count; i++) {
+        mesh.getMatrixAt(i, tmpMatrix);
+        parts.push(mesh.geometry.clone().applyMatrix4(tmpMatrix.premultiply(mesh.matrixWorld)));
+      }
+    }
+    const geometry = mergeGeometries(parts, false);
+    for (const part of parts) part.dispose();
+    if (!geometry) continue;
+    const [first, ...rest] = group;
+    const merged = new THREE.Mesh(geometry, first.material);
+    merged.castShadow = first.castShadow;
+    merged.receiveShadow = first.receiveShadow;
+    merged.userData.kit = true;
+    merged.userData.collides = first.userData.collides === true;
+    scene.add(merged);
+    for (const mesh of group) {
+      scene.remove(mesh);
+      mesh.dispose();
+    }
+    for (const mesh of rest) (mesh.material as THREE.Material).dispose();
+  }
 }
 
 /**

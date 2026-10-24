@@ -7,7 +7,7 @@
 //   - the hull (the Wren only): the player should never leave the room;
 //   - the visible geometry, triangle by triangle: a body that passes into a mesh means the mesh has
 //     no collider there, and a mesh within 0.12 m of the eye is the camera clipping into it.
-// Ground cover on Kethra (instanced batches not marked `collides`) is walk-through by design and is
+// Ground cover on Kethra (kit batches, instanced or merged, not marked `collides`) is walk-through by design and is
 // left out, as are the floors themselves and skinned characters.
 //
 //   npm run build && npx vite preview --port 4180 --strictPort   (in another terminal)
@@ -337,7 +337,7 @@ async function sweep(cfg) {
       skippedSkinned++;
       return;
     }
-    if (obj.isInstancedMesh && cfg.name === 'kethra' && obj.userData.collides !== true) return;
+    if ((obj.isInstancedMesh || obj.userData.kit) && cfg.name === 'kethra' && obj.userData.collides !== true) return;
     const g = obj.geometry;
     const pos = g.attributes.position;
     if (!pos) return;

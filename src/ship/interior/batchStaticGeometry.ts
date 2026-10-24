@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { InteriorCtx } from './ctx';
-import { atlasCanvasMaterials, mergeTints } from './materialMerge';
+import { atlasCanvasMaterials, mergeTints, shareTiledTextures } from './materialMerge';
 import type { Pacer } from '../../core/prepare';
 
 /**
@@ -141,6 +141,7 @@ export async function batchStaticGeometry(ctx: BatchCtx, pacer?: Pacer): Promise
     }
     if ((o as THREE.Mesh).isMesh) allMeshes.push(o as THREE.Mesh);
   });
+  const retiled = shareTiledTextures(allMeshes, ctx.animatedMaterials, ctx.noMerge);
   const shared = shareIdenticalMaterials(ctx, [...allMeshes, ...instanced]);
   await pacer?.tick();
   const atlased = atlasCanvasMaterials(allMeshes, ctx.animatedMaterials, ctx.noMerge);
@@ -225,5 +226,5 @@ export async function batchStaticGeometry(ctx: BatchCtx, pacer?: Pacer): Promise
     merged++;
   }
 
-  console.log(`[batchStaticGeometry] ${allMeshes.length} meshes + ${instanced.length} instanced; ${shared} materials shared, ${atlased} atlased, ${tinted} tint-merged; merged ${removed} into ${merged} batches`);
+  console.log(`[batchStaticGeometry] ${allMeshes.length} meshes + ${instanced.length} instanced; ${retiled} retiled, ${shared} materials shared, ${atlased} atlased, ${tinted} tint-merged; merged ${removed} into ${merged} batches`);
 }
