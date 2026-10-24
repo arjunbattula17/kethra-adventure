@@ -28,9 +28,10 @@ export class Lantern {
   private t = 0;
 
   constructor() {
-    // Unlit materials: the lantern's own light is centimetres away and would blow the cage out to
-    // white, so the colours are pre-lit.
-    const brass = new THREE.MeshBasicMaterial({ color: 0x6a4c26 });
+    // Matcaps, not lit materials: the lantern's own light is centimetres away and would blow the cage
+    // out to white. Flat pre-lit colours read as cardboard; a painted sphere of brass gives the cage its
+    // form and sheen, whatever the scene's lights do.
+    const brass = new THREE.MeshMatcapMaterial({ matcap: matcap(['#fff1c8', '#d9a251', '#8a5a22', '#3c2410', '#140b05']) });
     const glassMat = new THREE.MeshBasicMaterial({ color: 0xffc88a, transparent: true, opacity: 0.22, depthWrite: false });
     const add = (geo: THREE.BufferGeometry, mat: THREE.Material, y: number) => {
       const m = new THREE.Mesh(geo, mat);
@@ -52,7 +53,7 @@ export class Lantern {
     this.flameMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffb45a).multiplyScalar(1.8) });
     this.flame = add(new THREE.SphereGeometry(0.014, 8, 6), this.flameMat, -0.012);
     this.flame.scale.set(1, 1.9, 1);
-    this.shutter = add(new THREE.CylinderGeometry(0.05, 0.05, 0.135, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x241a10, side: THREE.DoubleSide }), 0.14);
+    this.shutter = add(new THREE.CylinderGeometry(0.05, 0.05, 0.135, 12, 1, true), new THREE.MeshMatcapMaterial({ matcap: matcap(['#bdb4a2', '#6e655a', '#3a332c', '#1c1814', '#0a0908']), side: THREE.DoubleSide }), 0.14);
     this.light = new THREE.PointLight(0xffc27a, 0, OPEN.distance, DECAY);
     this.light.position.y = -0.01;
     this.group.add(this.body, this.light);
@@ -93,8 +94,25 @@ export class Lantern {
       const m = o as THREE.Mesh;
       if (m.isMesh) {
         m.geometry.dispose();
+        (m.material as THREE.MeshMatcapMaterial).matcap?.dispose();
         (m.material as THREE.Material).dispose();
       }
     });
   }
+}
+
+/** A matcap painted on a canvas: a sphere lit from the upper left, `stops` from highlight to rim. */
+function matcap(stops: string[]): THREE.CanvasTexture {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const g = canvas.getContext('2d')!;
+  const grad = g.createRadialGradient(size * 0.38, size * 0.32, 0, size * 0.5, size * 0.5, size * 0.5);
+  const at = [0, 0.18, 0.55, 0.85, 1];
+  stops.forEach((c, i) => grad.addColorStop(at[i], c));
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
