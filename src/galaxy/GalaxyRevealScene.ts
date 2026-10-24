@@ -50,6 +50,8 @@ export class GalaxyRevealScene implements GameScene {
   /** The Intercept minigame, set once the reveal hands over; public for tools/. */
   intercept: InterceptGame | null = null;
   onPlotted: ((result: InterceptResult) => void) | null = null;
+  /** MG1's course is settled, a few seconds before onPlotted (InterceptGame.onCourse). */
+  onCourse: ((result: InterceptResult) => void) | null = null;
 
   private fx = new MotionScope('game');
   private sky!: SpaceSky;
@@ -251,6 +253,7 @@ export class GalaxyRevealScene implements GameScene {
       stats: { insight: a.insight },
     });
     this.intercept.onComplete = (result) => this.onPlotted?.(result);
+    this.intercept.onCourse = (result) => this.onCourse?.(result);
     this.intercept.start(this.camera.position.clone(), this.lookTarget.clone());
   }
 

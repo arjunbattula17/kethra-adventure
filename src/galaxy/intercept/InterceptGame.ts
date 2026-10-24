@@ -82,6 +82,10 @@ const START_REACH = 20;
 
 export class InterceptGame {
   onComplete: ((result: InterceptResult) => void) | null = null;
+  /** The course is settled: at Launch, or at a win reached without one (the harness). Called once,
+   * seconds before onComplete, so what comes next can be built under the run and the win. */
+  onCourse: ((result: InterceptResult) => void) | null = null;
+  private courseReported = false;
 
   private readonly w: InterceptWorld;
   private readonly fx = new MotionScope('game');
@@ -350,6 +354,7 @@ export class InterceptGame {
       return;
     }
     this.phase = 'run';
+    this.reportCourse();
     this.dragging = false;
     this.runDay = 0;
     this.dirty = true;
@@ -374,16 +379,26 @@ export class InterceptGame {
   }
   private kethraScale: number | null = null;
 
+  private result(): InterceptResult {
+    const days = Math.round(this.solution.days);
+    return { course: [toV3(sim.WREN_START), toV3(sim.BUOY), toV3(this.solution.at)], days, cells: sim.cellsFor(days) };
+  }
+
+  private reportCourse(): void {
+    if (this.courseReported) return;
+    this.courseReported = true;
+    this.onCourse?.(this.result());
+  }
+
   private win(): void {
     this.phase = 'won';
+    this.reportCourse();
     this.dragging = false;
     this.setCursor('');
     motion.conductor.duck(3);
     this.overlay.setVisible(false);
     if (this.w.kethraOrbit) this.w.kethraOrbit.visible = true;
-    const course = [toV3(sim.WREN_START), toV3(sim.BUOY), toV3(this.solution.at)];
-    const days = Math.round(this.solution.days);
-    const cells = sim.cellsFor(days);
+    const { course, days, cells } = this.result();
     this.placeRun(this.solution.days);
     // Animates the course drawing itself outward from the Wren (see drawWave).
     this.wave = { course, k: 0 };

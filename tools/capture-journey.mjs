@@ -208,7 +208,7 @@ for (const tier of TIERS) {
 
     await section('vessek', '?newGame=1&skipIntro=1&unlockVessek=1&jump=vessek', 'VessekScene', w, h, tier, dir, async (s) => {
       await s.page.waitForTimeout(2500);
-      await s.view('arrival', 2, 0, 9.4, 0, 0);
+      await s.shot('arrival');
       await s.view('concourse', 0, 0, 5, 0.2, -0.05);
       await s.view('varro', -1.6, 0, 0.8, 0.5, -0.08);
       await s.view('gauge', 5, 0, -8.6, 0, 0.1);

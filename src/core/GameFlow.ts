@@ -93,6 +93,11 @@ function hasSeenOpening(): boolean {
     return false;
   }
 }
+/** MG1's plotted course, kept for the desk chart and the trip to Kethra. */
+function saveCourse(result: InterceptResult): void {
+  gameState.data.course = { points: result.course.flatMap((p) => [p.x, p.y, p.z]), days: result.days, cells: result.cells };
+}
+
 function markOpeningSeen(): void {
   try {
     localStorage.setItem(OPENING_SEEN_KEY, '1');
@@ -108,6 +113,8 @@ export class GameFlow {
   tutorial: TutorialSequence | null = null;
   /** The Wren, preparing itself behind the intro cinematic; consumed at the handover. */
   private shipPrep: BackgroundPrep<ShipInteriorScene> | null = null;
+  /** The Wren for after MG1, preparing itself under the win (prepareShipAfterReveal). */
+  private shipAfterReveal: BackgroundPrep<ShipInteriorScene> | null = null;
   /** The markers pointing at the navigation console between MG1 and the first departure. */
   private consoleGuide: ConsoleGuide | null = null;
 
@@ -502,6 +509,7 @@ export class GameFlow {
       return;
     }
     const reveal = new GalaxyRevealScene();
+    reveal.onCourse = (result) => this.prepareShipAfterReveal(result);
     reveal.onPlotted = (result) => void this.completeReveal(result);
     await this.engine.setScene(() => reveal, { onProgress: stagedProgress('Booting navigation') });
     await UIManager.fadeFromBlack();
@@ -512,14 +520,38 @@ export class GameFlow {
   }
 
   /**
-   * After MG1: rebuilds the ship interior with the player seated at the helm. The course is saved
-   * before the rebuild so the console draws it.
+   * The Wren for after MG1, built from the moment the course is settled, under the course's run and
+   * the win's hold, as the cruise is built under First light. The course is saved first so the
+   * desk chart draws it.
    */
+  private prepareShipAfterReveal(result: InterceptResult): void {
+    if (this.shipAfterReveal) return;
+    saveCourse(result);
+    this.shipAfterReveal = new BackgroundPrep(this.engine, new ShipInteriorScene(), PACE.playing);
+  }
+
+  /** After MG1: the ship interior, with the player seated at the helm. */
   private async finishReveal(result: InterceptResult | null): Promise<void> {
     await UIManager.fadeToBlack();
-    if (result) gameState.data.course = { points: result.course.flatMap((p) => [p.x, p.y, p.z]), days: result.days, cells: result.cells };
-    this.shipScene = new ShipInteriorScene();
-    await this.engine.setScene(() => this.shipScene!, { onProgress: shipLoadingProgress });
+    if (result) saveCourse(result);
+    const prep = this.shipAfterReveal;
+    this.shipAfterReveal = null;
+    let scene: ShipInteriorScene | null = null;
+    const waited = !!prep && !prep.finished;
+    if (prep) {
+      if (waited) {
+        // Not built yet (a slow machine): finish at full pace, the bar picking up where it has got to.
+        UIManager.showLoading();
+        prep.pacer.pace = PACE.loading;
+        prep.onProgress = shipLoadingProgress;
+        shipLoadingProgress(prep.fraction, prep.stage);
+      }
+      // A failed build falls through to the direct one, which reports its own failure.
+      scene = await prep.done.catch(() => null);
+    }
+    this.shipScene = scene ?? new ShipInteriorScene();
+    await this.engine.setScene(() => this.shipScene!, { prepared: scene !== null, quiet: scene !== null, onProgress: shipLoadingProgress });
+    if (waited) UIManager.hideLoading();
     this.poseSeated(this.shipScene);
     UIManager.setLookPromptEnabled(false);
     // MG1 replaced the HUD objective; restore the saved one.
