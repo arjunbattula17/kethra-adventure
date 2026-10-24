@@ -267,10 +267,12 @@ export function stoneGeometry([x, z, top, radius, sides]: Stone, waterY: number)
  * flat-shaded with their colour per vertex, so they merge into one mesh, one material and one draw
  * call.
  */
-export function buildRuins(waterY: number, perches: MothPerch[], count = COLUMNS.length, stones: Stone[] = []): { mesh: THREE.Mesh; shores: ShoreShape[] } {
+export function buildRuins(waterY: number, perches: MothPerch[], count = COLUMNS.length, stones: Stone[] = []): { mesh: THREE.Mesh; shores: ShoreShape[]; colliders: THREE.Box3[] } {
   const columns = COLUMNS.slice(0, count);
   const column = columnGeometry();
   const parts: THREE.BufferGeometry[] = [];
+  // Out of reach on foot, but not of a jump off the terrace edges: each column is solid.
+  const colliders: THREE.Box3[] = [];
   for (const [x, z, stretch, yaw, lean] of columns) {
     const g = column.clone();
     const pos = g.getAttribute('position') as THREE.BufferAttribute;
@@ -279,6 +281,8 @@ export function buildRuins(waterY: number, perches: MothPerch[], count = COLUMNS
       if (y > SHAFT_FROM) pos.setY(i, SHAFT_FROM + (y - SHAFT_FROM) * stretch);
     }
     g.applyMatrix4(_m.compose(_p.set(x, waterY - PLINTH_TOP, z), _q.setFromEuler(_e.set(lean, yaw, lean * 0.6, 'YXZ')), _s.set(1, 1, 1)));
+    g.computeBoundingBox();
+    colliders.push(g.boundingBox!.clone());
     parts.push(g);
   }
   column.dispose();
@@ -324,7 +328,7 @@ export function buildRuins(waterY: number, perches: MothPerch[], count = COLUMNS
   mesh.name = 'ruins';
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  return { mesh, shores: [...columns.map(([x, z]) => ({ x, z, hx: 1.1 })), ...stones.map(([x, z, , radius]) => ({ x, z, hx: radius * STONE_FLARE + 0.2 }))] };
+  return { mesh, shores: [...columns.map(([x, z]) => ({ x, z, hx: 1.1 })), ...stones.map(([x, z, , radius]) => ({ x, z, hx: radius * STONE_FLARE + 0.2 }))], colliders };
 }
 
 // --- Loam banks --------------------------------------------------------------------------------

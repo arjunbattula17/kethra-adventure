@@ -193,6 +193,30 @@ export class PlayerController {
     return roof;
   }
 
+  /**
+   * The floor is found by a ray down the middle of the body, but colliders are tested against its
+   * radius. Coming down past the top of something with the middle just beyond its edge, the ray finds
+   * the floor below and the body would sink into its side: it slides off the edge instead, as far as
+   * it overlaps, unless that would push it into something else. Only boxes the descent brings into
+   * reach count; anything that already reached the body was resolved by the horizontal move.
+   */
+  private slideOffEdges(p: THREE.Vector3, fromY: number): void {
+    const height = this.headHeight();
+    for (const { box } of this.colliders) {
+      if (box.max.y > fromY + STEP_OVER || box.max.y <= p.y + STEP_OVER || box.min.y >= p.y + height) continue;
+      const dx = p.x - THREE.MathUtils.clamp(p.x, box.min.x, box.max.x);
+      const dz = p.z - THREE.MathUtils.clamp(p.z, box.min.z, box.max.z);
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d === 0 || d >= PLAYER_RADIUS) continue;
+      const push = (PLAYER_RADIUS - d) / d + 1e-4;
+      const x = p.x + dx * push;
+      const z = p.z + dz * push;
+      if (this.blockedAt(x, z, p.y)) continue;
+      p.x = x;
+      p.z = z;
+    }
+  }
+
   private resolveCollisionXZ(desired: THREE.Vector3): THREE.Vector3 {
     const result = desired;
     const from = this.rig.position;
@@ -370,6 +394,7 @@ export class PlayerController {
       this.velocityY = 0;
     }
 
+    if (resolved.y < this.rig.position.y) this.slideOffEdges(resolved, this.rig.position.y);
     this.rig.position.copy(resolved);
     this.floorSample.valid = false;
 

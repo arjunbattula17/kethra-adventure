@@ -416,6 +416,9 @@ export class KethraScene implements GameScene {
   private floorMeshes: THREE.Object3D[] = [];
   /** Mid-points of the connecting ramps, kept clear of scattered boulders — see buildClutter. */
   private rampAnchors: THREE.Vector3[] = [];
+  /** The secret ledge's sides, up to its base tier (buildTerraces). */
+  private ledgeSides = new THREE.Box3();
+  private ruinColliders: THREE.Box3[] = [];
   private heart!: CisternHeart;
   /** The Heart's chamber minigame and its moth (hush/HushGame.ts). */
   hush!: HushGame;
@@ -630,6 +633,12 @@ export class KethraScene implements GameScene {
     const secretLedge = makeTerrace(3, 3, -20, 2.4, -8, 0x3a4a5a);
     this.scene.add(secretLedge);
     this.floorMeshes.push(secretLedge);
+    // Terraces are floors, not colliders: a rise is refused by comparing floor heights, and the floor
+    // probe starts 2 m above the feet. The ledge's top is 2.4 m above the banks beside it, out of the
+    // probe's sight, so without its own box the player walked into the pillar from there. The box stops
+    // at the base tier, under the cap, so standing on the ledge and the stair's top are unaffected.
+    secretLedge.updateMatrixWorld(true);
+    this.ledgeSides.setFromObject(secretLedge.children[0]);
 
     // The ledge abuts the west terrace rather than standing across a gap, so unlike the other three
     // it was technically already attainable — but only through a PlayerController quirk: a grounded
@@ -696,6 +705,7 @@ export class KethraScene implements GameScene {
     ]);
     this.scene.add(ruins.mesh);
     this.scenery.push(ruins.mesh);
+    this.ruinColliders = ruins.colliders;
     [landmark, small].forEach((tree, i) => {
       if (!tree) return;
       this.scene.add(...tree.bark, tree.leaves);
@@ -1301,6 +1311,7 @@ export class KethraScene implements GameScene {
     // The chamber's colliders are also the blocks the moth's line of sight is tested against.
     boxes.push(...this.hush.colliders);
     boxes.push(makeCollider(SKIFF_AT.x, SKIFF_AT.z, 1.5, 1.5, 1.2));
+    boxes.push(this.ledgeSides, ...this.ruinColliders);
     // The moth flies between perches and the lantern rides the camera, so a box baked from where
     // either happens to be at load would block empty air a second later.
     boxes.push(...buildKethraColliders(this.scene, {

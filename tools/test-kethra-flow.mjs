@@ -85,8 +85,10 @@ await closePanel();
 s = await state();
 check('re-reading an inscription grants no more archaeology', s.attributes.archaeology === archaeology, `${archaeology} -> ${s.attributes.archaeology}`);
 
-// 4. Valve and shrine.
-await teleport(2.5, 1.8, 8.5);
+// 4. Valve and shrine. The valve is from the front, looking down at it: its collider ends at z 8.49.
+await teleport(2.5, 1.8, 9.1);
+await page.evaluate(() => { window.__DEBUG__.engine.getCurrentScene().player.pitch = -0.7; });
+await page.waitForTimeout(200);
 await pressE();
 await teleport(-1.5, 1.7, 5.5);
 await pressE();
