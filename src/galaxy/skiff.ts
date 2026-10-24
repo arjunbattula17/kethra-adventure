@@ -43,6 +43,15 @@ export function buildSkiff(): Skiff {
     stripe.rotation.y = z < 0 ? 0.06 : -0.06;
     group.add(stripe);
   }
+  // Running lights in the Wren's lamp amber along the deck's two long edges: the skiff's own light,
+  // which picks out its shape from above in the dark canopy and marks it on the terrace as the way back.
+  const running = new THREE.MeshStandardMaterial({ color: 0x2a1c0c, emissive: 0xffb45a, emissiveIntensity: 1.1 });
+  for (const side of [-1, 1]) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.012, 0.03), running);
+    strip.position.set(-0.3, 0.305, side * 0.64);
+    strip.rotation.y = side * Math.atan2(0.13, 2.0);
+    group.add(strip);
+  }
   // Cockpit canopy, set back from the nose.
   const canopy = new THREE.Mesh(wedge([[-0.35, -0.34], [0.35, -0.28], [0.72, 0], [0.35, 0.28], [-0.35, 0.34]], 0.16, 0.04), glass);
   canopy.position.set(0.1, 0.46, 0);

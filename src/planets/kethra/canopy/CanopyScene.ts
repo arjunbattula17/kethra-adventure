@@ -15,6 +15,8 @@ import type { Skiff } from '../../../galaxy/skiff';
 import { buildWickmoth } from '../grove';
 import type { Wickmoth } from '../grove';
 import * as L from './layout';
+import { frondClump } from './fronds';
+import { applyPbr, pbrTexturesReady } from '../../../core/TextureLibrary';
 
 /** Descent speed and braked (Shift) descent speed in m/s; horizontal acceleration and top speed. */
 const DESCENT = 2.4;
@@ -25,6 +27,7 @@ const MAX_ACROSS = 7;
 const LAMP_RANGE = 28;
 /** Maximum number of lights that glow onto nearby boughs at once; one shader uniform slot each. */
 const GLOW_SLOTS = 16;
+const FROND_VARIANTS = 3;
 const GROVE = new THREE.Color(0x5cd1b0);
 const ASLEEP = new THREE.Color(0x0b2620);
 
@@ -101,8 +104,13 @@ export class CanopyScene implements GameScene {
     const s = this.scene;
     s.background = new THREE.Color(0x020807);
     s.fog = new THREE.FogExp2(0x061510, 0.008);
-    // Very dim ambient so the canopy reads mostly as silhouettes.
+    // Very dim ambient so the canopy reads mostly as silhouettes, and Kethra's cold moon above it
+    // (DESIGN §2): enough to show the leaves' and the skiff's upper faces, never the gaps below,
+    // which stay the lamp's to find.
     s.add(new THREE.HemisphereLight(0x2a4a44, 0x020403, 0.16));
+    const moon = new THREE.DirectionalLight(0x9ab8d8, 0.55);
+    moon.position.set(-30, 100, 20);
+    s.add(moon);
 
     this.buildBoughs();
     this.buildPods();
@@ -136,14 +144,17 @@ export class CanopyScene implements GameScene {
     this.scarMat = new THREE.SpriteMaterial({ map: getPointSprite(), color: 0xff8a3a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
 
     this.placeCamera(0, true);
+    await pbrTexturesReady();
   }
 
   // ------------------------------------------------------------------ building
 
-  /** Standard material plus an emissive glow from up to GLOW_SLOTS nearby lights (pods, lanterns). */
-  private glowMaterial(color: number): THREE.MeshStandardMaterial {
-    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0, flatShading: true });
+  /** Standard material plus an emissive glow from up to GLOW_SLOTS nearby lights (pods, lanterns).
+   * With `veins`, the leaves' vertex colour shades the blade and the glow runs along its midrib. */
+  private glowMaterial(color: number, veins = false): THREE.MeshStandardMaterial {
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: veins ? 0.7 : 0.95, metalness: 0, flatShading: true, vertexColors: veins, side: veins ? THREE.DoubleSide : THREE.FrontSide });
     const slots = this.glowSlots;
+    const vein = veins ? ' * (vColor.g * vColor.g)' : '';
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uGlow = { value: slots };
       shader.vertexShader = shader.vertexShader
@@ -156,16 +167,18 @@ export class CanopyScene implements GameScene {
         .replace('#include <common>', `#include <common>\nuniform vec4 uGlow[${GLOW_SLOTS}];\nvarying vec3 vGlowPos;`)
         .replace(
           '#include <emissivemap_fragment>',
-          `#include <emissivemap_fragment>\nfor (int i = 0; i < ${GLOW_SLOTS}; i++) {\n  vec3 d = vGlowPos - uGlow[i].xyz;\n  totalEmissiveRadiance += vec3(0.36, 0.82, 0.69) * uGlow[i].w * exp(-dot(d, d) / 14.0) * 0.28;\n}`,
+          `#include <emissivemap_fragment>\nfor (int i = 0; i < ${GLOW_SLOTS}; i++) {\n  vec3 d = vGlowPos - uGlow[i].xyz;\n  totalEmissiveRadiance += vec3(0.36, 0.82, 0.69) * uGlow[i].w * exp(-dot(d, d) / 14.0) * 0.28${vein};\n}`,
         );
     };
-    mat.customProgramCacheKey = () => 'canopy-glow';
+    mat.customProgramCacheKey = () => (veins ? 'canopy-glow-veins' : 'canopy-glow');
     return mat;
   }
 
   private buildBoughs(): void {
     const n = this.boughs.length;
-    this.boughMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.82, 1, 1, 8, 1).translate(0, 0.5, 0), this.glowMaterial(0x2c2a22), n);
+    const bark = this.glowMaterial(0x4a4236);
+    applyPbr(bark, 'bark_willow', [1, 4]);
+    this.boughMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.82, 1, 1, 8, 1).translate(0, 0.5, 0), bark, n);
     this.boughs.forEach((b, i) => this.boughMesh.setMatrixAt(i, this.boughMatrix(b.a, b.b, b.r)));
     this.boughMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(this.boughMesh);
@@ -185,10 +198,20 @@ export class CanopyScene implements GameScene {
         clumps.push(new THREE.Matrix4().compose(_v, _q, _s));
       }
     }
-    const foliage = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), this.glowMaterial(0x0f2a24), clumps.length);
-    clumps.forEach((m, i) => foliage.setMatrixAt(i, m));
-    foliage.instanceMatrix.needsUpdate = true;
-    this.scene.add(foliage);
+    // Three shapes of clump, dealt out in turn, each instance a little lighter or darker.
+    const leaves = this.glowMaterial(0x24483b, true);
+    const tone = new THREE.Color();
+    for (let v = 0; v < FROND_VARIANTS; v++) {
+      const mine = clumps.filter((_, i) => i % FROND_VARIANTS === v);
+      const foliage = new THREE.InstancedMesh(frondClump(0xf20d + v * 97), leaves, mine.length);
+      mine.forEach((m, i) => {
+        foliage.setMatrixAt(i, m);
+        const h = Math.sin((i + v * 31) * 78.233) * 43758.5453;
+        foliage.setColorAt(i, tone.setScalar(0.8 + 0.4 * (h - Math.floor(h))));
+      });
+      foliage.instanceMatrix.needsUpdate = true;
+      this.scene.add(foliage);
+    }
   }
 
   private boughMatrix(a: L.Vec, b: L.Vec, r: number): THREE.Matrix4 {
@@ -209,7 +232,9 @@ export class CanopyScene implements GameScene {
   }
 
   private buildTrunks(): void {
-    const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(3.2, 4.6, 230, 12), this.glowMaterial(0x221f1a), 9);
+    const bark = this.glowMaterial(0x3a342a);
+    applyPbr(bark, 'bark_willow', [3, 40]);
+    const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(3.2, 4.6, 230, 12), bark, 9);
     for (let i = 0; i < 9; i++) {
       const a = (i / 9) * Math.PI * 2 + 0.3;
       const r = 40 + (i % 3) * 5;
