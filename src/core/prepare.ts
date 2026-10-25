@@ -376,7 +376,7 @@ function giveShadowMaps(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camer
  *
  * Each partial draw is selected by a layer the camera alone looks at, not by hiding the rest: hiding
  * a mesh hides its children too, and three.js gathers lights by the same layer test, so the lights
- * join that layer for the duration and every partial draw uses the programs the real frame will.
+ * join that layer for the draw and every partial draw uses the programs the real frame will.
  * Hidden meshes are shown for it (the scene may show them later), and nothing is culled. Objects the
  * real camera can't see (raycast-only proxies) are left out. `around`, if given, wraps each partial draw.
  */
@@ -396,24 +396,43 @@ export async function drawProgressively(
   scene.traverse((o) => {
     if ((o as THREE.Light).isLight && o.layers.test(camera.layers)) lights.push(o);
   });
-  const saved = objects.map((o) => ({ visible: o.visible, culled: o.frustumCulled, mask: o.layers.mask }));
-  const lightMasks = lights.map((l) => l.layers.mask);
   const cameraMask = camera.layers.mask;
-  try {
-    for (const o of objects) {
+  // What a partial draw changes (its meshes shown and unculled and on the layer, the lights on it, the
+  // camera's mask) is set for that draw alone and put back before the browser draws a frame. This also
+  // runs on the scene on screen (Engine.upgradeQuickLights), whose frames between batches drew through
+  // the warm-up's layer, black, and showed every hidden mesh, while the changes lasted the whole run.
+  const partial = (from: number, to: number, draw: () => void) => {
+    const shown: [boolean, boolean][] = [];
+    for (let i = from; i < to; i++) {
+      const o = objects[i];
+      shown.push([o.visible, o.frustumCulled]);
       o.visible = true;
       o.frustumCulled = false;
+      o.layers.enable(WARM_LAYER);
     }
+    const lightMasks = lights.map((l) => l.layers.mask);
     for (const l of lights) l.layers.enable(WARM_LAYER);
     camera.layers.set(WARM_LAYER);
-    giveShadowMaps(renderer, scene, camera, target, lights);
-    for (let start = 0; start < objects.length; start += batch) {
-      await pacer.breathe();
-      // A scene replaced meanwhile has been disposed: drawing it would upload its textures and
-      // geometry again, for good.
-      if (!keepGoing()) return;
-      const end = Math.min(objects.length, start + batch);
-      for (let i = start; i < end; i++) objects[i].layers.enable(WARM_LAYER);
+    try {
+      draw();
+    } finally {
+      for (let i = from; i < to; i++) {
+        const o = objects[i];
+        [o.visible, o.frustumCulled] = shown[i - from];
+        o.layers.disable(WARM_LAYER);
+      }
+      lights.forEach((l, i) => (l.layers.mask = lightMasks[i]));
+      camera.layers.mask = cameraMask;
+    }
+  };
+  partial(0, 0, () => giveShadowMaps(renderer, scene, camera, target, lights));
+  for (let start = 0; start < objects.length; start += batch) {
+    await pacer.breathe();
+    // A scene replaced meanwhile has been disposed: drawing it would upload its textures and
+    // geometry again, for good.
+    if (!keepGoing()) return;
+    const end = Math.min(objects.length, start + batch);
+    partial(start, end, () => {
       const previous = renderer.getRenderTarget();
       // Partial frames must not paint (and, for a static-shadow scene, keep) a shadow map of a partial
       // scene. The renderer's shadow settings are shared with the scene on screen, which draws between
@@ -429,17 +448,8 @@ export async function drawProgressively(
         renderer.setRenderTarget(previous);
         renderer.shadowMap.autoUpdate = autoShadow;
         renderer.shadowMap.needsUpdate = needsShadow;
-        for (let i = start; i < end; i++) objects[i].layers.disable(WARM_LAYER);
       }
-      onProgress?.(end / objects.length);
-    }
-  } finally {
-    objects.forEach((o, i) => {
-      o.visible = saved[i].visible;
-      o.frustumCulled = saved[i].culled;
-      o.layers.mask = saved[i].mask;
     });
-    lights.forEach((l, i) => (l.layers.mask = lightMasks[i]));
-    camera.layers.mask = cameraMask;
+    onProgress?.(end / objects.length);
   }
 }
