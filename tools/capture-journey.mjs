@@ -160,7 +160,9 @@ for (const tier of TIERS) {
       await s.page.evaluate(() => window.__DEBUG__.miniGame().win());
       await s.page.waitForTimeout(1200);
       await s.shot('mg1-win');
-      await s.page.waitForTimeout(2500);
+      // Back aboard: after the scan-line wipe, not in the middle of it.
+      await s.until(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'ShipInteriorScene' && !window.__DEBUG__.flow.isTransitioning(), 120000);
+      await s.page.waitForTimeout(1500);
       await s.shot('mg1-after');
     });
 
