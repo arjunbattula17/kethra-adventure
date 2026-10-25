@@ -366,15 +366,55 @@ function ventPanel(scene: THREE.Scene, mat: THREE.MeshStandardMaterial, room: L.
   add(at + hw, at + 2, 0, room.ceiling);
   add(at - hw, at + hw, 0, bottom);
   add(at - hw, at + hw, top, room.ceiling);
-  // Light frame around the opening so a duct is visible from across the room.
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0xd8d2c0, roughness: 0.7 });
-  const inner = face - dir * 0.02;
-  for (const [a, b, y0, y1] of [[at - hw, at + hw, top - 0.06, top], [at - hw, at + hw, bottom, bottom + 0.06], [at - hw, at - hw + 0.06, bottom, top], [at + hw - 0.06, at + hw, bottom, top]] as const) {
-    const g = alongX ? new THREE.BoxGeometry(b - a, y1 - y0, 0.04) : new THREE.BoxGeometry(0.04, y1 - y0, b - a);
-    const m = new THREE.Mesh(g, frameMat);
-    m.position.set(alongX ? (a + b) / 2 : inner, (y0 + y1) / 2, alongX ? inner : (a + b) / 2);
-    scene.add(m);
+  // A steel surround proud of the wall, so a duct reads from across the room by its metal catching
+  // the light, and a hazard stripe along the sill a player drops from. (A flat pale outline did the
+  // job and read as unfinished.)
+  const { steel, hazard } = ventMaterials();
+  const inner = face - dir * 0.04;
+  const bar = 0.09;
+  const sill = 0.13;
+  for (const [a, b, y0, y1, m] of [
+    [at - hw, at + hw, top - bar, top, steel],
+    [at - hw, at + hw, bottom, bottom + sill, hazard],
+    [at - hw, at - hw + bar, bottom, top, steel],
+    [at + hw - bar, at + hw, bottom, top, steel],
+  ] as const) {
+    const g = alongX ? panelBox(b - a, y1 - y0, 0.08, 0.5) : panelBox(0.08, y1 - y0, b - a, 0.5);
+    const mesh = new THREE.Mesh(g, m);
+    mesh.position.set(alongX ? (a + b) / 2 : inner, (y0 + y1) / 2, alongX ? inner : (a + b) / 2);
+    mesh.receiveShadow = true;
+    scene.add(mesh);
   }
+}
+
+/** One steel and one hazard-stripe material for every vent surround, so the room's batching merges them. */
+let vents: { steel: THREE.MeshStandardMaterial; hazard: THREE.MeshStandardMaterial } | null = null;
+function ventMaterials(): { steel: THREE.MeshStandardMaterial; hazard: THREE.MeshStandardMaterial } {
+  if (vents) return vents;
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = '#1a1a18';
+  g.fillRect(0, 0, 64, 64);
+  g.fillStyle = '#c9a227';
+  for (let x = -64; x < 64; x += 32) {
+    g.beginPath();
+    g.moveTo(x, 64);
+    g.lineTo(x + 16, 64);
+    g.lineTo(x + 80, 0);
+    g.lineTo(x + 64, 0);
+    g.closePath();
+    g.fill();
+  }
+  const stripes = new THREE.CanvasTexture(canvas);
+  stripes.colorSpace = THREE.SRGBColorSpace;
+  stripes.wrapS = stripes.wrapT = THREE.RepeatWrapping;
+  vents = {
+    steel: new THREE.MeshStandardMaterial({ color: 0x6e767e, roughness: 0.42, metalness: 0.6 }),
+    hazard: new THREE.MeshStandardMaterial({ map: stripes, roughness: 0.6, metalness: 0.2 }),
+  };
+  return vents;
 }
 
 /** A sliding leaf across a tube's mouth: closed it fills the doorway, open it slides into the wall. */
