@@ -71,6 +71,11 @@ const TERRACE_SHORES: ShoreShape[] = [
 
 /** Where a player arrives, and where a fall into the pool puts them back. */
 const SPAWN = new THREE.Vector3(0, 2, 18);
+/** The chamber's door, generously: from inside, the only opening the outer trees show through. */
+const DOOR_VIEW = new THREE.Box3(
+  new THREE.Vector3(-H.GATE.halfWidth - 0.5, H.FLOOR_Y - 1, H.GATE.z - 1),
+  new THREE.Vector3(H.GATE.halfWidth + 0.5, H.FLOOR_Y + 8, H.GATE.z + 1),
+);
 /**
  * The east terrace's north strip, the stepping stones off it and the islet they lead to. A fall
  * from here wades back to the terrace's edge, facing the first stone, instead of the whole way to
@@ -478,6 +483,11 @@ export class KethraScene implements GameScene {
   private scenery: THREE.Object3D[] = [];
   /** The landmark and understory trees: not drawn from inside the chamber, whose wall hides them. */
   private outerTrees: THREE.Object3D[] = [];
+  /** Whether the moon's shadow was last painted with the outer trees hidden, and so lacks theirs. */
+  private moonPaintedWithoutTrees = false;
+  private readonly camPos = new THREE.Vector3();
+  private readonly viewProj = new THREE.Matrix4();
+  private readonly frustum = new THREE.Frustum();
   /**
    * The moon's shadow map is drawn once, not every frame, since nothing it shadows moves. Only the
    * moth's gaze (hush/HushGame.ts) needs a live shadow, and only of the chamber, so on frames the
@@ -1402,6 +1412,21 @@ export class KethraScene implements GameScene {
     if (!this.moon) return;
     this.moon.shadow.needsUpdate = true;
     this.moonDirty = true;
+    this.moonPaintedWithoutTrees = this.outerTrees.length > 0 && !this.outerTrees[0].visible;
+  }
+
+  /**
+   * Whether the chamber's wall hides every tree out in the water: the camera (not the player, whom
+   * the wake's camera leaves inside) is well inside it, and the door is out of view. Seen through
+   * the door, the trees had vanished as the player walked in.
+   */
+  private outerTreesHidden(): boolean {
+    const cam = this.camera;
+    cam.updateWorldMatrix(true, false);
+    const p = cam.getWorldPosition(this.camPos);
+    if (Math.hypot(p.x - H.CENTER.x, p.z - H.CENTER.z) > H.RADIUS - 2.5) return false;
+    this.viewProj.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    return !this.frustum.setFromProjectionMatrix(this.viewProj).intersectsBox(DOOR_VIEW);
   }
 
   update(dt: number, elapsed: number): void {
@@ -1432,12 +1457,12 @@ export class KethraScene implements GameScene {
     const dark = this.hush.inside * (gameState.hasFlag('kethra_mechanism_solved') ? 0.55 : 1);
     for (const l of this.lights) l.light.intensity = THREE.MathUtils.lerp(l.base, l.base * l.keep, dark);
     this.scene.environmentIntensity = THREE.MathUtils.lerp(0.5, 0.08, dark);
-    // Well inside the chamber the wall hides every tree out in the water. The moon's shadow map is
-    // redrawn as they come back, in case it was repainted while they were hidden.
-    const treesShown = this.hush.inside < 1;
+    // The moon's shadow map is redrawn as the trees come back if it was repainted while they were
+    // hidden.
+    const treesShown = !this.outerTreesHidden();
     if (this.outerTrees.length && this.outerTrees[0].visible !== treesShown) {
       for (const tree of this.outerTrees) tree.visible = treesShown;
-      if (treesShown) this.repaintMoon();
+      if (treesShown && this.moonPaintedWithoutTrees) this.repaintMoon();
     }
 
     this.canopy.update(motion.ambientTime);
