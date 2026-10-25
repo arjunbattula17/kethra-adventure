@@ -146,7 +146,11 @@ for (const tier of TIERS) {
       await s.shot('panel-settings');
       await s.page.keyboard.press('Escape');
       await s.page.waitForTimeout(700);
-      await s.page.keyboard.press('Escape');
+      // Closing a panel gives the mouse back to the game. A player's Esc then makes the browser let go
+      // of it, which pauses; a script's key event doesn't, so let go of it as the browser would.
+      await s.page.evaluate(() => document.exitPointerLock());
+      await s.page.waitForTimeout(300);
+      if (!(await s.page.$('#pause-panel'))) await s.page.keyboard.press('Escape');
       await s.page.waitForTimeout(900);
       await s.shot('panel-pause');
     });
