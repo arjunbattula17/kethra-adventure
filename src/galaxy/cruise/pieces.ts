@@ -143,6 +143,8 @@ export class Streaks {
   }
 }
 
+export const CLOUD_OPACITY = 0.55;
+
 /** Soft cloud sprites spread downward from y = 0, for the descent. */
 export function buildCloudLayer(seed = 0xc10d): { group: THREE.Group; clouds: THREE.Sprite[] } {
   const rand = mulberry32(seed);
@@ -155,7 +157,9 @@ export function buildCloudLayer(seed = 0xc10d): { group: THREE.Group; clouds: TH
   for (let i = 0; i < 9; i++) {
     const x = size * (0.3 + rand() * 0.4);
     const y = size * (0.35 + rand() * 0.3);
-    const r = size * (0.16 + rand() * 0.2);
+    // Each blob fades out before the canvas edge: one cut off by it left the sprite's square border
+    // showing in the cloud the skiff drops through.
+    const r = Math.min(size * (0.16 + rand() * 0.2), x, size - x, y, size - y);
     const grad = g.createRadialGradient(x, y, 0, x, y, r);
     grad.addColorStop(0, 'rgba(255,255,255,0.45)');
     grad.addColorStop(1, 'rgba(255,255,255,0)');
@@ -167,7 +171,7 @@ export function buildCloudLayer(seed = 0xc10d): { group: THREE.Group; clouds: TH
   const group = new THREE.Group();
   const clouds: THREE.Sprite[] = [];
   for (let i = 0; i < 70; i++) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x5d7d78, transparent: true, depthWrite: false, opacity: 0.55 }));
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x5d7d78, transparent: true, depthWrite: false, opacity: CLOUD_OPACITY }));
     s.position.set((rand() - 0.5) * 160, -rand() * 220, (rand() - 0.5) * 160);
     s.scale.setScalar(24 + rand() * 40);
     group.add(s);

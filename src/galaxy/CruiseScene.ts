@@ -24,7 +24,7 @@ import { buildSpaceSky } from './spaceSky';
 import type { SpaceSky } from './spaceSky';
 import { buildSun, sunMapReady } from './sun';
 import type { Sun } from './sun';
-import { buildCanopyLights, buildCloudLayer, buildPassingRocks, buildPlume, buildShockRing, Streaks } from './cruise/pieces';
+import { CLOUD_OPACITY, buildCanopyLights, buildCloudLayer, buildPassingRocks, buildPlume, buildShockRing, Streaks } from './cruise/pieces';
 import { buildSkiff } from './skiff';
 import type { Skiff } from './skiff';
 import { buildAnchorage } from '../planets/vessek/anchorage';
@@ -446,6 +446,10 @@ export class CruiseScene implements GameScene {
       for (const cl of this.clouds.clouds) {
         cl.position.y += dt * 60 * (1 - k * 0.8);
         if (cl.position.y > this.skiff.group.position.y + 60) cl.position.y -= 240;
+        // The canopy's ground (y = 0) cut a cloud reaching below it off in a straight line; each fades
+        // out before its lower half gets there.
+        const half = cl.scale.y / 2;
+        (cl.material as THREE.SpriteMaterial).opacity = CLOUD_OPACITY * THREE.MathUtils.smoothstep(cl.position.y, half, 2 * half);
       }
       this.clouds.group.position.set(this.skiff.group.position.x, 0, 0);
     }
