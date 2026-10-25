@@ -5,6 +5,9 @@
 
 /* Design tokens: docs/STYLE_BIBLE.md is the contract for every value below. */
 :root {
+  /* How far the HUD's corners sit in from the screen's edges on a screen wider than 16:9, so the HUD
+     stays inside the 16:9 safe area and only the world extends (an ultrawide's sides). */
+  --safe-x: max(0px, (100vw - 100vh * 16 / 9) / 2);
   --font-display: 'Rajdhani', 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
   --font-body: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
 
@@ -233,7 +236,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Key strip: level + XP, and the three keys that matter mid-game. */
 #status-bar {
-  right: 20px;
+  right: calc(20px + var(--safe-x));
   bottom: 20px;
   display: flex;
   align-items: center;
@@ -253,7 +256,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Toasts: a log in the lower left, off the centre of the view. A coloured pip says whose news. */
 #toast-stack {
   position: absolute;
-  left: 20px;
+  left: calc(20px + var(--safe-x));
   bottom: 20px;
   width: min(420px, 42vw);
   display: flex;
@@ -1647,7 +1650,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .char-stat .btn { padding: 6px 10px; }
 .char-actions { display: flex; gap: 8px; margin-top: 16px; }
 /* Left HUD column: the objective with the frost meter stacked under it when there is one. */
-.hud-left { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 6px; width: min(400px, 40vw); }
+.hud-left { position: absolute; top: 20px; left: calc(20px + var(--safe-x)); display: flex; flex-direction: column; gap: 6px; width: min(400px, 40vw); }
 .hud-left > .hud-frame { position: static; }
 
 /* Shown instead of the game where WebGL 2 is unavailable (main.ts). */
@@ -1761,7 +1764,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .canopy-panel {
   position: absolute;
   top: 20px;
-  right: 20px;
+  right: calc(20px + var(--safe-x));
   width: min(320px, 34vw);
   padding: 14px 18px 12px;
   background-color: var(--panel-bg);
@@ -1779,7 +1782,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .hush-panel {
   position: absolute;
   top: 20px;
-  right: 20px;
+  right: calc(20px + var(--safe-x));
   width: min(330px, 34vw);
   padding: 14px 18px 12px;
   background-color: var(--panel-bg);
@@ -1817,7 +1820,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
 .intercept-panel {
   position: absolute;
   top: 20px;
-  right: 20px;
+  right: calc(20px + var(--safe-x));
   width: min(360px, 36vw);
   padding: 16px 18px 14px;
   background-color: var(--panel-bg);
