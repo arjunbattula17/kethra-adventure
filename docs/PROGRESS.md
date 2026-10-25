@@ -5,14 +5,25 @@ fresh session, read docs/BRIEF.md, this file, docs/DESIGN.md and `git log --onel
 (The root PROGRESS.md is the TSA session log; this file is the overhaul's.)
 
 ## Status
+**2026-10-25: the Wren inside both draw-call budgets, and the frame target met.** Yesterday's "the
+Wren is inside its Low budget at 123" was a measuring error: on Low the engine draws at 30 fps while
+the lighting upgrade runs, and `tools/measure-scene.mjs` averaged over animation frames, half of which
+drew nothing. It drew 246. The tool now counts per frame drawn and can sample once the arrival work
+is done (`--settled`); `tools/draw-list.mjs` lists every draw in a frame. With that list, four changes
+to the Wren's batching (134bbd8) took it to **138 on Low (budget 150) and 334 on High (350)**, with
+room sweeps matching the old build within its own run-to-run noise. Low at 6× CPU, settled, p95 is now
+24–28 ms in the Wren, 23–25 in Vessek and 24–35 in Kethra (target 33; one Kethra run over). Journey
+16/16. Next: the screenshot matrix on the final build, then the report.
+
 **2026-10-24: both branches integrated.** The remote's fifteen commits (D-32) were merged on
 2026-10-14 with the team's choice of a failed trip ending aboard (D-34; jumping fixed on the way,
 D-35). By today the remote had 35 more (the live 3D title, arrow keys look and Space jumps, the wall
 sweep, low-end texture and memory work: D-36 to D-38, renumbered from its D-26 to D-28). Both are
 merged into `overhaul` (53 commits ahead of `origin/overhaul`, none behind; not pushed), with every
 suite green and the wall sweep clean in all three levels after three collision fixes it found
-(QA log). The draw-call work (D-31) is on it too, journey finished: **every level is inside its
-Low draw-call budget**, the Wren for the first time. The console is clean on every route and tier
+(QA log). The draw-call work (D-31) is on it too, journey finished: every level is inside its
+Low draw-call budget, the Wren for the first time (*corrected 2026-10-25: not the Wren, whose 123
+was a halved count of 246; inside since 134bbd8*). The console is clean on every route and tier
 (new `tools/console-scan.mjs`), and nothing visible comes inside the camera's near plane in any level
 (wall sweep). Next: M6 and M7.
 
@@ -108,7 +119,7 @@ live title, a timed human playthrough, and real hardware.
 | 4 | ~~P2~~ | **Fixed (131f3a3)**: stale timers closing the wrong panel (`close(id)`) | PanelManager.ts | |
 | 5 | ~~P2~~ | **Fixed (131f3a3)**: replaced panels now close properly | PanelManager.ts | |
 | 6 | ~~P2~~ | **Fixed (131f3a3)**: beacon sweeps registered noMerge | lighting.ts | |
-| 7 | P2 | *2026-10-24: **Low is inside: 123 against 150** (the remote's lighting work plus D-31, 3a23313). High is 500 against 350.* *2026-10-13: 246 on Low and 500 on High on the branch `overhaul-phase2-unverified` (budgets 150 and 350); what the remaining draws are is in DECISIONS D-31.* The Wren is still over its Low budget: 256 calls against 150 (was 614). Its scene pass is 30–50% cheaper than the baseline's in a controlled A/B (below), but perf-run's Low p95 at 6× still misses 33 ms in the Wren, Kethra and Vessek | ship/interior/*, all scenes | M7: the remaining calls are unique-parameter materials; measure with the steadier method in issue 16 |
+| 7 | ~~P2~~ | **Fixed (134bbd8, 2026-10-25, journey 16/16)**: 138 on Low and 334 on High, inside both budgets (D-40). *2026-10-24: "Low is inside: 123 against 150" was a halved count (Low draws at 30 fps during the lighting upgrade, and the tool averaged over animation frames); it was 246.* *2026-10-13: 246 on Low and 500 on High on the branch `overhaul-phase2-unverified` (budgets 150 and 350); what the remaining draws are is in DECISIONS D-31.* The Wren is still over its Low budget: 256 calls against 150 (was 614). Its scene pass is 30–50% cheaper than the baseline's in a controlled A/B (below), but perf-run's Low p95 at 6× still misses 33 ms in the Wren, Kethra and Vessek | ship/interior/*, all scenes | M7: the remaining calls are unique-parameter materials; measure with the steadier method in issue 16 |
 | 8 | ~~P2~~ | **Fixed (131f3a3)**: per-scene grades; space grade has no toe lift | GradeGlowPass.ts | |
 | 9 | ~~P2~~ | **Fixed (131f3a3)**: world text on bundled faces; counters on Atkinson tabular | *Textures.ts, style.css | |
 | 10 | ~~P2~~ | **Fixed (2026-10-13)**: with reduced motion the intro holds one framing and the white sky swells to 40% | IntroScene | |
@@ -117,7 +128,7 @@ live title, a timed human playthrough, and real hardware.
 | 13 | ~~P3~~ | **Fixed (M4)**: the pillars stand on the terraces; the Heart sits in its own chamber | | |
 | 14 | ~~P3~~ | **Fixed (131f3a3)**: the reveal's engine embers removed; the ports glow emergency amber | | |
 | 15 | ~~P3~~ | **Fixed (ca4357a)**: the reveal is rebuilt at plot scale as MG1's opening | GalaxyRevealScene.ts | |
-| 16 | P2 | perf-run's Low numbers at 6× CPU are too noisy to rank builds on this PC: identical runs differ by about ±10 ms at p50, and throttling from page load vs after arrival changed the Wren's scene pass from ~10 ms to ~30 ms | tools/perf-run.mjs | M7: repeat runs, report the median of medians, and add main-thread CPU per frame from a trace |
+| 16 | P3 | perf-run's Low numbers at 6× CPU are too noisy to rank builds on this PC: identical runs differ by about ±10 ms at p50, and throttling from page load vs after arrival changed the Wren's scene pass from ~10 ms to ~30 ms. *2026-10-25:* part of the spread was sampling during the arrival work; `measure-scene --settled`, alternating builds, put three runs of one build within 3.5 ms at p95 in the Wren and Vessek (Kethra 10 ms) | tools/perf-run.mjs | Use `measure-scene --settled`, alternating builds; perf-run still samples early |
 | 17 | P3 | Every return to the Wren redraws a rebuilt ship, and its warm-up frame (programs, texture uploads) freezes the loading screen for ~5.2 s on High | GameFlow.returnFromPlanet, Engine.setScene | M7: keep the ship's programs alive across planet visits, or prewarm it while the planet plays |
 | 18 | ~~P3~~ | **Fixed (M4)**: the three materials were the moth's wings and the two haze sheets. three.js draws transparent double-sided materials in two passes and marks them for update on each; `forceSinglePass` | grove.ts, KethraScene.buildAtmosphere | |
 | 19 | P2 | Vessek's JS heap went 52 → 79 MB (Low) and 53 → 105 MB (High) with the eight code-built hull variants | shipHull.ts, VessekScene.ts | M5: share geometry across variants or drop the CPU-side arrays after upload |
@@ -143,9 +154,9 @@ live title, a timed human playthrough, and real hardware.
 | 39 | P3 | Three of the Wren's seven systems (navigation, shields, power distribution) can be repaired to no effect | GameFlow's `ship:repaired` handlers | Give each a consequence or remove it from the panel |
 | 40 | P1 | `reference/bar.png` and its ten crops are a commercial game's promotional image with its logos, in a repository that is public. Not in the build; nothing was copied from it | `reference/`, docs/interior-art-brief.md, the interior review tools | **Team:** remove it before the repository is shown to anyone, and decide with the advisor whether the published history needs D-12's fresh-repository fix (docs/ASSETS.md) |
 | 41 | ~~P3~~ | **Fixed (e3ba2af)**: the tutorial beacon's glow passed `map: undefined`. Was: Arriving at Kethra logs "THREE.Material: parameter 'map' has value of undefined" once, on every tier. In the build before the release pass too | Not traced; a material built with a `map` key that is undefined | Find the constructor and drop the key |
-| 42 | P2 | The design's frame target (p95 ≤ 33 ms on Low at 6× CPU) is met in none of the three levels: Kethra 37–39 ms, the Anchorage 34–42 ms, the Wren 50–71 ms (three runs each, 2026-10-13) | every level | The Wren first: it is the opening level and the furthest off |
+| 42 | P3 | **Met once a level has settled (2026-10-25)**: Low at 6× CPU, three runs each after the arrival work (`measure-scene --settled`): the Wren 24.1–27.6 ms, Vessek 22.6–25.3, Kethra 24.0–34.6 (one run over). In the Wren's first ~20 s on Low the lighting upgrade runs and the engine holds 30 fps by design, so no frame is under 33 ms then. Was: met in none of the three levels: Kethra 37–39 ms, the Anchorage 34–42 ms, the Wren 50–71 ms (three runs each, 2026-10-13, measured from 4 s after arrival) | every level | A real Chromebook; 6× throttling on this PC is a stand-in |
 | 43 | P3 | Kethra holds 22.7 MB of vertex data on Low where it held 11.9: the merged kit gives every tree its own copy of its vertices | kit.ts `mergeKit` | Free the CPU-side copies after upload, or use three's BatchedMesh where the multi-draw extension exists |
-| 44 | P3 | The Anchorage is inside its Low draw-call budget by 4 (176 of 180) at the view it opens on; other views were not counted | VessekScene | The lever plates (7 draws) and the lamps (one material each, 34 draws) are the next things to fold |
+| 44 | P3 | The Anchorage is inside its Low draw-call budget by 4 (176 of 180) at the view it opens on; other views were not counted. *2026-10-25:* 166–175 depending on the moment (175 settled) | VessekScene | The lever plates (7 draws) and the lamps (one material each, 34 draws) are the next things to fold; the Wren's `surfaces` batching option (D-40) would fold the lamps, once every material Vessek changes after the build is registered as animated |
 | 45 | ~~P2~~ | **Fixed (503fbfb)**: the far arch's pillars had no collider; a rising head now stops 3 cm under a roof and the tunnel arches clear it. Was: The camera comes within 0–8 cm of stone in the Heart's chamber: jumping by its west wall near (-6.5, -31) brings the eye to overhead stone, and walking the east root tunnel over a rise near (10, -20.5) leaves it 8 cm under the roof. On the remote's build too (wall sweep, 2026-10-24) | hush/chamber.ts, roofAbove | Find the overhead piece; the collider's underside must sit at or below the visible stone |
 | 47 | ~~P3~~ | **Improved (match cut)**: the cruise's last follow eases onto MG2's opening framing, so the skiff holds its place and size across the change; the letterbox and the surroundings still change. Was: The cut from the cruise's last shot to MG2's first frame shows: the cruise frames the skiff from behind at a shallow angle, MG2 from above. DESIGN §5 asks for no cut | CruiseScene.updateCamera, CanopyScene.placeCamera | Ease the cruise's last 2 s onto MG2's opening offset |
 | 48 | P3 | Back aboard from a planet still shows the loading screen (issue 17's other half). Kept on purpose (D-39): building the Wren under the planet would hold both levels' textures at once | GameFlow.returnFromPlanet | A departure beat on the planet if real hardware shows the memory to spare |
@@ -191,6 +202,8 @@ live title, a timed human playthrough, and real hardware.
 | 2026-09-27 | The ducts' shell is rasterised from their runs (5 cm cells), open at the mouths and over the ladder shafts | One closed tube with exact openings at corners, mouths and shafts, where boxes per run left seams and doubled walls. `tools/test-vessek-layout.mjs` walks each mouth from inside its room |
 | 2026-09-27 | The docking arrival's Anchorage is its own model (src/planets/vessek/anchorage.ts), the moored hulls and the Lantern Bay merged by material | Twenty moored hulls and the Bay (the ring's twenty-one) share five draw calls. With thirteen, the docked shot measured 31 calls on Low against the space budget's 80; more hulls add triangles, not calls |
 | 2026-09-27 | At Vessek the planet stays put beyond the Anchorage while the Wren slows in; over Kethra it still rides ahead of the ship | A planet that moved with the ship slid across the sky behind the fixed approach camera; standing still, it grows as she comes in |
+| 2026-10-25 | Frame time and draw calls are measured per frame drawn, after the arrival work (`measure-scene --settled`) | Sampled 4 s in on Low, half the frames drew nothing (the 30 fps hold during the lighting upgrade) and the upgrade's compiling sat in the sample |
+| 2026-10-25 | The Wren's batching ignores shadow flags on Low and folds surfaces into vertex attributes (D-40) | 108 fewer draws on Low with the room matching within run-to-run noise; the cost is 10 more shader programs and a faint change in how two transparent layers blend on the big screens |
 
 ## QA log
 | Date | What | Result |
@@ -282,6 +295,15 @@ live title, a timed human playthrough, and real hardware.
 | 2026-10-24 | WebGL warnings on High, traced with gl.getError() after each draw | 208–256 per arrival, every level, all from warm-up renders before any shadow map existed (issue 36). Fixed; `tools/console-scan.mjs` (title, intro, Wren, reveal, Kethra, Vessek, ending) clean on Low, Medium and High. Journey 16/16 after |
 | 2026-10-24 | Whole journey on the real GPU, High, 1920×1080 (`tools/capture-journey.mjs`, 62 shots), ranked | Weakest first: the title (black on High: NaN under MSAA, fixed), MG2's canopy, the cruise's Kethra and arrival title, First light, the Hush lantern, the loading screen after MG1. Each fixed and looked at again (D-39). nan-scan clean in every scene; test-mg2, test-mg3, test-cruise, test-vessek, test-mg1, test-tutorial, s01, s10, s11 pass |
 | 2026-10-24 | The wall sweep's eye check, each case looked at in place | Seven cases fixed (503fbfb): the chamber's far-arch pillars (no collider), the root tunnels' roof (a jump left the camera 10 cm from an arch), the bent grate's bars lying across the crawl, the duct fans crawled through when off (they now fold against the wall on a hinge, screenshots checked), the reset lever's arm, the dock lockout box hanging over a corner, a coyote jump off a vent lip through the tanker's ceiling. After: nothing within 8 cm of the eye in any level |
+| 2026-10-24 | The screenshot matrix (four sizes × Low and High, 62 shots each), looked at | Found and fixed: a view of the Anchorage black under the arrival card in six of eight runs, the live camera left on the warm-up layer while the lighting upgrade drew (b1570e5; 14 frames, ~0.23 s, at Vessek on this PC); the duct mouths' pale outlines (0f310bd). Also fixed: the HUD at the screen's far edges at 2560×1080 (5e34c42, a 16:9 safe area), the last credit hidden at 1280×720 (679eadd, the credits roll) |
+| 2026-10-24 | `tools/live-frames-check.mjs` (new): the live camera's layers read every frame for 16 s after arriving | 0 wrong frames in the Wren, Kethra and Vessek, Low and High (was 14 at Vessek) |
+| 2026-10-24 | `tools/test-frame-rates.mjs` (new): the motion integrators stepped at 30, 60 and 144 Hz | Springs and damping agree to 1e-6. The player's jump peaked at 0.900 / 0.950 / 0.979 m against tuning.ts's 1 m; exact step for constant gravity (b25fbbb): 1.000 m at all three. test-controls, test-survey and the wall sweep pass |
+| 2026-10-24 | Kethra on Low over its triangle budget (7c45ab8) | 349k → 186k (320k); the chamber view 347k → 163k (200k). High 798k → 597k (900k); the chamber view 820k → 504k, 0.8% over 500k. test-kethra-flow, test-mg3-flow, the Kethra survey, the wall sweep, nan-scan pass |
+| 2026-10-25 | The frame target re-measured, `measure-scene --settled` (new) | The Wren read 246 calls settled against yesterday's 123: on Low the engine holds 30 fps during the lighting upgrade and the tool averaged over animation frames. Tool fixed (7ded32c): per frame drawn, the cap reported |
+| 2026-10-25 | The Wren's batching (134bbd8): `tools/draw-list.mjs` before and after | Low 246 → 138 (150), High 500 → 334 (350); triangles at the spawn view 148.3k → 149.5k (150k), elsewhere 122–125k → 141k (merged batches cull less finely) |
+| 2026-10-25 | The same, room sweeps (7 spots × 8 yaws) against the old build | Pixels differing by more than 8/255: Low full power 0.10%, Low emergency 0.02%, High 0.16%. The old build against itself: 0.14% (High), 0.97% (Low). One local difference: on the big screens a faint brightening under the bezel glint, where transparent layers now blend in another order (D-40) |
+| 2026-10-25 | The same, suites | Journey 16/16; console-scan clean on Low, Medium and High; the Wren's wall sweep identical to the old build's (never inside a collider; the same 13 and 2); live-frames-check, nan-scan pass. Texture memory unchanged (208 → 210 MB estimated); vertex data 8.6 → 13.6 MB; programs 72 → 82 |
+| 2026-10-25 | Low at 6× CPU, settled, three runs of each build in turn | The Wren p95 32.4–45.2 ms → 27.2–29.4 ms. Then all three levels on the final build: the Wren 24.1–27.6, Vessek 22.6–25.3, Kethra 24.0–34.6 (issue 42) |
 
 ## Performance
 Baseline on this PC (RTX 4060) at 1366×768, DPR 1. Low = pinned Low tier with 6× CPU throttle;
@@ -451,7 +473,30 @@ depend on the throttle). Both branches merged and D-31 re-applied (3a23313).
   for the first time (b7547d3). The Vessek vent surrounds (0f310bd) took Vessek to **166 / 177k** on Low
   and **360 / 375k** on High, inside both; that commit's message says its draw calls were unchanged,
   which was wrong (+4 Low, +14 High: High draws each mesh again for shadows and ambient occlusion).
-- The Wren on Low went from 246 to 123: the remote's fewer lights and merged instances (D-33) with D-31's shared tiled textures.
+- ~~The Wren on Low went from 246 to 123~~ *Corrected 2026-10-25:* the Wren's Low row was measured
+  while the engine held 30 fps for the lighting upgrade, and the tool averaged over animation frames,
+  half of which drew nothing. It was 246 / 148k. Kethra, the Hush view and Vessek are not held, so
+  their rows stand.
+
+### The Wren inside both budgets (2026-10-25)
+`tools/measure-scene.mjs --settled` (per frame drawn, after the arrival work), 1366×768, spawn view.
+
+| View | Low: calls / tris (budget) | High: calls / tris (budget) |
+|---|---|---|
+| The Wren, before (7c45ab8) | **246** / 148k (150 / 150k) | **500** / 297k (350 / 300k) |
+| The Wren, after (134bbd8) | 138 / 150k (150 / 150k) | 334 (350) |
+| Vessek, settled | 175 / 186k (180 / 200k) | |
+
+- **What the Wren's draws were** (`tools/draw-list.mjs`, Low): 26 were a material split by shadow
+  flags that Low doesn't draw (134bbd8's message says 29; three of those are the throttle's moving
+  parts, which stay apart); 58 untextured surfaces and glows with a material each (plus the
+  throttle's 10 and the deck strip); about 75 single canvases that the atlas kept apart because
+  their tint, opacity or roughness differed.
+- **Triangles:** 149.5k at the spawn view against 150k; the other views went from 122–125k to 141k,
+  because a merged batch is culled as one.
+- **Frame time, Low at 6× CPU, settled, three runs of each build in turn** (p95, ms): before 45.2,
+  34.5, 32.4; after 29.4, 27.4, 27.2. Then the final build, all three levels: the Wren 27.6, 24.1,
+  26.6; Kethra 28.5, 24.0, 34.6; Vessek 25.3, 22.6, 25.1.
 
 ### Release pass, Phase 2 (2026-10-13)
 `tools/measure-scene.mjs` at 1366×768, the view each scene opens on, one run each for the counts.

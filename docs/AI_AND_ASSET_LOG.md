@@ -13,6 +13,45 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-24 to 25 (Claude Code, model Claude Opus 5.5): integration and the overhaul's last pass
+
+**Asked for by the team:** the overhaul brief pasted again with "continue the game overhaul", then
+"keep going, work hard, think hard". Nothing was pushed: publishing was not asked for.
+
+**What the AI generated or changed**
+- **Merged the remote's 35 new commits** into `overhaul` (the live title, arrow-key look, the wall
+  sweep, low-end memory work), resolving nine conflicted files, and re-applied the release pass's
+  draw-call work on top (D-31). Fixed what the remote's wall sweep then found: three collision holes.
+- **Fixes found by looking at the game:** the title black on High (NaN pixels under MSAA), black
+  frames while a level upgrades its lighting, the camera clipping into stone in seven places, the
+  HUD at the edges of ultrawide screens, the last credit hidden on short screens, a jump 10 cm short at
+  30 fps, about 200 WebGL warnings per arrival on High.
+- **Art pass** (D-39): MG2's canopy, the cruise's Kethra and arrival title, First light's throttle,
+  the Hush lantern, the Vessek vents.
+- **Performance:** Kethra inside its Low triangle budget; the Wren inside both draw-call budgets
+  (D-40) by storing each part's colour, roughness and glow in its vertices so many parts can share one
+  material; the frame target met in all three levels once settled.
+- **Tools:** `console-scan`, `nan-scan`, `capture-journey`, `live-frames-check`, `test-frame-rates`,
+  `draw-list`, and `measure-scene --settled`.
+
+**Mistakes the AI made and caught this session**
+- It reported the Wren inside its Low budget at 123 draw calls. Its own tool had averaged over
+  animation frames while the engine drew only every other one; the true figure was 246. Found the
+  next day when it measured after the arrival work; corrected in PROGRESS and fixed (D-40).
+- A commit message (0f310bd) said Vessek's draw calls were unchanged; they rose by 4 on Low and 14 on
+  High. Corrected in PROGRESS.
+- Its first version of the Wren's batching changed how two see-through layers blend on the big
+  screens; a side-by-side found it, and the AI kept it, documented, after judging it invisible at
+  normal size (D-40).
+
+**What the team must be able to explain**
+- What a draw call is, and how the Wren's ~250 became ~140 without removing anything: parts that
+  differ only in colour or shininess now share one material, with those values stored per point.
+- Why the game measures frame time "settled": the first seconds in each level compile lighting
+  shaders in the background.
+
+---
+
 ## Session 2026-10-19 (Claude Code, model Claude Opus 5.5)
 
 **Asked for by the team:** a long brief (written for a different engine, Godot) and four reference

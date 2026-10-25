@@ -549,3 +549,32 @@ visual quality and the weakest brought up, one at a time, each looked at before 
   it (DESIGN §4, 2026-09-28 and 29): height is deliberately never the player's problem, so it does not
   pass the brief's "could this be 2D?" test; the original 3D concept (1A) is the way back if the team
   wants it.
+
+### D-40 · UPGRADE · The Wren inside both draw-call budgets — *Done 2026-10-25, reversible*
+The opening level drew 246 calls on Low against DESIGN §7's 150 and 500 on High against 350 (D-31
+left it there; a halved measurement on 2026-10-24 made Low look inside, corrected in 7ded32c). Now 138
+and 334 (134bbd8). Nothing was removed; four changes to how the room's static geometry batches:
+- **On Low, shadow flags don't split batches.** Low draws no shadows, so a mesh's cast and receive
+  flags change nothing there; 26 draws were one material split by them. A batch casts and receives if
+  any part did, which is what a player who switches to High mid-visit sees (until the next visit
+  rebuilds the room).
+- **Surfaces fold into vertex attributes** (`mergeSurfaces`): opaque lit materials that differ only in
+  colour, roughness, metalness and glow share one material, with each part's values in the vertices
+  and a small shader patch reading them. Glows are grouped by the power role that dims them, so the
+  emergency and navigation stages look as before (checked: 0.02% of pixels differ by more than 8/255).
+- **The atlas packs across tints**: canvases that differ in tint, opacity or roughness share a page,
+  each keeping its own values for the passes above to fold.
+- **envMapIntensity is ignored where three.js ignores it** (a material with no env map of its own
+  draws with the scene's environment intensity).
+- **What it cost:** 10 more shader programs (82; a longer compile on a cold cache, issue 22), 5 MB
+  more vertex data, and merged batches cull as one (149.5k triangles at the spawn view against 150k;
+  other views 141k). On the big screens, two transparent layers now blend in another order: a faint
+  brightening under the bezel glint, visible only side by side. Every other view matches the old
+  build within its own run-to-run noise.
+- **What it bought:** Low at 6× CPU, settled, p95 27–29 ms where the old build measured 32–45 in the
+  same session; the design's 33 ms target is now met in all three levels once each has settled (issue
+  42).
+- **Vessek is unchanged:** the surface folding is opt-in (`batchStaticGeometry(..., { surfaces: true })`)
+  because it replaces materials, and every material changed after the build must first be registered
+  as animated. The Wren's were audited (one was missing: the deck strip). Vessek's were not.
+- **To undo:** pass `{}` instead of the options in `ShipInteriorScene.ts`.
