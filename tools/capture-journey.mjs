@@ -91,6 +91,19 @@ async function depart(h, planet) {
 }
 
 /** Puts the cruise at `t` seconds, lets it run 0.6 s into the frame, and shoots it frozen. */
+/**
+ * The cruise's captions and its title run on the scene's own timeline clock, which jumping the
+ * scene's time doesn't move: a shot at the title's time showed no title. Holding to skip is how a
+ * player reaches it early, so the title shot goes that way and waits `after` seconds.
+ */
+async function cruiseTitle(h, label, after) {
+  await h.page.evaluate(() => window.__DEBUG__.engine.getCurrentScene().skipToArrival());
+  await h.page.waitForTimeout(after * 1000);
+  await h.page.evaluate(() => { window.__DEBUG__.motion.frozen = true; });
+  await h.shot(label);
+  await h.page.evaluate(() => { window.__DEBUG__.motion.frozen = false; });
+}
+
 async function cruiseAt(h, label, t) {
   await h.page.evaluate((t) => { window.__DEBUG__.engine.getCurrentScene().time = t - 0.6; }, t);
   await h.page.waitForTimeout(600);
@@ -162,7 +175,8 @@ for (const tier of TIERS) {
       await s.until(() => window.__DEBUG__.engine.getCurrentScene()?.power?.stage === 'full', 30000);
       await s.page.keyboard.up('Space');
       await s.until(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'CruiseScene', 60000);
-      for (const [label, t] of [['stern', 2], ['departure', 6.5], ['acceleration', 13], ['transit', 22], ['reveal', 32], ['entry', 40], ['title', 45.5]]) await cruiseAt(s, `cruise-${label}`, t);
+      for (const [label, t] of [['stern', 2], ['departure', 6.5], ['acceleration', 13], ['transit', 22], ['reveal', 32], ['entry', 40]]) await cruiseAt(s, `cruise-${label}`, t);
+      await cruiseTitle(s, 'cruise-title', 1.5);
       await s.until(() => { const c = window.__DEBUG__.engine.getCurrentScene(); return c?.kind === 'CanopyScene' && c.state().phase === 'fly'; }, 180000);
       await s.page.waitForTimeout(1500);
       await s.shot('canopy-start');
@@ -203,7 +217,8 @@ for (const tier of TIERS) {
       await s.page.evaluate(() => window.__DEBUG__.gameState.setFlag('first_light'));
       await depart(s, 'vessek');
       await s.until(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'CruiseScene', 60000);
-      for (const [label, t] of [['transit', 22], ['reveal', 32], ['entry', 40], ['docked', 46.5]]) await cruiseAt(s, `cruise-${label}`, t);
+      for (const [label, t] of [['transit', 22], ['reveal', 32], ['entry', 40]]) await cruiseAt(s, `cruise-${label}`, t);
+      await cruiseTitle(s, 'cruise-docked', 2.5);
     });
 
     await section('vessek', '?newGame=1&skipIntro=1&unlockVessek=1&jump=vessek', 'VessekScene', w, h, tier, dir, async (s) => {
