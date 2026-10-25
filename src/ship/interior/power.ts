@@ -45,6 +45,19 @@ const _c = new THREE.Color();
 const isCool = (c: THREE.Color) => c.b > c.r * 1.05;
 const luminance = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 
+/**
+ * Which power role a glowing lit material follows, or null if it doesn't glow. Screens glow white
+ * through their emissive map; anything else glows by colour. Faint glows stand in for bounce light,
+ * so they follow the room level. The batching (materialMerge.ts, mergeSurfaces) keeps glows of
+ * different roles apart, so a merged material still dims as each of its parts did.
+ */
+export function glowRole(std: THREE.MeshStandardMaterial): Exclude<Role, 'strip'> | null {
+  const glow = luminance(std.emissive) * std.emissiveIntensity;
+  if (glow <= 0) return null;
+  const white = std.emissive.r > 0.95 && std.emissive.g > 0.95 && std.emissive.b > 0.95;
+  return glow < 0.15 ? 'room' : (std.emissiveMap && white) || isCool(std.emissive) ? 'screen' : 'practical';
+}
+
 export class ShipPower {
   private entries: Entry[] = [];
   private strips: { mat: THREE.MeshStandardMaterial; base: number; color: THREE.Color; wave: StripWave }[] = [];
@@ -116,13 +129,8 @@ export class ShipPower {
     const std = mat as THREE.MeshStandardMaterial;
     if (std.isMeshStandardMaterial) {
       const base = std.emissiveIntensity;
-      const glow = luminance(std.emissive) * base;
-      if (glow <= 0) return null;
-      // Screens glow white through their emissive map; anything else glows by colour. Faint glows
-      // stand in for bounce light, so they follow the room level.
-      const white = std.emissive.r > 0.95 && std.emissive.g > 0.95 && std.emissive.b > 0.95;
-      const role: Role = glow < 0.15 ? 'room' : (std.emissiveMap && white) || isCool(std.emissive) ? 'screen' : 'practical';
-      return { role, apply: (k) => (std.emissiveIntensity = base * k) };
+      const role = glowRole(std);
+      return role && { role, apply: (k) => (std.emissiveIntensity = base * k) };
     }
     const basic = mat as THREE.MeshBasicMaterial;
     // Painted light (pools, halos, cones): additive, so dimming its colour dims the light.

@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { PAINT_CONTEXT } from '../../core/paintCanvas';
+import { glowRole } from './power';
 
 /**
  * Lets meshes that each have their own material share one, so batchStaticGeometry can merge them.
  * atlasCanvasMaterials packs per-mesh canvas textures into shared atlas pages; mergeTints moves
- * colour and opacity into RGBA vertex colours. Both skip animated, custom-shader and tiling
- * materials.
+ * colour and opacity into RGBA vertex colours; mergeSurfaces moves a lit surface's colour,
+ * roughness, metalness and glow into vertex attributes. All skip animated and custom-shader
+ * materials; the atlas also skips tiling ones.
  */
 
 const PAGE = 2048;
@@ -30,7 +32,10 @@ function signatureWithout(mat: Mat, skip: Set<string>): string {
     toneMapped: mat.toneMapped, polygonOffset: mat.polygonOffset, pof: mat.polygonOffsetFactor, pou: mat.polygonOffsetUnits,
     premultipliedAlpha: mat.premultipliedAlpha, color: mat.color.getHex(), emissive: m.emissive?.getHex(),
     emissiveIntensity: m.emissiveIntensity, roughness: m.roughness, metalness: m.metalness, flatShading: m.flatShading,
-    envMapIntensity: m.envMapIntensity, fog: mat.fog, map: mat.map?.uuid, emissiveMap: m.emissiveMap?.uuid,
+    // Read only with an env map of its own (batchStaticGeometry.ts, materialSignature).
+    envMapIntensity: m.envMap ? m.envMapIntensity : null, fog: mat.fog, map: mat.map?.uuid, emissiveMap: m.emissiveMap?.uuid,
+    normalScale: m.normalScale && [m.normalScale.x, m.normalScale.y], aoMapIntensity: m.aoMapIntensity, bumpScale: m.bumpScale,
+    lightMapIntensity: m.lightMapIntensity, wireframe: mat.wireframe,
   };
   for (const slot of OTHER_SLOTS) fields[slot] = (mat as unknown as Record<string, THREE.Texture | null>)[slot]?.uuid;
   for (const k of skip) delete fields[k];
@@ -180,8 +185,24 @@ function blitPadded(g: CanvasRenderingContext2D, img: HTMLCanvasElement, x: numb
   g.drawImage(img, w - 1, h - 1, 1, 1, X + w, Y + h, PAD, PAD);
 }
 
-/** Returns how many meshes were moved onto atlas materials. */
-export function atlasCanvasMaterials(meshes: THREE.Mesh[], animated: Set<THREE.Material>, noMerge: Set<THREE.Object3D>): number {
+/** What mergeTints moves into vertex colours. */
+const TINT_FIELDS = ['color', 'opacity'] as const;
+
+/**
+ * Returns how many meshes were moved onto atlas materials. `looseFields` names, per mesh, the
+ * fields a later pass moves into vertex attributes (mergeTints, mergeSurfaces): canvases that
+ * differ in those still share a page, each with a material of its own on it for that pass to merge.
+ * Split by them, two decals of different opacity had a page each and could never share a draw. For
+ * transparent layers that moves where some blend among the others of their render order (every
+ * batch sits at the origin, so that order was arbitrary before too): on the Wren's big screens, a
+ * faint brightening under the bezel glint.
+ */
+export function atlasCanvasMaterials(
+  meshes: THREE.Mesh[],
+  animated: Set<THREE.Material>,
+  noMerge: Set<THREE.Object3D>,
+  looseFields: (mesh: THREE.Mesh) => readonly string[] = () => [],
+): number {
   const groups = new Map<string, THREE.Mesh[]>();
   for (const mesh of meshes) {
     if (noMerge.has(mesh) || (mesh as THREE.InstancedMesh).isInstancedMesh || Array.isArray(mesh.material)) continue;
@@ -191,7 +212,8 @@ export function atlasCanvasMaterials(meshes: THREE.Mesh[], animated: Set<THREE.M
     if (em && em.image !== mat.map!.image) continue;
     if (OTHER_SLOTS.some((s) => (mat as unknown as Record<string, unknown>)[s])) continue;
     if (!uvsInUnitRange(mesh.geometry)) continue;
-    const key = signatureWithout(mat, new Set(['map', 'emissiveMap'])) + `|cs:${mat.map!.colorSpace}|em:${!!em}`;
+    const loose = looseFields(mesh);
+    const key = signatureWithout(mat, new Set(['map', 'emissiveMap', ...loose])) + `|cs:${mat.map!.colorSpace}|em:${!!em}|${loose.join(',')}`;
     const list = groups.get(key);
     if (list) list.push(mesh);
     else groups.set(key, [mesh]);
@@ -215,7 +237,6 @@ export function atlasCanvasMaterials(meshes: THREE.Mesh[], animated: Set<THREE.M
     }
     const first = group[0].material as Mat;
     const pages: THREE.CanvasTexture[] = [];
-    const pageMats: Mat[] = [];
     for (let p = 0; p < pageCount; p++) {
       const canvas = document.createElement('canvas');
       canvas.width = pageW[p];
@@ -231,12 +252,21 @@ export function atlasCanvasMaterials(meshes: THREE.Mesh[], animated: Set<THREE.M
       tex.colorSpace = first.map!.colorSpace;
       tex.anisotropy = Math.max(...group.map((m) => (m.material as Mat).map!.anisotropy));
       pages.push(tex);
-      const mat = first.clone() as Mat;
-      mat.map = tex;
-      if ((first as THREE.MeshStandardMaterial).emissiveMap) (mat as THREE.MeshStandardMaterial).emissiveMap = tex;
-      mat.name = `${first.name || 'canvas'}-atlas-${p}`;
-      pageMats.push(mat);
     }
+    // One material per page and per set of loose-field values, a copy of the first mesh's own.
+    const pageMats = new Map<string, Mat>();
+    const pageMat = (page: number, own: Mat): Mat => {
+      const key = `${page}|${signatureWithout(own, new Set(['map', 'emissiveMap']))}`;
+      let mat = pageMats.get(key);
+      if (!mat) {
+        mat = own.clone() as Mat;
+        mat.map = pages[page];
+        if ((own as THREE.MeshStandardMaterial).emissiveMap) (mat as THREE.MeshStandardMaterial).emissiveMap = pages[page];
+        mat.name = `${first.name || 'canvas'}-atlas-${page}`;
+        pageMats.set(key, mat);
+      }
+      return mat;
+    };
     const index = new Map(canvases.map((c, i) => [c, i]));
     for (const mesh of group) {
       const place = places[index.get((mesh.material as Mat).map!.image as HTMLCanvasElement)!];
@@ -252,22 +282,27 @@ export function atlasCanvasMaterials(meshes: THREE.Mesh[], animated: Set<THREE.M
       }
       uv.needsUpdate = true;
       mesh.geometry = geo;
-      mesh.material = pageMats[place.page];
+      mesh.material = pageMat(place.page, mesh.material as Mat);
       moved++;
     }
   }
   return moved;
 }
 
+/** How a mesh draws apart from its material: its shadow flags (where shadows are drawn) and render order. */
+function drawKey(mesh: THREE.Mesh, shadows: boolean): string {
+  return `${shadows ? `${mesh.castShadow}|${mesh.receiveShadow}` : ''}|${mesh.renderOrder}`;
+}
+
 /** Returns how many meshes were moved onto shared tint materials. */
-export function mergeTints(meshes: THREE.Mesh[], animated: Set<THREE.Material>, noMerge: Set<THREE.Object3D>): number {
+export function mergeTints(meshes: THREE.Mesh[], animated: Set<THREE.Material>, noMerge: Set<THREE.Object3D>, shadows = true): number {
   const groups = new Map<string, THREE.Mesh[]>();
   for (const mesh of meshes) {
     if (noMerge.has(mesh) || (mesh as THREE.InstancedMesh).isInstancedMesh || Array.isArray(mesh.material)) continue;
     const mat = mesh.material;
     if (animated.has(mat) || !isPlainMat(mat) || mat.vertexColors) continue;
     if (mesh.geometry.getAttribute('color')) continue;
-    const key = signatureWithout(mat, new Set(['color', 'opacity'])) + `|${mesh.castShadow}|${mesh.receiveShadow}|${mesh.renderOrder}`;
+    const key = signatureWithout(mat, new Set(['color', 'opacity'])) + drawKey(mesh, shadows);
     const list = groups.get(key);
     if (list) list.push(mesh);
     else groups.set(key, [mesh]);
@@ -295,6 +330,93 @@ export function mergeTints(meshes: THREE.Mesh[], animated: Set<THREE.Material>, 
         rgba[i * 4 + 3] = a;
       }
       geo.setAttribute('color', new THREE.BufferAttribute(rgba, 4));
+      mesh.geometry = geo;
+      mesh.material = shared;
+      moved++;
+    }
+  }
+  return moved;
+}
+
+/** Whether a plain material's mesh can take mergeSurfaces' vertex attributes: opaque, lit, no colours of its own. */
+function takesSurfaceMerge(mesh: THREE.Mesh): boolean {
+  const mat = mesh.material as Mat;
+  return !!(mat as THREE.MeshStandardMaterial).isMeshStandardMaterial && !mat.transparent && !mat.vertexColors && !mesh.geometry.getAttribute('color');
+}
+
+/** What mergeSurfaces moves into vertex attributes. */
+const SURFACE_FIELDS = ['color', 'roughness', 'metalness', 'emissive', 'emissiveIntensity'] as const;
+
+/** atlasCanvasMaterials' loose fields where mergeSurfaces runs after it. */
+export function surfaceLooseFields(mesh: THREE.Mesh): readonly string[] {
+  return takesSurfaceMerge(mesh) ? [...SURFACE_FIELDS, 'opacity'] : TINT_FIELDS;
+}
+
+/**
+ * Lets opaque lit surfaces share a material when they differ only in colour, roughness, metalness
+ * and glow: each mesh's values go into vertex attributes (`color`, `mergedSurface`, `mergedGlow`)
+ * that a small shader patch reads in place of the material's own, so every pixel comes out as
+ * before. Their maps must be the same ones; each multiplies its value as it did. Glows are grouped
+ * by the ShipPower role they follow (power.ts, glowRole): the merged material carries the first
+ * part's glow as its own, so the power stages classify and dim it as they did each part, and the
+ * patch scales every part's glow by the same factor. An instanced mesh takes the attributes on its
+ * base geometry. Returns how many meshes were moved onto shared materials.
+ */
+export function mergeSurfaces(meshes: THREE.Mesh[], animated: Set<THREE.Material>, noMerge: Set<THREE.Object3D>, shadows = true): number {
+  const groups = new Map<string, THREE.Mesh[]>();
+  for (const mesh of meshes) {
+    if (noMerge.has(mesh) || Array.isArray(mesh.material)) continue;
+    const mat = mesh.material;
+    if (animated.has(mat) || !isPlainMat(mat) || !takesSurfaceMerge(mesh)) continue;
+    const role = glowRole(mat as THREE.MeshStandardMaterial) ?? 'none';
+    const key = `${signatureWithout(mat, new Set(SURFACE_FIELDS))}|${role}${drawKey(mesh, shadows)}`;
+    const list = groups.get(key);
+    if (list) list.push(mesh);
+    else groups.set(key, [mesh]);
+  }
+  let moved = 0;
+  for (const group of groups.values()) {
+    if (new Set(group.map((m) => m.material)).size < 2) continue;
+    const first = group[0].material as THREE.MeshStandardMaterial;
+    const shared = first.clone();
+    shared.color.setRGB(1, 1, 1);
+    shared.roughness = 1;
+    shared.metalness = 1;
+    shared.vertexColors = true;
+    shared.name = `${first.name || 'surface'}-surfaces`;
+    // The power stages scale emissiveIntensity; each part's glow follows it from where it started.
+    // A group that doesn't glow carries zero glow, so it shares the one program.
+    const base = first.emissiveIntensity;
+    const glowScale = glowRole(first) ? { get value() { return shared.emissiveIntensity / base; } } : { value: 0 };
+    shared.onBeforeCompile = (shader) => {
+      shader.uniforms.uMergedGlowScale = glowScale;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec2 mergedSurface;\nattribute vec3 mergedGlow;\nvarying vec2 vMergedSurface;\nvarying vec3 vMergedGlow;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMergedSurface = mergedSurface;\nvMergedGlow = mergedGlow;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vMergedSurface;\nvarying vec3 vMergedGlow;\nuniform float uMergedGlowScale;')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor *= vMergedSurface.x;')
+        .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor *= vMergedSurface.y;')
+        // Before the emissive map, which then multiplies it as it did the material's own glow.
+        .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance = vMergedGlow * uMergedGlowScale;\n#include <emissivemap_fragment>');
+    };
+    shared.customProgramCacheKey = () => 'merged-surface';
+    for (const mesh of group) {
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      const geo = mesh.geometry.clone();
+      const n = geo.getAttribute('position').count;
+      const rgb = new Float32Array(n * 3);
+      const surface = new Float32Array(n * 2);
+      const glow = new Float32Array(n * 3);
+      const e = mat.emissiveIntensity;
+      for (let i = 0; i < n; i++) {
+        rgb.set([mat.color.r, mat.color.g, mat.color.b], i * 3);
+        surface.set([mat.roughness, mat.metalness], i * 2);
+        glow.set([mat.emissive.r * e, mat.emissive.g * e, mat.emissive.b * e], i * 3);
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(rgb, 3));
+      geo.setAttribute('mergedSurface', new THREE.BufferAttribute(surface, 2));
+      geo.setAttribute('mergedGlow', new THREE.BufferAttribute(glow, 3));
       mesh.geometry = geo;
       mesh.material = shared;
       moved++;

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { InteriorCtx } from './ctx';
-import { atlasCanvasMaterials, mergeTints, shareTiledTextures } from './materialMerge';
+import { atlasCanvasMaterials, mergeSurfaces, mergeTints, shareTiledTextures, surfaceLooseFields } from './materialMerge';
 import type { Pacer } from '../../core/prepare';
 
 /**
@@ -68,7 +68,9 @@ function materialSignature(mat: THREE.Material): string | null {
     mat.vertexColors, mat.toneMapped, mat.polygonOffset, mat.polygonOffsetFactor, mat.polygonOffsetUnits,
     mat.premultipliedAlpha, mat.visible, mat.colorWrite, mat.forceSinglePass,
     m.color?.getHex(), m.emissive?.getHex(), m.emissiveIntensity, m.roughness, m.metalness, m.flatShading,
-    m.envMapIntensity, m.normalScale?.x, m.normalScale?.y, m.aoMapIntensity, m.clearcoat, m.clearcoatRoughness, m.fog,
+    // Without an env map of its own, a lit material draws with the scene's environmentIntensity and
+    // its own envMapIntensity is never read (three.js WebGLRenderer setProgram).
+    m.envMap ? m.envMapIntensity : null, m.normalScale?.x, m.normalScale?.y, m.aoMapIntensity, m.clearcoat, m.clearcoatRoughness, m.fog,
   ];
   for (const slot of MAP_SLOTS) parts.push((m as unknown as Record<string, THREE.Texture | null>)[slot]?.uuid ?? '-');
   return JSON.stringify(parts);
@@ -117,12 +119,26 @@ function expandInstances(mesh: THREE.InstancedMesh): THREE.BufferGeometry[] {
   return out;
 }
 
+export interface BatchOptions {
+  /**
+   * Whether the renderer draws shadows (not on Performance). Without them a mesh's shadow flags
+   * change nothing on screen, so meshes batch whatever their flags; a batch casts and receives if any
+   * of its parts did, which is what a later switch to a preset with shadows shows.
+   */
+  shadows?: boolean;
+  /** Also merge opaque lit surfaces that differ in colour, roughness, metalness or glow, and atlas
+   * canvases across those differences (materialMerge.ts, mergeSurfaces). Every material changed
+   * after the build must be in ctx.animatedMaterials first: a merged one is replaced. */
+  surfaces?: boolean;
+}
+
 /**
  * With a pacer, the merge yields between batches, for a scene built while another is moving on screen
  * (the Anchorage, during the docking cruise): the Wren's merge is 230-300 ms in one piece on an Intel
  * UHD laptop.
  */
-export async function batchStaticGeometry(ctx: BatchCtx, pacer?: Pacer): Promise<void> {
+export async function batchStaticGeometry(ctx: BatchCtx, pacer?: Pacer, opts: BatchOptions = {}): Promise<void> {
+  const shadows = opts.shadows ?? true;
   // `?nobatch=1` leaves every source mesh as its own scene node, which is what tools/interior-audit
   // .mjs needs: a merged batch's bounding box is the union of every mesh sharing that material, so
   // per-object overlap/containment checks are meaningless against the batched scene.
@@ -144,9 +160,10 @@ export async function batchStaticGeometry(ctx: BatchCtx, pacer?: Pacer): Promise
   const retiled = shareTiledTextures(allMeshes, ctx.animatedMaterials, ctx.noMerge);
   const shared = shareIdenticalMaterials(ctx, [...allMeshes, ...instanced]);
   await pacer?.tick();
-  const atlased = atlasCanvasMaterials(allMeshes, ctx.animatedMaterials, ctx.noMerge);
+  const atlased = atlasCanvasMaterials(allMeshes, ctx.animatedMaterials, ctx.noMerge, opts.surfaces ? surfaceLooseFields : undefined);
   await pacer?.tick();
-  const tinted = mergeTints(allMeshes, ctx.animatedMaterials, ctx.noMerge);
+  const surfaced = opts.surfaces ? mergeSurfaces([...allMeshes, ...instanced], ctx.animatedMaterials, ctx.noMerge, shadows) : 0;
+  const tinted = mergeTints(allMeshes, ctx.animatedMaterials, ctx.noMerge, shadows);
   await pacer?.tick();
 
   // Multiple original meshes can already share one geometry object (a hoisted `const someGeo = new
@@ -159,7 +176,7 @@ export async function batchStaticGeometry(ctx: BatchCtx, pacer?: Pacer): Promise
   }
 
   const groups = new Map<string, THREE.Mesh[]>();
-  const keyOf = (m: THREE.Mesh) => `${(m.material as THREE.Material).uuid}|${m.castShadow}|${m.receiveShadow}|${m.renderOrder}`;
+  const keyOf = (m: THREE.Mesh) => `${(m.material as THREE.Material).uuid}|${shadows ? `${m.castShadow}|${m.receiveShadow}` : ''}|${m.renderOrder}`;
   for (const m of allMeshes) {
     if (ctx.noMerge.has(m)) continue;
     if (Array.isArray(m.material)) continue; // per-face materials need grouped merge ranges; not worth the complexity here
@@ -211,8 +228,8 @@ export async function batchStaticGeometry(ctx: BatchCtx, pacer?: Pacer): Promise
 
     const first = group[0];
     const combined = new THREE.Mesh(result, first.material);
-    combined.castShadow = first.castShadow;
-    combined.receiveShadow = first.receiveShadow;
+    combined.castShadow = group.some((m) => m.castShadow);
+    combined.receiveShadow = group.some((m) => m.receiveShadow);
     combined.renderOrder = first.renderOrder;
     ctx.scene.add(combined);
 
@@ -226,5 +243,5 @@ export async function batchStaticGeometry(ctx: BatchCtx, pacer?: Pacer): Promise
     merged++;
   }
 
-  console.log(`[batchStaticGeometry] ${allMeshes.length} meshes + ${instanced.length} instanced; ${retiled} retiled, ${shared} materials shared, ${atlased} atlased, ${tinted} tint-merged; merged ${removed} into ${merged} batches`);
+  console.log(`[batchStaticGeometry] ${allMeshes.length} meshes + ${instanced.length} instanced; ${retiled} retiled, ${shared} materials shared, ${atlased} atlased, ${surfaced} surface-merged, ${tinted} tint-merged; merged ${removed} into ${merged} batches`);
 }

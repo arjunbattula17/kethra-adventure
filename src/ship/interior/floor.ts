@@ -672,6 +672,8 @@ export function buildFloor(ctx: InteriorCtx): void {
   // set here only has to survive that clamp without pushing the bloom threshold.
   const ledMat = new THREE.MeshStandardMaterial({ color: 0x0e2028, emissive: 0x2f8bad, emissiveIntensity: 0.9, roughness: 0.5, metalness: 0.1 });
   ctx.floorLedMats.push(ledMat);
+  // ShipPower patches this material's shader once the room is batched; it must stay this object.
+  ctx.animatedMaterials.add(ledMat);
   for (const sx of [-1, 1]) {
     const lx = sx * (INSET_HALF_X + 0.42);
     const len = insetD + 0.3;
