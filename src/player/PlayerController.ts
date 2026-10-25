@@ -373,8 +373,11 @@ export class PlayerController {
 
     if (!this.onGround || floorY === null) {
       const fallSpeed = -this.velocityY;
+      // Exact for constant gravity, so a jump rises the tuning file's 1 m and carries its 2.1 m at
+      // 30 fps and at 144 Hz alike. Stepping velocity first (semi-implicit Euler) took 3·dt off the
+      // apex: 0.90 m at the 30 fps the bottom tier holds, 0.95 m at 60.
+      resolved.y = this.rig.position.y + this.velocityY * dt + 0.5 * GRAVITY * dt * dt;
       this.velocityY += GRAVITY * dt;
-      resolved.y = this.rig.position.y + this.velocityY * dt;
       if (this.velocityY > 0) {
         // Rising: the head stops just under anything overhead (a duct roof, a root tunnel). Short of
         // touching it, so the camera, 0.1 m under the head, stays clear of the stone's near side.
