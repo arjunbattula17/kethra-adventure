@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { GameScene } from '../core/Engine';
 import { UIManager } from '../ui/UIManager';
 import { HoldToSkip } from '../ui/HoldToSkip';
-import { motion } from '../motion';
+import { ease, motion } from '../motion';
 import { AudioSystem } from '../audio/AudioSystem';
 import { getSharedEnvironment } from '../core/Environment';
 import { buildShipHull } from './shipHull';
@@ -31,6 +31,8 @@ const LINES: [StringKey, number][] = [
 ];
 const CREDITS_AT = 28;
 
+/** What stops the credits rolling: the player taking over. */
+const STOP_ROLL = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
 const CREDIT_KEYS: StringKey[] = [
   'credits.original',
   'credits.planets',
@@ -64,6 +66,7 @@ export class EndingScene implements GameScene {
   private textLayer!: HTMLDivElement;
   private lineEls: HTMLDivElement[] = [];
   private creditsEl: HTMLDivElement | null = null;
+  private stopRoll: (() => void) | null = null;
   private stopMusic: (() => void) | null = null;
   private finished = false;
   /** Hold to skip straight to the credits (offered after the first second). */
@@ -219,11 +222,37 @@ export class EndingScene implements GameScene {
     this.creditsEl = el;
     AudioSystem.playLevelEnd();
     keep.focus({ preventScroll: true });
+    this.rollCredits(el.querySelector('.credits-inner') as HTMLElement);
+  }
+
+  /**
+   * On a window too short for it all (a 720 px laptop) the credits scroll under the pinned buttons, and
+   * nothing says so. After a pause for the summary they roll up slowly to the last line, the licence
+   * notices among them; any scroll, touch, click or key in the panel stops the roll. Reduced motion
+   * leaves them where they are.
+   */
+  private rollCredits(inner: HTMLElement): void {
+    if (motion.reduced) return;
+    let roll: { cancel(): void } | null = null;
+    const stop = () => {
+      start.cancel();
+      roll?.cancel();
+      for (const type of STOP_ROLL) inner.removeEventListener(type, stop);
+    };
+    const start = motion.ui.after(5, () => {
+      const from = inner.scrollTop;
+      const to = inner.scrollHeight - inner.clientHeight;
+      if (to - from < 4) return;
+      roll = motion.ui.tween({ duration: Math.min(14, Math.max(3, (to - from) / 28)), ease: ease.standard, update: (k) => (inner.scrollTop = from + (to - from) * k) });
+    });
+    for (const type of STOP_ROLL) inner.addEventListener(type, stop, { passive: true });
+    this.stopRoll = stop;
   }
 
   private finish(): void {
     if (this.finished) return;
     this.finished = true;
+    this.stopRoll?.();
     this.creditsEl?.classList.remove('visible');
     UIManager.showLetterbox(false);
     this.onDone?.();
