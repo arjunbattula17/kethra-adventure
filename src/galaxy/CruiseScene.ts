@@ -36,6 +36,8 @@ export interface CruiseOptions {
   /** Trip length in days, from GameState.course; shown by the day counter and captions. */
   days: number;
   cells: number;
+  /** The level's number and one line, set with the arrival title: TSA names each level on arrival. */
+  arrival?: { number: number; line: string };
 }
 
 /** Start time of each beat, in seconds from the start of the cruise. */
@@ -245,6 +247,8 @@ export class CruiseScene implements GameScene {
     this.dayEl.className = 'cruise-days';
     this.titleEl = document.createElement('div');
     this.titleEl.className = 'cruise-title';
+    // The level's number above the name and its line under it, so no card repeats the name after.
+    for (const part of ['eyebrow', 'name', 'line']) this.titleEl.appendChild(Object.assign(document.createElement('div'), { className: `cruise-title-${part}` }));
     root.append(this.dayEl, this.titleEl);
 
     // From the viewport back along the hull to the stern, in ship-relative coordinates.
@@ -302,7 +306,15 @@ export class CruiseScene implements GameScene {
     const vessek = this.opts.destination === 'vessek';
     this.titleEl.classList.add('visible');
     this.titleEl.classList.toggle('vessek', vessek);
-    playKineticTitle(this.titleEl, title, vessek ? 'rgba(232, 199, 154, 0.9)' : 'rgba(92, 209, 176, 0.95)');
+    const [eyebrow, name, line] = [...this.titleEl.children] as HTMLElement[];
+    playKineticTitle(name, title, vessek ? 'rgba(232, 199, 154, 0.9)' : 'rgba(92, 209, 176, 0.95)');
+    if (this.opts.arrival) {
+      eyebrow.textContent = t('cruise.title.level', { n: String(this.opts.arrival.number) });
+      line.textContent = this.opts.arrival.line;
+      // The number leads the name in; the line follows once the last letter has landed.
+      motion.ui.animate(eyebrow, [{ opacity: 0, transform: 'translateY(-0.3em)' }, { opacity: 1, transform: 'none' }], { dur: 'small', fill: 'backwards' });
+      motion.ui.animate(line, [{ opacity: 0 }, { opacity: 1 }], { dur: 'medium', delay: 0.7, fill: 'backwards' });
+    }
     motion.conductor.duck(3);
     AudioSystem.playLevelStart();
     // Hold on the title until the destination level is built.

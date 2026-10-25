@@ -90,7 +90,9 @@ live title, a timed human playthrough, and real hardware.
   - [x] A chapter select on the title and after the credits: any level from the player's own arrival, or from a stand-in with a first playthrough's skills (src/core/chapters.ts, src/ui/ChapterSelect.ts)
   - [x] The intro respects reduced motion (issue 10)
   - [ ] The live 3D title with a match cut into the intro (issue 37)
-  - [ ] Menus, pause and settings re-checked against the plate kit; the arrival card's redesign (issue 25)
+  - [x] The arrival card's redesign (issue 25): folded into the arrival title (2026-10-24)
+  - [x] The live 3D title: built on the remote (D-37); black on High until 69463fc
+  - [ ] Menus, pause and settings re-checked against the plate kit
 - [~] **M7 Whole-game pass and art pass** (2026-10-13; the pass is done, the full screenshot matrix is not)
   - [x] The survey: 4 finds aboard the Wren, 8 on Kethra, 6 at the Anchorage (src/content/discoveries.ts)
   - [x] Every suite on the final build, and six bugs on the player's path fixed (QA log)
@@ -124,7 +126,7 @@ live title, a timed human playthrough, and real hardware.
 | 22 | P2 | Arriving on Kethra with a cold shader cache stalls one frame for 9.8 s (Low, 1×; M3 7.9 s): the first render waits on the driver to link ~160 programs (`getProgramParameter`), though `compileAsync` ran first. Kethra's `init` is no longer the problem: split into tasks, it is 0.4 s. Under the cruise and MG2 this lands on the handover to Kethra | Engine.prepareScene/setScene, every scene | M7: find why the prepared programs aren't ready (the parallel-compile extension, or keys that differ at the first draw), warm them across frames under the held shots, and cut the program count (the kit's variants, per-terrace materials) |
 | 23 | ~~P3~~ | **Fixed (M3, M5)**: MG2 takes over Kethra's arrival; Vessek's cruise docks at the Anchorage | CruiseScene, anchorage.ts | |
 | 24 | ~~P3~~ | **Fixed (5fefe8a)**: the cruise uses the title's planet with a faint night glow and a lit crescent (D-39). Was: Kethra's night side reads strong rather than "faint" (DESIGN §5, beat 4): the night map's bioluminescence is bright | planetShader night term | |
-| 25 | P3 | After the cruise the arrival card repeats the planet's name the kinetic title just gave | GameFlow.cruiseTo | M6 (the card's redesign) |
+| 25 | ~~P3~~ | **Fixed (M6)**: the arrival title carries the level's number and line; no card repeats it, except after MG2, where a whole game separates them. Was: After the cruise the arrival card repeats the planet's name the kinetic title just gave | GameFlow.cruiseTo | |
 | 26 | ~~P3~~ | **Fixed (b7547d3)**: faceted leaf clumps, the moon, bark (D-39). Was: MG2's foliage reads as stylized blobs where it's lit; the limbs are plain tapered cylinders | canopy/CanopyScene.ts | |
 | 27 | P3 | A naive autopilot steering straight at each gap scraped 11 times in one descent (132 s): the short limbs hugging each gap leave about 2 m of margin | canopy/layout.ts | Playtest; widen the hugging ring if players find it punishing |
 | 28 | ~~P2~~ | **Fixed (3a23313, 2026-10-24, journey 16/16)**: 122 on Low and 253 on High, inside both budgets (D-31). Was: Kethra on Low is over budget: 229 draw calls against 160 (baseline 155). Toggled one at a time: the kit's instanced foliage and scatter are 69 calls, the chamber 11, the canopy 4; the other 145 aren't broken down yet | KethraScene | M7: break the rest down by object, then merge static props per material (as the Wren's batchStaticGeometry does) |

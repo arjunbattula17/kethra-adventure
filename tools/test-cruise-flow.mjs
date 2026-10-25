@@ -49,7 +49,9 @@ check('First light is recorded', await page.evaluate(() => window.__DEBUG__.game
 check('the day counter shows during the transit', await until(() => /^Day \d+$/.test(document.querySelector('.cruise-days.visible')?.textContent ?? ''), 40000));
 await page.waitForSelector('.hold-skip', { timeout: 10000 });
 await holdSpace(1100);
-check('holding to skip lands on the arrival title', await until(() => document.querySelector('.cruise-title.visible')?.getAttribute('aria-label') === 'Kethra', 5000));
+check('holding to skip lands on the arrival title', await until(() => document.querySelector('.cruise-title.visible .cruise-title-name')?.getAttribute('aria-label') === 'Kethra', 5000));
+// TSA names each level on arrival: the title carries its number and line (issue 25).
+check('the arrival title names Level 2', (await page.textContent('.cruise-title .cruise-title-eyebrow').catch(() => '')) === 'Level 2');
 // The canopy descent itself is flown by tools/test-mg2-flow.mjs.
 check('the first arrival hands the skiff to the player: MG2 begins', await until(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'CanopyScene' && window.__DEBUG__.engine.getCurrentScene().state().phase === 'fly', 120000));
 await page.evaluate(() => window.__DEBUG__.miniGame()?.win());

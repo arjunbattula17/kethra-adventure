@@ -714,7 +714,7 @@ export class GameFlow {
     // used to borrow Kethra's six days, so ORION announced six for a trip the map gives as 10.4.
     const course = gameState.data.course;
     const trip = planetId === 'kethra' && course ? course : chartTrip(planetId);
-    const cruise = new CruiseScene({ destination: planetId === 'vessek' ? 'vessek' : 'kethra', days: trip.days, cells: trip.cells });
+    const cruise = new CruiseScene({ destination: planetId === 'vessek' ? 'vessek' : 'kethra', days: trip.days, cells: trip.cells, arrival: LEVELS[planetId] });
     // Prepared while the ship is still on screen (First light, the departure): paced to stay inside
     // its frames, as the Wren is behind the intro.
     const cruiseReady = this.engine.prepareScene(cruise, { pacer: this.engine.newPacer(PACE.playing) });
@@ -784,8 +784,12 @@ export class GameFlow {
     // The departure hid it (takeTheHelm); the level is first person again.
     UIManager.setCrosshairVisible(true);
     await UIManager.fadeFromBlack();
-    const card = LEVELS[planetId];
-    UIManager.showChapterCard({ eyebrow: `Level ${card.number}`, title: card.title, lines: [card.line] });
+    // The arrival title gave the level's number, name and line moments ago. After MG2 a whole game
+    // has passed since, so Kethra's first arrival names the level again as it begins.
+    if (canopy) {
+      const card = LEVELS[planetId];
+      UIManager.showChapterCard({ eyebrow: `Level ${card.number}`, title: card.title, lines: [card.line] });
+    }
     SaveSystem.save();
   }
 

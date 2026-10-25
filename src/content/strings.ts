@@ -78,6 +78,7 @@ export const STRINGS = {
   'cruise.orion.day3': 'ORION: Day three. Nothing to report. That’s the good kind.',
   'cruise.day': 'Day {day}',
   'cruise.title.vessek': 'Vessek Anchorage',
+  'cruise.title.level': 'Level {n}',
 
   // MG1 Intercept (src/galaxy/intercept).
   'mg1.eyebrow': 'Plot a course',

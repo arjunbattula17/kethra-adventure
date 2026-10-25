@@ -1734,7 +1734,7 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
   position: absolute;
   /* Low in the frame, inside the letterbox: the chase camera frames the skiff, and the docking shot
      the Wren, above it. */
-  top: 74vh;
+  top: 64vh;
   left: 0;
   right: 0;
   text-align: center;
@@ -1746,6 +1746,15 @@ body.ending-open #ui-root > :not(.panel-overlay):not(.intro-text):not(.letterbox
   z-index: 21;
 }
 .cruise-title.visible { opacity: 1; }
+.cruise-title-eyebrow,
+.cruise-title-line {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: calc(18px * var(--text-scale));
+  color: var(--ink-dim);
+}
+.cruise-title-eyebrow { margin-bottom: 4px; }
+.cruise-title-line { margin-top: 6px; }
 .cruise-title.vessek { color: var(--tungsten); }
 
 /* Canopy minigame panel (src/planets/kethra/canopy), top right; the hull is shown as three pips. */

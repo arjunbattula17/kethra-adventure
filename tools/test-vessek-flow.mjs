@@ -69,8 +69,10 @@ await page.waitForSelector('.hold-skip', { timeout: 60000 });
 await page.keyboard.down('Space');
 await page.waitForTimeout(1100);
 await page.keyboard.up('Space');
-const title = await page.waitForFunction(() => document.querySelector('.cruise-title.visible')?.getAttribute('aria-label'), null, { timeout: 5000, polling: 100 }).then((h) => h.jsonValue(), () => null);
+const title = await page.waitForFunction(() => document.querySelector('.cruise-title.visible .cruise-title-name')?.getAttribute('aria-label'), null, { timeout: 5000, polling: 100 }).then((h) => h.jsonValue(), () => null);
 check('the cruise arrives under the title "Vessek Anchorage"', title === 'Vessek Anchorage', String(title));
+// TSA names each level on arrival: the title carries its number and line (issue 25).
+check('the arrival title names Level 3', (await page.textContent('.cruise-title .cruise-title-eyebrow').catch(() => '')) === 'Level 3');
 const docked = await page.waitForFunction(() => {
   const s = window.__DEBUG__.engine.getCurrentScene();
   return s?.kind !== 'CruiseScene' ? 'cut' : s.shipPos.distanceTo(s.berth) < 0.01 ? 'docked' : null;
@@ -79,7 +81,8 @@ check('and the Wren comes to rest at her berth before the cut', docked === 'dock
 await page.waitForFunction(() => window.__DEBUG__.engine.getCurrentScene()?.kind === 'VessekScene' && !window.__DEBUG__.flow.isTransitioning(), null, { timeout: 240000, polling: 250 });
 await page.waitForTimeout(2500);
 check('Set Course lands at the Anchorage', (await kind()) === 'VessekScene');
-check('arrival card names level 3', (await page.textContent('.chapter-card').catch(() => ''))?.includes('Level 3'));
+// One title per arrival (issue 25): no card repeats the name the arrival title just gave.
+check('no arrival card repeats the title', !(await page.$('.chapter-card.visible')));
 
 // 2. Varro's deal, which sends you to the aft junction.
 await teleport(-2.6, 0.2, 0.2, 0);
