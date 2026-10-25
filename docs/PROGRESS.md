@@ -447,6 +447,10 @@ depend on the throttle). Both branches merged and D-31 re-applied (3a23313).
 | Vessek | 162 / 173k (180 / 200k) | 346 / 362k (400 / 400k) |
 
 - **Over:** the Wren's calls on High; triangles in Kethra and the Hush view on Low, and the Hush view on High.
+- **Later the same day:** MG2 (the canopy) 34 / 198k on Low and 44 / 198k on High, inside both budgets
+  for the first time (b7547d3). The Vessek vent surrounds (0f310bd) took Vessek to **166 / 177k** on Low
+  and **360 / 375k** on High, inside both; that commit's message says its draw calls were unchanged,
+  which was wrong (+4 Low, +14 High: High draws each mesh again for shadows and ambient occlusion).
 - The Wren on Low went from 246 to 123: the remote's fewer lights and merged instances (D-33) with D-31's shared tiled textures.
 
 ### Release pass, Phase 2 (2026-10-13)
