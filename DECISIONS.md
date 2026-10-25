@@ -526,3 +526,26 @@ checks the body and the camera against every visible triangle. What it found, no
 - **Two grime decals on the Wren's console** still sat where the old, smaller room had its desk,
   and hung in the air 1.2 m in front of it.
 Covered by `tools/test-controls.mjs` (22 checks) and the sweep.
+
+### D-39 · UPGRADE · The whole-game art pass: the weakest scenes first — *Done 2026-10-24, reversible*
+A capture of the whole journey on the real GPU (`tools/capture-journey.mjs`, 62 shots) was ranked by
+visual quality and the weakest brought up, one at a time, each looked at before and after:
+- **The title was black on High** (a P1 found by the capture, not by any test): the ship's plumes and
+  the shooting stars wrote NaN pixels under 4x MSAA and the bloom spread them (69463fc).
+  `tools/nan-scan.mjs` now checks every scene.
+- **MG2's canopy** (b7547d3): broad faceted leaves instead of soft blobs, Kethra's cold moon above,
+  bark on the boughs, amber running lights on the skiff. Gameplay unchanged. Revert: the commit.
+- **The cruise into Kethra** (5fefe8a): the title's planet (`heroPlanet`) replaces the cruise's
+  Kethra, lit from the side for a crescent and terminator; the living lights below read; the arrival
+  title is the design's 88 px, low in the frame, in each world's light. **A team call:** the title and
+  the cruise now show the same Kethra; reverting to the old cruise planet is the commit's
+  `CruiseScene.ts` hunk.
+- **First light** (2fb3c42): the view leans over the throttle; its rim is a ring round the grip.
+- **The Hush lantern** (a976a27): matcap brass instead of flat colour.
+- **Back aboard after MG1** (cad35c0): the Wren builds under the win; no loading screen.
+- **Not changed, on purpose:** the return trip from a planet still shows the loading screen. Building
+  the Wren while the planet is resident would hold both levels' textures for several seconds, which
+  the 8 GB school laptop is the wrong machine to risk. MG1's charter is left as the team redesigned
+  it (DESIGN §4, 2026-09-28 and 29): height is deliberately never the player's problem, so it does not
+  pass the brief's "could this be 2D?" test; the original 3D concept (1A) is the way back if the team
+  wants it.
