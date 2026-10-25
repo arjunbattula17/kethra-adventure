@@ -147,6 +147,9 @@ export function preloadNatureKit(names: string[]): Promise<void> {
   return Promise.all(names.map(loadTemplate)).then(() => undefined);
 }
 
+/** Triangles above which a merged group is split by region (mergeKit's `regionOf`). */
+const SPLIT_TRIANGLES = 8000;
+
 /** How a geometry's vertex data is stored: only geometries that agree on this can be merged. */
 function layoutOf(geometry: THREE.BufferGeometry): string {
   const attributes = Object.entries(geometry.attributes).map(([name, a]) => `${name}:${a.itemSize}:${a.array.constructor.name}:${a.normalized}`);
@@ -161,7 +164,7 @@ function layoutOf(geometry: THREE.BufferGeometry): string {
  * of their group (the kit stores vertex colour in more than one format). The price is memory: a placement now owns a copy of its vertices, where
  * instances shared one. Call it once nothing reads the placements any more (the colliders do).
  */
-export function mergeKit(scene: THREE.Scene, meshes: THREE.InstancedMesh[], drawsAs: (mesh: THREE.InstancedMesh) => string): void {
+export function mergeKit(scene: THREE.Scene, meshes: THREE.InstancedMesh[], drawsAs: (mesh: THREE.InstancedMesh) => string, regionOf?: (x: number, z: number) => string): void {
   const groups = new Map<string, THREE.InstancedMesh[]>();
   for (const mesh of meshes) {
     // Solid pieces (boulders) merge only with solid ones, so what is merged stays solid or ground cover.
@@ -172,24 +175,42 @@ export function mergeKit(scene: THREE.Scene, meshes: THREE.InstancedMesh[], draw
   }
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    const parts: THREE.BufferGeometry[] = [];
+    const parts: { geometry: THREE.BufferGeometry; x: number; z: number }[] = [];
+    let triangles = 0;
     for (const mesh of group) {
       mesh.updateWorldMatrix(true, false);
       for (let i = 0; i < mesh.count; i++) {
         mesh.getMatrixAt(i, tmpMatrix);
-        parts.push(mesh.geometry.clone().applyMatrix4(tmpMatrix.premultiply(mesh.matrixWorld)));
+        tmpMatrix.premultiply(mesh.matrixWorld);
+        const geometry = mesh.geometry.clone().applyMatrix4(tmpMatrix);
+        triangles += (geometry.index ? geometry.index.count : geometry.attributes.position.count) / 3;
+        parts.push({ geometry, x: tmpMatrix.elements[12], z: tmpMatrix.elements[14] });
       }
     }
-    const geometry = mergeGeometries(parts, false);
-    for (const part of parts) part.dispose();
-    if (!geometry) continue;
+    // A big group is merged once per region of the level, so the camera can cull the regions behind
+    // it: merged whole, the trees out in every belt were drawn from anywhere.
+    const regions = new Map<string, THREE.BufferGeometry[]>();
+    for (const p of parts) {
+      const region = regionOf && triangles > SPLIT_TRIANGLES ? regionOf(p.x, p.z) : '';
+      const list = regions.get(region);
+      if (list) list.push(p.geometry);
+      else regions.set(region, [p.geometry]);
+    }
+    const merged = [...regions.values()].map((list) => mergeGeometries(list, false));
+    for (const p of parts) p.geometry.dispose();
+    if (merged.some((g) => !g)) {
+      for (const g of merged) g?.dispose();
+      continue;
+    }
     const [first, ...rest] = group;
-    const merged = new THREE.Mesh(geometry, first.material);
-    merged.castShadow = first.castShadow;
-    merged.receiveShadow = first.receiveShadow;
-    merged.userData.kit = true;
-    merged.userData.collides = first.userData.collides === true;
-    scene.add(merged);
+    for (const geometry of merged as THREE.BufferGeometry[]) {
+      const mesh = new THREE.Mesh(geometry, first.material);
+      mesh.castShadow = first.castShadow;
+      mesh.receiveShadow = first.receiveShadow;
+      mesh.userData.kit = true;
+      mesh.userData.collides = first.userData.collides === true;
+      scene.add(mesh);
+    }
     for (const mesh of group) {
       scene.remove(mesh);
       mesh.dispose();

@@ -537,7 +537,12 @@ export class KethraScene implements GameScene {
       await nextTask();
     }
 
-    const fillers = generateFillerTrees();
+    // Every belt tree is placed, so the grove's random sequence (which places everything after them)
+    // is the same on every tier; Low keeps every other one. The belts stand far out in the water, in
+    // the fog, and the kit's bark was most of the level's triangles: Kethra on Low was 349k against
+    // its 320k budget.
+    const low = getActiveEngine()?.getQualityTier() === 'low';
+    const fillers = generateFillerTrees().filter((_, i) => !low || i % 2 === 0);
     // The terraces' rock and metal maps (applyPbr, above) with the kit, so they are in hand for the
     // engine's warm-up frame behind the loading cover.
     await Promise.all([this.buildFoliage(fillers), this.buildGroundCover(), this.buildClutter(), this.buildDressing(fillers), pbrTexturesReady()]);
@@ -549,10 +554,16 @@ export class KethraScene implements GameScene {
     // The colliders read the boulders' placements from their instanced meshes, so the kit is only
     // merged now. Meshes draw alike when their material came from the same kit material and was
     // tinted the same way.
-    mergeKit(this.scene, this.kit, (mesh) => {
-      const mat = mesh.material as THREE.MeshStandardMaterial;
-      return [mat.name, mat.vertexColors, mat.color.getHex(), mat.emissive.getHex(), mat.emissiveIntensity, mesh.castShadow].join('|');
-    });
+    mergeKit(
+      this.scene,
+      this.kit,
+      (mesh) => {
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        return [mat.name, mat.vertexColors, mat.color.getHex(), mat.emissive.getHex(), mat.emissiveIntensity, mesh.castShadow].join('|');
+      },
+      // The four belts out in the water (generateFillerTrees) and everything within them.
+      (x, z) => (z > 22 ? 'north' : z < -36 ? 'south' : x < -24 ? 'west' : x > 24 ? 'east' : 'middle'),
+    );
     this.kit = [];
     this.player.teleport(SPAWN, 0);
     // Terrace edges are unguarded and there is no way back up from the water, so a fall respawns
