@@ -473,12 +473,14 @@ export class CruiseScene implements GameScene {
       this.sweepPath.targetAt(k, this.look).add(S);
       cam.lookAt(this.look);
     } else if (this.skiff) {
-      // Follow the skiff from behind and above as it descends.
-      const k = smooth(BEAT.entry + 2, BEAT.handoff + 2, time);
+      // Follow the skiff from behind and above as it descends, settling on MG2's opening framing
+      // (CanopyScene.placeCamera: 8.5 m back, 5.5 m up, looking 6 m ahead and 7 m down, 58°), so the
+      // skiff holds its place on screen across the handover: a match cut, not a jump.
+      const k = smooth(BEAT.entry + 2, BEAT.handoff, time);
       const sk = this.skiff.group.position;
-      cam.position.copy(sk).add(new THREE.Vector3(THREE.MathUtils.lerp(-7, -9, k), THREE.MathUtils.lerp(3, 4.5, k), 1.5));
-      cam.lookAt(this.look.copy(sk).add(new THREE.Vector3(8, -4 - k * 6, 0)));
-      this.setFov(52);
+      cam.position.copy(sk).add(_follow.set(THREE.MathUtils.lerp(-7, -8.5, k), THREE.MathUtils.lerp(3, 5.5, k), THREE.MathUtils.lerp(1.5, 0, k)));
+      cam.lookAt(this.look.copy(sk).add(_followLook.set(THREE.MathUtils.lerp(8, 6, k), THREE.MathUtils.lerp(-4, -7, k), 0)));
+      this.setFov(THREE.MathUtils.lerp(52, 58, k));
     } else if (this.anchorage) {
       // Docking camera behind and above the ship, settling on the berth; reduced motion holds the
       // start position.
@@ -521,6 +523,8 @@ const SUN_DIR = new THREE.Vector3(-0.85, 0.25, -0.45).normalize();
 const _sunDir = new THREE.Vector3();
 const _behind = new THREE.Vector3();
 const _side = new THREE.Vector3();
+const _follow = new THREE.Vector3();
+const _followLook = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
 const _planetOffset = new THREE.Vector3(520, -40, 30);
 const _space = new THREE.Color(0x02030a);
