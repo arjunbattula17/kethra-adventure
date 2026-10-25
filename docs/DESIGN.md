@@ -164,6 +164,12 @@ In the current build, and what replaces them:
 - Letterbox bars: the shared element that says "hands off", and they retract when control returns.
 - Camera shake: only with an impact behind it.
 
+**Defaults the title brought back** (2026-10-25, recorded, not justified here): the live title the
+team built from its reference images (DECISIONS D-37) uses tracked all-caps micro-labels (the kicker
+and the corner labels), an arrow on the selected button, "//" separators, and a blue-and-cyan palette
+of its own instead of the world's amber. D-37 records these as the team's choice, each reversible
+there. Everywhere else the audit above holds.
+
 ---
 
 ## 3 · The motion system
