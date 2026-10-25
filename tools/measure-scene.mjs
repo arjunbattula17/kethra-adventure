@@ -8,6 +8,8 @@
 // `hush` is Kethra from just inside the Heart's chamber door, looking in.
 // `dock` is the cruise to Vessek at its last shot, docked at the Anchorage.
 // `cruise` is the cruise to Kethra in mid-transit; `canopy` is MG2 as the skiff starts its descent.
+// --settled samples after the engine's background work on arrival has finished (the lighting upgrade,
+// Engine.upgradeQuickLights: 15-35 s on Low on an Intel UHD laptop) instead of 4 s in, during it.
 import { chromium } from 'playwright';
 
 const args = process.argv.slice(2);
@@ -15,6 +17,7 @@ const opt = (name, d) => args.find((a) => a.startsWith(`--${name}=`))?.split('='
 const [SCENE = 'ship', BASE = 'http://localhost:4180/kethra-adventure/'] = args.filter((a) => !a.startsWith('--'));
 const TIER = opt('tier', 'low');
 const CPU = Number(opt('cpu', 1));
+const SETTLED = args.includes('--settled');
 const SCENES = {
   ship: ['?newGame=1&skipIntro=1', 'ShipInteriorScene'],
   kethra: ['?newGame=1&skipIntro=1&unlockKethra=1&jump=kethra', 'KethraScene'],
@@ -40,6 +43,15 @@ if (CPU > 1) await (await page.context().newCDPSession(page)).send('Emulation.se
 await page.goto(`${BASE}${query}&tier=${TIER}&seed=7`, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction((k) => window.__DEBUG__?.engine.getCurrentScene()?.kind === k, kind, { timeout: 240000, polling: 250 });
 await page.waitForTimeout(4000);
+let settledAfter = null;
+if (SETTLED) {
+  const t0 = Date.now();
+  // The upgrade starts after a grace period and counts itself in `preparing` while it runs.
+  await page.waitForTimeout(2000);
+  await page.waitForFunction(() => window.__DEBUG__.engine.preparing === 0, null, { timeout: 600000, polling: 500 });
+  await page.waitForTimeout(1000);
+  settledAfter = Math.round((Date.now() - t0 + 4000) / 1000);
+}
 if (pose) {
   await page.evaluate((p) => {
     const s = window.__DEBUG__.engine.getCurrentScene();
@@ -85,15 +97,21 @@ const r = await page.evaluate(async () => {
   const info = engine.renderer.info;
   info.autoReset = false;
   info.reset();
+  // Per frame drawn, not per animation frame: a capped engine (Low holds 30 fps during the lighting
+  // upgrade, and the governor can cap a struggling scene) draws on every other one, which halved the
+  // averages. Frame time is likewise the interval between frames drawn.
   let calls = 0;
   let tris = 0;
+  let drawn = 0;
   const deltas = [];
-  let last = performance.now();
-  for (let f = 0; f < 120; f++) {
+  let last = null;
+  for (let f = 0; f < 240 && drawn < 120; f++) {
     await new Promise((res) => requestAnimationFrame(res));
+    if (info.render.calls === 0) continue;
     const now = performance.now();
-    deltas.push(now - last);
+    if (last !== null) deltas.push(now - last);
     last = now;
+    drawn++;
     calls += info.render.calls;
     tris += info.render.triangles;
     info.reset();
@@ -101,15 +119,16 @@ const r = await page.evaluate(async () => {
   info.autoReset = true;
   deltas.sort((a, b) => a - b);
   return {
-    calls: Math.round(calls / 120),
-    tris: Math.round(tris / 120),
-    p50: +deltas[60].toFixed(1),
-    p95: +deltas[114].toFixed(1),
+    calls: Math.round(calls / drawn),
+    tris: Math.round(tris / drawn),
+    p50: +deltas[Math.floor(deltas.length * 0.5)].toFixed(1),
+    p95: +deltas[Math.floor(deltas.length * 0.95)].toFixed(1),
+    capped: window.__DEBUG__.engine.getPacingState().capped,
     textures: info.memory.textures,
     geometries: info.memory.geometries,
     programs: info.programs?.length ?? null,
   };
 });
-console.log(`${SCENE} tier=${TIER} cpu=${CPU}x: ${r.calls} calls, ${(r.tris / 1000).toFixed(0)}k tris, p50 ${r.p50} / p95 ${r.p95} ms, ${r.textures} textures, ${r.geometries} geometries, ${r.programs} programs`);
+console.log(`${SCENE} tier=${TIER} cpu=${CPU}x${SETTLED ? ` settled@${settledAfter}s` : ''}: ${r.calls} calls, ${(r.tris / 1000).toFixed(0)}k tris, p50 ${r.p50} / p95 ${r.p95} ms${r.capped ? ' (capped at 30 fps)' : ''}, ${r.textures} textures, ${r.geometries} geometries, ${r.programs} programs`);
 for (const l of logs.filter((l) => /batch|error|warn/i.test(l)).slice(0, 12)) console.log('  ', l);
 await browser.close();

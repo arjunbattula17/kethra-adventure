@@ -1,5 +1,6 @@
 // Yaw sweep of the ship interior from a few standing positions, at the player's real eye height.
 // Usage: node tools/capture-room-sweep.mjs <outDir>
+//   BASE_URL=... TIER=low|high (default: the start-up guess) POWER=emergency|navigation|full (default: the save's)
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
@@ -24,7 +25,7 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
-await page.goto(baseUrl + '?skipIntro=1&newGame=1', { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.goto(baseUrl + '?skipIntro=1&newGame=1' + (process.env.TIER ? `&tier=${process.env.TIER}` : ''), { waitUntil: 'domcontentloaded', timeout: 30000 });
 await page.waitForFunction(() => !!window.__DEBUG__?.gameState, undefined, { timeout: 90000 });
 await page.waitForFunction(() => {
   const s = window.__DEBUG__.engine.getCurrentScene?.();
@@ -32,10 +33,11 @@ await page.waitForFunction(() => {
 }, undefined, { timeout: 90000 });
 await page.waitForTimeout(3500);
 await page.addStyleTag({ content: `body > *:not(#app){display:none!important}#app > *:not(canvas){display:none!important}` });
-const setupErr = await page.evaluate(() => {
+const setupErr = await page.evaluate((power) => {
   try {
   const s = window.__DEBUG__?.engine.getCurrentScene();
   s.player.enabled = false;
+  if (power) s.power.apply(power);
   // Pin the animation clock. Engine.start()'s loop drives every scene animation from
   // clock.getDelta()/getElapsedTime(), so without this each screenshot lands at whatever elapsed
   // time it happened to reach and pulsing lights, scrolling screens and the flicker pane all sit at
@@ -55,7 +57,7 @@ const setupErr = await page.evaluate(() => {
   };
   return null;
   } catch (e) { return String(e && e.stack || e); }
-});
+}, process.env.POWER ?? null);
 if (setupErr) { console.log('SETUP FAILED:', setupErr); process.exit(1); }
 
 for (const [label, x, z] of SPOTS) {
