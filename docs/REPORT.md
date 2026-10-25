@@ -12,7 +12,7 @@ from the title to the ending with no console errors on any tier; every suite pas
 build; every scene is inside its Low draw-call and triangle budgets; the Low frame target is met once
 a level has settled. Two things are not at the bar and are said plainly below: texture memory is over
 budget in two scenes (issue 49), and the first mini-game does not pass the brief's "could this be
-2D?" test, by the team's redesign. Nothing has been pushed: `overhaul` is 84 commits ahead of
+2D?" test, by the team's redesign. Nothing has been pushed: `overhaul` is 86 commits ahead of
 `origin/overhaul` and none behind (fetched 2026-10-25).
 
 Judgements here (quality, "feels") are [opinion]; every figure names where it was measured.
