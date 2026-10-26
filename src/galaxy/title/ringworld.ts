@@ -115,7 +115,7 @@ const SURFACE_FRAGMENT = /* glsl */ `
     // the limb (the sun is behind, so it comes through the atmosphere toward us).
     vec3 sunPerp = normalize(uSunDir - V * dot(uSunDir, V));
     float side = smoothstep(-0.3, 0.9, dot(n, sunPerp));
-    float limb = 1.0 - max(dot(n, V), 0.0);
+    float limb = 1.0 - clamp(dot(n, V), 0.0, 1.0);
     col += vec3(1.0, 0.5, 0.2) * side * (0.025 + 0.14 * pow(limb, 3.0)) * (0.7 + 0.6 * haze);
     // Night: just enough for the disc to keep its shape against space.
     col += albedo * vec3(0.02, 0.035, 0.05) * (1.0 - lit);

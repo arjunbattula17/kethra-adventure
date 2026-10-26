@@ -146,7 +146,7 @@ const SURFACE_FRAGMENT = /* glsl */ `
     ground *= 1.0 - shade * (1.0 - cloud) * 0.6;
     // Sun glint on open water.
     vec3 H = normalize(uSunDir + V);
-    float fres = 0.02 + 0.98 * pow(1.0 - max(dot(nGeo, V), 0.0), 5.0);
+    float fres = 0.02 + 0.98 * pow(1.0 - clamp(dot(nGeo, V), 0.0, 1.0), 5.0);
     float nh = max(dot(nGeo, H), 0.0);
     float glint = (pow(nh, 900.0) * 2.2 + pow(nh, 90.0) * 0.12) * (0.6 + 2.0 * fres);
     ground += uSunColor * twilight * glint * water * day * (1.0 - cloud);

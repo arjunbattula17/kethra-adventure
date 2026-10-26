@@ -451,14 +451,14 @@ const FRAGMENT = /* glsl */ `
     float diff = max((ndl + wrap) / (1.0 + wrap), 0.0);
     float shininess = mix(220.0, 8.0, rough);
     float spec = pow(max(dot(n, H), 0.0), shininess) * (shininess + 8.0) / 25.0 * step(0.0, ndl);
-    float fres = pow(1.0 - max(dot(n, V), 0.0), 5.0);
+    float fres = pow(1.0 - clamp(dot(n, V), 0.0, 1.0), 5.0);
     vec3 f0 = mix(vec3(0.04), albedo, metal);
     vec3 F = f0 + (1.0 - f0) * fres * (1.0 - rough * 0.7);
 
     vec3 col = albedo * (1.0 - metal) * (uKeyColor * diff + uFill * (0.4 + 0.6 * max(dot(n, V), 0.0)) + uBounceColor * max(dot(n, uBounceDir), 0.0)) * ao;
     col += uKeyColor * spec * F * (1.0 - rough * 0.6);
     // The planet's side: a cool rim along the edges turned toward it.
-    float rim = pow(1.0 - max(dot(n, V), 0.0), 2.2) * max(dot(n, uRimDir) + 0.25, 0.0);
+    float rim = pow(1.0 - clamp(dot(n, V), 0.0, 1.0), 2.2) * max(dot(n, uRimDir) + 0.25, 0.0);
     col += uRimColor * rim * (kind < 0.5 ? 0.5 : 0.9) * ao;
     // Reflections of the sky, dimmed by roughness.
     vec3 R = reflect(-V, n);
@@ -466,7 +466,7 @@ const FRAGMENT = /* glsl */ `
 
     if (kind > 1.5 && kind < 2.5) {
       // The visor: dark gold glass, a mirror of the sky and a sharp highlight of the key.
-      float vf = 0.35 + 0.65 * pow(1.0 - max(dot(n, V), 0.0), 3.0);
+      float vf = 0.35 + 0.65 * pow(1.0 - clamp(dot(n, V), 0.0, 1.0), 3.0);
       vec3 gold = vec3(1.0, 0.78, 0.42);
       col = albedo * 0.02 + sky(R) * gold * vf + uKeyColor * gold * pow(max(dot(n, H), 0.0), 900.0) * 2.5;
       col += uRimColor * rim * 0.6;

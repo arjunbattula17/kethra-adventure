@@ -231,7 +231,7 @@ const FRAGMENT = /* glsl */ `
     float ndl = dot(n, uSunDir);
     float key = max(ndl * 0.9 + 0.1, 0.0) * cavity;
     // The seen sun is behind most rocks: their edges toward it catch a hard, warm rim.
-    float facing = max(dot(n, V), 0.0);
+    float facing = clamp(dot(n, V), 0.0, 1.0);
     float rim = pow(1.0 - facing, 2.4) * max(dot(n, uRimDir) + 0.35, 0.0);
     float bounce = max(dot(n, uBounceDir), 0.0) * cavity;
     // With the sun behind them their faces would be black; the glow of the sky and the limb in front

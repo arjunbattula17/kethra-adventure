@@ -1998,7 +1998,7 @@ const HULL_FRAGMENT = /* glsl */ `
       vec3 hn = normalize(oc + r * (-b - sqrt(disc)));
       float lit = smoothstep(-0.2, 0.45, dot(hn, uPlanetLight));
       col = mix(vec3(0.004, 0.012, 0.018), vec3(0.07, 0.16, 0.14), lit);
-      float graze = 1.0 - max(dot(hn, -r), 0.0);
+      float graze = 1.0 - clamp(dot(hn, -r), 0.0, 1.0);
       col += vec3(0.07, 0.15, 0.3) * pow(graze, 5.0) * (0.25 + lit);
     } else {
       // Off the limb: the atmosphere's glow, by how close the ray passes.
@@ -2087,7 +2087,7 @@ const HULL_FRAGMENT = /* glsl */ `
     // Seams and undersides are in shade.
     float ao = mix(0.45, 1.0, smoothstep(0.2, 0.5, height)) * mix(0.55, 1.0, smoothstep(-0.95, 0.15, ln.y));
 
-    float NdV = max(dot(n, V), 1e-3);
+    float NdV = clamp(dot(n, V), 1e-3, 1.0);
     vec3 F0 = mix(vec3(0.04), base * 2.4 + 0.05, metal);
     vec3 diffuse = base * (1.0 - metal);
 
@@ -2101,7 +2101,7 @@ const HULL_FRAGMENT = /* glsl */ `
     float D = a2 / (PI * dd * dd);
     float k = (rough + 1.0) * (rough + 1.0) * 0.125;
     float G = (NdL / (NdL * (1.0 - k) + k)) * (NdV / (NdV * (1.0 - k) + k));
-    vec3 F = F0 + (1.0 - F0) * pow(1.0 - max(dot(H, V), 0.0), 5.0);
+    vec3 F = F0 + (1.0 - F0) * pow(1.0 - clamp(dot(H, V), 0.0, 1.0), 5.0);
     vec3 spec = D * G * F / max(4.0 * NdL * NdV, 1e-3);
     vec3 col = (diffuse + spec) * uKeyColor * NdL * mix(0.6, 1.0, ao);
 

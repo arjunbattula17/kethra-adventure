@@ -1037,8 +1037,8 @@ export class VessekScene implements GameScene {
       // Varro and Dace, where they stand.
       box(L.PEOPLE.varro.x - 0.3, L.PEOPLE.varro.z - 0.3, L.PEOPLE.varro.x + 0.3, L.PEOPLE.varro.z + 0.3, 1.8),
       box(L.PEOPLE.dace.x - 0.3, L.PEOPLE.dace.z - 0.3, L.PEOPLE.dace.x + 0.3, L.PEOPLE.dace.z + 0.3, 1.5),
-      // The scope's stand at the east port.
-      box(6.7, 1.75, 7.3, 2.25, 1.5),
+      // The scope's stand at the east port, out to the eyepiece end of its tilted tube (x 6.48).
+      box(6.45, 1.75, 7.3, 2.25, 1.5),
     ];
   }
 
