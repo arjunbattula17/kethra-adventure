@@ -1,5 +1,6 @@
 import { motion, DUR } from '../motion';
 import { t } from '../content/strings';
+import { InputManager } from '../core/InputManager';
 
 /**
  * Hold-to-skip hint for cinematics: holding Space, Enter or the hint itself fills a bar, and
@@ -95,6 +96,7 @@ export class HoldToSkip {
       e.preventDefault();
       e.stopImmediatePropagation();
       if (e.type === 'keyup') {
+        InputManager.release(e.code);
         keys.delete(e.code);
         if (!keys.size) stop();
       }

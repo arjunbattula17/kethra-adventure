@@ -28,6 +28,9 @@ const LEVELS: Record<string, { number: number; title: string; line: string }> = 
   CHAPTERS.filter((c) => c.id !== 'wren').map((c) => [c.id, c]),
 );
 
+/** The flag that marks each level finished: a chapter keeps an arrival from before it, never a revisit after. */
+const LEVEL_DONE: Record<string, string> = { kethra: 'kethra_mechanism_solved', vessek: 'vessek_complete' };
+
 /**
  * Longest the intro's opening shot holds for the Wren's build (IntroScene.holdOpening). On an Intel UHD
  * laptop the build takes ~2 s once its files have arrived; on a slow connection the intro starts
@@ -660,11 +663,15 @@ export class GameFlow {
     // The course is plotted and saved on the desk chart: the one thing to do next is go. Logs and
     // repairs stay on offer as a quieter second line, and the console lights up to say where.
     gameState.setObjective(t('objective.exploreKethra'), t('objective.exploreKethra.note'));
-    if (gameState.hasFlag('galaxy_revealed') && !gameState.hasFlag('left_wren') && this.shipScene) {
-      this.consoleGuide?.dispose();
-      this.consoleGuide = new ConsoleGuide(this.shipScene);
-    }
+    this.guideToConsole();
     SaveSystem.save();
+  }
+
+  /** Until the first trip has left, the console lights up to say where the course is set. */
+  private guideToConsole(): void {
+    if (!gameState.hasFlag('galaxy_revealed') || gameState.hasFlag('left_wren') || !this.shipScene) return;
+    this.consoleGuide?.dispose();
+    this.consoleGuide = new ConsoleGuide(this.shipScene);
   }
 
   // ------------------------------------------------------------------ travel
@@ -707,6 +714,7 @@ export class GameFlow {
       ]);
       if (canopyModule) canopy = new canopyModule.CanopyScene();
     } catch {
+      this.guideToConsole();
       UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
       throw new HandledFailure(`level ${planetId} failed to load`);
     }
@@ -779,7 +787,7 @@ export class GameFlow {
     await UIManager.fadeToBlack();
     level.onDepart = () => void this.go('wren', () => this.returnFromPlanet());
     this.levelSnapshot = { planetId, json: gameState.toJSON() };
-    Chapters.remember(planetId, this.levelSnapshot.json);
+    if (!gameState.hasFlag(LEVEL_DONE[planetId])) Chapters.remember(planetId, this.levelSnapshot.json);
     await this.engine.setScene(() => level, { prepared: true });
     // The departure hid it (takeTheHelm); the level is first person again.
     UIManager.setCrosshairVisible(true);
@@ -804,6 +812,8 @@ export class GameFlow {
     UIManager.setLookPromptEnabled(true);
     this.shipScene = new ShipInteriorScene();
     await this.engine.setScene(() => this.shipScene!);
+    // Setting the course disposed the guide; a first trip that never left needs it back.
+    this.guideToConsole();
     await UIManager.fadeFromBlack();
     UIManager.toast('Navigation data unavailable. Check your connection and try again.', 'fail');
   }

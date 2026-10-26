@@ -63,6 +63,11 @@ export const ChapterSelect = {
       list.appendChild(row);
     }
     panel.appendChild(list);
+    // A held Enter repeats on the focused row: the press that opened the list would arm a chapter
+    // and then confirm it, replacing the saved journey.
+    list.addEventListener('keydown', (e) => {
+      if (e.repeat && (e.key === 'Enter' || e.key === ' ')) e.preventDefault();
+    });
 
     const foot = document.createElement('div');
     foot.className = 'panel-foot';

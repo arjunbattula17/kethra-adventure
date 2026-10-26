@@ -62,6 +62,12 @@ class InputManagerImpl {
     });
   }
 
+  /** A key whose release another handler swallowed (HoldToSkip): without this it stays held, and
+   * its next press reads as a repeat rather than a press. */
+  release(code: string): void {
+    this.keys.delete(code);
+  }
+
   isDown(code: string): boolean {
     return this.keys.has(code);
   }

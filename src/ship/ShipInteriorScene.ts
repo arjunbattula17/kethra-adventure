@@ -150,7 +150,6 @@ export class ShipInteriorScene implements GameScene {
   async init(pacer?: Pacer): Promise<void> {
     // Wait for the display fonts: canvas textures drawn before they load bake in the fallback font.
     await displayFontsReady();
-    UIManager.setLookPromptEnabled(true);
     this.scene.background = new THREE.Color(0x03040a);
     this.scene.environment = getSharedEnvironment();
     this.scene.environmentIntensity = 0.5;
@@ -344,6 +343,14 @@ export class ShipInteriorScene implements GameScene {
       // Repair station (0.7 x 1.4 x 0.5 centered ROOM_W/2-0.5, 0.7, 2.933 — 2.2 scaled by 4/3)
       new THREE.Box3(new THREE.Vector3(ROOM_W / 2 - 0.85, 0, 2.683), new THREE.Vector3(ROOM_W / 2 - 0.15, 1.4, 3.183)),
     ];
+  }
+
+  /**
+   * The look prompt on arrival, as the levels do: init runs while the intro or MG1's win is still
+   * on screen (GameFlow prepares the Wren behind both), and MG1 has no letterbox to hide it.
+   */
+  onEnter(): void {
+    UIManager.setLookPromptEnabled(true);
   }
 
   update(dt: number, elapsed: number): void {
