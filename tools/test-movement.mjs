@@ -1,10 +1,13 @@
 import { chromium } from 'playwright';
 
 const url = process.argv[2] || 'http://localhost:5180';
-const browser = await chromium.launch();
+// GL and the anti-backgrounding flags: without them headless frames crawl and W barely moves.
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader', '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-await page.goto(url, { waitUntil: 'load' });
+// Past the title and the intro, straight into the Wren.
+await page.goto(url + '?newGame=1&skipIntro=1', { waitUntil: 'load' });
+await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene' && !window.__DEBUG__.flow.isTransitioning(), null, { timeout: 120000 });
 await page.waitForTimeout(1000);
 
 const before = await page.evaluate(() => window.__DEBUG__.flow.shipScene.player.rig.position.toArray());

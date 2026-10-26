@@ -6,7 +6,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const SCENARIOS = ['bus-rules', 's01-saves', 's02-input', 's05-travel', 's06-vessek', 's07-flow', 's08-kethra', 's09-failures', 's10-reveal', 's11-firstlight', 's12-governor', 's14-small', 's04-endurance'];
+const SCENARIOS = ['bus-rules', 's01-saves', 's02-input', 's05-travel', 's06-vessek', 's07-flow', 's08-kethra', 's09-failures', 's10-reveal', 's11-firstlight', 's12-governor', 's14-small', 's15-seams', 's04-endurance'];
 
 const results = [];
 for (const name of SCENARIOS) {

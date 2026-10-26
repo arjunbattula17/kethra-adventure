@@ -7,8 +7,8 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
 page.on('console', (msg) => { if (msg.type() === 'error') errors.push('CONSOLE ' + msg.text()); });
-await page.goto(baseUrl + '?skipIntro=1&unlockKethra=1', { waitUntil: 'load' });
-await page.waitForFunction(() => !!window.__DEBUG__?.gameState, { timeout: 10000 });
+await page.goto(baseUrl + '?newGame=1&skipIntro=1&unlockKethra=1', { waitUntil: 'load' });
+await page.waitForFunction(() => window.__DEBUG__?.engine.getCurrentScene()?.kind === 'ShipInteriorScene' && !window.__DEBUG__.flow.isTransitioning(), null, { timeout: 120000 });
 await page.waitForTimeout(500);
 
 // Open solar system map.
@@ -32,23 +32,11 @@ console.log('Kethra click point (page coords):', clickInfo.left, clickInfo.top);
 const hitTargetsDebug = await page.evaluate(() => window.__DEBUG__.mapController['hitTargets'].length);
 console.log('hitTargets count at click time:', hitTargetsDebug);
 
+// A click selects the world (its dossier in the sidebar); the dossier's Surface chart button opens it.
 await page.mouse.click(clickInfo.left, clickInfo.top);
 await page.waitForTimeout(300);
-// Fallback: dispatch a synthetic click directly on the canvas element in case real-cursor
-// coordinate mapping is off in this headless environment.
-const stillSolar = await page.evaluate(() => document.querySelector('.map-title')?.textContent?.includes('Solar'));
-if (stillSolar) {
-  console.log('mouse.click did not register; trying direct canvas dispatchEvent');
-  await page.evaluate(() => {
-    const canvas = document.querySelector('.map-canvas');
-    const rect = canvas.getBoundingClientRect();
-    const target = window.__DEBUG__.mapController['hitTargets'][0];
-    const dpr = window.devicePixelRatio;
-    const clientX = rect.left + target.x / dpr;
-    const clientY = rect.top + target.y / dpr;
-    canvas.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX, clientY }));
-  });
-}
+console.log('Selected world:', await page.evaluate(() => document.querySelector('.map-dossier-name')?.textContent ?? null));
+await page.getByRole('button', { name: 'Surface chart' }).click();
 await page.waitForTimeout(700);
 await page.screenshot({ path: `${outDir}/planet_map.png` });
 const title = await page.evaluate(() => document.querySelector('.map-title')?.textContent);
