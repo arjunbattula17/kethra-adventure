@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { withRetry } from '../../core/retry';
 
 // Kethra's set-dressing models (public/models/CREDITS.md, "kethra/"): each was rebuilt from its
 // source into a low-poly piece for this scene by tools outside the build, so every file is a single
@@ -19,7 +20,8 @@ export interface PropPrimitive {
  * the second download free.
  */
 export async function loadProp(name: PropName): Promise<PropPrimitive[]> {
-  const gltf = await new GLTFLoader().loadAsync(`${BASE}/${name}.glb`);
+  // Retried like the kit's files: one dropped request would otherwise end the whole trip.
+  const gltf = await withRetry(() => new GLTFLoader().loadAsync(`${BASE}/${name}.glb`));
   const prims: PropPrimitive[] = [];
   gltf.scene.traverse((obj) => {
     const mesh = obj as THREE.Mesh;

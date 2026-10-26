@@ -40,6 +40,9 @@ export function makePoolWater(mat: THREE.MeshStandardMaterial): PoolWater {
   canvas.height = MASK_SIZE;
   const mask = new THREE.CanvasTexture(canvas);
   mask.colorSpace = THREE.NoColorSpace;
+  // Rows are drawn with z growing down the canvas and sampled with v growing with z: unflipped, or
+  // every shallow lands mirrored about the frame's centre line.
+  mask.flipY = false;
 
   const uniforms = {
     uPoolTime: { value: 0 },

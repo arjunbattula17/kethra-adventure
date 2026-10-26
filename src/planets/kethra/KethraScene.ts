@@ -84,6 +84,12 @@ const DOOR_VIEW = new THREE.Box3(
 const atStepStones = (p: THREE.Vector3) => p.x > 14 && p.z > 1.2;
 const STONES_RESPAWN = new THREE.Vector3(16.9, 2.2, 1.0);
 const STONES_YAW = Math.PI;
+/**
+ * The fall reset there: under the stones' tops and the terrace, over the loam of the landmark's islet
+ * beside the last slab (its banks rise to WATER_Y + 0.76), so a step off the slab onto the loam
+ * resets before the feet sink into it. Only the stones' sloping feet stand lower in that area.
+ */
+const STONES_FALL_Y = WATER_Y + 0.8;
 
 /** The objective once the Heart is awake, on the day it wakes and on any later visit. */
 const OBJECTIVE_AWAKE = 'The Heart is awake. Look around, or take the skiff back to the Wren.';
@@ -1282,6 +1288,8 @@ export class KethraScene implements GameScene {
       const mesh = new THREE.Mesh(mergeGeometries(motes, false)!, mat);
       for (const mote of motes) mote.dispose();
       this.scene.add(mesh);
+      // Merged, the motes would box as one collider spanning them all: a step on open ground.
+      this.scenery.push(mesh);
     }
 
     const built = await batcher.flush(this.scene);
@@ -1430,15 +1438,13 @@ export class KethraScene implements GameScene {
   }
 
   update(dt: number, elapsed: number): void {
-    const shadows = getActiveEngine()?.renderer.shadowMap.enabled ?? false;
-    if (shadows && !this.shadowsOn) this.repaintMoon();
-    this.shadowsOn = shadows;
     this.player.update(dt);
     const atStones = atStepStones(this.player.rig.position);
     if (atStones !== this.atStones) {
       this.atStones = atStones;
       if (atStones) this.player.setRespawn(STONES_RESPAWN, STONES_YAW);
       else this.player.setRespawn(SPAWN, 0);
+      this.player.fallResetY = atStones ? STONES_FALL_Y : WATER_Y + 0.3;
     }
     // No prompts and no E while a cutscene (the wake, a gust) has the player disabled.
     if (this.player.enabled) this.interaction.update(this.camera);
@@ -1464,6 +1470,10 @@ export class KethraScene implements GameScene {
       for (const tree of this.outerTrees) tree.visible = treesShown;
       if (treesShown && this.moonPaintedWithoutTrees) this.repaintMoon();
     }
+    // Once this frame's trees are settled, so a repaint records whether it draws them.
+    const shadows = getActiveEngine()?.renderer.shadowMap.enabled ?? false;
+    if (shadows && !this.shadowsOn) this.repaintMoon();
+    this.shadowsOn = shadows;
 
     this.canopy.update(motion.ambientTime);
     this.pool.update(motion.ambientTime);

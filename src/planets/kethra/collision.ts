@@ -49,7 +49,8 @@ export interface KethraColliderOptions {
   animated: THREE.Object3D[];
   /** Structures that bring their own exact colliders (the Heart's chamber): merged, they would box as one. */
   exact?: THREE.Object3D[];
-  /** Dressing out in the pool, beyond anywhere the player can stand. */
+  /** Dressing that is never an obstacle: out in the pool beyond anywhere the player can stand, or
+   * small pieces merged into one mesh (the glow motes) that would box as one wide collider. */
   scenery?: THREE.Object3D[];
 }
 
