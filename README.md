@@ -20,8 +20,10 @@ interact, Tab for the character sheet, O for settings, Esc to pause.
 ## Checks
 ```
 npm run build       # type-check + production build
-npx vite preview    # serve the build (keep running)
-npm run smoke       # every scene boots with no console errors
+npx vite preview --port 4180 --strictPort   # serve the build (keep running; the suites expect 4180)
+npm run smoke -- http://localhost:4180/kethra-adventure/   # every scene boots with no console errors
+npm run journey     # sixteen flow tests, title to ending, every mini-game's win, fail and retry
+node stress_tests/run.mjs   # fourteen stress scenarios (input abuse, failures, leaks, the seams)
 ```
 Player-path tests (run against the preview): `node tools/test-tutorial-flow.mjs <url>` (the
 opening), `test-kethra-flow.mjs` (level 2), `test-vessek-flow.mjs` (level 3 and the ending),

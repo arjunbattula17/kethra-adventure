@@ -21,12 +21,14 @@ and smooth everywhere.
 - *"Can the player override it?"* Yes: Settings (O). A manual choice turns the automatic system
   off.
 
-## Loading before the intro (`src/core/GameFlow.ts`, `Engine.prewarmScene`)
-**What:** on a new game, the ship interior is built, its shaders compiled, and one frame drawn
-invisibly, all under the loading screen, before the intro starts.
-**Why:** compiling ~93 shader programs on a fresh browser freezes the GPU. Done during the intro,
-that froze the intro's first frame for ~11 s. Same total wait, but now it happens behind a
-loading screen.
+## Loading during the intro (`src/core/GameFlow.ts`, `src/core/BackgroundPrep.ts`, `src/core/prepare.ts`)
+**What:** on a new game the intro goes up first (one hull and two starfields, about a second behind
+the loading bar). The Wren then builds itself while the intro plays: its geometry and painted
+textures while the opening shot holds still (up to 4 s), its shaders and first draws in small pieces
+paced to fit between the intro's frames. Whatever is left when the intro ends finishes behind a short
+loading bar. The same trick builds the Wren behind MG1's win, and each level behind the cruise.
+**Why:** compiling ~93 shader programs on a fresh browser freezes the GPU. All at once during the
+intro, that froze it for ~11 s; in small pieces, the work is spread across the intro instead.
 - *"Why is the first load slow?"* The GPU compiles every shader the first time; browsers cache
   them afterwards, so the second visit is much faster.
 - *"What's a shader?"* A small program the graphics card runs to draw each surface.
@@ -40,7 +42,7 @@ move. Each line stays up 2.5 s + 0.35 s per word (reading pace).
 - *"How does the light wave move along the ship?"* The windows are one 3D model, so a small
   shader program compares each pixel's position along the ship to a moving "front" number, and
   lights the pixels behind it.
-- *"Can I skip it?"* Any time: Space, Enter, or click.
+- *"Can I skip it?"* Any time: hold Space or Enter, or press and hold the hint, for under a second.
 - *"Where's the text stored?"* In `src/content/strings.ts`, so it can be edited or translated
   without touching code; the timing updates itself from the word count.
 
@@ -193,3 +195,72 @@ is generated live: a slow chord plus notes picked at random, different for each 
   41 lights. We kept the 16 that light the most of the room; the screenshots differ by about
   2 out of 255 brightness levels per pixel, and a fresh browser reaches the game about twice as
   fast (docs/PERF_LOG.md has the numbers).
+
+## The motion system (`src/motion`)
+**What:** one module for everything that moves: springs and damping for anything that follows a
+target, tweens and timelines for anything authored, and a shared set of durations and easing curves
+(the tokens) that the CSS uses too. Its conductor can hide the HUD, and it calms the background motion
+during a big moment (the Heart waking, the cruise's title).
+**Why:** one way to move, so the same kind of movement feels the same on every screen
+(docs/DESIGN.md §3).
+- *"Why does the jump feel the same on a slow laptop?"* The physics steps are written so the result
+  doesn't depend on the frame rate: `tools/test-frame-rates.mjs` jumps at 30, 60 and 144 frames a
+  second, and the peak is 1.000 m every time.
+- *"What does reduced motion do?"* Settings → Reduced motion: no head bob, camera shake, zooms or
+  sweeping camera moves; transitions become short fades.
+- *"What does 'nothing animated for its own sake' mean?"* Things that loop are things you can act
+  on (a button you can press, a beacon to walk to); the rest moves only when something happens.
+
+## The two Kethra mini-games (`src/planets/kethra/canopy/`, `src/planets/kethra/hush/`)
+**What:** MG2, the Canopy: the skiff drops through five layers of boughs in the dark; you steer it
+and its lamp, and the lamp wakes the seed pods it touches, which light the boughs around them for a
+few seconds (Shift brakes the fall). MG3, the Hush: cross the Heart's chamber without the Wickmoth
+seeing your lantern (hood it with F or the right mouse button), then breathe the Rite's three
+colours (1, 2, 3) while it looks away. Seen, a gust carries you back to the last lamp.
+**Why:** the brief asks for three mini-games that differ in verb, camera and pace: MG1 plans on a
+chart, MG2 steers from a chase camera, MG3 sneaks in first person.
+- *"Do the stats matter here?"* Yes: in the Hush, Archaeology 3 names the first colour, Insight 3
+  marks where the moth lands next, Perception 2 shows where its gaze is heading.
+- *"What happens if you fail?"* Each has a fail state and an immediate retry close by: the skiff
+  climbs back to the last layer it passed, the gust leaves you at the last lamp. Tested by
+  `test-mg2-flow.mjs` and `test-mg3-flow.mjs`.
+- *"Where are the rules?"* `canopy/layout.ts` (the boughs) and `hush/sim.ts` (the moth, its sight
+  and the Rite), separate from the drawing, so `test-canopy-layout.mjs` and `test-hush-sim.mjs`
+  check them without a browser.
+
+## First light and the cruise (`src/ship/FirstLight.ts`, `src/galaxy/CruiseScene.ts`)
+**What:** setting the first course starts First light: the cabin drops to emergency light and you
+hold Space (or the mouse button) to push the throttle through four ignitions while a wave of power
+runs from the stern to the helm; let go and it spools back to the last lit engine. Then the camera
+passes out through the viewport into the cruise: the launch, the trip, the planet, and the skiff's
+drop into the canopy (Kethra) or the docking (Vessek).
+**Why:** the first time the ship flies should be something you do, not a cutscene; and the cruise is
+where the next level is built, so there is no loading screen on the way out.
+- *"Can I skip the cruise?"* Hold Space or Enter for under a second.
+- *"Why 45 seconds?"* It covers the next level's build on a slow laptop; its last shot holds until
+  the level is ready.
+- *"How does it reach MG2 without a cut?"* The cruise's last shot eases onto MG2's opening framing,
+  so the skiff keeps its place and size across the change.
+
+## Fewer draw calls in the Wren (`src/ship/interior/batchStaticGeometry.ts`, `materialMerge.ts`)
+**What:** the Wren is built from about 1,800 small meshes (every bolt, cable and light is its own
+piece). After the room is built, pieces that look the same are merged into one, and pieces that
+differ only in colour, shininess or glow share one material, with those values stored per vertex.
+**Why:** each separate piece costs the graphics card a "draw call", and a school laptop runs out of
+time for them first. On Performance the Wren went from 246 draw calls to 138 (budget 150), on Quality
+from 500 to 334 (350) (DECISIONS D-40).
+- *"Does it look different?"* The same 56 views rendered before and after differ about as much as
+  the old build differs from itself between runs (0.1–0.2% of pixels), with one faint local
+  difference on the big screens (D-40).
+- *"What can't be merged?"* Anything that moves or that you interact with (the console's targets,
+  the finds), and anything whose look animates on its own (flickering lights, the throttle).
+- *"What if shadows are on?"* Merged pieces would share shadow settings, so on a machine drawing
+  shadows the pieces are kept apart by their shadow settings as well.
+
+## The seams test (`stress_tests/s15-seams.mjs`)
+**What:** the stress scenario for where the two branches' work met (2026-10-25): no look prompt
+over MG1's win, a held Enter on Chapters not replacing your save, the first jump after a skip,
+chapter snapshots, Kethra's step and loam, the quality switched mid-room, the ` readout, and the
+console guide after a failed download.
+- *"Why a separate test?"* Its checks for the bugs failed on the build before the fixes and pass
+  after, so they keep the bugs from coming back; the rest guard things that already worked.

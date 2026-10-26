@@ -320,6 +320,71 @@ GitHub Pages does. Full detail: `PERFORMANCE_LOG.md` in the project root.
 
 ---
 
+## 2026-10-24 to 26: the overhaul, on the merged code
+
+Measured on the development PC (RTX 4060) at 1366×768, with Chrome's processor slowed six times
+standing in for a school laptop; not yet on the Intel UHD laptop. Counts from
+`tools/measure-scene.mjs`. Full detail: docs/PROGRESS.md ("Performance") and docs/REPORT.md §3.
+
+### 30. Kethra inside its triangle budget on Performance
+- **Why:** after the merge, Kethra drew 349k triangles on Performance against a budget of 320k, and
+  the view just inside the Heart's chamber 347k against 200k. Most of it was the trees' bark and
+  leaves, merged into level-wide meshes the camera could never leave out.
+- **What:** the trees are merged per region of the level instead, so the camera skips the regions
+  behind it; Performance draws every other tree in the far belts out in the water.
+- **Number:** 349k → 186k; the chamber view 347k → 163k; on Quality 798k → 597k (budget 900k).
+- **Say it:** "The forest is grouped by region, so the graphics card only draws the part you're
+  facing."
+
+### 31. The Wren inside both draw-call budgets
+- **Why:** the Wren is about 1,800 small pieces, and each separate piece costs a draw call: 246 on
+  Performance (budget 150) and 500 on Quality (350).
+- **What:** pieces that differ only in colour, shininess or glow now share one material, with those
+  values stored per vertex; on Performance, pieces aren't kept apart for shadows it doesn't draw.
+- **Number:** 246 → 138 on Performance, 500 → 334 on Quality. Low at 6× CPU, settled, the slowest 5%
+  of frames went from 32–45 ms to 27–29 ms. The same views before and after differ about as much as
+  the old build differs from itself (D-40).
+- **Say it:** "We found the Wren was paying for 246 separate drawing jobs a frame and got it to 138
+  without removing a single prop."
+
+### 32. A measuring mistake, found and corrected
+- **What:** on 2026-10-24 the Wren's Performance count was reported as 123. On Performance the game
+  draws only every other frame while it prepares its lighting, and the measuring tool averaged over
+  all frames, so it halved the count; the real figure was 246. The tool now counts only frames that
+  are drawn (`--settled` waits for the preparation to finish), and the mistake is logged.
+- **Say it:** "One of our own measurements was off by half. We check the measuring tools as well as
+  the game, and when one is wrong the log says so."
+
+### 33. No black frames, no WebGL warnings
+- **Why:** while a level prepared its full lighting in the background, the screen could draw through
+  the preparation's camera: a view of the Anchorage came up black in six of eight runs. And every
+  level on Balanced and Quality logged 200–260 WebGL warnings on arrival.
+- **What:** each partial draw of the preparation now changes the camera and the scene for that draw
+  alone and puts them back before the next frame; each shadow-casting light gets an empty shadow map
+  before its first use.
+- **Number:** black frames at Vessek 14 → 0 (`tools/live-frames-check.mjs`); warnings 200–260 → 0 on
+  every route and tier (`tools/console-scan.mjs`).
+
+### 34. Fixed where the branches met (2026-10-25)
+- The Wren's batching followed the tier's name, not whether shadows are drawn: a player who turns
+  shadows on at Performance got merged pieces with the wrong shadows. It now asks the renderer.
+- The low-battery cap and the steady-30 cap were counted twice, so a struggling laptop on battery
+  waited for frames twice as slow before the resolution stepped down.
+- Kethra's two tree models skipped the team's download retry (`core/retry.ts`): one dropped request
+  ended the trip. Now retried like every other level file.
+
+### Tried and dropped (this pass)
+- Bump and roughness textures at 256 pixels on Performance: the Wren 210 → 167 MB and Vessek 165 →
+  143 MB of texture memory, but prop edges in the Wren looked visibly softer, and both stayed over
+  their budgets (150 and 110). Reverted (PROGRESS issue 49).
+
+### Still open
+- Texture memory on Performance: the Wren about 210 MB against 150, Vessek 165 against 110. The real
+  fix is textures baked ahead of time in a GPU-compressed format.
+- The Hush view on Quality: 504k triangles against 500k.
+
+---
+
 ## How to talk about performance
 
 1. "We tested on a simulated school Chromebook, with the processor slowed six times and a slow

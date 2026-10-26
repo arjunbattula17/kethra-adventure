@@ -6,6 +6,65 @@ Measured numbers cite their files; the rest is description.
 
 ---
 
+## The overhaul (2026-10-14 to 26)
+
+The full account is docs/REPORT.md; the performance side is in PERF_CHANGELOG_FOR_TEAM.md, 30–34.
+
+### Two new mini-games on Kethra
+- **What:** MG2, the Canopy: steer the skiff and its lamp down through five layers of boughs in the
+  dark; the lamp wakes seed pods, which light the boughs around them. MG3, the Hush: cross the Heart's
+  chamber without the Wickmoth seeing your lantern, then breathe the Rite's three colours while it
+  looks away. Files: `src/planets/kethra/canopy/`, `src/planets/kethra/hush/`.
+- **Why:** the brief asks for three mini-games that differ in verb, camera and pace: MG1 plans on a
+  chart, MG2 steers from a chase camera, MG3 sneaks in first person.
+- **Rubric:** Creativity; Technical Skill (in the Hush, Archaeology, Insight and Perception each
+  reveal part of the moth's behaviour); Overall Appeal.
+- **Say:** "Each mini-game has its own verb: plan, steer, sneak. In the Hush, your skills decide how
+  much of the moth's behaviour you can read."
+
+### First light and the cruise
+- **What:** setting the first course starts First light: hold Space to push the throttle through four
+  ignitions while the power runs from the stern to the helm. The camera then passes out through the
+  viewport into a 45-second cruise, which ends in the skiff's drop into MG2 or the docking at Vessek.
+  Files: `src/ship/FirstLight.ts`, `src/galaxy/CruiseScene.ts`.
+- **Why:** the ship's first flight should be something the player does; and the cruise is where the
+  next level is built, so the way out has no loading screen.
+- **Rubric:** Storyline & Flow; Overall Appeal.
+- **Say:** "There's no loading screen between the ship and the planet: the cruise is the loading,
+  and you can hold Space to skip it."
+
+### Vessek, expanded
+- **What:** four compartments joined by ducts, a ring bus of physical levers, a frost clock, and a
+  docking arrival among twenty moored hulls. Files: `src/planets/vessek/`.
+- **Why:** the brief asks the second level to add new mechanics, new zones and a climax.
+- **Rubric:** hard constraint (judged through level 3); Technical Skill.
+- **Say:** "The Anchorage's power is a ring of breakers you throw by hand, against a clock: if the
+  heat isn't back in time, the seedlings frost over."
+
+### One way to move, one title per arrival
+- **What:** a single motion system (`src/motion`) for every animation; each level's arrival names its
+  number and line once; the HUD stays inside a 16:9 area on ultrawide screens; the credits roll on
+  short screens so the last line is never cut off.
+- **Why:** the same kind of movement should feel the same everywhere, and nothing should depend on
+  the screen's shape.
+- **Rubric:** Overall Appeal.
+- **Say:** "Every animation in the game comes from one system with one set of timings, so it feels
+  like one game."
+
+### Fixed where our two halves met (2026-10-25)
+- **What:** after merging our branches, every place they touch was reviewed and thirteen issues fixed.
+  The ones a player could see: "Click to look around" over MG1's win; holding Enter on Chapters
+  replaced your saved journey; a chapter could open on a level already finished; the first jump after
+  a skip did nothing; Kethra's shallows were painted mirror-image; an invisible step near the
+  landing; stepping off the last stone sank you into the loam; a failed download lost the console's
+  markers. Test: `stress_tests/s15-seams.mjs`.
+- **Why:** two people built the game on two branches; the bugs were where the work joined.
+- **Rubric:** Technical Skill (testing); Overall Appeal.
+- **Say:** "After merging our two halves we checked every place they touch. Every bug a player could
+  run into was seen on the old build and checked gone on the new one, most of them by a test."
+
+---
+
 ## Finishing pass (2026-10-13)
 
 ### The survey: things to find on every level

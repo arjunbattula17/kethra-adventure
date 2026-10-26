@@ -12,8 +12,8 @@ from the title to the ending with no console errors on any tier; every suite pas
 build; every scene is inside its Low draw-call and triangle budgets; the Low frame target is met once
 a level has settled. Two things are not at the bar and are said plainly below: texture memory is over
 budget in two scenes (issue 49), and the first mini-game does not pass the brief's "could this be
-2D?" test, by the team's redesign. Nothing has been pushed: `overhaul` is 86 commits ahead of
-`origin/overhaul` and none behind (fetched 2026-10-25).
+2D?" test, by the team's redesign. A last pass (2026-10-25 to 26, below) checked where this branch's
+work meets the team's and fixed the thirteen issues it found there.
 
 Judgements here (quality, "feels") are [opinion]; every figure names where it was measured.
 
@@ -64,6 +64,25 @@ The whole overhaul in brief; each line points at the decision or log that has th
 - **Tools.** `console-scan`, `nan-scan`, `capture-journey`, `live-frames-check`, `test-frame-rates`,
   `draw-list`, `measure-scene --settled`.
 
+**The seams pass (2026-10-25 to 26).** Everything this branch adds on top of the team's last commit
+(f624308) was reviewed in four areas, after the team's own tests had been run on the final build (all
+passed). Thirteen issues, all fixed (PROGRESS 50–62). The eight a player can meet were each seen on
+the build before the fix and are gone after: seven in `stress_tests/s15-seams.mjs`, the shallows in
+a render from above. The rest were found in the code:
+- **Where the two branches' code meets.** The Wren, built behind MG1's win, put "Click to look
+  around" over the chart; it now does that on arrival, as the team's levels already did. A first
+  trip that failed before leaving lost the team's console guide. Two of the team's level files went
+  without its download retry. The Wren's batching went by the tier's name, not by whether shadows
+  are drawn (the player can turn them on at Performance). The governor's battery and steady-30 caps
+  were counted twice.
+- **Saves and input.** Enter held on the title's Chapters replaced the saved journey; a chapter
+  could open on a level already finished; after a hold-to-skip, the first jump was ignored.
+- **Kethra.** The shallows were painted mirror-image, the glow motes made an invisible step near the
+  landing, a step off the last stepping stone sank into the loam, and the moon's shadow could miss
+  the trees.
+- **Shaders.** pow() of a value that can round just below zero, in the cruise's planet and the
+  team's title shaders (never seen; clamped).
+
 ---
 
 ## 2 · How to run it
@@ -78,22 +97,28 @@ npm run play          # builds, then opens the production version
 both generated from `src/content/controls.ts`): mouse or the arrow keys to look, W A S D to move,
 Shift to sprint, Space to jump, C or Ctrl to crouch, E to interact, Tab for the character sheet,
 O for settings, Esc to pause. In the Heart's chamber F or the right mouse button hoods the lantern,
-and 1 2 3 breathe the Rite's colours. Space, Enter or a click skips a cinematic. Everything works from
+and 1 2 3 breathe the Rite's colours. Holding Space or Enter, or the hint, skips a cinematic. Everything works from
 the keyboard alone.
 
 **Chapters** on the title starts any of the three levels.
+
+**Performance readout** (the team's): the backquote key (`) or `?fps` shows frame rate, frame times,
+draw calls, memory and the quality setting on any machine.
 
 **Debug** (`?debug=1`): F1 jumps to any state, F2 and F3 win and fail the current mini-game, F4
 cycles the time scale, F7 freezes, F8 steps a frame; an overlay shows frame time, draw calls,
 triangles and memory. `?tier=low|medium|high` pins the quality tier; `?seed=N` fixes every random
 stream; `?jump=kethra|vessek|ending` starts there.
 
+**Tier names.** This report uses the brief's Low, Medium and High; the game's Settings call the same
+tiers Performance, Balanced and Quality.
+
 **Checks**
 ```
 npm run build
 npx vite preview --port 4180 --strictPort     # keep running
 npm run journey                               # sixteen flow tests, title to ending
-node stress_tests/run.mjs                     # thirteen stress scenarios
+node stress_tests/run.mjs                     # fourteen stress scenarios
 node tools/measure-scene.mjs ship --tier=low --cpu=6 --settled   # one scene's counters
 ```
 
@@ -141,13 +166,15 @@ are not frame rates on that laptop (§7).
 
 ## 4 · Verification
 
-Against the final production build (`npm run build`, `vite preview`), this PC, Chrome on its GPU.
+Against the production build after the seams pass (`npm run build`, `vite preview`), this PC, Chrome on its GPU.
 
 | Check | Result |
 |---|---|
 | Type-check and build | Clean |
 | `npm run journey` (sixteen flow tests, title to ending, every mini-game's win, fail and retry) | 16 of 16 |
-| `stress_tests/run.mjs` (key spam and held keys across alt-tab and the cut, resize spam, corrupt saves and blocked storage, dropped downloads mid-trip, skips mid-cruise, round trips measured for leaks) | 13 of 13 (s08 keeps its one open design question, BUG-013) |
+| `stress_tests/run.mjs` (key spam and held keys across alt-tab and the cut, resize spam, corrupt saves and blocked storage, dropped downloads mid-trip, skips mid-cruise, round trips measured for leaks, and the seams between the branches) | 14 of 14 (s08 keeps its one open design question, BUG-013) |
+| `stress_tests/s04-endurance.mjs 15`, fifteen round trips and a restart | GPU objects, listeners and DOM nodes flat; the heap 17.8 → 19.3 MB, level by the last laps |
+| The team's own tests: `test-title`, `test-controls`, `test-load-failure`, `test-level-caches`, `texture-leaks`, `test-offline`, `test-resilience` | All pass (52/52, 22/22, 6/6; revisits match; nothing from a planet alive back aboard; no request off the local server) |
 | `tools/console-scan.mjs`, every route, Low, Medium and High | No errors or warnings |
 | `tools/nan-scan.mjs`, every scene | No NaN or Inf pixels |
 | `tools/live-frames-check.mjs`, 16 s after arriving in each level | No frame drawn off the live layer |
@@ -182,6 +209,11 @@ By number in docs/PROGRESS.md, "Open issues":
 - **38, 39 (P3).** The evidence board's own "connect two clues" action can never succeed (a
   conversation makes its only connection); three of the Wren's seven repairs have no effect.
 - **48 (P3, deliberate).** The return trip from a planet keeps a loading screen (D-39).
+- **63 (P3).** A machine the start-up benchmark steps down to Performance after the Wren was built
+  for Balanced keeps Balanced's batching until its next visit aboard, as the team's lights and
+  canvases already do.
+- **64 (P3, team).** The Wren's music and hum start while it is built behind the intro and behind
+  MG1's win, a few seconds before the player is aboard. Left as it is until someone listens.
 - **12, 27, 30, 31, 32, 43, 46.** Smaller items, each with its plan in the table.
 
 ---
@@ -196,7 +228,8 @@ By number in docs/PROGRESS.md, "Open issues":
   matters in practice. **Safari** on a Mac.
 - **Team decisions:** MG1 and the "could this be 2D?" test (§8, question 1); the title's own
   palette and labels (D-37, question 15); the new canon text (D-26); the team number in the credits
-  (`credits.original`, "team #____", D-29); issue 40.
+  (`credits.original`, "team #____", D-29); issue 40; whether the Wren's music should wait for the
+  player to arrive (issue 64).
 - **Human-made assets** would help most in two places: Vessek's interiors, which read plainer than the
   Wren and Kethra, and sound, which is synthesised throughout.
 
@@ -217,7 +250,7 @@ By number in docs/PROGRESS.md, "Open issues":
 | 9 | Does each environment have a focal point, depth, and something to discover? | Yes | The console, the Heart, the Lantern Bay; 18 survey finds (test-survey) |
 | 10 | Do materials and lighting read as intentional and believable within the art direction? | Yes | Per-world grades and light owners (DESIGN §2); the art pass's material fixes (D-39) [opinion] |
 | 11 | Does every VFX element communicate something? | Yes | Plumes and rings for thrust, sparks for a scrape, the gaze for the moth's sight, the wake for the Heart (DESIGN §4, §5) |
-| 12 | Are there zero known clipping, z-fighting, overlap, or popping issues? | Yes, as far as checked | Wall sweep: nothing within 8 cm of the eye; no UI overlap at four sizes; the chamber's tree pop fixed (197a575). The body touching thin wall fixtures (issue 46) is never seen |
+| 12 | Are there zero known clipping, z-fighting, overlap, or popping issues? | Yes, as far as checked | Wall sweep: nothing within 8 cm of the eye; no UI overlap at four sizes; the chamber's tree pop fixed (197a575), and the seams pass's look prompt over MG1's win and invisible step near Kethra's landing (72372c3, b7c0cea). The body touching thin wall fixtures (issue 46) is never seen |
 | 13 | Does every element look finished, with nothing that reads as a placeholder? | Partially | The vents' outlines and the cloud's square edges are fixed; the evidence board's dead action and three repairs without an effect remain (issues 38, 39); the credits' team number is the team's to fill |
 | 14 | Is the Low preset within budget, and does it still look like the same game? | Partially | Inside on draw calls and triangles in every scene, and on frame time once settled; over on texture memory in the Wren and Vessek (issue 49). The Low shots in overhaul-final are the same game |
 | 15 | Does the game avoid every default in <art_direction>, or justify each one? | Partially | DESIGN §2's audit holds everywhere but the title, which uses tracked caps labels, an arrow on a button and its own palette by the team's choice (D-37, recorded in DESIGN) |

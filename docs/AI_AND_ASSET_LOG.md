@@ -13,6 +13,53 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-25 to 26 (Claude Code, model Claude Opus 5.5): the seams between the branches
+
+**Asked for by the team:** "Adapt all the changes you made to my teammate's changes and make it flow
+together well", then check the code for bugs and fix them, stress test the game, and commit and push
+to GitHub.
+
+**What the AI generated or changed**
+- **Ran the teammate's own tests on the merged build first** (title, controls, load failure, level
+  caches, texture leaks, offline, resilience): all passed. Two old scripts from August had stopped
+  working when the title screen arrived and were brought up to date.
+- **Had four review agents read everything this branch adds on top of the teammate's last commit**,
+  area by area, then checked every finding itself in the code and, where it could show, in the game.
+  Thirteen held up and were fixed (PROGRESS issues 50–62): the look prompt over MG1's win, a held
+  Enter on Chapters replacing the save, chapter snapshots after revisits, the first jump after a skip,
+  the console guide after a failed download, Kethra's mirrored shallows, an invisible step, sinking
+  into loam, two model files without the download retry, the moon's shadow repaint, the Wren's
+  batching under a Settings shadow switch, the battery cap counted twice, and pow() of a rounding
+  error in five shaders. The rest of the reviewers' findings were rejected or left with a reason.
+- **A new stress scenario, `stress_tests/s15-seams.mjs`**, run against a build from before the fixes
+  (8 of its 24 checks fail there) and after (all pass). Five of the fixes were found in the code and
+  not reproduced.
+- **The team's documents brought level with the code:** entries 30–34 in PERF_CHANGELOG_FOR_TEAM.md,
+  an overhaul section in CHANGELOG_FOR_TEAM.md, five new sections in EXPLAIN_TO_TEAM.md and one
+  corrected there (the Wren builds during the intro, not before it), the skip control labelled as a
+  hold.
+- **Pushed `overhaul` and `master` to GitHub** at the team's request, as fast-forwards that keep
+  every one of the teammate's commits. The live site (gh-pages) was not redeployed.
+
+**Mistakes the AI made and caught this session**
+- The day before, it had looked at all 496 screenshots of the matrix, including one with "Click to
+  look around" over MG1's win, and missed it. A code reviewer found the cause.
+- It told the user the new scenario had 16 checks (it had 22 then), and wrote 18, then 17 + 7, in a
+  commit message before counting 24 = 16 + 8 from the log. The message was corrected before the push.
+- Its first commit of the fixes would not have compiled on its own (the Wren's call to a new engine
+  function was in it, the function wasn't). It was undone locally and recommitted in groups that each
+  build.
+- A first draft of the team changelog said Vessek's frost clock frosts the windows; it frosts the
+  seedlings. Two claims in the explainer were softened to what the code shows.
+
+**What the team must be able to explain**
+- Why a scene built in the background must wait for its arrival (onEnter) before it touches the
+  screen's prompts: init runs while the previous scene is still being played.
+- Why a texture drawn on a canvas can come out upside down (three.js flips them by default) and how
+  the shallows showed it.
+
+---
+
 ## Session 2026-10-24 to 25 (Claude Code, model Claude Opus 5.5): integration and the overhaul's last pass
 
 **Asked for by the team:** the overhaul brief pasted again with "continue the game overhaul", then
