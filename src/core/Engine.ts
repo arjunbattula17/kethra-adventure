@@ -346,7 +346,8 @@ export class Engine {
     // below, which lowered the resolution and then capped anyway.
     // Judged against the frame budget in force: under the low-battery cap every frame lasts ~33 ms
     // on purpose, which the uncapped bars would read as a struggling machine.
-    const batteryCap = this.capTo30 ? 2 : 1;
+    // The steady-30 cap's own budget below already allows for 30 fps; the two caps are one cap.
+    const batteryCap = this.capTo30 && !this.steadyCap ? 2 : 1;
     const struggling = average > 22 * batteryCap || (p95 > 33.3 * batteryCap && average > 20 * batteryCap);
     if (this.tier === 'low' && !this.steadyCap && struggling) {
       const scale = this.renderScale;
@@ -703,6 +704,15 @@ export class Engine {
 
   getQualityTier(): QualityTier {
     return this.tier;
+  }
+
+  /**
+   * Whether shadows will be drawn once the scene being built is on screen: a step down still
+   * waiting for the next transition's cover decides, else the renderer's own flag (the tier's
+   * preset, or the player's Shadows switch in Settings, which can turn them on at Performance).
+   */
+  willDrawShadows(): boolean {
+    return this.fullPresetPending ? TIERS[this.tier].shadows : this.renderer.shadowMap.enabled;
   }
 
   // Manual override entry point for the settings menu: applies the tier's preset immediately

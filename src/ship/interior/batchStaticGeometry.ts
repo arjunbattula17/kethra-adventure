@@ -121,9 +121,10 @@ function expandInstances(mesh: THREE.InstancedMesh): THREE.BufferGeometry[] {
 
 export interface BatchOptions {
   /**
-   * Whether the renderer draws shadows (not on Performance). Without them a mesh's shadow flags
-   * change nothing on screen, so meshes batch whatever their flags; a batch casts and receives if any
-   * of its parts did, which is what a later switch to a preset with shadows shows.
+   * Whether the renderer will draw shadows (Engine.willDrawShadows: off on Performance unless the
+   * player switches them on). Without them a mesh's shadow flags change nothing on screen, so meshes
+   * batch whatever their flags; a batch casts and receives if any of its parts did, which is what a
+   * later switch to a preset with shadows shows.
    */
   shadows?: boolean;
   /** Also merge opaque lit surfaces that differ in colour, roughness, metalness or glow, and atlas
