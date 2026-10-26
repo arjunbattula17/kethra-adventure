@@ -43,7 +43,7 @@ pause menu.
 | Character sheet | `Tab` |
 | Settings | `O` |
 | Pause menu, close a panel | `Esc` |
-| Skip a cinematic | `Space` `Enter` `Click` |
+| Skip a cinematic (hold) | `Space` `Enter` `Click` |
 
 - **Look around:** Click the game first to capture the mouse.
 - **Interact, talk, read:** When a prompt appears at the centre of the screen.

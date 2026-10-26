@@ -35,7 +35,7 @@ export const BINDINGS = {
   character: { action: 'Character sheet', keys: ['Tab'], codes: ['Tab'] },
   settings: { action: 'Settings', keys: ['O'], codes: ['KeyO'] },
   pause: { action: 'Pause menu, close a panel', keys: ['Esc'], codes: ['Escape'] },
-  skip: { action: 'Skip a cinematic', keys: ['Space', 'Enter', 'Click'], codes: ['Space', 'Enter'] },
+  skip: { action: 'Skip a cinematic (hold)', keys: ['Space', 'Enter', 'Click'], codes: ['Space', 'Enter'] },
 };
 
 export type BindingId = keyof typeof BINDINGS;
