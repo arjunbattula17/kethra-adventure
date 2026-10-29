@@ -5,6 +5,7 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { FXAAPass } from 'three/examples/jsm/postprocessing/FXAAPass.js';
+import type { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
 import { GradeGlowPass, GRADES } from './GradeGlowPass';
 import type { GradeProfile } from './GradeGlowPass';
 
@@ -17,6 +18,8 @@ export class PostProcessing {
   private bloomPass: UnrealBloomPass;
   private fxaaPass: FXAAPass;
   private gradePass = new GradeGlowPass();
+  /** A scene's own full-screen effect, drawn over the scene before the bloom (setScreenEffect). */
+  private effect: Pass | null = null;
   private tier: QualityTier = 'high';
   private bloomRequested = true;
   // Whether the *current scene* can benefit from AO at all, independent of the quality tier and of
@@ -161,6 +164,18 @@ export class PostProcessing {
   /** Sets the colour grade; undefined falls back to the interior grade. */
   setGrade(profile: GradeProfile | undefined): void {
     this.gradePass.setGrade(profile ?? GRADES.interior);
+  }
+
+  /**
+   * Puts a scene's own full-screen pass into the chain, after the scene (and AO) and before the bloom,
+   * so what it adds blooms and is graded like the rest of the frame; null takes it out. The title's black
+   * hole is one (galaxy/title/singularity/lensPass.ts).
+   */
+  setScreenEffect(pass: Pass | null): void {
+    if (this.effect === pass) return;
+    if (this.effect) this.composer.removePass(this.effect);
+    this.effect = pass;
+    if (pass) this.composer.insertPass(pass, this.composer.passes.indexOf(this.bloomPass));
   }
 
   setAOSupported(supported: boolean): void {

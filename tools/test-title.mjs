@@ -2,7 +2,7 @@
 // over a turning Kethra, with or without a save; and the astronaut by ringed Isilthe, kept behind
 // ?title=isilthe: turning, rocks drifting, breathing, the camera leaning toward the pointer), keyboard
 // and mouse selection, Chapters, Controls and Settings (and focus coming
-// back), a quality change made from the title, New game into the intro, Continue into the Wren, an
+// back), a quality change made from the title, New game through its black hole into the intro, Continue into the Wren, an
 // unreadable save, reduced motion, and the menu held back until it can come in with the backdrop.
 //
 //   npx vite preview --port 4190 --strictPort   (in another terminal)
@@ -128,9 +128,18 @@ async function makeSave() {
   await page.waitForTimeout(700);
   check('a click outside Controls closes it, and focus returns to it', !(await page.$('.panel-overlay.visible')) && (await page.evaluate(() => document.activeElement?.querySelector?.('.tb-label')?.textContent)) === 'Controls');
 
+  // New game: the black hole (src/galaxy/title/singularity) eats the backdrop and the menu, then the
+  // game loads in the dark it leaves.
   await page.getByRole('button', { name: 'New game' }).click();
-  await page.waitForFunction(() => !document.querySelector('.title-screen'), null, { timeout: 5000 }).catch(() => {});
-  check('New game removes the title', !(await page.$('.title-screen')));
+  await page.waitForTimeout(2500);
+  const hole = await page.evaluate(() => {
+    const s = window.__DEBUG__.engine.getCurrentScene()?.singularity;
+    const moved = [...document.querySelectorAll('.title-screen .ts-letter, .title-screen .title-btn')].filter((e) => e.style.transform && e.style.transform !== 'none').length;
+    return { active: !!s?.active, t: s?.t ?? 0, moved, inert: document.querySelector('.title-screen')?.inert };
+  });
+  check('New game opens the black hole and the menu comes apart with it', hole.active && hole.t > 1.5 && hole.moved > 3 && hole.inert, JSON.stringify(hole));
+  const dark = await page.waitForFunction(() => document.body.classList.contains('from-void'), null, { timeout: 15000 }).then(() => true, () => false);
+  check('it ends on black, and the title is gone', dark && !(await page.$('.title-screen')));
   const intro = await page.waitForFunction(() => performance.getEntriesByName('intro:uncovered').length > 0, null, { timeout: 120000 }).then(() => true, () => false);
   check('New game plays the intro', intro && (await page.evaluate(() => window.__DEBUG__.engine.getCurrentScene()?.kind)) === 'IntroScene');
   check('no errors on the page', errors.length === 0, errors.slice(0, 3).join(' | '));

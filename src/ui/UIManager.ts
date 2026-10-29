@@ -452,9 +452,32 @@ class UIManagerImpl {
   private scanCovered = false;
   private loadingSince = 0;
 
+  /**
+   * Covers the screen in black at once, with no wipe, and keeps the loading screen black (its bar shows
+   * only if loading runs long): the dark New game's black hole leaves (galaxy/title/singularity), which
+   * the game then loads in. The next uncover (fadeFromBlack) is a slow fade out of that dark instead of
+   * the scan line, and ends the mode.
+   */
+  enterVoid(): void {
+    document.body.classList.add('from-void');
+    for (const a of this.scanAnims) a.cancel();
+    this.scanAnims = [];
+    const cover = this.fadeEl.querySelector('.scan-cover') as HTMLElement;
+    cover.style.opacity = '1';
+    cover.style.clipPath = 'inset(0 0 0 0)';
+    this.fadeEl.classList.add('covered');
+    this.scanCovered = true;
+  }
+
   private async scan(dir: 'in' | 'out'): Promise<void> {
     const cover = this.fadeEl.querySelector('.scan-cover') as HTMLElement;
     const line = this.fadeEl.querySelector('.scan-line') as HTMLElement;
+    // Already covered: a wipe down from the top would uncover the screen first.
+    if (dir === 'out' && this.scanCovered) return;
+    if (dir === 'in' && document.body.classList.contains('from-void')) {
+      await this.leaveVoid(cover);
+      return;
+    }
     for (const a of this.scanAnims) a.cancel();
     // Covered only once an 'out' wipe has finished; drawing resumes the moment any wipe starts.
     this.scanCovered = false;
@@ -484,6 +507,22 @@ class UIManagerImpl {
     cover.style.clipPath = dir === 'out' ? covered : clear;
     a.cancel();
     this.scanCovered = dir === 'out';
+  }
+
+  /** The way out of the void: the game fades up out of the black. */
+  private async leaveVoid(cover: HTMLElement): Promise<void> {
+    for (const a of this.scanAnims) a.cancel();
+    this.scanCovered = false;
+    this.fadeEl.classList.remove('covered');
+    const a = motion.ui.animate(cover, [{ opacity: 1 }, { opacity: 0 }], { dur: 1.6, ease: 'decelerate', fill: 'forwards' });
+    this.scanAnims = [a];
+    const done = await a.finished.then(() => true, () => false);
+    document.body.classList.remove('from-void');
+    document.getElementById('void-style')?.remove();
+    if (!done) return;
+    cover.style.clipPath = 'inset(100% 0 0 0)';
+    cover.style.opacity = '1';
+    a.cancel();
   }
 
   skillCheckPopup(text: string, success: boolean): void {

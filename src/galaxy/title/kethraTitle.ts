@@ -19,6 +19,8 @@ import { buildSkyFx } from './skyFx';
 import type { MeteorOptions, SkyFx } from './skyFx';
 import { buildTitleShip, SHIP_NOSE_X, SHIP_STERN_X } from './titleShip';
 import type { TitleShip } from './titleShip';
+import { Singularity } from './singularity/singularity';
+import type { Cue, SingularityFrame } from './singularity/singularity';
 
 /**
  * The title screen's backdrop for a first visit, when there is no save yet (TitleScreen.ts picks; a
@@ -142,6 +144,14 @@ const FLIGHT = {
   clearance: 8,
 };
 
+/**
+ * New game's black hole (singularity/singularity.ts): where it opens, in the sky between the moon and
+ * the sunrise, above the limb and the ship; how far (among the rocks, beyond the ship); and how its disk
+ * is turned: tilted toward the camera (degrees) so its near face shows, and rolled to lie along
+ * Kethra's limb.
+ */
+const HOLE = { at: [0.555, 0.3] as [number, number], distance: 55, tilt: 9, roll: -13 };
+
 /** Whether the entrance has played in this page: a later visit to the title picks up the drift instead. */
 let flightFlown = false;
 
@@ -253,6 +263,9 @@ export class KethraTitleScene implements GameScene {
   private debris!: Debris;
   private ship!: TitleShip;
   private fx!: SkyFx;
+  private singularity: Singularity | null = null;
+  /** The field of view frame() sets for the window; the black hole's fall opens it from there. */
+  private baseFov = FOV;
 
   private sunSeen = new THREE.Vector3();
   private light = new THREE.Vector3();
@@ -302,6 +315,19 @@ export class KethraTitleScene implements GameScene {
     this.light.copy(this.sunSeen).lerp(axis.clone().negate(), COMPOSITION.lightTowardCamera).normalize();
     // Kethra's lit face lies down and to the right: that is where its bounce comes from.
     const bounceDir = dirAt(0.85, 0.95);
+
+    // New game's black hole (singularity/), readied at the end of the build; its lens is linked only at
+    // the click.
+    const hole = dirAt(...HOLE.at).multiplyScalar(HOLE.distance);
+    const sight = hole.clone().normalize();
+    const spin = new THREE.Vector3(0, 1, 0)
+      .addScaledVector(sight, -sight.y)
+      .normalize()
+      .multiplyScalar(Math.cos(HOLE.tilt * DEG))
+      .addScaledVector(sight, -Math.sin(HOLE.tilt * DEG))
+      .applyAxisAngle(sight, HOLE.roll * DEG)
+      .normalize();
+    this.singularity = new Singularity({ centre: hole, axis: spin, lowTier: this.lowTier });
 
     // GPU bakes, each a strip a frame, fenced so the GPU has finished one before the next is queued.
     const pace = () => pacer?.breathe() ?? Promise.resolve();
@@ -397,6 +423,12 @@ export class KethraTitleScene implements GameScene {
     });
     this.fx.setMeteors(!motion.reduced);
     this.scene.add(this.fx.group);
+
+    // New game's black hole: readied now with everything else, used only on that click. Its well bends
+    // the rocks', the dust's and the ship's shaders, so that is done before they compile.
+    this.scene.add(this.singularity.embers.points);
+    this.singularity.prepare([this.rocks.mesh, this.debris.group, this.fx.group], this.ship.group);
+    step('singularity');
 
     // Complete from the first frame: the menu's dissolve is the only arrival.
     this.sky.setReveal(1, 1);
@@ -511,6 +543,28 @@ export class KethraTitleScene implements GameScene {
     });
   }
 
+  /**
+   * New game: a black hole opens in the sky and eats the picture (singularity/singularity.ts); the page
+   * moves the menu with it through `page`. Resolves on black.
+   */
+  collapse(page: { onFrame(f: SingularityFrame): void; onCue(c: Cue): void }): Promise<void> {
+    const engine = getActiveEngine();
+    if (!this.singularity || this.disposed || !engine) return Promise.resolve();
+    this.fx.setMeteors(false);
+    return this.singularity.start({ setScreenEffect: (p) => engine.setScreenEffect(p), setGrade: (g) => engine.setGrade(g), onFrame: page.onFrame, onCue: page.onCue }, engine.renderer, motion.reduced);
+  }
+
+  /** Readies New game's black hole ahead of the click (Singularity.prelink). */
+  prelink(): void {
+    const engine = getActiveEngine();
+    if (engine && !this.disposed) this.singularity?.prelink(engine.renderer);
+  }
+
+  /** A key or click during the black hole: the rest of it plays faster. */
+  hurry(): void {
+    this.singularity?.hurry();
+  }
+
   // ------------------------------------------------------------------ per frame
 
   update(dt: number): void {
@@ -520,8 +574,12 @@ export class KethraTitleScene implements GameScene {
     this.hero.update(e);
     this.rocks.update(dt);
     this.debris.update(e);
+    const hole = this.singularity?.active ? this.singularity : null;
+    hole?.advance(dt);
     this.flyShip(e + this.flightClock);
-    this.ship.update(e, this.thrust);
+    this.ship.update(e, hole ? hole.driveShip(this.ship.group, this.thrust) : this.thrust);
+    // More dust lit up as the hole feeds on it.
+    if (hole) this.fx.setDust(0.9 + 0.8 * clamp01((hole.t - 1.2) / 2.5));
 
     // Leaving: push in, black.
     let push = 0;
@@ -538,8 +596,10 @@ export class KethraTitleScene implements GameScene {
     }
 
     this.placeCamera(push);
+    hole?.applyCamera(this.camera, this.lookTarget, this.baseFov);
     this.fx.update(this.camera, dt, e);
     this.sky.update(this.camera);
+    hole?.sync(this.camera);
 
     if (this.firstFrame) {
       this.firstFrame = false;
@@ -567,6 +627,7 @@ export class KethraTitleScene implements GameScene {
   private frame(aspect: number): void {
     const tanV = Math.max(TAN_V, 0.36 / aspect);
     this.camera.fov = (2 * Math.atan(tanV)) / DEG;
+    this.baseFov = this.camera.fov;
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
     this.yaw = Math.max(0, Math.atan(TAN_H) - Math.atan(tanV * aspect));
@@ -584,6 +645,7 @@ export class KethraTitleScene implements GameScene {
     const left = this.onLeft;
     this.onLeft = null;
     left?.();
+    this.singularity?.dispose();
     this.detail?.dispose();
     this.sky?.dispose();
     this.hero?.dispose();

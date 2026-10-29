@@ -111,3 +111,52 @@ turning); with `?title=isilthe`, Isilthe's parts, Isilthe turning, the rocks dri
 breathing, the pointer lean; and the menu, panels, button sweep, reduced motion, New game and Continue.
 `node tools/capture-title.mjs <label> <base> --sizes=1920x1080,1280x1024 --at=4,14 [--bare]`:
 screenshots on this machine's GPU into renders/title/. `node tools/title-bench.mjs` as before.
+
+## New game: the black hole (`singularity/`)
+New game on the ship-over-Kethra title no longer fades out. After a beat of silence a black hole is
+born in the sky between the moon and the sunrise and eats the picture and the menu; the game loads in
+the black it leaves and fades up into the intro. Continue, and New game on the Isilthe backdrop (or
+before any backdrop has arrived), leave the old way.
+
+- **One clock** (`timeline.ts`, seconds since the click): hush 0, warn 0.35 (the corner readouts
+  lose the signal), implode 0.62 (light converges on the point), birth 1.15 (flash, shockwave), fight
+  1.3 (the ship turns to run), shipLost 3.25, capture 3.7 (the camera is turned to face it), plunge
+  4.85 (it falls in, a dolly zoom), horizon 6.05 (black, the sound cuts), end 6.75 (hand-over). The
+  scene's update drives it, so a slow frame slows everything together. A key or click after the birth
+  plays the rest three times as fast.
+- **Lens** (`lensPass.ts`): a full-screen pass between the scene and the bloom
+  (`Engine.setScreenEffect`). Each pixel's ray is traced past a Schwarzschild hole (leapfrog steps of
+  the photon-orbit force inside ~15 Rs, the far-field series outside, blended), so the shadow, the
+  photon ring, the Einstein ring of the sun and the planet's limb, and the lensed second image of the
+  ship are all real bends of the actual scene. A thin disk (temperature profile, Doppler beaming,
+  gravitational redshift) is crossed up to three times per ray, which gives the disk bent over and
+  under the shadow. Uniform loop bound (D3D unrolls constant ones). Compiled with `compileAsync` and
+  drawn once off screen during the backdrop's preparation, so the effect's first frame compiles nothing.
+- **Gravity well** (`gravityWell.ts`): a vertex displacement patched into the rocks', debris', dust's,
+  embers' and ship's shaders: radii remapped r' = (r^1.5 - K)^(2/3) (swallowed from the inside out,
+  monotonic, with tidal stretching near the hole), a differential swirl about the disk axis and a
+  flattening into its plane. The ship has its own well that holds until its engines fail. At K = W = 0
+  the shaders take their original path.
+- **Menu** (`ui/titleDevour.ts`): the pieces (corner readouts, kicker, wordmark letter by letter,
+  orbit halves, tagline, buttons) jolt with the shockwave, tremble, tear loose nearest first and spiral
+  in, stretched toward the hole; the pressed button goes last. The letters and the pieces' layers are
+  made when the title is built (`prepareDevour`), while it is invisible: done at the click, that
+  repainted the whole menu column in one frame of over 200 ms on Intel UHD. Reduced motion: the
+  pieces fade in the same order, the camera holds still, no shake, swirl or shockwave, and the event
+  runs 1.8 times as fast.
+- **Sound** (`audio/singularitySound.ts`): synthesized, driven by the same clock (beds set per frame,
+  hits on the cues); its noise and reverb buffers are made when the browser is idle after the title's
+  first gesture.
+- **The dark** (`UIManager.enterVoid`): the screen is covered in true black before anything is
+  removed; the loading screen stays black (its bar only shows after 3.5 s); the next uncover is a 1.6 s
+  fade up instead of the scan line. With a save loaded New game still reloads clean: `boot.ts` marks
+  the reload in session storage and `index.html` paints the empty page black, so the dark carries on.
+
+Measured on the Intel UHD laptop (production build, 1920x1080, Performance): click to black 6.7-6.9 s,
+black to the intro fully up 3.2-3.5 s (1.6 s of it the fade). The event's frames: median 18 ms in a cool
+run, 33 ms (a 30 fps cadence) when the machine is warm, with 10-15 frames of 50-120 ms where the disk
+fills most of the frame. A first-ever click on the page stalls ~0.8 s while the browser starts the
+audio device; the old exit had the same stall (measured with `?title=isilthe`), and here it falls in
+the silence before the birth. `node tools/capture-newgame.mjs <label> [base] --beats=1.2,2.4,3.6,4.8`
+shoots the event with its clock frozen per still; without `--beats` it reports frame times from the
+click to the intro (`--save` takes the reload path, `--reduced` the gentle form).

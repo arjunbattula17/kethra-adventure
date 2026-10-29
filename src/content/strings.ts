@@ -201,6 +201,11 @@ export const STRINGS = {
   'title.hudPlaceSub': 'Uncharted system',
   'title.hudEnd': 'The universe awaits',
   'title.hudSignal': 'Signal // Isilthe',
+  // The corner readouts as New game's black hole forms (ui/titleDevour.ts).
+  'title.void.place': 'Gravitational anomaly',
+  'title.void.placeSub': 'Mass reading off scale',
+  'title.void.end': 'Signal lost',
+  'title.void.signal': 'Lensing // Collapse',
   'title.continue': 'Continue',
   'title.newGame': 'New game',
   'title.chapters': 'Chapters',

@@ -4,6 +4,7 @@ import { getSharedEnvironment, initSharedEnvironment, initSharedEnvironmentAsync
 import { PostProcessing } from './PostProcessing';
 import type { QualityTier } from './PostProcessing';
 import type { GradeProfile } from './GradeGlowPass';
+import type { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
 import { UIManager } from '../ui/UIManager';
 import { setKitTextureMaxSize } from './textureCache';
 import { applyShaderPatches, hasQuickLights, setQuickLights } from './shaderPatches';
@@ -625,6 +626,11 @@ export class Engine {
       if (!opts.quiet) UIManager.hideLoading();
       this.holdGovernor();
     }
+  }
+
+  /** A scene's own full-screen pass before the bloom, or null for none (PostProcessing.setScreenEffect). */
+  setScreenEffect(pass: Pass | null): void {
+    this.postFx.setScreenEffect(pass);
   }
 
   /** Sets the colour grade immediately, for a scene that changes grade partway through. */

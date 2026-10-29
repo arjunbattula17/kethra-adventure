@@ -11,6 +11,9 @@ import { PACE } from '../core/prepare';
 import { motion } from '../motion';
 import type { TitleScene } from '../galaxy/title/TitleScene';
 import type { KethraTitleScene } from '../galaxy/title/kethraTitle';
+import { createDevour, prepareDevour } from './titleDevour';
+import { prepareSingularitySound, startSingularitySound } from '../audio/singularitySound';
+import { UIManager } from './UIManager';
 
 /**
  * The title screen: the first thing a judge sees. The menu is plain DOM and CSS, and the first click
@@ -29,6 +32,10 @@ import type { KethraTitleScene } from '../galaxy/title/kethraTitle';
  * Controls prints src/content/controls.ts, the same table the player code reads its keys from. Arrow
  * keys (or W/S) move through the menu; Enter or Space picks. The credits, including the attribution the
  * CC BY assets require, roll at the end of the game (EndingScene).
+ *
+ * New game leaves another way when the ship-over-Kethra backdrop is up: a black hole opens in its sky and
+ * eats the picture and the menu (collapse; galaxy/title/singularity), and the game loads in the dark it
+ * leaves (UIManager.enterVoid).
  */
 
 interface TitleOptions {
@@ -85,12 +92,14 @@ const SPARK = `<svg class="ts-spark" viewBox="0 0 16 16" aria-hidden="true"><pat
 let root: HTMLDivElement | null = null;
 let scene: TitleScene | KethraTitleScene | null = null;
 
+const isilthe = () => new URLSearchParams(location.search).get('title') === 'isilthe';
+
 /**
  * The backdrop: the ship over Kethra, with or without a save. The URL flag ?title=isilthe shows the
  * astronaut by Isilthe instead (kept for later use; captures and checks).
  */
 function pickBackdrop() {
-  return new URLSearchParams(location.search).get('title') === 'isilthe'
+  return isilthe()
     ? import('../galaxy/title/TitleScene').then((m) => ({ preload: m.preloadTitle, make: (): TitleScene | KethraTitleScene => new m.TitleScene() }))
     : import('../galaxy/title/kethraTitle').then((m) => ({ preload: m.preloadKethraTitle, make: (): TitleScene | KethraTitleScene => new m.KethraTitleScene() }));
 }
@@ -100,10 +109,13 @@ let revealed = false;
 let revealCap = 0;
 let chaptersOnReveal = false;
 
+/** When, after the backdrop's first frame, New game's black hole readies its lens: once the ship is in. */
+const PRELINK_AFTER_MS = 6000;
+
 /** The longest the page waits for the backdrop before showing the menu without it. */
 const REVEAL_CAP_MS = 9000;
 let leaving = false;
-let stopMusic: (() => void) | null = null;
+let stopMusic: ((fadeSeconds?: number) => void) | null = null;
 let buttons: HTMLButtonElement[] = [];
 let selected: HTMLButtonElement | null = null;
 const listeners: [EventTarget, string, EventListener][] = [];
@@ -214,7 +226,7 @@ export const TitleScreen = {
       return b;
     };
     add('title.continue', 'continue', () => this.leave(opts.onContinue), opts.hasSave ? undefined : t(opts.saveState === 'unreadable' ? 'title.saveUnreadable' : 'title.noSave'));
-    add('title.newGame', 'newGame', () => this.leave(opts.onNewGame));
+    add('title.newGame', 'newGame', (b) => this.collapse(opts.onNewGame, b));
     add('title.chapters', 'chapters', (b) => {
       AudioSystem.playUiClick();
       ChapterSelect.open();
@@ -231,6 +243,9 @@ export const TitleScreen = {
     });
 
     document.body.appendChild(el);
+    // The ship-over-Kethra backdrop can end New game with its black hole: the menu is made ready to be
+    // eaten now, while it is invisible (titleDevour.ts).
+    if (!isilthe()) prepareDevour(el);
     // The ending's Chapters button arrives here with the list asked for; it opens with the menu.
     chaptersOnReveal = location.hash === '#chapters';
     if (chaptersOnReveal) history.replaceState(null, '', location.pathname + location.search);
@@ -285,6 +300,14 @@ export const TitleScreen = {
       next.onFirstFrame = () => {
         root?.classList.add('backdrop-live');
         reveal();
+        // New game's black hole links its lens once the ship has come in and the browser is idle.
+        if ('prelink' in next) {
+          const ship = next;
+          window.setTimeout(() => {
+            if ('requestIdleCallback' in window) requestIdleCallback(() => !leaving && ship.prelink(), { timeout: 3000 });
+            else if (!leaving) ship.prelink();
+          }, PRELINK_AFTER_MS);
+        }
       };
       // Only Isilthe's backdrop sends its signal.
       if ('onSignal' in next) next.onSignal = signal;
@@ -314,6 +337,77 @@ export const TitleScreen = {
     // The scene's own fade can't finish in a hidden tab (no frames); the timer caps the wait.
     const backdrop = scene ? Promise.race([scene.leave(), new Promise<void>((resolve) => window.setTimeout(resolve, 1200))]) : Promise.resolve();
     void Promise.all([outro, backdrop]).then(() => {
+      el.remove();
+      root = null;
+      scene = null;
+      chosen = null;
+      buttons = [];
+      selected = null;
+      then();
+    });
+  },
+
+  /**
+   * New game: the black hole (galaxy/title/singularity). The backdrop's scene runs the event and reports
+   * every frame; the menu is torn apart with it (titleDevour.ts) and the sound follows the same clock
+   * (singularitySound.ts). It ends on black: the screen is covered (UIManager.enterVoid) before anything
+   * is removed, then `then` starts the game in that dark. Without the ship-over-Kethra backdrop on
+   * screen (still coming, failed, or the Isilthe one) New game leaves the usual way.
+   */
+  collapse(then: () => void, pressed: HTMLButtonElement): void {
+    if (leaving || !root) return;
+    const live = scene && 'collapse' in scene && root.classList.contains('backdrop-live') ? scene : null;
+    if (!live) {
+      this.leave(then);
+      return;
+    }
+    leaving = true;
+    const el = root;
+    PanelManager.relockPointerOnClose = true;
+    window.clearTimeout(revealCap);
+    for (const [target, type, fn] of listeners.splice(0)) target.removeEventListener(type, fn);
+    // The music stops dead: the quiet is the first sign.
+    stopMusic?.(0.12);
+    stopMusic = null;
+    const sound = startSingularitySound();
+    el.classList.add('collapsing');
+    el.inert = true;
+    document.body.classList.add('title-collapsing');
+    const devour = createDevour(el, pressed, motion.reduced);
+    devour.onTear = (pan, size) => sound.whoosh(pan, size);
+    // A key or a click hurries it along.
+    const hurry = () => live.hurry();
+    window.addEventListener('keydown', hurry);
+    window.addEventListener('pointerdown', hurry);
+    let lastFrame = performance.now();
+    const event = live.collapse({
+      onFrame: (f) => {
+        lastFrame = performance.now();
+        devour.frame(f);
+        sound.frame(f.t);
+      },
+      onCue: (c) => {
+        sound.cue(c);
+        devour.cue(c);
+      },
+    });
+    // A hidden tab draws no frames, so the event waits with it; this only catches frames stopping in a
+    // visible one (a lost GPU), so the game still starts.
+    let watch = 0;
+    const stalled = new Promise<void>((resolve) => {
+      const check = () => {
+        if (!document.hidden && performance.now() - lastFrame > 4000) resolve();
+        else watch = window.setTimeout(check, 1000);
+      };
+      watch = window.setTimeout(check, 1000);
+    });
+    void Promise.race([event, stalled]).then(() => {
+      window.clearTimeout(watch);
+      window.removeEventListener('keydown', hurry);
+      window.removeEventListener('pointerdown', hurry);
+      document.body.classList.remove('title-collapsing');
+      UIManager.enterVoid();
+      sound.stop();
       el.remove();
       root = null;
       scene = null;
@@ -427,4 +521,6 @@ function returnFocusOnClose(b: HTMLButtonElement): void {
 function startTitleMusic(): void {
   if (stopMusic || leaving || !root) return;
   stopMusic = AudioSystem.startMusic('title');
+  // Sound is on: the black hole's noise and reverb are made while the title waits, not at the click.
+  if (!isilthe()) prepareSingularitySound();
 }

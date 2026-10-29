@@ -157,6 +157,12 @@ export const AudioSystem = {
     this.setVolume('master', v);
   },
 
+  /** The context and the effects bus, for a sound built elsewhere (audio/singularitySound.ts); null without Web Audio. */
+  effectsOutput(): { ctx: AudioContext; bus: GainNode } | null {
+    const c = getCtx();
+    return c && sfxBus ? { ctx: c, bus: sfxBus } : null;
+  },
+
   playTone(freq: number, duration: number, type: OscillatorType = 'sine', volume = 0.15): void {
     tone(freq, 0, duration, { type, vol: volume });
   },
@@ -393,7 +399,8 @@ export const AudioSystem = {
    * picked from the pentatonic scale at irregular intervals, so it never loops audibly. Returns a
    * stop function that fades it out.
    */
-  startMusic(place: MusicPlace): () => void {
+  /** Starts a place's bed; the function it returns fades it out, over 2 s unless told otherwise. */
+  startMusic(place: MusicPlace): (fadeSeconds?: number) => void {
     const c = getCtx();
     if (!c || !musicBus) return () => {};
     const bed = BEDS[place];
@@ -462,15 +469,15 @@ export const AudioSystem = {
     };
     timer = window.setTimeout(pluck, 1500);
 
-    return () => {
+    return (fadeSeconds = 2) => {
       if (stopped) return;
       stopped = true;
       window.clearTimeout(timer);
       const now = c.currentTime;
       out.gain.cancelScheduledValues(now);
       out.gain.setValueAtTime(out.gain.value, now);
-      out.gain.linearRampToValueAtTime(0, now + 2);
-      for (const o of oscs) o.stop(now + 2.1);
+      out.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+      for (const o of oscs) o.stop(now + fadeSeconds + 0.1);
     };
   },
 };

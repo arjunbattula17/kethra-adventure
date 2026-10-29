@@ -2089,3 +2089,18 @@ body.conducting #toast-stack { opacity: 0; transition: opacity var(--dur-small) 
 .chapter-desc { font-size: calc(14px * var(--text-scale)); color: var(--ink-dim); line-height: 1.4; }
 .chapter-from { font-size: calc(12px * var(--text-scale)); color: var(--grove); }
 .chapter-row.armed .chapter-from { color: var(--warn); }
+
+/* New game's black hole (galaxy/title/singularity, ui/titleDevour.ts). While it runs nothing on the title
+   takes a pointer and there is no cursor; the corner readouts lose the signal. */
+body.title-collapsing, body.title-collapsing * { cursor: none !important; }
+.title-screen.collapsing, .title-screen.collapsing * { pointer-events: none; }
+.title-screen.ts-alarm .ts-hud { color: rgba(255, 178, 128, 0.92); animation: ts-alarm 0.16s steps(1) 4; }
+.title-screen.ts-alarm .ts-hud-signal { opacity: 0.95; color: rgba(255, 150, 110, 0.95); animation: none; }
+body.reduced-motion .title-screen.ts-alarm .ts-hud { animation: none; }
+@keyframes ts-alarm { 50% { opacity: 0.25; } }
+/* The dark it leaves: the cover and the loading screen are true black, and the loading bar only comes
+   up if the load runs long (UIManager.enterVoid). */
+body.from-void .scan-cover,
+body.from-void .loading-indicator { background: #000; }
+body.from-void .loading-indicator.visible > * { animation: void-late 0.9s 3.5s backwards; }
+@keyframes void-late { from { opacity: 0; } }

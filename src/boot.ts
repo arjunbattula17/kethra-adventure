@@ -27,6 +27,29 @@ import { Chapters, CHAPTERS } from './core/chapters';
 import { mark, timed } from './core/perfMarks';
 
 /**
+ * New game's black hole ends on black; with a save loaded the page then reloads clean (onNewGame). This
+ * mark carries that dark across the reload: index.html paints the empty page black, boot keeps the screen
+ * covered. Session storage, so it can't outlive the tab.
+ */
+const VOID_MARK = 'kethra_void';
+function markVoid(): void {
+  try {
+    sessionStorage.setItem(VOID_MARK, '1');
+  } catch {
+    // Without storage the reload shows the usual loading screen.
+  }
+}
+function takeVoidMark(): boolean {
+  try {
+    const had = sessionStorage.getItem(VOID_MARK) === '1';
+    sessionStorage.removeItem(VOID_MARK);
+    return had;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Starts the game: the title screen first, then the 3D engine behind it. Called by main.ts once it has
  * checked that WebGL 2 works (which it does while this module downloads).
  */
@@ -40,6 +63,9 @@ export function startGame(): void {
   const appEl = document.getElementById('app')!;
 
   UIManager.init();
+  // Back from New game's black hole with a save to clear (onNewGame below): the dark it left carries on
+  // through the reload, and the game fades up out of it.
+  if (params.has('newGame') && takeVoidMark()) UIManager.enterVoid();
   PanelManager.mount();
   AudioSystem.init();
   JournalSystem.init();
@@ -185,6 +211,7 @@ export function startGame(): void {
           ensureEngine();
           void flow.start();
         } else {
+          markVoid();
           location.search = '?newGame=1';
         }
       },

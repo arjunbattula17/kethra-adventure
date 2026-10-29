@@ -7,6 +7,12 @@
     <title>Kethra</title>
     <meta name="description" content="A deep-space puzzle RPG: wake a stranded ship and read the light of a vanished civilisation." />
     <meta name="theme-color" content="#07080a" />
+    <!-- Coming back from New game's black hole (src/boot.ts, markVoid): the page stays black until the game fades up. -->
+    <script>
+      try {
+        if (sessionStorage.getItem('kethra_void') === '1') document.write('<style id="void-style">html,body{background:#000!important}</style>');
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="app"></div>
