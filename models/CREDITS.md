@@ -46,3 +46,28 @@ Jacques Fourie (CC BY 3.0) on 2026-09-27; that model is no longer in the build.
 The former `planets/` NASA VTAD glbs were replaced by shader planets driven by the prepared
 equirect maps in `public/textures/planets/` — see `public/textures/CREDITS.md` and
 `tools/prep-planet-textures.mjs`.
+
+## `kethra/`: Kethra's set dressing
+
+Two trees rebuilt for Kethra from sourced originals. Neither is used as downloaded: each was reduced
+and restyled to sit beside the Stylized Nature kit (ART_BIBLE.md, "one style per scene"), and the
+game then tints them into the grove's palette at load (`src/planets/kethra/dressing.ts`).
+
+| File | Source | Author | License |
+|---|---|---|---|
+| `jacaranda.glb` | Jacaranda Tree - https://polyhaven.com/a/jacaranda_tree | Rob Tuytel, Rico Cilliers (Poly Haven) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `tree_small.glb` | Tree Small 02 - https://polyhaven.com/a/tree_small_02 | Rico Cilliers (Poly Haven) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+
+Kethra's colonnade, its resting moths and the crystal in the Heart's basin are built in code
+(`columnGeometry`, `mothGeometry` and `crystalGeometry` in `src/planets/kethra/dressing.ts`). They
+replaced `column.glb`, `moth.glb` and `crystal.glb` on 2026-10-13: three CC BY 4.0 models from
+Sketchfab ("Column, old Roman" by aluxado, "Moth" by Peter Farell, "Crystal Cluster 2 (Free)" by
+chrismartin1337), which are no longer in the build.
+
+- **`jacaranda.glb`** and **`tree_small.glb`** - film-quality trees of 3,863,832 and 2,062,487
+  triangles. The trunk and main limbs were reduced and the twigs dropped; the leaves, which are
+  textured cards, were thinned to an even subset and each rebuilt as one quad (7,244 and 1,600
+  cards), stored in shuffled order so the low quality tier can draw half of them. Final sizes are
+  24,386 and 4,974 triangles. Each ships one 256 px bark map and one leaf map with the cut-out in
+  its alpha channel (512 px WebP and 256 px PNG): the sizes the texture audit's standard asks for
+  on trees that stand at least 6 m from any path.
