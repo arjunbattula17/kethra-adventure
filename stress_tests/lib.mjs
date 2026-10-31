@@ -26,13 +26,15 @@ export async function launch() {
 /**
  * A page with its console errors and uncaught exceptions collected, and the invariant monitor
  * installed before any game code runs. `init` runs in the page before boot (for storage setup).
+ * `block` lists URL patterns that fail from the first request, so files the title prefetches fail too.
  */
-export async function openPage(browser, query = '', { viewport = { width: 1280, height: 720 }, init } = {}) {
+export async function openPage(browser, query = '', { viewport = { width: 1280, height: 720 }, init, block = [] } = {}) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+  for (const pattern of block) await page.route(pattern, (route) => route.abort('connectionfailed'));
   if (init) await page.addInitScript(init.fn, init.arg);
   await page.addInitScript(installMonitor);
   await page.goto(`${BASE}${query}`, { waitUntil: 'domcontentloaded' });

@@ -9,7 +9,11 @@
 //    landmark's loam resets before the feet sink into it.
 // F. The quality tier changed by hand mid-Wren, both ways, and the performance readout (` key).
 // G. A first trip whose files never arrive: back in control aboard, with the console guide lit again.
-//   node stress_tests/s15-seams.mjs [A|B|C|D|E|F|G]
+// H. New game's black hole (8a461ce, 2026-10-29) where it meets the rest of the game (2026-10-31 review):
+//    O mid-event, the reload into the dark with a save and the usual way without the event, frames
+//    stopping (the stall watchdog) and the sound with them, a hidden tab, nothing loading after it, and
+//    flashing (WCAG 2.3.1).
+//   node stress_tests/s15-seams.mjs [A|B|C|D|E|F|G|H]
 import { launch, openPage, check, clean, failures, settled, until, press, teleport } from './lib.mjs';
 
 const browser = await launch();
@@ -204,6 +208,210 @@ if (!ONLY || ONLY === 'G') {
   // The page's own error for the blocked file is expected; anything else is not.
   await clean(page, errors.filter((e) => !/CruiseScene|Failed to fetch dynamically imported module|net::ERR_FAILED/.test(e)), 'G');
   await context.close();
+}
+
+if (!ONLY || ONLY === 'H') {
+  // The event ends at TIMELINE.end (src/galaxy/title/singularity/timeline.ts) and only then goes black,
+  // unless its frames stop in a visible tab (TitleScreen.collapse's watchdog: "a lost GPU").
+  const END = 6.75;
+  const SAVE = {
+    fn: (raw) => { if (!sessionStorage.getItem('__seeded')) { localStorage.setItem('kethra_save_v1', raw); sessionStorage.setItem('__seeded', '1'); } },
+    arg: JSON.stringify({ scene: 'wren', flags: ['tutorial_battle_complete', 'galaxy_revealed', 'logs_available', 'damage_assessed'], planetsUnlocked: ['kethra'], xp: 0, level: 1 }),
+  };
+  // The ship over Kethra up, arrived, and the lens linked (PRELINK_AFTER_MS).
+  const shipTitle = async (page) => { await page.waitForSelector('.title-screen.backdrop-live', { timeout: 120000 }); await page.waitForTimeout(8000); };
+  const holeAt = (page, t) => until(page, (t) => (window.__DEBUG__?.engine.getCurrentScene()?.singularity?.t ?? 0) > t, 30000, t);
+  // The hole's clock when the screen goes black, polled on a timer so a paused engine can't hide it.
+  const watchVoid = (page) => page.evaluate(() => {
+    const s = window.__DEBUG__.engine.getCurrentScene()?.singularity;
+    window.__voidAt = null;
+    const id = setInterval(() => { if (document.body.classList.contains('from-void')) { window.__voidAt = s?.t ?? -1; clearInterval(id); } }, 20);
+  });
+  const voidAt = async (page) => ((await until(page, () => window.__voidAt !== null, 30000)) ? page.evaluate(() => window.__voidAt) : null);
+  const inIntro = (page) => until(page, () => window.__DEBUG__.flow.state === 'intro' && !document.body.classList.contains('from-void'), 120000);
+
+  // H1. O mid-event: the panel paused the engine, the watchdog took the pause for a lost GPU and went
+  // black over the open panel, and the game loaded paused behind it.
+  {
+    const { page, context, errors } = await openPage(browser, '?tier=low&seed=7');
+    await shipTitle(page);
+    await page.getByRole('button', { name: 'New game' }).click();
+    await holeAt(page, 1.6);
+    await watchVoid(page);
+    await press(page, 'KeyO', 60);
+    const at = await voidAt(page);
+    check("H1: O during the black hole doesn't cut it short", at !== null && at >= END, `black at t=${at}`);
+    const arrived = await inIntro(page);
+    await page.waitForTimeout(1500);
+    const s = await page.evaluate(() => ({ panel: !!document.querySelector('.panel-overlay.visible'), paused: window.__DEBUG__.engine.paused }));
+    check('H1: and the intro arrives running, with no panel left open', arrived && !s.panel && !s.paused, JSON.stringify({ arrived, ...s }));
+    await clean(page, errors, 'H1');
+    await context.close();
+  }
+
+  // H2. A save: the event ends in a reload, the dark carries across it, and the intro fades up out of it.
+  {
+    const { page, context, errors } = await openPage(browser, '?tier=low&seed=7', { init: SAVE });
+    await shipTitle(page);
+    await page.getByRole('button', { name: 'New game' }).click();
+    await page.waitForURL(/newGame=1/, { timeout: 60000, waitUntil: 'domcontentloaded' });
+    const dark = await until(page, () => document.body.classList.contains('from-void') && !!document.getElementById('void-style'), 15000);
+    const arrived = await inIntro(page);
+    const after = await page.evaluate(() => ({ voidStyle: !!document.getElementById('void-style'), kind: window.__DEBUG__.engine.getCurrentScene()?.kind }));
+    check('H2: with a save, the black hole reloads into the dark and the intro fades up out of it', dark && arrived && !after.voidStyle && after.kind === 'IntroScene', JSON.stringify({ dark, arrived, ...after }));
+    await clean(page, errors, 'H2');
+    await context.close();
+  }
+
+  // H3. A save, and a New game with no black hole (Isilthe's backdrop "leaves the old way", as does a
+  // click before the ship's backdrop is up): the reload is the usual one, not the dark with its bar held back.
+  {
+    const { page, context, errors } = await openPage(browser, '?title=isilthe&tier=low&seed=7', { init: SAVE });
+    await page.waitForSelector('.title-btn', { timeout: 60000 });
+    await page.waitForTimeout(4000);
+    await page.getByRole('button', { name: 'New game' }).click();
+    await page.waitForURL(/newGame=1/, { timeout: 60000, waitUntil: 'domcontentloaded' });
+    const seen = await page.evaluate(() => new Promise((resolve) => {
+      const r = { voidStyle: false, fromVoid: false };
+      const id = setInterval(() => { r.voidStyle ||= !!document.getElementById('void-style'); r.fromVoid ||= document.body.classList.contains('from-void'); }, 20);
+      setTimeout(() => { clearInterval(id); resolve(r); }, 3000);
+    }));
+    check('H3: a New game without the black hole reloads the usual way, not into the dark', !seen.voidStyle && !seen.fromVoid, JSON.stringify(seen));
+    check('H3: and reaches the intro', await inIntro(page));
+    await clean(page, errors, 'H3');
+    await context.close();
+  }
+
+  // H4. Frames stop mid-event in a visible tab: the watchdog starts the game, and the black hole's sound
+  // must stop with the picture (it cut only at the horizon, so it droned on over the loading).
+  {
+    const { page, context, errors } = await openPage(browser, '?tier=low&seed=7');
+    await shipTitle(page);
+    await page.mouse.click(1150, 360); // the sky: a gesture, so sound is on
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: 'New game' }).click();
+    await holeAt(page, 2.2);
+    await page.evaluate(() => {
+      const o = window.__DEBUG__.audio.effectsOutput();
+      const an = o.ctx.createAnalyser();
+      an.fftSize = 4096;
+      o.bus.connect(an);
+      window.__rms = () => { const d = new Float32Array(an.fftSize); an.getFloatTimeDomainData(d); let s = 0; for (const x of d) s += x * x; return Math.sqrt(s / d.length); };
+      window.__ctxState = () => o.ctx.state;
+    });
+    await page.waitForTimeout(300);
+    const before = await page.evaluate(() => ({ state: window.__ctxState(), rms: window.__rms() }));
+    await watchVoid(page);
+    await page.evaluate(() => window.__DEBUG__.engine.setPaused(true));
+    const at = await voidAt(page);
+    await page.waitForTimeout(1500);
+    let after = 0;
+    for (let i = 0; i < 5; i++) { after = Math.max(after, await page.evaluate(() => window.__rms())); await page.waitForTimeout(80); }
+    check('H4: frames stopping mid-event still end it on black', at !== null && at < END, `black at t=${at}`);
+    check('H4: and its sound stops with it', before.state === 'running' && before.rms > 0.01 && after < 0.25 * before.rms, JSON.stringify({ ...before, after: +after.toFixed(4) }));
+    await page.evaluate(() => window.__DEBUG__.engine.setPaused(false));
+    check('H4: frames back, the intro arrives', await inIntro(page));
+    await clean(page, errors, 'H4');
+    await context.close();
+  }
+
+  // H5. The tab hidden mid-event (no frames, as rAF stops) and brought back, its first frame arriving after
+  // an overdue watchdog check (held 1.5 s here, well inside the watchdog's 4 s): the event must wait, not end.
+  {
+    const { page, context, errors } = await openPage(browser, '?tier=low&seed=7');
+    await shipTitle(page);
+    await page.evaluate(() => {
+      window.__hidden = false;
+      Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get: () => window.__hidden });
+      Object.defineProperty(Document.prototype, 'visibilityState', { configurable: true, get: () => (window.__hidden ? 'hidden' : 'visible') });
+    });
+    await page.getByRole('button', { name: 'New game' }).click();
+    await holeAt(page, 2.0);
+    await watchVoid(page);
+    await page.evaluate(() => { window.__hidden = true; document.dispatchEvent(new Event('visibilitychange')); window.__DEBUG__.engine.setPaused(true); });
+    await page.waitForTimeout(6000);
+    await page.evaluate(() => { window.__hidden = false; document.dispatchEvent(new Event('visibilitychange')); });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.__DEBUG__.engine.setPaused(false));
+    const at = await voidAt(page);
+    check("H5: a tab hidden mid-event and brought back doesn't cut it short", at !== null && at >= END, `black at t=${at}`);
+    check('H5: and the intro arrives', await inIntro(page));
+    await clean(page, errors, 'H5');
+    await context.close();
+  }
+
+  // H6. Nothing loads after the black hole (the intro's code, then the Wren's fallback): the failure
+  // screen inside the dark must be readable at once, never a black screen (test-load-failure's rule).
+  {
+    const { page, context, errors } = await openPage(browser, '?tier=low&seed=7', { block: ['**/assets/IntroScene-*.js', '**/Door_Frame_Square.gltf'] });
+    await shipTitle(page);
+    await page.getByRole('button', { name: 'New game' }).click();
+    const shown = await until(page, () => /didn’t load/.test(document.querySelector('.loading-indicator.visible')?.textContent ?? ''), 180000);
+    await page.waitForTimeout(600);
+    const s = await page.evaluate(() => {
+      const el = document.querySelector('.loading-indicator');
+      const reload = el.querySelector('button');
+      return { title: +getComputedStyle(el.querySelector('.loading-title')).opacity, reload: reload ? +getComputedStyle(reload.parentElement).opacity : 0, focused: document.activeElement === reload };
+    });
+    check('H6: nothing loading after the black hole ends on a readable failure screen with its reload', shown && s.title > 0.9 && s.reload > 0.9 && s.focused, JSON.stringify({ shown, ...s }));
+    // The blocked files' own errors are expected; anything else is not.
+    await clean(page, errors.filter((e) => !/net::ERR_CONNECTION_FAILED|\[flow\] intro → wren failed/.test(e)), 'H6');
+    await context.close();
+  }
+
+  // H7. Flashing, by WCAG 2.3.1's general-flash rule (at most three flashes in any second): swallowed
+  // embers and dust stacked on the hole's centre, and the lens spread that one texel over its Einstein ring
+  // on the frames the stack landed on a pixel, so the bloom flashed the whole screen 11-17 times a second.
+  // Every drawn frame is read in the task that draws it (Engine.drawObserver) at 64 x 36; the mean of each
+  // region the size of the rule's area (a third of the screen each way, sliding by half) may swing by 0.1
+  // or more in relative luminance, the darker side under 0.8, at most six times inside any second.
+  {
+    const { page, context, errors } = await openPage(browser, '?tier=low&seed=7');
+    await shipTitle(page);
+    await page.evaluate(() => {
+      const engine = window.__DEBUG__.engine;
+      const c = document.createElement('canvas');
+      c.width = 64;
+      c.height = 36;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      const rec = (window.__frames = []);
+      engine.drawObserver = () => {
+        if (!engine.getCurrentScene()?.singularity?.active) return;
+        ctx.drawImage(engine.renderer.domElement, 0, 0, 64, 36);
+        const d = ctx.getImageData(0, 0, 64, 36).data;
+        const L = new Float32Array(64 * 36);
+        for (let i = 0; i < L.length; i++) L[i] = 0.2126 * lin(d[i * 4]) + 0.7152 * lin(d[i * 4 + 1]) + 0.0722 * lin(d[i * 4 + 2]);
+        rec.push({ now: performance.now(), L: Array.from(L) });
+      };
+    });
+    await page.getByRole('button', { name: 'New game' }).click();
+    await until(page, () => document.body.classList.contains('from-void'), 60000);
+    const frames = await page.evaluate(() => { window.__DEBUG__.engine.drawObserver = null; return window.__frames; });
+    let worst = 0;
+    for (let y = 0; y + 12 <= 36; y += 6) {
+      for (let x = 0; x + 21 <= 64; x += 10) {
+        let ref = null, dir = 0;
+        const swings = [];
+        for (const f of frames) {
+          let m = 0;
+          for (let j = y; j < y + 12; j++) for (let i = x; i < x + 21; i++) m += f.L[j * 64 + i];
+          m /= 21 * 12;
+          if (ref === null) ref = m;
+          else if ((dir === 1 && m > ref) || (dir === -1 && m < ref)) ref = m;
+          else if (Math.abs(m - ref) >= 0.1) {
+            if (Math.min(m, ref) < 0.8) swings.push(f.now);
+            dir = m > ref ? 1 : -1;
+            ref = m;
+          }
+          worst = Math.max(worst, swings.filter((s) => f.now - s < 1000).length);
+        }
+      }
+    }
+    check('H7: the black hole flashes at most three times in any second (WCAG 2.3.1)', frames.length > 60 && worst <= 6, `${frames.length} frames read; most swings of a region in one second: ${worst}`);
+    await clean(page, errors, 'H7');
+    await context.close();
+  }
 }
 
 await browser.close();
