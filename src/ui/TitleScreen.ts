@@ -392,7 +392,12 @@ export const TitleScreen = {
       },
     });
     // A hidden tab draws no frames, so the event waits with it; this only catches frames stopping in a
-    // visible one (a lost GPU), so the game still starts.
+    // visible one (a lost GPU), so the game still starts. A tab coming back starts the count again: an
+    // overdue check can run before its first frame.
+    const woke = () => {
+      lastFrame = performance.now();
+    };
+    document.addEventListener('visibilitychange', woke);
     let watch = 0;
     const stalled = new Promise<void>((resolve) => {
       const check = () => {
@@ -403,6 +408,7 @@ export const TitleScreen = {
     });
     void Promise.race([event, stalled]).then(() => {
       window.clearTimeout(watch);
+      document.removeEventListener('visibilitychange', woke);
       window.removeEventListener('keydown', hurry);
       window.removeEventListener('pointerdown', hurry);
       document.body.classList.remove('title-collapsing');

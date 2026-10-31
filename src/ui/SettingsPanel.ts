@@ -109,6 +109,9 @@ class SettingsPanelImpl {
 
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code !== 'KeyO') return;
+    // New game's black hole plays through (TitleScreen.collapse): a panel would pause it, and its stall
+    // watchdog would take the pause for a lost GPU and go black over the panel.
+    if (document.body.classList.contains('title-collapsing')) return;
     e.preventDefault();
     // A held O auto-repeats: toggle once per press.
     if (e.repeat) return;

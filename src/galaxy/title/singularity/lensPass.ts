@@ -216,7 +216,7 @@ const FRAGMENT = /* glsl */ `
         // inside a chord of half-length S is S (2 S^2 + 3 b^2) / (2 R^3) of the whole.
         float inside = S * (2.0 * S * S + 3.0 * b * b) / (2.0 * R * R * R);
         outDir = normalize(normalize(v) + toward * farBend(max(b, 1e-3)) * (1.0 - inside));
-        outDir = normalize(mix(outDir, normalize(dir + toward * farBend(b)), smoothstep(uFar - 1.5, uFar, b)));
+        outDir = normalize(mix(outDir, normalize(dir + toward * farBend(max(b, 1e-3))), smoothstep(uFar - 1.5, uFar, b)));
       } else if (along > 0.0) {
         outDir = normalize(dir + toward * farBend(b));
       }

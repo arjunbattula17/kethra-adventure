@@ -21,7 +21,7 @@ export interface SingularitySound {
   frame(t: number): void;
   /** A piece of the menu torn away: `pan` -1..1, `size` 0..1. */
   whoosh(pan: number, size: number): void;
-  /** Lets the tail ring out, then frees everything. */
+  /** Lets the tail ring out, then frees everything. Before the horizon (the stall watchdog) the beds cut first. */
   stop(): void;
 }
 
@@ -234,10 +234,20 @@ export function startSingularitySound(): SingularitySound {
 
   let lastTime = c.currentTime;
   let cut = false;
+  let stopped = false;
   const set = (p: AudioParam, v: number, tc = 0.05) => p.setTargetAtTime(v, c.currentTime, tc);
+  /** Every bed at once. */
+  const cutBeds = (at: number) => {
+    cut = true;
+    for (const g of [sub, rumble, rise, tinnitus, groan, shimmer, engine]) {
+      g.gain.cancelScheduledValues(at);
+      g.gain.setTargetAtTime(0, at, 0.006);
+    }
+  };
 
   return {
     cue(cue) {
+      if (stopped) return;
       const at = c.currentTime + 0.005;
       switch (cue) {
         case 'warn':
@@ -260,11 +270,7 @@ export function startSingularitySound(): SingularitySound {
           break;
         case 'horizon': {
           // Everything stops; then one impact in the dark.
-          cut = true;
-          for (const g of [sub, rumble, rise, tinnitus, groan, shimmer, engine]) {
-            g.gain.cancelScheduledValues(at);
-            g.gain.setTargetAtTime(0, at, 0.006);
-          }
+          cutBeds(at);
           const hit = at + 0.26;
           sweep(hit, 4.2, 54, 22, 0.55, { attack: 0.03, wet: 1.4 });
           burst(hit, 1.4, { from: 400, to: 60, type: 'lowpass', vol: 0.14, attack: 0.02, wet: 1.2 });
@@ -323,6 +329,10 @@ export function startSingularitySound(): SingularitySound {
     },
 
     stop() {
+      if (stopped) return;
+      stopped = true;
+      // Stopped short of the horizon (TitleScreen's watchdog): the picture has gone, so the beds go too.
+      if (!cut) cutBeds(c.currentTime);
       // The impact's tail rings for about four seconds after the horizon.
       const end = c.currentTime + 5;
       master.gain.setTargetAtTime(0, end - 0.5, 0.15);

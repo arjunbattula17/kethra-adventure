@@ -408,6 +408,9 @@ class UIManagerImpl {
    * written at every arrival, so a reload lands on the title with Continue.
    */
   showLoadFailure(): void {
+    // Out of New game's dark (enterVoid) at once: a loading screen shown again restarts the void's late fade.
+    document.body.classList.remove('from-void');
+    document.getElementById('void-style')?.remove();
     this.showLoading();
     this.loadingLoreTimer?.cancel();
     this.loadingLoreTimer = null;

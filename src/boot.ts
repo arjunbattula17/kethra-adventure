@@ -211,7 +211,9 @@ export function startGame(): void {
           ensureEngine();
           void flow.start();
         } else {
-          markVoid();
+          // Only after the black hole, which ends in UIManager.enterVoid: a New game that left the usual
+          // way (Isilthe's backdrop, or the ship's not up yet) reloads to the usual loading screen.
+          if (document.body.classList.contains('from-void')) markVoid();
           location.search = '?newGame=1';
         }
       },
