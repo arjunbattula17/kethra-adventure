@@ -1,4 +1,4 @@
-import{B as e,D as t,Et as n,Gt as r,Mt as i,Ot as a,b as o,st as s,x as c,yt as l}from"./three-D-4sCFw3.js";import{_ as u}from"./boot-BYZiNFp_.js";function d(e,t){let r=e/100,i,a,o;return r<=66?(i=255,a=99.4708025861*Math.log(r)-161.1195681661,o=r<=19?0:138.5177312231*Math.log(r-10)-305.0447927307):(i=329.698727446*(r-60)**-.1332047592,a=288.1221695283*(r-60)**-.0755148492,o=255),t.setRGB(Math.min(255,Math.max(0,i))/255,Math.min(255,Math.max(0,a))/255,Math.min(255,Math.max(0,o))/255,n),t}var f=new r(.28,.93,-.24).normalize(),p=`
+import{B as e,D as t,Et as n,Gt as r,Mt as i,Ot as a,b as o,st as s,x as c,yt as l}from"./three-D-4sCFw3.js";import{_ as u}from"./boot-DbvSRRXE.js";function d(e,t){let r=e/100,i,a,o;return r<=66?(i=255,a=99.4708025861*Math.log(r)-161.1195681661,o=r<=19?0:138.5177312231*Math.log(r-10)-305.0447927307):(i=329.698727446*(r-60)**-.1332047592,a=288.1221695283*(r-60)**-.0755148492,o=255),t.setRGB(Math.min(255,Math.max(0,i))/255,Math.min(255,Math.max(0,a))/255,Math.min(255,Math.max(0,o))/255,n),t}var f=new r(.28,.93,-.24).normalize(),p=`
   varying vec3 vDir;
   void main() {
     vDir = normalize(position);
