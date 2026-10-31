@@ -42,9 +42,12 @@ const WELL_GLSL = /* glsl */ `
   uniform vec3 uWellPosV;
   uniform vec3 uWellAxisV;
   uniform vec4 uWell;
+  // 1 once the vertex is inside the swallowed ball (bhFall puts it on the centre).
+  float bhGone = 0.0;
   vec3 bhFall(vec3 p, vec3 c, vec3 ax) {
     vec3 d = p - c;
     float r = length(d);
+    bhGone = r * sqrt(r) <= uWell.x ? 1.0 : 0.0;
     float rn = pow(max(r * sqrt(r) - uWell.x, 0.0), 2.0 / 3.0);
     float k = r > 1e-4 ? rn / r : 0.0;
     float h = dot(d, ax);
@@ -65,6 +68,13 @@ const WELL_GLSL = /* glsl */ `
 
 const WORLD_FORM = /gl_Position\s*=\s*projectionMatrix\s*\*\s*viewMatrix\s*\*\s*([^;]+);/g;
 const VIEW_FORM = /gl_Position\s*=\s*projectionMatrix\s*\*\s*(mv)\s*;/g;
+/**
+ * A swallowed triangle shrinks to nothing, but a swallowed point still draws, on the centre: the embers
+ * and dust stacked there (additive, ~1300 on one texel), and the lens spread that texel over its Einstein
+ * ring for the frames the stack landed on a pixel, so the bloom flashed the whole screen up to ~17 times a
+ * second. A point that is gone is put outside the clip volume, where it is discarded.
+ */
+const POINT_GONE = ' if (bhGone > 0.5) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);';
 
 export function createGravityWell(): GravityWell {
   const uniforms = {
@@ -93,7 +103,8 @@ export function createGravityWell(): GravityWell {
           seen.add(m);
           const sm = m as THREE.ShaderMaterial;
           if (sm.vertexShader.includes('bhWell')) continue;
-          const src = sm.vertexShader.replace(WORLD_FORM, 'gl_Position = projectionMatrix * viewMatrix * bhWell($1);').replace(VIEW_FORM, 'gl_Position = projectionMatrix * bhWellView($1);');
+          const gone = (o as THREE.Points).isPoints ? POINT_GONE : '';
+          const src = sm.vertexShader.replace(WORLD_FORM, `gl_Position = projectionMatrix * viewMatrix * bhWell($1);${gone}`).replace(VIEW_FORM, `gl_Position = projectionMatrix * bhWellView($1);${gone}`);
           if (src === sm.vertexShader) continue;
           const at = src.indexOf('void main');
           sm.vertexShader = src.slice(0, at) + WELL_GLSL + src.slice(at);
