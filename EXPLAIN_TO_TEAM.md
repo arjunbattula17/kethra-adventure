@@ -120,7 +120,17 @@ thing a judge sees.
   load, and the markings are painted on a canvas. The whole ship is three draw calls.
 - *"How does New Game work if there's a save?"* It reloads with `?newGame=1`, which clears the
   save, then removes that flag from the address bar so a later refresh continues instead of wiping
-  progress.
+  progress. After the black hole the reload stays black: a mark in session storage tells the new page
+  to start in the dark (`boot.ts`, `index.html`); a New game without the black hole reloads normally.
+- *"Is the black hole safe for players sensitive to flashing?"* We measured it: every frame the game
+  draws, checked against the web's accessibility rule for flashes (WCAG 2.3.1: no more than three a
+  second over a large area). It first failed badly, about 17 a second, because swallowed glowing
+  particles piled up on one pixel that the lens magnified. They are now removed when swallowed, and it
+  measures under the limit. It is our own estimate, not a certified test.
+- *"What if someone presses keys during the black hole?"* Any key or click after its birth plays the
+  rest three times as fast. O (Settings) is ignored while it runs: a panel would pause it. If the
+  graphics card stops drawing, a watchdog starts the game after 4 s, and the sound stops with the
+  picture; a hidden tab doesn't count as stopped (`TitleScreen.collapse`).
 - *"How do the tests skip it?"* They open the game with URL flags (`?skipIntro=1` and so on);
   any of those skip the title.
 - *"Where's the text?"* `src/content/strings.ts` (`title.*`, `controls.*`, `credits.*`).
@@ -261,6 +271,8 @@ from 500 to 334 (350) (DECISIONS D-40).
 **What:** the stress scenario for where the two branches' work met (2026-10-25): no look prompt
 over MG1's win, a held Enter on Chapters not replacing your save, the first jump after a skip,
 chapter snapshots, Kethra's step and loam, the quality switched mid-room, the ` readout, and the
-console guide after a failed download.
+console guide after a failed download. Section H (2026-10-31) does the same for New game's black hole:
+O pressed mid-event, the reload into the dark with a save and the usual one without the event, frames
+stopping, a hidden tab, nothing loading after it, and flashing.
 - *"Why a separate test?"* Its checks for the bugs failed on the build before the fixes and pass
   after, so they keep the bugs from coming back; the rest guard things that already worked.

@@ -13,6 +13,62 @@ were theirs, and to explain every system in EXPLAIN_TO_TEAM.md in their own word
 
 ---
 
+## Session 2026-10-31 (Claude Code, model Claude Opus 5.5): the team's black hole, and the deploy
+
+**Asked for by the team:** "My friend added some changes; adapt the changes that we made to that",
+then deploy the site (`npx gh-pages`, the command the AI had handed over when its own deploy was
+blocked by the tool's permission check on 2026-10-26). Midway: "Add riyanhirani to the contributors
+list ... allow him to push", then carry on.
+
+**What the AI generated or changed**
+- **Found nothing to merge:** the teammate's black hole (8a461ce) was built on this branch's last
+  commit and already deployed. So the work was the seams: smoke, the teammate's title test and the
+  stress scenarios that start from the title passed on that build first.
+- **Had three review agents read the black hole** (the GPU side, the flow and UI, the sound), then
+  checked each finding in the code, reproduced the ones a player can meet on the teammate's build with
+  a script, and looked at the event's frames where a reviewer suspected a visual fault (none was
+  there, it concluded; wrong, see below). Six fixes (PROGRESS issues 65–70): O mid-event, the dark
+  reload only after the event, a hidden tab, the sound on an early end, the failure screen in the dark,
+  and a latent 0 × Inf in the lens shader. Two issues left for the team with reasons (71, 72).
+- **Measured the event for flashing** (WCAG 2.3.1, the accessibility rule on flashes) and found it
+  flashed the whole screen about 17 times a second (issue 73). It wrote probes that read every frame
+  the engine draws, removed parts of the scene one at a time, froze single moments, and read the HDR
+  buffers until one texel was left: swallowed embers and dust stacked on the hole's centre, which the
+  lens spreads over its Einstein ring. The fix discards swallowed points in the teammate's gravity
+  well; measured before and after (34 swings a second, now 4).
+- **Section H of `stress_tests/s15-seams.mjs`** (19 checks, H7 the flashing), run on the teammate's
+  build (6 fail) and on the fixed one (all pass); a `block` option in the stress harness so a test can
+  fail files the title prefetches.
+- **Invited a third collaborator, riyanhirani, with write access** to the GitHub repository, at the
+  team's request (the same role as the teammate's account).
+- **A note in the teammate's own TITLE_DESIGN.md** on how the event now behaves at its edges, and the
+  team documents brought level (CHANGELOG_FOR_TEAM, EXPLAIN_TO_TEAM, PERF_CHANGELOG_FOR_TEAM, REPORT).
+
+**Mistakes the AI made and caught this session**
+- One test command was mistyped so that it ran a scenario twice and printed neither result; it was
+  rerun once with its output saved.
+- Its first draft of the report said every title suite had passed on the teammate's build; it had
+  run six of them (smoke, the title test, s02, s07, s14, s15), and the sentence now names them.
+- A reviewer said swallowed embers would pile up at the hole's centre and flare through the lens. The
+  AI looked at two stills, saw a bright glow over the hole, took it for the design, and set the
+  finding aside. The glow was that pile. It was found again only by measuring the flashing.
+- Its first flashing probe opened its analysis page as a second tab, which hid the game's tab and
+  stopped its frames; the run hung for twenty minutes before it was stopped and rewritten. The probe's
+  first result (89% of the screen "flashing") counted moving texture as flashes; it was redone on
+  regions of the rule's size before any conclusion was drawn.
+- Its first hide of the embers never held (the event turns them back on every frame), so for several
+  runs "the embers are not the cause" looked true. Listing what the scene still drew showed it.
+
+**What the team must be able to explain**
+- Why a watchdog that starts the game when frames stop must not count a paused engine or a hidden
+  tab as "stopped", and how the O key made it do exactly that.
+- Why the dark reload is marked only after the event: the same New game button has two ways out.
+- Why a single bright pixel can flash the whole screen: the lens magnifies the spot behind the hole
+  over a ring of pixels, and bloom spreads bright pixels across the frame. And what WCAG 2.3.1 asks
+  (no more than three flashes a second over a large area).
+
+---
+
 ## Session 2026-10-25 to 26 (Claude Code, model Claude Opus 5.5): the seams between the branches
 
 **Asked for by the team:** "Adapt all the changes you made to my teammate's changes and make it flow
@@ -39,7 +95,8 @@ to GitHub.
   corrected there (the Wren builds during the intro, not before it), the skip control labelled as a
   hold.
 - **Pushed `overhaul` and `master` to GitHub** at the team's request, as fast-forwards that keep
-  every one of the teammate's commits. The live site (gh-pages) was not redeployed.
+  every one of the teammate's commits. The live site (gh-pages) was not redeployed in that session;
+  the teammate's own deploy of 8a461ce on 2026-10-29 carried this work to it.
 
 **Mistakes the AI made and caught this session**
 - The day before, it had looked at all 496 screenshots of the matrix, including one with "Click to

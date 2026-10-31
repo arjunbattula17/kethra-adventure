@@ -12,8 +12,10 @@ from the title to the ending with no console errors on any tier; every suite pas
 build; every scene is inside its Low draw-call and triangle budgets; the Low frame target is met once
 a level has settled. Two things are not at the bar and are said plainly below: texture memory is over
 budget in two scenes (issue 49), and the first mini-game does not pass the brief's "could this be
-2D?" test, by the team's redesign. A last pass (2026-10-25 to 26, below) checked where this branch's
-work meets the team's and fixed the thirteen issues it found there.
+2D?" test, by the team's redesign. A pass on 2026-10-25 to 26 (below) checked where this branch's
+work meets the team's and fixed the thirteen issues it found there; another on 2026-10-31 did the
+same for the team's new black hole on New game, with seven fixes, one of them a whole-screen flashing
+fast enough to matter for photosensitive players.
 
 Judgements here (quality, "feels") are [opinion]; every figure names where it was measured.
 
@@ -82,6 +84,35 @@ a render from above. The rest were found in the code:
   the trees.
 - **Shaders.** pow() of a value that can round just below zero, in the cruise's planet and the
   team's title shaders (never seen; clamped).
+
+**The black hole pass (2026-10-31).** The team then added New game's black hole (8a461ce, on top of
+this branch: a ray-traced lens, a gravity well in the title's shaders, the menu torn apart, the game
+loading in the dark it leaves) and deployed it. There was nothing to merge; the work was its seams
+with the rest of the game. On the team's build, smoke, the team's title test and the stress scenarios
+that start from the title or a new game (s02, s07, s14, s15) passed. Three
+reviewers then read it (the GPU side, the flow and UI, the sound), and seven fixes came of it (PROGRESS
+65–70, 73). The five a player can meet were each seen on the team's build first:
+- **Flashing (issue 73, the important one).** From about 3.2 s to the plunge the whole screen flashed
+  in single frames, about 17 times a second at 60 fps: WCAG 2.3.1 allows three. Swallowed embers and
+  dust all land on the hole's centre and, being additive points, stack there (one texel at 1388); the
+  lens maps its Einstein ring onto exactly that direction, so about 2000 pixels showed it, and the
+  bloom spread them over the screen on each frame the stack fell on a pixel. Found by elimination on
+  the real GPU, then confirmed by reading the HDR buffers. Swallowed points are now discarded; the
+  same measure gives 4 swings a second (under the limit's 6), and the stills show the lensed planet
+  and disk that the glow had washed out.
+- **O during the event** opened Settings, which pauses the engine; the event's stall watchdog took
+  the pause for a lost GPU and went black over the open panel, and the intro started paused behind
+  it. O is now ignored while it runs.
+- **A hidden tab brought back** could end the event at once (an overdue watchdog check before the
+  tab's first frame); a tab coming back now restarts the count.
+- **An early end** left the event's drones playing over the loading for about 5 s; they now stop with
+  the picture.
+- **With a save**, a New game that left the usual way (Isilthe's backdrop, or a click before the
+  ship's backdrop is up) still reloaded into the black-hole dark, its loading bar held back 3.5 s.
+- Two guards found by reading: the failure screen ends the dark at once, and the lens's far-field
+  blend gets the clamp the line above it has (a ray aimed exactly at the centre made 0 × Inf).
+Left for the team (issues 71, 72): the lens's full-resolution cost on Performance, and six small
+notes on the sound and the look.
 
 ---
 
@@ -166,20 +197,23 @@ are not frame rates on that laptop (§7).
 
 ## 4 · Verification
 
-Against the production build after the seams pass (`npm run build`, `vite preview`), this PC, Chrome on its GPU.
+Against the production build after the black hole pass (2026-10-31; `npm run build`, `vite preview`), this PC, Chrome on its GPU. Rows from the seams pass (2026-10-25) that this pass did not re-run say so.
 
 | Check | Result |
 |---|---|
 | Type-check and build | Clean |
 | `npm run journey` (sixteen flow tests, title to ending, every mini-game's win, fail and retry) | 16 of 16 |
-| `stress_tests/run.mjs` (key spam and held keys across alt-tab and the cut, resize spam, corrupt saves and blocked storage, dropped downloads mid-trip, skips mid-cruise, round trips measured for leaks, and the seams between the branches) | 14 of 14 (s08 keeps its one open design question, BUG-013) |
-| `stress_tests/s04-endurance.mjs 15`, fifteen round trips and a restart | GPU objects, listeners and DOM nodes flat; the heap 17.8 → 19.3 MB, level by the last laps |
-| The team's own tests: `test-title`, `test-controls`, `test-load-failure`, `test-level-caches`, `texture-leaks`, `test-offline`, `test-resilience` | All pass (52/52, 22/22, 6/6; revisits match; nothing from a planet alive back aboard; no request off the local server) |
+| `stress_tests/run.mjs` (key spam and held keys across alt-tab and the cut, resize spam, corrupt saves and blocked storage, dropped downloads mid-trip, skips mid-cruise, round trips measured for leaks, and the seams between the branches and with the black hole) | 14 of 14 (s08 keeps its one open design question, BUG-013); s15 43 of 43 on the final build |
+| New game's black hole: flashing, after WCAG 2.3.1 (every drawn frame read, swings of 0.1 per region of the rule's area) | At most 4 swings in any second (the limit is 6), on default, Low, hurried and reduced motion; the team's build gave 34, 22, 32 and 3 |
+| New game's black hole in real time (`tools/capture-newgame.mjs`: default at 1920×1080, Low at 1366×768, with a save, reduced motion) | No console errors or warnings; the reload path reaches the intro |
+| Journey and the full stress run were on the build before issue 73's fix, which changes only the title's shader patch; on the final build smoke, `test-title`, s02 and s15 were run again | 6/6, 53/53, 12/12, 43/43 |
+| `stress_tests/s04-endurance.mjs 15`, fifteen round trips and a restart (2026-10-25) | GPU objects, listeners and DOM nodes flat; the heap 17.8 → 19.3 MB, level by the last laps |
+| The team's own tests: `test-title`, `test-controls`, `test-load-failure`, `test-offline`, `test-resilience` (this pass); `test-level-caches`, `texture-leaks` (2026-10-25) | All pass (53/53, 22/22, 6/6, no request off the local server, 8/8; revisits match; nothing from a planet alive back aboard) |
 | `tools/console-scan.mjs`, every route, Low, Medium and High | No errors or warnings |
-| `tools/nan-scan.mjs`, every scene | No NaN or Inf pixels |
-| `tools/live-frames-check.mjs`, 16 s after arriving in each level | No frame drawn off the live layer |
-| `tools/test-frame-rates.mjs`, springs, damping and the jump at 30, 60 and 144 Hz | All agree; the jump peaks at 1.000 m at each |
-| `tools/wall-sweep.mjs`, every reachable wall in all three levels | Never inside a collider; nothing within 8 cm of the eye |
+| `tools/nan-scan.mjs`, every scene (2026-10-25; it does not play the black hole) | No NaN or Inf pixels |
+| `tools/live-frames-check.mjs`, 16 s after arriving in each level (2026-10-25) | No frame drawn off the live layer |
+| `tools/test-frame-rates.mjs`, springs, damping and the jump at 30, 60 and 144 Hz (2026-10-25) | All agree; the jump peaks at 1.000 m at each |
+| `tools/wall-sweep.mjs`, every reachable wall in all three levels (2026-10-25) | Never inside a collider; nothing within 8 cm of the eye |
 | Room sweeps of the Wren (56 frames, Low and High, full and emergency power) against the build before D-40 | Inside the old build's own run-to-run noise, one local difference (D-40) |
 | Screenshot matrix, four sizes × Low and High × 62 beats (496), looked at | Fixes in the QA log; 148 committed |
 
@@ -214,6 +248,10 @@ By number in docs/PROGRESS.md, "Open issues":
   canvases already do.
 - **64 (P3, team).** The Wren's music and hum start while it is built behind the intro and behind
   MG1's win, a few seconds before the player is aboard. Left as it is until someone listens.
+- **71 (P3).** The black hole's lens is drawn at full resolution on Performance; the team measured
+  18–33 ms median with 10–15 frames of 50–120 ms on its Intel UHD laptop. A school Chromebook will be
+  slower; a half-resolution lens there is the fix if it shows.
+- **72 (P3, team).** Six small notes on the black hole's sound and look, from the review (the table).
 - **12, 27, 30, 31, 32, 43, 46.** Smaller items, each with its plan in the table.
 
 ---
@@ -224,8 +262,10 @@ By number in docs/PROGRESS.md, "Open issues":
   Where a first-time player hesitates is the one thing they cannot tell you (MG1's charter and MG2's
   descent most of all: issue 27).
 - **A school Chromebook and an Intel UHD laptop**, with docs/TESTING_ON_A_REAL_CHROMEBOOK.md: the
-  frame rate there, the cold-cache stall (issue 22), and whether the texture overage (issue 49)
-  matters in practice. **Safari** on a Mac.
+  frame rate there, the cold-cache stall (issue 22), whether the texture overage (issue 49)
+  matters in practice, and the black hole's frame rate (issue 71). **Safari** on a Mac.
+- **The flashing measure is an estimate** after WCAG 2.3.1, made from the game's own frames on this
+  PC; it is not a certified photosensitivity test (such as the Harding test broadcasters use).
 - **Team decisions:** MG1 and the "could this be 2D?" test (§8, question 1); the title's own
   palette and labels (D-37, question 15); the new canon text (D-26); the team number in the credits
   (`credits.original`, "team #____", D-29); issue 40; whether the Wren's music should wait for the

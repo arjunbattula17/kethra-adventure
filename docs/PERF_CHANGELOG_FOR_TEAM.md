@@ -382,6 +382,10 @@ standing in for a school laptop; not yet on the Intel UHD laptop. Counts from
 - Texture memory on Performance: the Wren about 210 MB against 150, Vessek 165 against 110. The real
   fix is textures baked ahead of time in a GPU-compressed format.
 - The Hush view on Quality: 504k triangles against 500k.
+- New game's black hole (2026-10-31, PROGRESS issue 71): its lens is a full-screen pass at full
+  resolution on every tier (Performance only takes fewer steps). The team's Intel UHD numbers are in
+  src/galaxy/title/TITLE_DESIGN.md; a school Chromebook is slower. If it shows there, draw the lens at
+  half resolution on Performance.
 
 ---
 

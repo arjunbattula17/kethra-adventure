@@ -160,3 +160,17 @@ audio device; the old exit had the same stall (measured with `?title=isilthe`), 
 the silence before the birth. `node tools/capture-newgame.mjs <label> [base] --beats=1.2,2.4,3.6,4.8`
 shoots the event with its clock frozen per still; without `--beats` it reports frame times from the
 click to the intro (`--save` takes the reload path, `--reduced` the gentle form).
+
+**Where it meets the rest of the game** (2026-10-31; docs/PROGRESS.md issues 65-70 and 73,
+`stress_tests/s15-seams.mjs H`). Swallowed points are discarded (`gravityWell.ts`, POINT_GONE): the
+embers and dust stacked on the hole's centre, and the lens spread that one texel over its Einstein ring,
+so the bloom flashed the whole screen about 17 times a second from ~3 s in (WCAG 2.3.1 allows three).
+Measured on every drawn frame at 64x36, per region of the rule's area: 34 swings in a second before,
+4 after; the same stills at 3.6 and 4.8 s now show the lensed planet and disk the glow washed out.
+The event plays through: O does not open Settings while it runs (a
+panel paused the engine, the stall watchdog took the pause for a lost GPU and went black over the open
+panel, and the game loaded paused). A tab coming back restarts the watchdog's count, so an overdue
+check can't end the event before the tab's first frame. If the watchdog does end it (frames really
+stopped), the beds cut with the picture instead of droning on over the loading. The reload into the
+dark happens only after the event: a New game that left the old way reloads to the usual loading
+screen. A load failure in the dark shows its message at once.

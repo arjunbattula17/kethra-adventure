@@ -6,6 +6,66 @@ Measured numbers cite their files; the rest is description.
 
 ---
 
+## New game's black hole, where it meets the rest (2026-10-31)
+
+The team's black hole (8a461ce) checked against everything around it: three reviewers read it (the
+GPU side, the flow and UI, the sound), and each finding that a player can meet was reproduced on its
+build before it was fixed. Details: docs/PROGRESS.md issues 65–73, src/galaxy/title/TITLE_DESIGN.md.
+
+### No flashing
+- **What:** stuff the black hole swallows is no longer drawn once it is gone. File:
+  `src/galaxy/title/singularity/gravityWell.ts`.
+- **Why:** swallowed embers and dust all landed on the hole's centre and, being glowing points, piled
+  up on one pixel. The lens spreads that exact spot over its Einstein ring, and the bloom spread that
+  over the screen, so from about 3 s in the whole screen flashed in single frames about 17 times a
+  second. The accessibility rule (WCAG 2.3.1) allows three; flashing like that can trigger seizures in
+  photosensitive players, and the game is meant to be rated E. Measured before and after on this
+  machine's GPU: 34 swings of brightness a second, now 4. It also looks better: the glow had been
+  washing out the lensed planet and the disk.
+- **Rubric:** Overall Appeal; Technical Skill.
+- **Say:** "We measured the black hole frame by frame against the web's flashing guideline, found a
+  pile-up of particles the lens was magnifying, and removed it. It now stays under the guideline's
+  three flashes a second."
+
+### It plays through, whatever the player does
+- **What:** O (Settings) is ignored while the event runs; a tab hidden and brought back makes it wait
+  instead of cutting it short; if the graphics card really stops drawing, the watchdog still starts
+  the game and the sound now stops with the picture. Files: `src/ui/SettingsPanel.ts`,
+  `src/ui/TitleScreen.ts` (`collapse`), `src/audio/singularitySound.ts`.
+- **Why:** O opened Settings, which pauses the engine; the event's watchdog took the pause for a lost
+  GPU, went black over the open panel, and the game loaded paused behind it. A hidden tab could end
+  the event at 2 s of 6.75, and an early end left the drones playing over the loading for 5 s.
+- **Rubric:** Technical Skill; Overall Appeal.
+- **Say:** "The black hole has a watchdog that starts the game if the graphics card stops drawing.
+  We made sure a settings key or switching tabs can't trip it."
+
+### The dark reload only after the black hole
+- **What:** with a saved journey, New game still reloads the page, but it opens in the black hole's
+  dark only if the black hole played. File: `src/boot.ts`.
+- **Why:** New game on the Isilthe backdrop, or before the ship's backdrop is up, leaves the usual
+  way; its reload still opened black with the loading bar held back 3.5 s, on exactly the slow
+  machines most likely to click early.
+- **Rubric:** Storyline & Flow.
+- **Say:** "Every way out of the title ends in one clean transition: the black hole's dark, or the
+  usual loading screen, never a mix of the two."
+
+### Two small guards
+- **What:** a load failure in the dark shows its message at once (`UIManager.showLoadFailure`); the
+  lens shader's far-field blend has the same clamp as the line above it, so a ray aimed exactly at the
+  centre can't make a NaN pixel (`singularity/lensPass.ts`).
+- **Why:** the first is a path traced in the code, not seen; the second has never drawn (those rays
+  are swallowed first), but one NaN pixel through the bloom turns the frame black, as the title once did.
+- **Rubric:** Technical Skill.
+- **Say:** "We guard the error screen and the shader against the cases we found by reading the code,
+  not only the ones we saw."
+
+### Tested
+`stress_tests/s15-seams.mjs` section H: 6 of its 19 checks fail on the team's build (H7 is the
+flashing), all pass after. Open for the team (issues 71, 72): the lens's cost on Low, and small notes on
+sound and look.
+
+---
+
 ## The overhaul (2026-10-14 to 26)
 
 The full account is docs/REPORT.md; the performance side is in PERF_CHANGELOG_FOR_TEAM.md, 30–34.
