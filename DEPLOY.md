@@ -18,7 +18,12 @@ The site is fully static: `dist/` is the whole game. No server code, no external
   `CF_PAGES` / `WORKERS_CI` flags switch the base path to the root automatically (see
   `vite.config.ts`).
 - **GitHub Pages:** serves from `/kethra-adventure/`, which is the default base. Note: a GitHub
-  Pages URL contains the account name (DECISIONS D-12).
+  Pages URL contains the account name (DECISIONS D-12). Deployed with the `gh-pages` package:
+  `npx gh-pages -d dist -m "Deploy <commit>: <what changed>"`. **From Windows** that fails with
+  `spawn ENAMETOOLONG`: it removes the old site by passing all ~690 file paths to one git command,
+  past Windows' command-line limit. Add `--remove "assets/*"`: between deploys only the hashed
+  bundles in `assets/` change name, so removing just those gives the same site (if a file under
+  `public/` was deleted, remove it from the gh-pages branch too).
 
 ## After deploying
 1. Open the live link in a **private window** (a fresh profile): the game must reach the intro

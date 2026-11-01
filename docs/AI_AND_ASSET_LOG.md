@@ -41,6 +41,11 @@ list ... allow him to push", then carry on.
   fail files the title prefetches.
 - **Invited a third collaborator, riyanhirani, with write access** to the GitHub repository, at the
   team's request (the same role as the teammate's account).
+- **Pushed and deployed** at the team's request: `overhaul` and `master` fast-forwarded to b6cd13a,
+  and the live site redeployed from it (gh-pages ff72451, on top of the teammate's deploy). The
+  plain deploy command fails on Windows (too long a command line); it worked with
+  `--remove "assets/*"`, now written in DEPLOY.md. The live link then passed smoke, the opening's
+  tutorial run, the flash probe and the offline test.
 - **A note in the teammate's own TITLE_DESIGN.md** on how the event now behaves at its edges, and the
   team documents brought level (CHANGELOG_FOR_TEAM, EXPLAIN_TO_TEAM, PERF_CHANGELOG_FOR_TEAM, REPORT).
 
